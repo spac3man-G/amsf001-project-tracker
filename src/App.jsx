@@ -1,12 +1,7 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
-
-// Layout
 import Layout from './components/Layout';
-
-// Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Milestones from './pages/Milestones';
@@ -17,23 +12,22 @@ import Timesheets from './pages/Timesheets';
 import Expenses from './pages/Expenses';
 import KPIs from './pages/KPIs';
 import KPIDetail from './pages/KPIDetail';
-import Standards from './pages/Standards';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 
 function ProtectedRoute({ children }) {
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      setSession(session);
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      setSession(session);
     });
 
     return () => subscription.unsubscribe();
@@ -46,51 +40,52 @@ function ProtectedRoute({ children }) {
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100vh',
-        fontSize: '1.1rem',
-        color: '#64748b'
+        backgroundColor: '#f8fafc'
       }}>
-        Loading...
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            border: '4px solid #e2e8f0',
+            borderTop: '4px solid #10b981',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 1rem'
+          }}></div>
+          <p style={{ color: '#64748b' }}>Loading...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
+  if (!session) {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return <Layout>{children}</Layout>;
 }
 
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Dashboard />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="milestones" element={<Milestones />} />
-          <Route path="milestones/:id" element={<MilestoneDetail />} />
-          <Route path="deliverables" element={<Deliverables />} />
-          <Route path="resources" element={<Resources />} />
-          <Route path="timesheets" element={<Timesheets />} />
-          <Route path="expenses" element={<Expenses />} />
-          <Route path="kpis" element={<KPIs />} />
-          <Route path="kpis/:id" element={<KPIDetail />} />
-          <Route path="standards" element={<Standards />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="users" element={<Users />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/milestones" element={<ProtectedRoute><Milestones /></ProtectedRoute>} />
+        <Route path="/milestones/:id" element={<ProtectedRoute><MilestoneDetail /></ProtectedRoute>} />
+        <Route path="/deliverables" element={<ProtectedRoute><Deliverables /></ProtectedRoute>} />
+        <Route path="/resources" element={<ProtectedRoute><Resources /></ProtectedRoute>} />
+        <Route path="/timesheets" element={<ProtectedRoute><Timesheets /></ProtectedRoute>} />
+        <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
+        <Route path="/kpis" element={<ProtectedRoute><KPIs /></ProtectedRoute>} />
+        <Route path="/kpis/:id" element={<ProtectedRoute><KPIDetail /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }
 
