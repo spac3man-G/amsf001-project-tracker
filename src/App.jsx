@@ -13,6 +13,7 @@ import Reports from './pages/Reports'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
 import NetworkStandards from './pages/NetworkStandards'
+import Deliverables from './pages/Deliverables'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -56,6 +57,7 @@ function App() {
           }>
             <Route index element={<Dashboard />} />
             <Route path="milestones" element={<Milestones />} />
+            <Route path="deliverables" element={<Deliverables />} />
             <Route path="resources" element={<Resources />} />
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="expenses" element={<Expenses />} />
