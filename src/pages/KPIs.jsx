@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Edit2, Save, X, Target, AlertCircle } from 'lucide-react';
+import { 
+  TrendingUp, RefreshCw, Edit2, Save, X, Target,
+  CheckCircle, AlertTriangle, AlertCircle
+} from 'lucide-react';
 
 export default function KPIs() {
   const [kpis, setKpis] = useState([]);
@@ -8,6 +12,13 @@ export default function KPIs() {
   const [userRole, setUserRole] = useState('viewer');
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+
+  const categories = [
+    'Time Performance',
+    'Quality of Collaboration',
+    'Delivery Performance'
+  ];
 
   useEffect(() => {
     fetchKPIs();
@@ -31,8 +42,8 @@ export default function KPIs() {
       const { data, error } = await supabase
         .from('kpis')
         .select('*')
-        .order('kpi_ref');
-      
+        .order('kpi_id');
+
       if (error) throw error;
       setKpis(data || []);
     } catch (error) {
@@ -42,11 +53,17 @@ export default function KPIs() {
     }
   }
 
+  async function handleRefreshMetrics() {
+    setRefreshing(true);
+    // In a real implementation, this would recalculate KPI values from deliverables, timesheets, etc.
+    await fetchKPIs();
+    setTimeout(() => setRefreshing(false), 1000);
+  }
+
   async function handleEdit(kpi) {
     setEditingId(kpi.id);
     setEditForm({
-      current_value: kpi.current_value,
-      last_measured: new Date().toISOString().split('T')[0]
+      current_value: kpi.current_value || ''
     });
   }
 
@@ -54,261 +71,329 @@ export default function KPIs() {
     try {
       const { error } = await supabase
         .from('kpis')
-        .update(editForm)
+        .update({
+          current_value: parseFloat(editForm.current_value) || 0
+        })
         .eq('id', id);
 
       if (error) throw error;
-      
       await fetchKPIs();
       setEditingId(null);
-      alert('KPI updated successfully!');
     } catch (error) {
       console.error('Error updating KPI:', error);
       alert('Failed to update KPI');
     }
   }
 
-  const getStatusColor = (current, target) => {
-    const performance = (current / target) * 100;
-    if (performance >= 95) return 'badge-success';
-    if (performance >= 80) return 'badge-primary';
-    if (performance >= 70) return 'badge-warning';
-    return 'badge-danger';
-  };
+  function getStatus(current, target) {
+    const curr = parseFloat(current) || 0;
+    const tgt = parseFloat(target) || 100;
+    const percentage = (curr / tgt) * 100;
+    
+    if (curr === 0) return { status: 'Critical', color: '#ef4444', bg: '#fef2f2', icon: AlertCircle };
+    if (percentage >= 100) return { status: 'Achieved', color: '#10b981', bg: '#f0fdf4', icon: CheckCircle };
+    if (percentage >= 80) return { status: 'On Track', color: '#3b82f6', bg: '#eff6ff', icon: TrendingUp };
+    if (percentage >= 60) return { status: 'At Risk', color: '#f59e0b', bg: '#fffbeb', icon: AlertTriangle };
+    return { status: 'Critical', color: '#ef4444', bg: '#fef2f2', icon: AlertCircle };
+  }
 
-  const getStatusText = (current, target) => {
-    const performance = (current / target) * 100;
-    if (performance >= 95) return 'ON TARGET';
-    if (performance >= 80) return 'NEAR TARGET';
-    if (performance >= 70) return 'AT RISK';
-    return 'CRITICAL';
-  };
+  function getCategoryColor(category) {
+    switch (category) {
+      case 'Time Performance': return { bg: '#dbeafe', color: '#2563eb' };
+      case 'Quality of Collaboration': return { bg: '#f3e8ff', color: '#7c3aed' };
+      case 'Delivery Performance': return { bg: '#dcfce7', color: '#16a34a' };
+      default: return { bg: '#f1f5f9', color: '#64748b' };
+    }
+  }
 
   if (loading) {
-    return (
-      <div>
-        <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">Key Performance Indicators</h2>
+    return <div className="loading">Loading KPIs...</div>;
+  }
+
+  const canEdit = userRole === 'admin' || userRole === 'contributor';
+
+  // Group KPIs by category
+  const kpisByCategory = categories.reduce((acc, cat) => {
+    acc[cat] = kpis.filter(k => k.category === cat);
+    return acc;
+  }, {});
+
+  // Calculate overall stats
+  const totalKPIs = kpis.length;
+  const achievedKPIs = kpis.filter(k => {
+    const status = getStatus(k.current_value, k.target_value);
+    return status.status === 'Achieved';
+  }).length;
+  const atRiskKPIs = kpis.filter(k => {
+    const status = getStatus(k.current_value, k.target_value);
+    return status.status === 'At Risk' || status.status === 'Critical';
+  }).length;
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <div className="page-title">
+          <TrendingUp size={28} />
+          <div>
+            <h1>Key Performance Indicators</h1>
+            <p>Track project performance against SOW targets</p>
           </div>
-          <div style={{ padding: '2rem' }}>
-            <p>Loading KPIs...</p>
+        </div>
+        <button 
+          className="btn btn-primary" 
+          onClick={handleRefreshMetrics}
+          disabled={refreshing}
+        >
+          <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
+          {refreshing ? 'Refreshing...' : 'Refresh Metrics'}
+        </button>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="stat-card">
+          <div className="stat-label">Total KPIs</div>
+          <div className="stat-value">{totalKPIs}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Achieved</div>
+          <div className="stat-value" style={{ color: '#10b981' }}>{achievedKPIs}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">At Risk / Critical</div>
+          <div className="stat-value" style={{ color: '#ef4444' }}>{atRiskKPIs}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Achievement Rate</div>
+          <div className="stat-value" style={{ color: '#3b82f6' }}>
+            {totalKPIs > 0 ? Math.round((achievedKPIs / totalKPIs) * 100) : 0}%
           </div>
         </div>
       </div>
-    );
-  }
 
-  const categories = {
-    'Time Performance': kpis.filter(k => k.category === 'Time Performance'),
-    'Quality of Collaboration': kpis.filter(k => k.category === 'Quality of Collaboration'),
-    'Delivery Performance': kpis.filter(k => k.category === 'Delivery Performance')
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">Key Performance Indicators</h2>
-          {userRole === 'admin' && (
-            <button 
-              className="btn btn-primary"
-              onClick={() => alert('Refresh KPIs from latest data')}
-            >
-              <TrendingUp size={20} />
-              Refresh Metrics
-            </button>
-          )}
-        </div>
-
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
+      {/* KPIs Table */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginBottom: '1rem' }}>Key Performance Indicators</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>KPI ID</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th style={{ textAlign: 'center' }}>Target</th>
+              <th style={{ textAlign: 'center' }}>Current</th>
+              <th style={{ textAlign: 'center' }}>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {kpis.length === 0 ? (
               <tr>
-                <th>KPI ID</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Target</th>
-                <th>Current</th>
-                <th>Status</th>
-                {userRole === 'admin' && <th>Actions</th>}
+                <td colSpan={7} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
+                  No KPIs found.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {kpis.map((kpi) => (
-                <tr key={kpi.id}>
-                  <td>{kpi.kpi_ref}</td>
-                  <td>
-                    <div>
-                      <strong>{kpi.name}</strong>
-                      {kpi.description && (
-                        <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
-                          {kpi.description}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td>{kpi.category}</td>
-                  <td>{kpi.target}%</td>
-                  <td>
-                    {editingId === kpi.id ? (
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            ) : (
+              kpis.map(kpi => {
+                const statusInfo = getStatus(kpi.current_value, kpi.target_value);
+                const StatusIcon = statusInfo.icon;
+                const catColors = getCategoryColor(kpi.category);
+                
+                return (
+                  <tr key={kpi.id}>
+                    <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{kpi.kpi_id}</td>
+                    <td>
+                      <Link 
+                        to={`/kpis/${kpi.id}`}
+                        style={{ 
+                          color: '#3b82f6', 
+                          textDecoration: 'none', 
+                          fontWeight: '500',
+                          cursor: 'pointer'
+                        }}
+                        onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                        onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                      >
+                        {kpi.name}
+                      </Link>
+                    </td>
+                    <td>
+                      <span style={{ 
+                        padding: '0.25rem 0.5rem', 
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        backgroundColor: catColors.bg,
+                        color: catColors.color
+                      }}>
+                        {kpi.category}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: '500' }}>{kpi.target_value}%</td>
+                    <td style={{ textAlign: 'center' }}>
+                      {editingId === kpi.id ? (
                         <input
-                          className="input-field"
                           type="number"
+                          className="form-input"
+                          value={editForm.current_value}
+                          onChange={(e) => setEditForm({ ...editForm, current_value: e.target.value })}
+                          style={{ width: '80px', textAlign: 'center' }}
                           min="0"
                           max="100"
-                          value={editForm.current_value}
-                          onChange={(e) => setEditForm({...editForm, current_value: e.target.value})}
-                          style={{ width: '80px' }}
                         />
-                        %
-                      </div>
-                    ) : (
-                      <div>
-                        {kpi.current_value || '-'}%
-                        {kpi.last_measured && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>
-                            {new Date(kpi.last_measured).toLocaleDateString()}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`badge ${getStatusColor(kpi.current_value || 0, kpi.target)}`}>
-                      {getStatusText(kpi.current_value || 0, kpi.target)}
-                    </span>
-                  </td>
-                  {userRole === 'admin' && (
+                      ) : (
+                        <span style={{ color: statusInfo.color, fontWeight: '600' }}>
+                          {kpi.current_value !== null ? `${kpi.current_value}%` : '-%'}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span style={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        padding: '0.25rem 0.75rem', 
+                        borderRadius: '9999px',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                        backgroundColor: statusInfo.bg,
+                        color: statusInfo.color
+                      }}>
+                        <StatusIcon size={14} />
+                        {statusInfo.status}
+                      </span>
+                    </td>
                     <td>
                       {editingId === kpi.id ? (
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button 
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleSave(kpi.id)}
-                          >
+                        <div className="action-buttons">
+                          <button className="btn-icon btn-success" onClick={() => handleSave(kpi.id)} title="Save">
                             <Save size={16} />
                           </button>
-                          <button 
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => setEditingId(null)}
-                          >
+                          <button className="btn-icon btn-secondary" onClick={() => setEditingId(null)} title="Cancel">
                             <X size={16} />
                           </button>
                         </div>
                       ) : (
-                        <button 
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => handleEdit(kpi)}
-                        >
-                          <Edit2 size={16} />
-                        </button>
+                        <div className="action-buttons">
+                          {canEdit && (
+                            <button className="btn-icon" onClick={() => handleEdit(kpi)} title="Edit Value">
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {Object.entries(categories).map(([category, categoryKpis]) => (
-        <div key={category} className="card" style={{ marginTop: '1rem' }}>
-          <div className="card-header">
-            <h3 className="card-title">{category}</h3>
-          </div>
-          <div style={{ padding: '1rem' }}>
-            <div className="kpi-grid">
-              {categoryKpis.map(kpi => {
-                const performance = (kpi.current_value || 0) / kpi.target * 100;
+      {/* KPIs by Category */}
+      {categories.map(category => {
+        const categoryKPIs = kpisByCategory[category] || [];
+        if (categoryKPIs.length === 0) return null;
+        
+        const catColors = getCategoryColor(category);
+        
+        return (
+          <div key={category} className="card" style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ 
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span style={{ 
+                width: '12px', 
+                height: '12px', 
+                borderRadius: '50%', 
+                backgroundColor: catColors.color 
+              }}></span>
+              {category}
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              {categoryKPIs.map(kpi => {
+                const statusInfo = getStatus(kpi.current_value, kpi.target_value);
+                const progress = kpi.target_value > 0 
+                  ? Math.min(100, ((kpi.current_value || 0) / kpi.target_value) * 100)
+                  : 0;
+                
                 return (
-                  <div key={kpi.id} className="kpi-card">
-                    <div className="kpi-header">
-                      <span className="kpi-ref">{kpi.kpi_ref}</span>
-                      <Target size={20} />
+                  <Link 
+                    key={kpi.id}
+                    to={`/kpis/${kpi.id}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <div style={{ 
+                      padding: '1rem', 
+                      backgroundColor: '#f8fafc', 
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.borderColor = '#3b82f6';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.15)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{kpi.kpi_id}</span>
+                        <Target size={16} style={{ color: statusInfo.color }} />
+                      </div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: statusInfo.color, marginBottom: '0.25rem' }}>
+                        {kpi.current_value !== null ? `${kpi.current_value}%` : '0%'}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
+                        Target: {kpi.target_value}%
+                      </div>
+                      <div style={{ 
+                        width: '100%', 
+                        height: '6px', 
+                        backgroundColor: '#e2e8f0', 
+                        borderRadius: '3px',
+                        overflow: 'hidden',
+                        marginBottom: '0.5rem'
+                      }}>
+                        <div style={{ 
+                          width: `${progress}%`, 
+                          height: '100%', 
+                          backgroundColor: statusInfo.color,
+                          borderRadius: '3px',
+                          transition: 'width 0.3s ease'
+                        }}></div>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: '500', color: '#374151' }}>
+                        {kpi.name}
+                      </div>
                     </div>
-                    <div className="kpi-value">{kpi.current_value || 0}%</div>
-                    <div className="kpi-target">Target: {kpi.target}%</div>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-bar-fill"
-                        style={{ 
-                          width: `${Math.min(performance, 100)}%`,
-                          background: performance >= 90 ? 'var(--success)' : 
-                                     performance >= 70 ? 'var(--primary)' : 'var(--danger)'
-                        }}
-                      />
-                    </div>
-                    <div className="kpi-name">{kpi.name}</div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
-      <style jsx>{`
-        .kpi-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem;
-        }
-        
-        .kpi-card {
-          background: var(--card-bg);
-          border: 1px solid var(--border);
-          border-radius: 0.5rem;
-          padding: 1rem;
-        }
-        
-        .kpi-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 0.5rem;
-        }
-        
-        .kpi-ref {
-          font-size: 0.875rem;
-          color: var(--text-light);
-        }
-        
-        .kpi-value {
-          font-size: 2rem;
-          font-weight: bold;
-          color: var(--primary);
-          margin-bottom: 0.25rem;
-        }
-        
-        .kpi-target {
-          font-size: 0.875rem;
-          color: var(--text-light);
-          margin-bottom: 0.5rem;
-        }
-        
-        .kpi-name {
-          font-size: 0.875rem;
-          margin-top: 0.5rem;
-        }
-        
-        .badge-warning {
-          background: #f59e0b;
-          color: white;
-        }
-        
-        .badge-danger {
-          background: var(--danger);
-          color: white;
-        }
-        
-        .btn-sm {
-          padding: 0.25rem 0.5rem;
-          font-size: 0.875rem;
-        }
-      `}</style>
+      {/* Info Box */}
+      <div className="card" style={{ backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e' }}>
+        <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>💡 About KPIs</h4>
+        <p style={{ color: '#166534', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+          Click on any KPI name to view full details including SOW definitions, measurement methods, and remediation actions.
+        </p>
+        <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
+          <li><strong>Achieved:</strong> Current value meets or exceeds target</li>
+          <li><strong>On Track:</strong> Current value is 80% or more of target</li>
+          <li><strong>At Risk:</strong> Current value is 60-80% of target</li>
+          <li><strong>Critical:</strong> Current value is below 60% of target</li>
+        </ul>
+      </div>
     </div>
   );
 }
