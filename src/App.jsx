@@ -1,76 +1,100 @@
-import { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { supabase } from './lib/supabase'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Layout from './components/Layout'
-import Milestones from './pages/Milestones'
-import Resources from './pages/Resources'
-import Timesheets from './pages/Timesheets'
-import Expenses from './pages/Expenses'
-import KPIs from './pages/KPIs'
-import Reports from './pages/Reports'
-import Users from './pages/Users'
-import Settings from './pages/Settings'
-import NetworkStandards from './pages/NetworkStandards'
-import Deliverables from './pages/Deliverables'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { supabase } from './lib/supabase';
 
-function App() {
-  const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
+// Layout
+import Layout from './components/Layout';
+
+// Pages
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Milestones from './pages/Milestones';
+import Deliverables from './pages/Deliverables';
+import Resources from './pages/Resources';
+import Timesheets from './pages/Timesheets';
+import Expenses from './pages/Expenses';
+import KPIs from './pages/KPIs';
+import KPIDetail from './pages/KPIDetail';
+import Standards from './pages/Standards';
+import Reports from './pages/Reports';
+import Users from './pages/Users';
+import Settings from './pages/Settings';
+
+function ProtectedRoute({ children }) {
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Get initial session
+    // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    })
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => subscription.unsubscribe();
+  }, []);
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner"></div>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '1.1rem',
+        color: '#64748b'
+      }}>
+        Loading...
       </div>
-    )
+    );
   }
 
-  return (
-    <Router>
-      <div className="app">
-        <Routes>
-          <Route path="/login" element={
-            session ? <Navigate to="/" /> : <Login />
-          } />
-          
-          <Route path="/" element={
-            !session ? <Navigate to="/login" /> : <Layout session={session} />
-          }>
-            <Route index element={<Dashboard />} />
-            <Route path="milestones" element={<Milestones />} />
-            <Route path="deliverables" element={<Deliverables />} />
-            <Route path="resources" element={<Resources />} />
-            <Route path="timesheets" element={<Timesheets />} />
-            <Route path="expenses" element={<Expenses />} />
-            <Route path="kpis" element={<KPIs />} />
-            <Route path="standards" element={<NetworkStandards />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="users" element={<Users />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-        </Routes>
-      </div>
-    </Router>
-  )
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 }
 
-export default App
+function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* Public Route */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Protected Routes */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="milestones" element={<Milestones />} />
+          <Route path="deliverables" element={<Deliverables />} />
+          <Route path="resources" element={<Resources />} />
+          <Route path="timesheets" element={<Timesheets />} />
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="kpis" element={<KPIs />} />
+          <Route path="kpis/:id" element={<KPIDetail />} />
+          <Route path="standards" element={<Standards />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="users" element={<Users />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+
+        {/* Catch all - redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
