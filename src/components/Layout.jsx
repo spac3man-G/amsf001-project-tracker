@@ -11,7 +11,8 @@ import {
   UserCog,
   Settings as SettingsIcon,
   LogOut,
-  BookOpen
+  BookOpen,
+  Package
 } from 'lucide-react'
 
 export default function Layout({ session }) {
@@ -20,6 +21,7 @@ export default function Layout({ session }) {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Milestones', href: '/milestones', icon: Target },
+    { name: 'Deliverables', href: '/deliverables', icon: Package },
     { name: 'Resources', href: '/resources', icon: Users },
     { name: 'Timesheets', href: '/timesheets', icon: Clock },
     { name: 'Expenses', href: '/expenses', icon: Receipt },
