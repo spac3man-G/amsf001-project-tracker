@@ -569,33 +569,110 @@ export default function Deliverables() {
               </select>
             </div>
           </div>
+          
+          {/* Improved KPI Selection */}
           <div style={{ marginBottom: '1rem' }}>
-            <label className="form-label">Link to KPIs</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <label className="form-label">Link to KPIs (select all that apply)</label>
+            <div style={{ 
+              border: '1px solid #e2e8f0', 
+              borderRadius: '8px', 
+              padding: '0.75rem',
+              maxHeight: '300px',
+              overflowY: 'auto',
+              backgroundColor: '#f8fafc'
+            }}>
               {kpis.map(kpi => (
                 <label 
                   key={kpi.id} 
                   style={{ 
                     display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.25rem',
-                    padding: '0.25rem 0.5rem',
-                    backgroundColor: newDeliverable.kpi_ids.includes(kpi.id) ? '#dbeafe' : '#f1f5f9',
-                    borderRadius: '4px',
+                    alignItems: 'flex-start', 
+                    gap: '0.75rem',
+                    padding: '0.75rem',
+                    marginBottom: '0.5rem',
+                    backgroundColor: newDeliverable.kpi_ids.includes(kpi.id) ? '#dbeafe' : 'white',
+                    border: newDeliverable.kpi_ids.includes(kpi.id) ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                    borderRadius: '8px',
                     cursor: 'pointer',
-                    fontSize: '0.85rem'
+                    transition: 'all 0.2s'
                   }}
                 >
                   <input 
                     type="checkbox"
                     checked={newDeliverable.kpi_ids.includes(kpi.id)}
                     onChange={() => toggleKpiSelection(kpi.id)}
+                    style={{ marginTop: '4px', width: '18px', height: '18px' }}
                   />
-                  <span style={{ fontWeight: '500' }}>{kpi.kpi_ref}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                      <span style={{ 
+                        fontWeight: '700', 
+                        color: '#1e40af',
+                        backgroundColor: '#eff6ff',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem'
+                      }}>
+                        {kpi.kpi_ref}
+                      </span>
+                      <span style={{ fontWeight: '600', color: '#374151' }}>{kpi.name}</span>
+                    </div>
+                    {kpi.description && (
+                      <div style={{ 
+                        fontSize: '0.85rem', 
+                        color: '#64748b', 
+                        lineHeight: '1.4'
+                      }}>
+                        {kpi.description.length > 150 ? kpi.description.substring(0, 150) + '...' : kpi.description}
+                      </div>
+                    )}
+                    <div style={{ 
+                      fontSize: '0.8rem', 
+                      color: '#10b981', 
+                      marginTop: '0.25rem',
+                      fontWeight: '500'
+                    }}>
+                      Target: {kpi.target}%
+                    </div>
+                  </div>
                 </label>
               ))}
             </div>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              backgroundColor: newDeliverable.kpi_ids.length > 0 ? '#f0fdf4' : '#f8fafc',
+              borderRadius: '6px'
+            }}>
+              <span style={{ 
+                fontSize: '0.9rem', 
+                color: newDeliverable.kpi_ids.length > 0 ? '#16a34a' : '#64748b',
+                fontWeight: '500'
+              }}>
+                {newDeliverable.kpi_ids.length} KPI{newDeliverable.kpi_ids.length !== 1 ? 's' : ''} selected
+              </span>
+              {newDeliverable.kpi_ids.length > 0 && (
+                <button 
+                  type="button"
+                  onClick={() => setNewDeliverable({ ...newDeliverable, kpi_ids: [] })}
+                  style={{
+                    fontSize: '0.8rem',
+                    color: '#ef4444',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
+
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-primary" onClick={handleAdd}>
               <Save size={16} /> Save Deliverable
@@ -626,7 +703,7 @@ export default function Deliverables() {
             {filteredDeliverables.length === 0 ? (
               <tr>
                 <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                  No deliverables found.
+                  No deliverables found. Click "Add Deliverable" to create one.
                 </td>
               </tr>
             ) : (
@@ -734,7 +811,7 @@ export default function Deliverables() {
                     <td>
                       {isEditing ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                          {kpis.slice(0, 5).map(kpi => (
+                          {kpis.map(kpi => (
                             <label key={kpi.id} style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.75rem' }}>
                               <input 
                                 type="checkbox"
@@ -747,22 +824,27 @@ export default function Deliverables() {
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                          {linkedKpiIds.slice(0, 4).map(kpiId => {
+                          {linkedKpiIds.map(kpiId => {
                             const kpi = kpis.find(k => k.id === kpiId);
                             return kpi ? (
-                              <span key={kpiId} style={{ 
-                                padding: '0.125rem 0.375rem', 
-                                backgroundColor: '#dbeafe', 
-                                color: '#2563eb',
-                                borderRadius: '4px',
-                                fontSize: '0.7rem'
-                              }}>
+                              <span 
+                                key={kpiId} 
+                                title={kpi.name}
+                                style={{ 
+                                  padding: '0.125rem 0.375rem', 
+                                  backgroundColor: '#dbeafe', 
+                                  color: '#2563eb',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  cursor: 'help'
+                                }}
+                              >
                                 {kpi.kpi_ref}
                               </span>
                             ) : null;
                           })}
-                          {linkedKpiIds.length > 4 && (
-                            <span style={{ fontSize: '0.7rem', color: '#64748b' }}>+{linkedKpiIds.length - 4}</span>
+                          {linkedKpiIds.length === 0 && (
+                            <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>None</span>
                           )}
                         </div>
                       )}
@@ -924,7 +1006,8 @@ export default function Deliverables() {
             }}>
               <h4 style={{ color: '#92400e', marginBottom: '0.5rem' }}>⚠️ KPI Assessment Required</h4>
               <p style={{ color: '#92400e', fontSize: '0.9rem', margin: 0 }}>
-                Please assess whether each KPI criteria was met for this deliverable.
+                For each KPI linked to this deliverable, assess whether the criteria was met. 
+                Your answers will update the overall KPI scores.
               </p>
             </div>
 
@@ -935,12 +1018,28 @@ export default function Deliverables() {
                   border: '1px solid #e2e8f0', 
                   borderRadius: '8px', 
                   padding: '1rem',
-                  marginBottom: '1rem'
+                  marginBottom: '1rem',
+                  backgroundColor: kpiAssessments[kpi.id] !== undefined ? 
+                    (kpiAssessments[kpi.id] ? '#f0fdf4' : '#fef2f2') : 'white'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1e40af', marginBottom: '0.25rem' }}>{kpi.kpi_ref}</div>
-                      <div style={{ fontWeight: '500' }}>{kpi.name}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <span style={{ 
+                          fontWeight: '700', 
+                          color: '#1e40af',
+                          backgroundColor: '#eff6ff',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.85rem'
+                        }}>
+                          {kpi.kpi_ref}
+                        </span>
+                        <span style={{ fontWeight: '600', color: '#374151' }}>{kpi.name}</span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '500' }}>
+                        Target: {kpi.target}%
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button
@@ -982,9 +1081,10 @@ export default function Deliverables() {
                     color: '#64748b', 
                     backgroundColor: '#f8fafc', 
                     padding: '0.75rem', 
-                    borderRadius: '6px' 
+                    borderRadius: '6px',
+                    borderLeft: '3px solid #3b82f6'
                   }}>
-                    <strong>Criteria:</strong> {kpi.description || kpi.measurement_method || 'No criteria specified'}
+                    <strong style={{ color: '#1e40af' }}>Criteria:</strong> {kpi.description || kpi.measurement_method || 'No criteria specified'}
                   </div>
                 </div>
               ))}
@@ -1023,7 +1123,7 @@ export default function Deliverables() {
                   gap: '0.5rem'
                 }}
               >
-                <CheckCircle size={18} /> Complete & Save
+                <CheckCircle size={18} /> Complete & Save Assessments
               </button>
             </div>
           </div>
@@ -1035,9 +1135,9 @@ export default function Deliverables() {
         <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>💡 How It Works</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
           <li>Click the <strong>green checkmark</strong> to mark a deliverable as Complete</li>
-          <li>You'll be asked to assess each linked KPI (Yes/No)</li>
-          <li>KPI scores update automatically based on your assessments</li>
-          <li>Milestone progress updates based on completed deliverables</li>
+          <li>You'll be asked to assess each linked KPI (Yes/No on whether criteria was met)</li>
+          <li>KPI scores update automatically based on your assessments across all deliverables</li>
+          <li>Milestone progress updates based on how many deliverables are complete</li>
         </ul>
       </div>
     </div>
