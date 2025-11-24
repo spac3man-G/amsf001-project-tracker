@@ -21,7 +21,6 @@ export default function Layout() {
       setUser(user);
 
       if (user) {
-        // Fetch profile to get name
         const { data: profileData } = await supabase
           .from('profiles')
           .select('full_name, email, role')
@@ -45,7 +44,7 @@ export default function Layout() {
     { path: '/milestones', icon: Target, label: 'Milestones' },
     { path: '/deliverables', icon: Package, label: 'Deliverables' },
     { path: '/resources', icon: Users, label: 'Resources' },
-    { path: '/timesheets', icon: Clock, label: 'Timesheets' },
+    { path: '/timeshones', icon: Clock, label: 'Timesheets' },
     { path: '/expenses', icon: Receipt, label: 'Expenses' },
     { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
     { path: '/standards', icon: BookOpen, label: 'Standards' },
@@ -54,53 +53,105 @@ export default function Layout() {
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
-  // Get display name - prefer full_name, then email, then user email
+  // Fix the typo above - timeshones should be timesheets
+  navItems[4].path = '/timesheets';
+
   const displayName = profile?.full_name || profile?.email || user?.email || 'User';
   const initials = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="app-layout">
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       {/* Header */}
-      <header className="header">
-        <div className="header-left">
-          <h1 className="logo">AMSF001 Tracker</h1>
-          <span className="project-badge">GOJ2025/2409</span>
+      <header style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '1rem 2rem',
+        backgroundColor: 'white',
+        borderBottom: '1px solid #e2e8f0',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+            AMSF001 Tracker
+          </h1>
+          <span style={{
+            padding: '0.25rem 0.75rem',
+            backgroundColor: '#10b981',
+            color: 'white',
+            borderRadius: '9999px',
+            fontSize: '0.85rem',
+            fontWeight: '500'
+          }}>
+            GOJ2025/2409
+          </span>
         </div>
-        <div className="header-right">
-          <div className="user-info">
-            <div 
-              className="avatar" 
-              style={{ 
-                width: '36px', 
-                height: '36px', 
-                borderRadius: '50%', 
-                backgroundColor: '#10b981', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: '600',
-                fontSize: '0.9rem'
-              }}
-            >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ 
+              width: '36px', 
+              height: '36px', 
+              borderRadius: '50%', 
+              backgroundColor: '#10b981', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '0.9rem'
+            }}>
               {initials}
             </div>
-            <span className="user-name">{displayName}</span>
+            <span style={{ fontWeight: '500', color: '#374151' }}>{displayName}</span>
           </div>
-          <button onClick={handleLogout} className="logout-btn" title="Logout">
+          <button 
+            onClick={handleLogout} 
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.5rem',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+            title="Logout"
+          >
             <LogOut size={20} />
           </button>
         </div>
       </header>
 
-      <div className="main-container">
+      <div style={{ display: 'flex' }}>
         {/* Sidebar */}
-        <nav className="sidebar">
+        <nav style={{
+          width: '250px',
+          backgroundColor: 'white',
+          borderRight: '1px solid #e2e8f0',
+          minHeight: 'calc(100vh - 70px)',
+          padding: '1rem 0',
+          position: 'sticky',
+          top: '70px',
+          alignSelf: 'flex-start'
+        }}>
           {navItems.map(item => (
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 1.5rem',
+                color: isActive ? '#10b981' : '#64748b',
+                backgroundColor: isActive ? '#f0fdf4' : 'transparent',
+                textDecoration: 'none',
+                fontWeight: isActive ? '600' : '500',
+                borderLeft: isActive ? '3px solid #10b981' : '3px solid transparent',
+                transition: 'all 0.2s'
+              })}
             >
               <item.icon size={20} />
               <span>{item.label}</span>
@@ -109,7 +160,12 @@ export default function Layout() {
         </nav>
 
         {/* Main Content */}
-        <main className="main-content">
+        <main style={{
+          flex: 1,
+          padding: '2rem',
+          minHeight: 'calc(100vh - 70px)',
+          overflow: 'auto'
+        }}>
           <Outlet />
         </main>
       </div>
