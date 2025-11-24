@@ -411,7 +411,9 @@ export default function Deliverables() {
     return true;
   });
 
-  const canEdit = userRole === 'admin' || userRole === 'contributor';
+  // Permission checks
+  const canEdit = userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm';
+  const canMarkComplete = userRole === 'admin' || userRole === 'customer_pm';
 
   // KPI Selection Component
   const KPISelector = ({ selectedIds, onToggle, isEdit = false }) => (
@@ -787,58 +789,59 @@ export default function Deliverables() {
                     <td>
                       <div style={{ display: 'flex', gap: '0.25rem' }}>
                         {canEdit && (
-                          <>
-                            <button 
-                              onClick={() => openEditModal(del)}
-                              style={{
-                                padding: '0.5rem',
-                                backgroundColor: '#f1f5f9',
-                                color: '#374151',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}
-                              title="Edit"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            {del.status !== 'Complete' && (
-                              <button 
-                                onClick={() => openCompletionModal(del)}
-                                style={{
-                                  padding: '0.5rem',
-                                  backgroundColor: '#10b981',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center'
-                                }}
-                                title="Mark Complete"
-                              >
-                                <CheckCircle size={16} />
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => handleDelete(del.id)}
-                              style={{
-                                padding: '0.5rem',
-                                backgroundColor: '#fef2f2',
-                                color: '#ef4444',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </>
+                          <button 
+                            onClick={() => openEditModal(del)}
+                            style={{
+                              padding: '0.5rem',
+                              backgroundColor: '#f1f5f9',
+                              color: '#374151',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title="Edit"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
+                        {/* Only Admin or Customer PM can mark complete */}
+                        {canMarkComplete && del.status !== 'Complete' && (
+                          <button 
+                            onClick={() => openCompletionModal(del)}
+                            style={{
+                              padding: '0.5rem',
+                              backgroundColor: '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title="Mark Complete (Admin/Customer PM only)"
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                        )}
+                        {canEdit && (
+                          <button 
+                            onClick={() => handleDelete(del.id)}
+                            style={{
+                              padding: '0.5rem',
+                              backgroundColor: '#fef2f2',
+                              color: '#ef4444',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -1200,7 +1203,7 @@ export default function Deliverables() {
         <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>💡 How It Works</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
           <li>Click the <strong>pencil icon</strong> to edit a deliverable with full KPI selection</li>
-          <li>Click the <strong>green checkmark</strong> to mark a deliverable as Complete</li>
+          <li>Click the <strong>green checkmark</strong> to mark a deliverable as Complete (Admin/Customer PM only)</li>
           <li>You'll be asked to assess each linked KPI (Yes/No on whether criteria was met)</li>
           <li>KPI scores update automatically based on your assessments across all deliverables</li>
           <li>Milestone progress updates based on how many deliverables are complete</li>
