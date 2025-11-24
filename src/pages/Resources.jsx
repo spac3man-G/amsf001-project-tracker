@@ -1,320 +1,506 @@
-import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, User, Award } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award } from 'lucide-react';
 
 export default function Resources() {
-  const [resources, setResources] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  // Default resources from the SOW
-  const defaultResources = [
-    {
-      id: 'res_wkirby',
-      name: 'Will Kirby',
-      role: 'Senior Network Architect',
-      sfiaLevel: 5,
-      dailyRate: 1150,
-      discountPercent: 17,
-      discountedRate: 954.50,
-      daysAllocated: 80,
-      daysLogged: 0,
-      totalCost: 76360,
-      email: 'will.kirby@jt.com'
-    },
-    {
-      id: 'res_jrandal',
-      name: 'Jack Randal',
-      role: 'Senior Network Architect',
-      sfiaLevel: 5,
-      dailyRate: 1150,
-      discountPercent: 17,
-      discountedRate: 954.50,
-      daysAllocated: 80,
-      daysLogged: 0,
-      totalCost: 76360,
-      email: 'jack.randal@jt.com'
-    },
-    {
-      id: 'res_dtuttle',
-      name: 'Dan Tuttle',
-      role: 'Lead Surveyor',
-      sfiaLevel: 4,
-      dailyRate: 1050,
-      discountPercent: 7,
-      discountedRate: 976.50,
-      daysAllocated: 30,
-      daysLogged: 0,
-      totalCost: 29295,
-      email: 'dan.tuttle@jt.com'
-    },
-    {
-      id: 'res_hturner',
-      name: 'Henry Turner',
-      role: 'Senior Infrastructure Engineer',
-      sfiaLevel: 5,
-      dailyRate: 1150,
-      discountPercent: 17,
-      discountedRate: 954.50,
-      daysAllocated: 50,
-      daysLogged: 0,
-      totalCost: 47725,
-      email: 'henry.turner@jt.com'
-    },
-    {
-      id: 'res_rsimpson',
-      name: 'Robert Simpson',
-      role: 'Senior Infrastructure Engineer',
-      sfiaLevel: 5,
-      dailyRate: 1150,
-      discountPercent: 17,
-      discountedRate: 954.50,
-      daysAllocated: 20,
-      daysLogged: 0,
-      totalCost: 19090,
-      email: 'robert.simpson@jt.com'
-    },
-    {
-      id: 'res_lharris',
-      name: 'Liam Harris',
-      role: 'Network Consultant',
-      sfiaLevel: 4,
-      dailyRate: 950,
-      discountPercent: 7,
-      discountedRate: 883.50,
-      daysAllocated: 20,
-      daysLogged: 0,
-      totalCost: 17670,
-      email: 'liam.harris@jt.com'
-    },
-    {
-      id: 'res_obrown',
-      name: 'Olivia Brown',
-      role: 'Network Consultant',
-      sfiaLevel: 4,
-      dailyRate: 950,
-      discountPercent: 7,
-      discountedRate: 883.50,
-      daysAllocated: 20,
-      daysLogged: 0,
-      totalCost: 17670,
-      email: 'olivia.brown@jt.com'
-    },
-    {
-      id: 'res_jwilson',
-      name: 'James Wilson',
-      role: 'Junior Network Engineer',
-      sfiaLevel: 4,
-      dailyRate: 850,
-      discountPercent: 7,
-      discountedRate: 790.50,
-      daysAllocated: 12,
-      daysLogged: 0,
-      totalCost: 9486,
-      email: 'james.wilson@jt.com'
-    }
-  ]
+  const [resources, setResources] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('viewer');
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newResource, setNewResource] = useState({
+    resource_ref: '',
+    name: '',
+    email: '',
+    role: '',
+    sfia_level: 'L4',
+    daily_rate: '',
+    discount_percent: 0,
+    days_allocated: '',
+    days_used: 0
+  });
 
   useEffect(() => {
-    fetchResources()
-  }, [])
+    fetchResources();
+    fetchUserRole();
+  }, []);
 
-  const fetchResources = async () => {
-    try {
-      // For initial setup, we'll use the default resources
-      // In production, this would fetch from Supabase
-      setResources(defaultResources)
-      setLoading(false)
-    } catch (error) {
-      console.error('Error fetching resources:', error)
-      setLoading(false)
+  async function fetchUserRole() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (data) setUserRole(data.role);
     }
   }
 
-  const getUtilizationColor = (logged, allocated) => {
-    const utilization = (logged / allocated) * 100
-    if (utilization >= 90) return 'var(--danger)'
-    if (utilization >= 75) return 'var(--warning)'
-    if (utilization >= 50) return 'var(--primary)'
-    return 'var(--success)'
+  async function fetchResources() {
+    try {
+      const { data, error } = await supabase
+        .from('resources')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setResources(data || []);
+    } catch (error) {
+      console.error('Error fetching resources:', error);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const getSfiaLevelBadge = (level) => {
-    const color = level === 5 ? 'var(--primary)' : 'var(--secondary)'
-    return (
-      <span style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.25rem',
-        padding: '0.25rem 0.5rem',
-        background: color,
-        color: 'white',
-        borderRadius: '9999px',
-        fontSize: '0.75rem',
-        fontWeight: '600'
-      }}>
-        <Award size={12} />
-        SFIA L{level}
-      </span>
-    )
+  async function handleEdit(resource) {
+    setEditingId(resource.id);
+    setEditForm({
+      name: resource.name,
+      email: resource.email,
+      role: resource.role,
+      sfia_level: resource.sfia_level,
+      daily_rate: resource.daily_rate,
+      discount_percent: resource.discount_percent,
+      days_allocated: resource.days_allocated,
+      days_used: resource.days_used
+    });
   }
+
+  async function handleSave(id) {
+    try {
+      const { error } = await supabase
+        .from('resources')
+        .update(editForm)
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      await fetchResources();
+      setEditingId(null);
+      alert('Resource updated successfully!');
+    } catch (error) {
+      console.error('Error updating resource:', error);
+      alert('Failed to update resource');
+    }
+  }
+
+  async function handleAdd() {
+    try {
+      // First check if user exists in profiles
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', newResource.email)
+        .single();
+
+      if (!existingProfile) {
+        alert('This email is not registered in the system. They need to sign up first.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('resources')
+        .insert([newResource]);
+
+      if (error) throw error;
+      
+      await fetchResources();
+      setShowAddForm(false);
+      setNewResource({
+        resource_ref: '',
+        name: '',
+        email: '',
+        role: '',
+        sfia_level: 'L4',
+        daily_rate: '',
+        discount_percent: 0,
+        days_allocated: '',
+        days_used: 0
+      });
+      alert('Resource added successfully!');
+    } catch (error) {
+      console.error('Error adding resource:', error);
+      alert('Failed to add resource');
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('Are you sure you want to delete this resource? This will also delete their timesheet entries.')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('resources')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      await fetchResources();
+      alert('Resource deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      alert('Failed to delete resource');
+    }
+  }
+
+  const getSfiaColor = (level) => {
+    switch(level) {
+      case 'L5': return 'badge-success';
+      case 'L4': return 'badge-primary';
+      case 'L3': return 'badge-secondary';
+      default: return 'badge-secondary';
+    }
+  };
+
+  const totalBudget = resources.reduce((sum, r) => {
+    const rate = r.daily_rate * (1 - r.discount_percent / 100);
+    return sum + (rate * r.days_allocated);
+  }, 0);
+
+  const totalDaysAllocated = resources.reduce((sum, r) => sum + r.days_allocated, 0);
+  const totalDaysUsed = resources.reduce((sum, r) => sum + r.days_used, 0);
 
   if (loading) {
-    return <div className="loading"><div className="spinner"></div></div>
+    return (
+      <div>
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Team Resources</h2>
+          </div>
+          <div style={{ padding: '2rem' }}>
+            <p>Loading resources...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
-
-  const totalAllocatedDays = resources.reduce((sum, r) => sum + r.daysAllocated, 0)
-  const totalLoggedDays = resources.reduce((sum, r) => sum + r.daysLogged, 0)
-  const totalBudget = resources.reduce((sum, r) => sum + r.totalCost, 0)
 
   return (
     <div>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="stat-card">
+          <div className="stat-value">{resources.length}</div>
+          <div className="stat-label">Team Members</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">£{totalBudget.toLocaleString()}</div>
+          <div className="stat-label">Resource Budget</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{totalDaysAllocated}</div>
+          <div className="stat-label">Days Allocated</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{Math.round((totalDaysUsed / totalDaysAllocated) * 100)}%</div>
+          <div className="stat-label">Utilization</div>
+        </div>
+      </div>
+
       <div className="card">
         <div className="card-header">
-          <div>
-            <h2 className="card-title">Project Resources</h2>
-            <p style={{ color: 'var(--text-light)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-              8 Team Members | 312 Allocated Days | £{totalBudget.toLocaleString()} Resource Budget
-            </p>
-          </div>
-          <button className="btn btn-primary">
-            <Plus size={20} />
-            Add Resource
-          </button>
+          <h2 className="card-title">Team Resources</h2>
+          {userRole === 'admin' && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowAddForm(true)}
+            >
+              <Plus size={20} />
+              Add Resource
+            </button>
+          )}
         </div>
 
+        {showAddForm && (
+          <div style={{ padding: '1rem', borderBottom: '2px solid var(--border)' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Add New Resource</h3>
+            <div className="form-grid">
+              <input
+                className="input-field"
+                placeholder="Reference (e.g., R01)"
+                value={newResource.resource_ref}
+                onChange={(e) => setNewResource({...newResource, resource_ref: e.target.value})}
+              />
+              <input
+                className="input-field"
+                placeholder="Full Name"
+                value={newResource.name}
+                onChange={(e) => setNewResource({...newResource, name: e.target.value})}
+              />
+              <input
+                className="input-field"
+                placeholder="Email"
+                type="email"
+                value={newResource.email}
+                onChange={(e) => setNewResource({...newResource, email: e.target.value})}
+              />
+              <input
+                className="input-field"
+                placeholder="Role/Title"
+                value={newResource.role}
+                onChange={(e) => setNewResource({...newResource, role: e.target.value})}
+              />
+              <select
+                className="input-field"
+                value={newResource.sfia_level}
+                onChange={(e) => setNewResource({...newResource, sfia_level: e.target.value})}
+              >
+                <option value="L3">L3 - Junior</option>
+                <option value="L4">L4 - Mid-Level</option>
+                <option value="L5">L5 - Senior</option>
+                <option value="L6">L6 - Lead</option>
+              </select>
+              <input
+                className="input-field"
+                type="number"
+                placeholder="Daily Rate (£)"
+                value={newResource.daily_rate}
+                onChange={(e) => setNewResource({...newResource, daily_rate: e.target.value})}
+              />
+              <input
+                className="input-field"
+                type="number"
+                placeholder="Discount %"
+                value={newResource.discount_percent}
+                onChange={(e) => setNewResource({...newResource, discount_percent: e.target.value})}
+              />
+              <input
+                className="input-field"
+                type="number"
+                placeholder="Days Allocated"
+                value={newResource.days_allocated}
+                onChange={(e) => setNewResource({...newResource, days_allocated: e.target.value})}
+              />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-primary" onClick={handleAdd}>
+                  <Save size={16} /> Save
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowAddForm(false)}
+                >
+                  <X size={16} /> Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="table-container">
-          <table>
+          <table className="data-table">
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Role</th>
-                <th>Level</th>
+                <th>SFIA Level</th>
                 <th>Daily Rate</th>
-                <th>Days Allocated</th>
+                <th>Days</th>
                 <th>Utilization</th>
                 <th>Total Cost</th>
-                <th>Actions</th>
+                {userRole === 'admin' && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {resources.map((resource) => (
                 <tr key={resource.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div className="user-avatar" style={{ width: '32px', height: '32px', fontSize: '0.75rem' }}>
-                        {resource.name.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: '500' }}>{resource.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>
-                          {resource.email}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{resource.role}</td>
-                  <td>{getSfiaLevelBadge(resource.sfiaLevel)}</td>
-                  <td>
-                    <div>
-                      <div style={{ textDecoration: 'line-through', color: 'var(--text-light)', fontSize: '0.875rem' }}>
-                        £{resource.dailyRate}
-                      </div>
-                      <div style={{ fontWeight: '500' }}>
-                        £{resource.discountedRate}
-                        <span style={{ fontSize: '0.75rem', color: 'var(--success)', marginLeft: '0.25rem' }}>
-                          -{resource.discountPercent}%
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      <div>{resource.daysAllocated} days</div>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
-                        {resource.daysLogged} logged
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ width: '100px' }}>
-                      <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                        {Math.round((resource.daysLogged / resource.daysAllocated) * 100)}%
-                      </div>
-                      <div className="progress-bar">
-                        <div 
-                          className="progress-fill" 
-                          style={{ 
-                            width: `${(resource.daysLogged / resource.daysAllocated) * 100}%`,
-                            background: getUtilizationColor(resource.daysLogged, resource.daysAllocated)
-                          }}
+                  {editingId === resource.id ? (
+                    <>
+                      <td>
+                        <input
+                          className="input-field"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
                         />
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: '600' }}>
-                      £{resource.totalCost.toLocaleString()}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        className="btn btn-outline"
-                        style={{ padding: '0.25rem 0.5rem' }}
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        className="btn btn-outline"
-                        style={{ padding: '0.25rem 0.5rem', color: 'var(--danger)' }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+                      </td>
+                      <td>
+                        <input
+                          className="input-field"
+                          value={editForm.role}
+                          onChange={(e) => setEditForm({...editForm, role: e.target.value})}
+                        />
+                      </td>
+                      <td>
+                        <select
+                          className="input-field"
+                          value={editForm.sfia_level}
+                          onChange={(e) => setEditForm({...editForm, sfia_level: e.target.value})}
+                        >
+                          <option value="L3">L3</option>
+                          <option value="L4">L4</option>
+                          <option value="L5">L5</option>
+                          <option value="L6">L6</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          className="input-field"
+                          type="number"
+                          value={editForm.daily_rate}
+                          onChange={(e) => setEditForm({...editForm, daily_rate: e.target.value})}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="input-field"
+                          type="number"
+                          value={editForm.days_allocated}
+                          onChange={(e) => setEditForm({...editForm, days_allocated: e.target.value})}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="input-field"
+                          type="number"
+                          value={editForm.days_used}
+                          onChange={(e) => setEditForm({...editForm, days_used: e.target.value})}
+                        />
+                      </td>
+                      <td>-</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button 
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleSave(resource.id)}
+                          >
+                            <Save size={16} />
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => setEditingId(null)}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td>
+                        <div>
+                          <strong>{resource.name}</strong>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                            {resource.email}
+                          </div>
+                        </div>
+                      </td>
+                      <td>{resource.role}</td>
+                      <td>
+                        <span className={`badge ${getSfiaColor(resource.sfia_level)}`}>
+                          <Award size={14} style={{ marginRight: '0.25rem' }} />
+                          {resource.sfia_level}
+                        </span>
+                      </td>
+                      <td>
+                        <div>
+                          £{resource.daily_rate}
+                          {resource.discount_percent > 0 && (
+                            <div style={{ fontSize: '0.875rem', color: 'var(--success)' }}>
+                              -{resource.discount_percent}%
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div>
+                          {resource.days_used} / {resource.days_allocated}
+                          <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                            {resource.days_allocated - resource.days_used} remaining
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div>
+                          <div className="progress-bar">
+                            <div 
+                              className="progress-bar-fill"
+                              style={{ 
+                                width: `${Math.min((resource.days_used / resource.days_allocated) * 100, 100)}%`,
+                                background: resource.days_used > resource.days_allocated ? 'var(--danger)' : 'var(--primary)'
+                              }}
+                            />
+                          </div>
+                          <span style={{ fontSize: '0.875rem' }}>
+                            {Math.round((resource.days_used / resource.days_allocated) * 100)}%
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <strong>
+                          £{(resource.daily_rate * (1 - resource.discount_percent / 100) * resource.days_allocated).toLocaleString()}
+                        </strong>
+                      </td>
+                      {userRole === 'admin' && (
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => handleEdit(resource)}
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleDelete(resource.id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr style={{ fontWeight: '600', background: 'var(--bg-hover)' }}>
-                <td colSpan="4">Totals</td>
-                <td>{totalAllocatedDays} days</td>
-                <td>
-                  {Math.round((totalLoggedDays / totalAllocatedDays) * 100)}% avg
-                </td>
-                <td>£{totalBudget.toLocaleString()}</td>
-                <td></td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>
 
-      {/* Resource Statistics */}
-      <div className="stats-grid" style={{ marginTop: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">Total Resources</div>
-          <div className="stat-value">{resources.length}</div>
-          <div className="stat-change positive">
-            <User size={16} />
-            <span>Active team members</span>
-          </div>
-        </div>
-        <div className="stat-card" style={{ borderLeftColor: 'var(--primary)' }}>
-          <div className="stat-label">Senior Architects (L5)</div>
-          <div className="stat-value">{resources.filter(r => r.sfiaLevel === 5).length}</div>
-        </div>
-        <div className="stat-card" style={{ borderLeftColor: 'var(--secondary)' }}>
-          <div className="stat-label">Consultants (L4)</div>
-          <div className="stat-value">{resources.filter(r => r.sfiaLevel === 4).length}</div>
-        </div>
-        <div className="stat-card" style={{ borderLeftColor: 'var(--success)' }}>
-          <div className="stat-label">Average Discount</div>
-          <div className="stat-value">
-            {Math.round(resources.reduce((sum, r) => sum + r.discountPercent, 0) / resources.length)}%
-          </div>
-        </div>
-      </div>
+      <style jsx>{`
+        .form-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+        
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+        }
+        
+        .stat-card {
+          background: var(--card-bg);
+          border: 1px solid var(--border);
+          border-radius: 0.5rem;
+          padding: 1rem;
+          text-align: center;
+        }
+        
+        .stat-value {
+          font-size: 1.5rem;
+          font-weight: bold;
+          color: var(--primary);
+        }
+        
+        .stat-label {
+          font-size: 0.875rem;
+          color: var(--text-light);
+          margin-top: 0.25rem;
+        }
+        
+        .btn-danger {
+          background: var(--danger);
+          color: white;
+        }
+        
+        .btn-sm {
+          padding: 0.25rem 0.5rem;
+          font-size: 0.875rem;
+        }
+      `}</style>
     </div>
-  )
+  );
 }
