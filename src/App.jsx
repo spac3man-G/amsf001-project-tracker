@@ -12,6 +12,7 @@ import KPIs from './pages/KPIs'
 import Reports from './pages/Reports'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
+import NetworkStandards from './pages/NetworkStandards'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -59,6 +60,7 @@ function App() {
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="expenses" element={<Expenses />} />
             <Route path="kpis" element={<KPIs />} />
+            <Route path="standards" element={<NetworkStandards />} />
             <Route path="reports" element={<Reports />} />
             <Route path="users" element={<Users />} />
             <Route path="settings" element={<Settings />} />
