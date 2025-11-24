@@ -23,6 +23,10 @@ export default function Deliverables() {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completingDeliverable, setCompletingDeliverable] = useState(null);
   const [kpiAssessments, setKpiAssessments] = useState({});
+  
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingDeliverable, setEditingDeliverable] = useState(null);
 
   const [newDeliverable, setNewDeliverable] = useState({
     deliverable_ref: '',
