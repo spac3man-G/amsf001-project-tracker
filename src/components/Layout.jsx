@@ -1,93 +1,118 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import React, { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { 
-  LayoutDashboard, 
-  Target, 
-  Users, 
-  Clock, 
-  Receipt, 
-  TrendingUp,
-  FileText,
-  UserCog,
-  Settings as SettingsIcon,
-  LogOut,
-  BookOpen,
-  Package
-} from 'lucide-react'
+  LayoutDashboard, Target, Package, Users, Clock, Receipt, 
+  TrendingUp, BookOpen, FileText, Settings, LogOut, UserCircle
+} from 'lucide-react';
 
-export default function Layout({ session }) {
-  const location = useLocation()
-  
-  const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Milestones', href: '/milestones', icon: Target },
-    { name: 'Deliverables', href: '/deliverables', icon: Package },
-    { name: 'Resources', href: '/resources', icon: Users },
-    { name: 'Timesheets', href: '/timesheets', icon: Clock },
-    { name: 'Expenses', href: '/expenses', icon: Receipt },
-    { name: 'KPIs', href: '/kpis', icon: TrendingUp },
-    { name: 'Standards', href: '/standards', icon: BookOpen },
-    { name: 'Reports', href: '/reports', icon: FileText },
-    { name: 'Users', href: '/users', icon: UserCog },
-    { name: 'Settings', href: '/settings', icon: SettingsIcon },
-  ]
+export default function Layout() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  async function fetchUser() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
+      if (user) {
+        // Fetch profile to get name
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, email, role')
+          .eq('id', user.id)
+          .single();
+        
+        setProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
   }
 
-  const userEmail = session?.user?.email || 'User'
-  const userInitial = userEmail[0].toUpperCase()
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    navigate('/login');
+  }
+
+  const navItems = [
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/milestones', icon: Target, label: 'Milestones' },
+    { path: '/deliverables', icon: Package, label: 'Deliverables' },
+    { path: '/resources', icon: Users, label: 'Resources' },
+    { path: '/timesheets', icon: Clock, label: 'Timesheets' },
+    { path: '/expenses', icon: Receipt, label: 'Expenses' },
+    { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
+    { path: '/standards', icon: BookOpen, label: 'Standards' },
+    { path: '/reports', icon: FileText, label: 'Reports' },
+    { path: '/users', icon: UserCircle, label: 'Users' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
+  ];
+
+  // Get display name - prefer full_name, then email, then user email
+  const displayName = profile?.full_name || profile?.email || user?.email || 'User';
+  const initials = displayName.charAt(0).toUpperCase();
 
   return (
-    <>
+    <div className="app-layout">
+      {/* Header */}
       <header className="header">
-        <div className="header-content">
-          <div className="logo">
-            <h1>AMSF001 Tracker</h1>
-            <span className="logo-badge">GOJ/2025/2409</span>
-          </div>
-          
-          <div className="user-menu">
-            <div className="user-info">
-              <div className="user-avatar">{userInitial}</div>
-              <span>{userEmail}</span>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="btn btn-outline"
-              style={{ padding: '0.5rem' }}
+        <div className="header-left">
+          <h1 className="logo">AMSF001 Tracker</h1>
+          <span className="project-badge">GOJ2025/2409</span>
+        </div>
+        <div className="header-right">
+          <div className="user-info">
+            <div 
+              className="avatar" 
+              style={{ 
+                width: '36px', 
+                height: '36px', 
+                borderRadius: '50%', 
+                backgroundColor: '#10b981', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '0.9rem'
+              }}
             >
-              <LogOut size={18} />
-            </button>
+              {initials}
+            </div>
+            <span className="user-name">{displayName}</span>
           </div>
+          <button onClick={handleLogout} className="logout-btn" title="Logout">
+            <LogOut size={20} />
+          </button>
         </div>
       </header>
 
-      <div className="main-layout">
-        <aside className="sidebar">
-          <nav className="nav-menu">
-            {navigation.map((item) => {
-              const Icon = item.icon
-              const isActive = location.pathname === item.href
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={`nav-item ${isActive ? 'active' : ''}`}
-                >
-                  <Icon size={20} />
-                  <span>{item.name}</span>
-                </Link>
-              )
-            })}
-          </nav>
-        </aside>
+      <div className="main-container">
+        {/* Sidebar */}
+        <nav className="sidebar">
+          {navItems.map(item => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
 
+        {/* Main Content */}
         <main className="main-content">
           <Outlet />
         </main>
       </div>
-    </>
-  )
+    </div>
+  );
 }
