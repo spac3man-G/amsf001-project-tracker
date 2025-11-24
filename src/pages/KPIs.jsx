@@ -86,7 +86,6 @@ export default function KPIs() {
 
   function getKPIStatus(kpi) {
     const assessments = assessmentCounts[kpi.id];
-    const currentValue = kpi.current_value || 0;
     const target = kpi.target || 90;
 
     // If no assessments have been made for this KPI, it's "Not Started"
@@ -265,7 +264,7 @@ export default function KPIs() {
                     fontWeight: '600',
                     color: status.color
                   }}>
-                    {kpi.current_value || 0}%
+                    {assessments ? Math.round((assessments.met / assessments.total) * 100) : 0}%
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     {assessments ? (
@@ -352,6 +351,7 @@ export default function KPIs() {
                 const status = getKPIStatus(kpi);
                 const assessments = assessmentCounts[kpi.id];
                 const StatusIcon = status.icon;
+                const currentScore = assessments ? Math.round((assessments.met / assessments.total) * 100) : 0;
                 
                 return (
                   <Link 
@@ -396,7 +396,7 @@ export default function KPIs() {
                         color: status.color,
                         marginBottom: '0.25rem'
                       }}>
-                        {kpi.current_value || 0}%
+                        {currentScore}%
                       </div>
                       <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem' }}>
                         Target: {kpi.target}%
@@ -410,7 +410,7 @@ export default function KPIs() {
                         marginBottom: '0.75rem'
                       }}>
                         <div style={{ 
-                          width: `${Math.min((kpi.current_value || 0) / kpi.target * 100, 100)}%`, 
+                          width: `${Math.min(currentScore / kpi.target * 100, 100)}%`, 
                           height: '100%', 
                           backgroundColor: status.color,
                           borderRadius: '3px'
@@ -423,13 +423,21 @@ export default function KPIs() {
                       }}>
                         {kpi.name}
                       </div>
-                      {assessments && assessments.total > 0 && (
+                      {assessments && assessments.total > 0 ? (
                         <div style={{ 
                           fontSize: '0.8rem', 
                           color: '#64748b',
                           marginTop: '0.5rem'
                         }}>
                           {assessments.met} of {assessments.total} assessments passed
+                        </div>
+                      ) : (
+                        <div style={{ 
+                          fontSize: '0.8rem', 
+                          color: '#9ca3af',
+                          marginTop: '0.5rem'
+                        }}>
+                          No assessments yet
                         </div>
                       )}
                     </div>

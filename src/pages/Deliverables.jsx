@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Package, Plus, Edit2, Save, X, Trash2, CheckCircle, 
-  Clock, AlertCircle
+  Clock
 } from 'lucide-react';
 
 export default function Deliverables() {
@@ -11,8 +11,6 @@ export default function Deliverables() {
   const [kpis, setKpis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
   const [filterMilestone, setFilterMilestone] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [userRole, setUserRole] = useState('viewer');
@@ -26,7 +24,7 @@ export default function Deliverables() {
   
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingDeliverable, setEditingDeliverable] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   const [newDeliverable, setNewDeliverable] = useState({
     deliverable_ref: '',
@@ -161,43 +159,47 @@ export default function Deliverables() {
     }
   }
 
-  function handleEdit(deliverable) {
-    setEditingId(deliverable.id);
+  function openEditModal(deliverable) {
     setEditForm({
+      id: deliverable.id,
+      deliverable_ref: deliverable.deliverable_ref,
       name: deliverable.name,
+      description: deliverable.description || '',
       milestone_id: deliverable.milestone_id,
-      status: deliverable.status,
+      status: deliverable.status || 'Not Started',
       progress: deliverable.progress || 0,
       assigned_to: deliverable.assigned_to || '',
       due_date: deliverable.due_date || '',
       kpi_ids: deliverable.deliverable_kpis?.map(dk => dk.kpi_id) || []
     });
+    setShowEditModal(true);
   }
 
-  async function handleSave(id) {
+  async function handleSaveEdit() {
     try {
-      const deliverable = deliverables.find(d => d.id === id);
-      const oldMilestoneId = deliverable?.milestone_id;
+      const oldDeliverable = deliverables.find(d => d.id === editForm.id);
+      const oldMilestoneId = oldDeliverable?.milestone_id;
 
       const { error } = await supabase
         .from('deliverables')
         .update({
           name: editForm.name,
+          description: editForm.description,
           milestone_id: editForm.milestone_id,
           status: editForm.status,
           progress: parseInt(editForm.progress) || 0,
           assigned_to: editForm.assigned_to,
           due_date: editForm.due_date || null
         })
-        .eq('id', id);
+        .eq('id', editForm.id);
 
       if (error) throw error;
 
       // Update KPI links
-      await supabase.from('deliverable_kpis').delete().eq('deliverable_id', id);
+      await supabase.from('deliverable_kpis').delete().eq('deliverable_id', editForm.id);
       if (editForm.kpi_ids && editForm.kpi_ids.length > 0) {
         const kpiLinks = editForm.kpi_ids.map(kpiId => ({
-          deliverable_id: id,
+          deliverable_id: editForm.id,
           kpi_id: kpiId
         }));
         await supabase.from('deliverable_kpis').insert(kpiLinks);
@@ -205,14 +207,14 @@ export default function Deliverables() {
 
       await fetchData();
       
-      // Update milestone progress
       await updateMilestoneProgress(editForm.milestone_id);
       if (oldMilestoneId && oldMilestoneId !== editForm.milestone_id) {
         await updateMilestoneProgress(oldMilestoneId);
       }
 
-      setEditingId(null);
-      alert('Deliverable saved successfully!');
+      setShowEditModal(false);
+      setEditForm({});
+      alert('Deliverable updated successfully!');
     } catch (error) {
       console.error('Error updating deliverable:', error);
       alert('Failed to update deliverable: ' + error.message);
@@ -269,12 +271,10 @@ export default function Deliverables() {
     }
   }
 
-  // Open completion modal
   function openCompletionModal(deliverable) {
     const linkedKpiIds = deliverable.deliverable_kpis?.map(dk => dk.kpi_id) || [];
     
     if (linkedKpiIds.length === 0) {
-      // No KPIs linked, just mark complete directly
       markCompleteWithoutKPIs(deliverable);
       return;
     }
@@ -300,13 +300,11 @@ export default function Deliverables() {
     }
   }
 
-  // Save completion with KPI assessments
   async function handleCompleteWithAssessments() {
     if (!completingDeliverable) return;
 
     const linkedKpiIds = completingDeliverable.deliverable_kpis?.map(dk => dk.kpi_id) || [];
     
-    // Check all KPIs have been assessed
     const allAssessed = linkedKpiIds.every(kpiId => kpiAssessments[kpiId] !== undefined);
     if (!allAssessed) {
       alert('Please assess all KPI criteria (Yes or No) before completing.');
@@ -314,17 +312,14 @@ export default function Deliverables() {
     }
 
     try {
-      // Update deliverable to Complete
       await supabase
         .from('deliverables')
         .update({ status: 'Complete', progress: 100 })
         .eq('id', completingDeliverable.id);
 
-      // Insert KPI assessments
       for (const kpiId of linkedKpiIds) {
         const criteriaMet = kpiAssessments[kpiId];
         
-        // Upsert the assessment
         const { error } = await supabase
           .from('deliverable_kpi_assessments')
           .upsert({
@@ -342,13 +337,10 @@ export default function Deliverables() {
         }
       }
 
-      // Update KPI scores
       await updateKPIScores(linkedKpiIds);
-
-      // Update milestone progress
       await updateMilestoneProgress(completingDeliverable.milestone_id);
-
       await fetchData();
+      
       setShowCompletionModal(false);
       setCompletingDeliverable(null);
       setKpiAssessments({});
@@ -362,7 +354,6 @@ export default function Deliverables() {
   async function updateKPIScores(kpiIds) {
     for (const kpiId of kpiIds) {
       try {
-        // Get all assessments for this KPI
         const { data: assessments } = await supabase
           .from('deliverable_kpi_assessments')
           .select('criteria_met')
@@ -388,21 +379,21 @@ export default function Deliverables() {
     }
   }
 
-  function toggleKpiSelection(kpiId) {
-    const current = newDeliverable.kpi_ids;
-    if (current.includes(kpiId)) {
-      setNewDeliverable({ ...newDeliverable, kpi_ids: current.filter(id => id !== kpiId) });
+  function toggleKpiSelection(kpiId, isEdit = false) {
+    if (isEdit) {
+      const current = editForm.kpi_ids || [];
+      if (current.includes(kpiId)) {
+        setEditForm({ ...editForm, kpi_ids: current.filter(id => id !== kpiId) });
+      } else {
+        setEditForm({ ...editForm, kpi_ids: [...current, kpiId] });
+      }
     } else {
-      setNewDeliverable({ ...newDeliverable, kpi_ids: [...current, kpiId] });
-    }
-  }
-
-  function toggleEditKpiSelection(kpiId) {
-    const current = editForm.kpi_ids || [];
-    if (current.includes(kpiId)) {
-      setEditForm({ ...editForm, kpi_ids: current.filter(id => id !== kpiId) });
-    } else {
-      setEditForm({ ...editForm, kpi_ids: [...current, kpiId] });
+      const current = newDeliverable.kpi_ids;
+      if (current.includes(kpiId)) {
+        setNewDeliverable({ ...newDeliverable, kpi_ids: current.filter(id => id !== kpiId) });
+      } else {
+        setNewDeliverable({ ...newDeliverable, kpi_ids: [...current, kpiId] });
+      }
     }
   }
 
@@ -421,6 +412,66 @@ export default function Deliverables() {
   });
 
   const canEdit = userRole === 'admin' || userRole === 'contributor';
+
+  // KPI Selection Component
+  const KPISelector = ({ selectedIds, onToggle, isEdit = false }) => (
+    <div style={{ 
+      border: '1px solid #e2e8f0', 
+      borderRadius: '8px', 
+      padding: '0.75rem',
+      maxHeight: '300px',
+      overflowY: 'auto',
+      backgroundColor: '#f8fafc'
+    }}>
+      {kpis.map(kpi => (
+        <label 
+          key={kpi.id} 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'flex-start', 
+            gap: '0.75rem',
+            padding: '0.75rem',
+            marginBottom: '0.5rem',
+            backgroundColor: selectedIds.includes(kpi.id) ? '#dbeafe' : 'white',
+            border: selectedIds.includes(kpi.id) ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          <input 
+            type="checkbox"
+            checked={selectedIds.includes(kpi.id)}
+            onChange={() => onToggle(kpi.id, isEdit)}
+            style={{ marginTop: '4px', width: '18px', height: '18px' }}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <span style={{ 
+                fontWeight: '700', 
+                color: '#1e40af',
+                backgroundColor: '#eff6ff',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '4px',
+                fontSize: '0.85rem'
+              }}>
+                {kpi.kpi_ref}
+              </span>
+              <span style={{ fontWeight: '600', color: '#374151' }}>{kpi.name}</span>
+            </div>
+            {kpi.description && (
+              <div style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: '1.4' }}>
+                {kpi.description.length > 150 ? kpi.description.substring(0, 150) + '...' : kpi.description}
+              </div>
+            )}
+            <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.25rem', fontWeight: '500' }}>
+              Target: {kpi.target}%
+            </div>
+          </div>
+        </label>
+      ))}
+    </div>
+  );
 
   if (loading) return <div className="loading">Loading deliverables...</div>;
 
@@ -574,74 +625,13 @@ export default function Deliverables() {
             </div>
           </div>
           
-          {/* Improved KPI Selection */}
           <div style={{ marginBottom: '1rem' }}>
             <label className="form-label">Link to KPIs (select all that apply)</label>
-            <div style={{ 
-              border: '1px solid #e2e8f0', 
-              borderRadius: '8px', 
-              padding: '0.75rem',
-              maxHeight: '300px',
-              overflowY: 'auto',
-              backgroundColor: '#f8fafc'
-            }}>
-              {kpis.map(kpi => (
-                <label 
-                  key={kpi.id} 
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: '0.75rem',
-                    padding: '0.75rem',
-                    marginBottom: '0.5rem',
-                    backgroundColor: newDeliverable.kpi_ids.includes(kpi.id) ? '#dbeafe' : 'white',
-                    border: newDeliverable.kpi_ids.includes(kpi.id) ? '2px solid #3b82f6' : '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <input 
-                    type="checkbox"
-                    checked={newDeliverable.kpi_ids.includes(kpi.id)}
-                    onChange={() => toggleKpiSelection(kpi.id)}
-                    style={{ marginTop: '4px', width: '18px', height: '18px' }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                      <span style={{ 
-                        fontWeight: '700', 
-                        color: '#1e40af',
-                        backgroundColor: '#eff6ff',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        fontSize: '0.85rem'
-                      }}>
-                        {kpi.kpi_ref}
-                      </span>
-                      <span style={{ fontWeight: '600', color: '#374151' }}>{kpi.name}</span>
-                    </div>
-                    {kpi.description && (
-                      <div style={{ 
-                        fontSize: '0.85rem', 
-                        color: '#64748b', 
-                        lineHeight: '1.4'
-                      }}>
-                        {kpi.description.length > 150 ? kpi.description.substring(0, 150) + '...' : kpi.description}
-                      </div>
-                    )}
-                    <div style={{ 
-                      fontSize: '0.8rem', 
-                      color: '#10b981', 
-                      marginTop: '0.25rem',
-                      fontWeight: '500'
-                    }}>
-                      Target: {kpi.target}%
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
+            <KPISelector 
+              selectedIds={newDeliverable.kpi_ids} 
+              onToggle={toggleKpiSelection}
+              isEdit={false}
+            />
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -700,7 +690,7 @@ export default function Deliverables() {
               <th>Progress</th>
               <th>Linked KPIs</th>
               <th>Due Date</th>
-              <th style={{ width: '150px' }}>Actions</th>
+              <th style={{ width: '120px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -714,250 +704,140 @@ export default function Deliverables() {
               filteredDeliverables.map(del => {
                 const milestone = milestones.find(m => m.id === del.milestone_id);
                 const linkedKpiIds = del.deliverable_kpis?.map(dk => dk.kpi_id) || [];
-                const isEditing = editingId === del.id;
                 const statusColors = getStatusColor(del.status);
                 
                 return (
                   <tr key={del.id}>
                     <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{del.deliverable_ref}</td>
+                    <td style={{ fontWeight: '500' }}>{del.name}</td>
                     <td>
-                      {isEditing ? (
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={editForm.name}
-                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                          style={{ width: '100%' }}
-                        />
-                      ) : (
-                        del.name
-                      )}
+                      <span style={{ 
+                        padding: '0.125rem 0.375rem', 
+                        backgroundColor: '#f0fdf4', 
+                        color: '#16a34a',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem'
+                      }}>
+                        {milestone?.milestone_ref || '-'}
+                      </span>
                     </td>
                     <td>
-                      {isEditing ? (
-                        <select 
-                          className="form-input"
-                          value={editForm.milestone_id}
-                          onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}
-                        >
-                          {milestones.map(m => (
-                            <option key={m.id} value={m.id}>{m.milestone_ref}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span style={{ 
-                          padding: '0.125rem 0.375rem', 
-                          backgroundColor: '#f0fdf4', 
-                          color: '#16a34a',
-                          borderRadius: '4px',
-                          fontSize: '0.85rem'
+                      <span style={{ 
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        backgroundColor: statusColors.bg,
+                        color: statusColors.color,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}>
+                        {del.status === 'Complete' && <CheckCircle size={12} />}
+                        {del.status === 'In Progress' && <Clock size={12} />}
+                        {del.status || 'Not Started'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ 
+                          width: '50px', 
+                          height: '6px', 
+                          backgroundColor: '#e2e8f0', 
+                          borderRadius: '3px',
+                          overflow: 'hidden'
                         }}>
-                          {milestone?.milestone_ref || '-'}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <select 
-                          className="form-input"
-                          value={editForm.status}
-                          onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                        >
-                          {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      ) : (
-                        <span style={{ 
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.85rem',
-                          backgroundColor: statusColors.bg,
-                          color: statusColors.color,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem'
-                        }}>
-                          {del.status === 'Complete' && <CheckCircle size={12} />}
-                          {del.status === 'In Progress' && <Clock size={12} />}
-                          {del.status || 'Not Started'}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input 
-                          type="number" 
-                          className="form-input" 
-                          value={editForm.progress}
-                          onChange={(e) => setEditForm({ ...editForm, progress: e.target.value })}
-                          min="0"
-                          max="100"
-                          style={{ width: '70px' }}
-                        />
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <div style={{ 
-                            width: '50px', 
-                            height: '6px', 
-                            backgroundColor: '#e2e8f0', 
-                            borderRadius: '3px',
-                            overflow: 'hidden'
-                          }}>
-                            <div style={{ 
-                              width: `${del.progress || 0}%`, 
-                              height: '100%', 
-                              backgroundColor: del.status === 'Complete' ? '#10b981' : '#3b82f6'
-                            }}></div>
-                          </div>
-                          <span style={{ fontSize: '0.85rem' }}>{del.progress || 0}%</span>
+                            width: `${del.progress || 0}%`, 
+                            height: '100%', 
+                            backgroundColor: del.status === 'Complete' ? '#10b981' : '#3b82f6'
+                          }}></div>
                         </div>
-                      )}
+                        <span style={{ fontSize: '0.85rem' }}>{del.progress || 0}%</span>
+                      </div>
                     </td>
                     <td>
-                      {isEditing ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                          {kpis.map(kpi => (
-                            <label key={kpi.id} style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.75rem' }}>
-                              <input 
-                                type="checkbox"
-                                checked={editForm.kpi_ids?.includes(kpi.id)}
-                                onChange={() => toggleEditKpiSelection(kpi.id)}
-                              />
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        {linkedKpiIds.map(kpiId => {
+                          const kpi = kpis.find(k => k.id === kpiId);
+                          return kpi ? (
+                            <span 
+                              key={kpiId} 
+                              title={kpi.name}
+                              style={{ 
+                                padding: '0.125rem 0.375rem', 
+                                backgroundColor: '#dbeafe', 
+                                color: '#2563eb',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                cursor: 'help'
+                              }}
+                            >
                               {kpi.kpi_ref}
-                            </label>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                          {linkedKpiIds.map(kpiId => {
-                            const kpi = kpis.find(k => k.id === kpiId);
-                            return kpi ? (
-                              <span 
-                                key={kpiId} 
-                                title={kpi.name}
-                                style={{ 
-                                  padding: '0.125rem 0.375rem', 
-                                  backgroundColor: '#dbeafe', 
-                                  color: '#2563eb',
-                                  borderRadius: '4px',
-                                  fontSize: '0.75rem',
-                                  cursor: 'help'
-                                }}
-                              >
-                                {kpi.kpi_ref}
-                              </span>
-                            ) : null;
-                          })}
-                          {linkedKpiIds.length === 0 && (
-                            <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>None</span>
-                          )}
-                        </div>
-                      )}
+                            </span>
+                          ) : null;
+                        })}
+                        {linkedKpiIds.length === 0 && (
+                          <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>None</span>
+                        )}
+                      </div>
                     </td>
                     <td>
-                      {isEditing ? (
-                        <input 
-                          type="date" 
-                          className="form-input"
-                          value={editForm.due_date}
-                          onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
-                        />
-                      ) : (
-                        del.due_date ? new Date(del.due_date).toLocaleDateString('en-GB') : '-'
-                      )}
+                      {del.due_date ? new Date(del.due_date).toLocaleDateString('en-GB') : '-'}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        {isEditing ? (
+                        {canEdit && (
                           <>
                             <button 
-                              onClick={() => handleSave(del.id)}
+                              onClick={() => openEditModal(del)}
                               style={{
                                 padding: '0.5rem',
-                                backgroundColor: '#10b981',
-                                color: 'white',
+                                backgroundColor: '#f1f5f9',
+                                color: '#374151',
                                 border: 'none',
                                 borderRadius: '4px',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center'
                               }}
-                              title="Save"
+                              title="Edit"
                             >
-                              <Save size={16} />
+                              <Edit2 size={16} />
                             </button>
-                            <button 
-                              onClick={() => setEditingId(null)}
-                              style={{
-                                padding: '0.5rem',
-                                backgroundColor: '#64748b',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}
-                              title="Cancel"
-                            >
-                              <X size={16} />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            {canEdit && (
-                              <>
-                                <button 
-                                  onClick={() => handleEdit(del)}
-                                  style={{
-                                    padding: '0.5rem',
-                                    backgroundColor: '#f1f5f9',
-                                    color: '#374151',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                  }}
-                                  title="Edit"
-                                >
-                                  <Edit2 size={16} />
-                                </button>
-                                {del.status !== 'Complete' && (
-                                  <button 
-                                    onClick={() => openCompletionModal(del)}
-                                    style={{
-                                      padding: '0.5rem',
-                                      backgroundColor: '#10b981',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center'
-                                    }}
-                                    title="Mark Complete"
-                                  >
-                                    <CheckCircle size={16} />
-                                  </button>
-                                )}
-                                <button 
-                                  onClick={() => handleDelete(del.id)}
-                                  style={{
-                                    padding: '0.5rem',
-                                    backgroundColor: '#fef2f2',
-                                    color: '#ef4444',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                  }}
-                                  title="Delete"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </>
+                            {del.status !== 'Complete' && (
+                              <button 
+                                onClick={() => openCompletionModal(del)}
+                                style={{
+                                  padding: '0.5rem',
+                                  backgroundColor: '#10b981',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                                title="Mark Complete"
+                              >
+                                <CheckCircle size={16} />
+                              </button>
                             )}
+                            <button 
+                              onClick={() => handleDelete(del.id)}
+                              style={{
+                                padding: '0.5rem',
+                                backgroundColor: '#fef2f2',
+                                color: '#ef4444',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </>
                         )}
                       </div>
@@ -969,6 +849,188 @@ export default function Deliverables() {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && editForm.id && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '800px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Edit2 size={24} style={{ color: '#3b82f6' }} />
+              Edit Deliverable - {editForm.deliverable_ref}
+            </h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label className="form-label">Reference</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.deliverable_ref}
+                  disabled
+                  style={{ backgroundColor: '#f1f5f9' }}
+                />
+              </div>
+              <div>
+                <label className="form-label">Name *</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label className="form-label">Description</label>
+              <textarea 
+                className="form-input" 
+                rows={2}
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label className="form-label">Milestone *</label>
+                <select 
+                  className="form-input"
+                  value={editForm.milestone_id}
+                  onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}
+                >
+                  {milestones.map(m => (
+                    <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Assigned To</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={editForm.assigned_to}
+                  onChange={(e) => setEditForm({ ...editForm, assigned_to: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="form-label">Due Date</label>
+                <input 
+                  type="date" 
+                  className="form-input"
+                  value={editForm.due_date}
+                  onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="form-label">Status</label>
+                <select 
+                  className="form-input"
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                >
+                  {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label">Link to KPIs (select all that apply)</label>
+              <KPISelector 
+                selectedIds={editForm.kpi_ids || []} 
+                onToggle={toggleKpiSelection}
+                isEdit={true}
+              />
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginTop: '0.5rem',
+                padding: '0.5rem',
+                backgroundColor: (editForm.kpi_ids?.length || 0) > 0 ? '#f0fdf4' : '#f8fafc',
+                borderRadius: '6px'
+              }}>
+                <span style={{ 
+                  fontSize: '0.9rem', 
+                  color: (editForm.kpi_ids?.length || 0) > 0 ? '#16a34a' : '#64748b',
+                  fontWeight: '500'
+                }}>
+                  {editForm.kpi_ids?.length || 0} KPI{(editForm.kpi_ids?.length || 0) !== 1 ? 's' : ''} selected
+                </span>
+                {(editForm.kpi_ids?.length || 0) > 0 && (
+                  <button 
+                    type="button"
+                    onClick={() => setEditForm({ ...editForm, kpi_ids: [] })}
+                    style={{
+                      fontSize: '0.8rem',
+                      color: '#ef4444',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => { setShowEditModal(false); setEditForm({}); }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#f1f5f9',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveEdit}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <Save size={18} /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Completion Modal */}
       {showCompletionModal && completingDeliverable && (
@@ -1010,8 +1072,7 @@ export default function Deliverables() {
             }}>
               <h4 style={{ color: '#92400e', marginBottom: '0.5rem' }}>⚠️ KPI Assessment Required</h4>
               <p style={{ color: '#92400e', fontSize: '0.9rem', margin: 0 }}>
-                For each KPI linked to this deliverable, assess whether the criteria was met. 
-                Your answers will update the overall KPI scores.
+                For each KPI linked to this deliverable, assess whether the criteria was met.
               </p>
             </div>
 
@@ -1138,6 +1199,7 @@ export default function Deliverables() {
       <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e' }}>
         <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>💡 How It Works</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
+          <li>Click the <strong>pencil icon</strong> to edit a deliverable with full KPI selection</li>
           <li>Click the <strong>green checkmark</strong> to mark a deliverable as Complete</li>
           <li>You'll be asked to assess each linked KPI (Yes/No on whether criteria was met)</li>
           <li>KPI scores update automatically based on your assessments across all deliverables</li>
