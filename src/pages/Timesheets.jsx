@@ -1,4 +1,4 @@
-    import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Clock, Plus, Edit2, Save, X, Trash2, Calendar,
@@ -9,6 +9,7 @@ export default function Timesheets() {
   const [timesheets, setTimesheets] = useState([]);
   const [resources, setResources] = useState([]);
   const [milestones, setMilestones] = useState([]);
+  const [projectId, setProjectId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('viewer');
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -39,43 +40,64 @@ export default function Timesheets() {
   }
 
   useEffect(() => {
-    fetchUserInfo();
+    fetchInitialData();
   }, []);
 
-  useEffect(() => {
-    if (currentUserId) {
-      fetchData();
-    }
-  }, [currentUserId]);
+  async function fetchInitialData() {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+        
+        // Get user role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) setUserRole(profile.role);
 
-  async function fetchUserInfo() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setCurrentUserId(user.id);
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile) setUserRole(profile.role);
-
-      const { data: resource } = await supabase
-        .from('resources')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (resource) {
-        setCurrentUserResourceId(resource.id);
-        setNewTimesheet(prev => ({ ...prev, resource_id: resource.id }));
+        // Find if user is linked to a resource
+        const { data: resource } = await supabase
+          .from('resources')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (resource) {
+          setCurrentUserResourceId(resource.id);
+          setNewTimesheet(prev => ({ ...prev, resource_id: resource.id }));
+        }
       }
+
+      // Get project ID
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('reference', 'AMSF001')
+        .single();
+      
+      if (project) {
+        setProjectId(project.id);
+        await fetchData(project.id);
+      } else {
+        console.error('Project AMSF001 not found');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error in fetchInitialData:', error);
+      setLoading(false);
     }
   }
 
-  async function fetchData() {
+  async function fetchData(projId) {
+    const pid = projId || projectId;
+    if (!pid) return;
+
     try {
+      // Fetch timesheets
       const { data: timesheetsData, error: tsError } = await supabase
         .from('timesheets')
         .select(`
@@ -83,22 +105,41 @@ export default function Timesheets() {
           resources (id, name, email),
           milestones (id, milestone_ref, name)
         `)
+        .eq('project_id', pid)
         .order('week_ending', { ascending: false });
 
-      if (tsError) throw tsError;
-      setTimesheets(timesheetsData || []);
+      if (tsError) {
+        console.error('Timesheets error:', tsError);
+      } else {
+        setTimesheets(timesheetsData || []);
+      }
 
-      const { data: resourcesData } = await supabase
+      // Fetch ALL resources (not filtered by project since resources may not have project_id)
+      const { data: resourcesData, error: resError } = await supabase
         .from('resources')
         .select('id, name, email, user_id')
         .order('name');
-      setResources(resourcesData || []);
+      
+      if (resError) {
+        console.error('Resources error:', resError);
+      } else {
+        console.log('Resources loaded:', resourcesData?.length);
+        setResources(resourcesData || []);
+      }
 
-      const { data: milestonesData } = await supabase
+      // Fetch milestones for this project
+      const { data: milestonesData, error: msError } = await supabase
         .from('milestones')
         .select('id, milestone_ref, name')
+        .eq('project_id', pid)
         .order('milestone_ref');
-      setMilestones(milestonesData || []);
+      
+      if (msError) {
+        console.error('Milestones error:', msError);
+      } else {
+        console.log('Milestones loaded:', milestonesData?.length);
+        setMilestones(milestonesData || []);
+      }
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -113,24 +154,18 @@ export default function Timesheets() {
       return;
     }
 
+    if (!projectId) {
+      alert('Project not found');
+      return;
+    }
+
     try {
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-
-      if (!project) {
-        alert('Project not found');
-        return;
-      }
-
       const resource = resources.find(r => r.id === newTimesheet.resource_id);
 
       const { error } = await supabase
         .from('timesheets')
         .insert([{
-          project_id: project.id,
+          project_id: projectId,
           resource_id: newTimesheet.resource_id,
           milestone_id: newTimesheet.milestone_id || null,
           user_id: resource?.user_id || currentUserId,
@@ -269,6 +304,8 @@ export default function Timesheets() {
   }
 
   const canAdd = userRole === 'admin' || userRole === 'contributor';
+  
+  // Admins see all resources, others see only their linked resource
   const availableResources = userRole === 'admin' 
     ? resources 
     : resources.filter(r => r.id === currentUserResourceId || r.user_id === currentUserId);
@@ -343,9 +380,17 @@ export default function Timesheets() {
       {showAddForm && (
         <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add Timesheet Entry</h3>
+          
+          {/* Debug info - remove after testing */}
+          {resources.length === 0 && (
+            <div style={{ padding: '0.5rem', backgroundColor: '#fef2f2', borderRadius: '4px', marginBottom: '1rem', color: '#dc2626', fontSize: '0.85rem' }}>
+              ⚠️ No resources loaded. Check console for errors.
+            </div>
+          )}
+          
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label className="form-label">Resource *</label>
+              <label className="form-label">Resource * ({availableResources.length} available)</label>
               <select className="form-input" value={newTimesheet.resource_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}>
                 <option value="">Select Resource</option>
                 {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -359,7 +404,7 @@ export default function Timesheets() {
               <input type="date" className="form-input" value={newTimesheet.week_ending} onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} />
             </div>
             <div>
-              <label className="form-label">Milestone (optional)</label>
+              <label className="form-label">Milestone (optional) ({milestones.length} available)</label>
               <select className="form-input" value={newTimesheet.milestone_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}>
                 <option value="">-- No specific milestone --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
