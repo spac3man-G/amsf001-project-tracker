@@ -39,12 +39,27 @@ export default function KPIs() {
 
   async function fetchKPIs() {
     try {
+      // Get project ID first
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('reference', 'AMSF001')
+        .single();
+
+      if (!project) {
+        console.error('Project not found');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('kpis')
         .select('*')
-        .order('kpi_id');
+        .eq('project_id', project.id)
+        .order('kpi_ref');
 
       if (error) throw error;
+      console.log('KPIs loaded:', data?.length);
       setKpis(data || []);
     } catch (error) {
       console.error('Error fetching KPIs:', error);
@@ -55,7 +70,6 @@ export default function KPIs() {
 
   async function handleRefreshMetrics() {
     setRefreshing(true);
-    // In a real implementation, this would recalculate KPI values from deliverables, timesheets, etc.
     await fetchKPIs();
     setTimeout(() => setRefreshing(false), 1000);
   }
@@ -121,11 +135,11 @@ export default function KPIs() {
   // Calculate overall stats
   const totalKPIs = kpis.length;
   const achievedKPIs = kpis.filter(k => {
-    const status = getStatus(k.current_value, k.target_value);
+    const status = getStatus(k.current_value, k.target);
     return status.status === 'Achieved';
   }).length;
   const atRiskKPIs = kpis.filter(k => {
-    const status = getStatus(k.current_value, k.target_value);
+    const status = getStatus(k.current_value, k.target);
     return status.status === 'At Risk' || status.status === 'Critical';
   }).length;
 
@@ -195,13 +209,13 @@ export default function KPIs() {
               </tr>
             ) : (
               kpis.map(kpi => {
-                const statusInfo = getStatus(kpi.current_value, kpi.target_value);
+                const statusInfo = getStatus(kpi.current_value, kpi.target);
                 const StatusIcon = statusInfo.icon;
                 const catColors = getCategoryColor(kpi.category);
                 
                 return (
                   <tr key={kpi.id}>
-                    <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{kpi.kpi_id}</td>
+                    <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{kpi.kpi_ref}</td>
                     <td>
                       <Link 
                         to={`/kpis/${kpi.id}`}
@@ -228,7 +242,7 @@ export default function KPIs() {
                         {kpi.category}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center', fontWeight: '500' }}>{kpi.target_value}%</td>
+                    <td style={{ textAlign: 'center', fontWeight: '500' }}>{kpi.target}%</td>
                     <td style={{ textAlign: 'center' }}>
                       {editingId === kpi.id ? (
                         <input
@@ -315,9 +329,9 @@ export default function KPIs() {
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
               {categoryKPIs.map(kpi => {
-                const statusInfo = getStatus(kpi.current_value, kpi.target_value);
-                const progress = kpi.target_value > 0 
-                  ? Math.min(100, ((kpi.current_value || 0) / kpi.target_value) * 100)
+                const statusInfo = getStatus(kpi.current_value, kpi.target);
+                const progress = kpi.target > 0 
+                  ? Math.min(100, ((kpi.current_value || 0) / kpi.target) * 100)
                   : 0;
                 
                 return (
@@ -344,14 +358,14 @@ export default function KPIs() {
                     }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{kpi.kpi_id}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{kpi.kpi_ref}</span>
                         <Target size={16} style={{ color: statusInfo.color }} />
                       </div>
                       <div style={{ fontSize: '1.5rem', fontWeight: '700', color: statusInfo.color, marginBottom: '0.25rem' }}>
                         {kpi.current_value !== null ? `${kpi.current_value}%` : '0%'}
                       </div>
                       <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
-                        Target: {kpi.target_value}%
+                        Target: {kpi.target}%
                       </div>
                       <div style={{ 
                         width: '100%', 
