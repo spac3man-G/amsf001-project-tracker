@@ -15,131 +15,6 @@ export default function KPIDetail() {
   const [userRole, setUserRole] = useState('viewer');
   const [editForm, setEditForm] = useState({});
 
-  // KPI descriptions from SOW
-  const sowDescriptions = {
-    'KPI01': {
-      title: 'Mobilisation & Project Deadlines',
-      category: 'Time Performance',
-      target: '90%',
-      description: 'Measures the Supplier\'s ability to mobilise resources and meet project deadlines as agreed in the project plan.',
-      measurement: 'Percentage of mobilisation milestones and project deadlines met on or before the agreed date.',
-      frequency: 'Monthly',
-      dataSource: 'Project schedule, milestone tracking reports',
-      calculation: '(Number of deadlines met on time / Total number of deadlines) × 100',
-      remediation: 'If performance falls below target, the Supplier must provide a recovery plan within 5 working days.'
-    },
-    'KPI02': {
-      title: 'Timeliness of Delivery',
-      category: 'Time Performance',
-      target: '90%',
-      description: 'Measures the Supplier\'s ability to deliver work products and services within agreed timescales.',
-      measurement: 'Percentage of deliverables submitted on or before the agreed delivery date.',
-      frequency: 'Monthly',
-      dataSource: 'Delivery tracking log, acceptance records',
-      calculation: '(Number of on-time deliveries / Total number of deliveries) × 100',
-      remediation: 'Repeated failures may result in service credits or contract review.'
-    },
-    'KPI03': {
-      title: 'First Time Quality of Deliverables',
-      category: 'Time Performance',
-      target: '90%',
-      description: 'Measures the quality of deliverables on first submission, without requiring rework or resubmission.',
-      measurement: 'Percentage of deliverables accepted on first submission without material changes.',
-      frequency: 'Monthly',
-      dataSource: 'Deliverable acceptance records, review feedback',
-      calculation: '(Deliverables accepted first time / Total deliverables submitted) × 100',
-      remediation: 'Quality improvement plan required if target not met for two consecutive months.'
-    },
-    'KPI04': {
-      title: 'Second Time Quality of Deliverables',
-      category: 'Quality of Collaboration',
-      target: '95%',
-      description: 'Measures the quality of deliverables after one round of feedback and revision.',
-      measurement: 'Percentage of deliverables accepted after first revision following initial feedback.',
-      frequency: 'Monthly',
-      dataSource: 'Deliverable revision tracking, acceptance records',
-      calculation: '(Deliverables accepted on second submission / Total resubmissions) × 100',
-      remediation: 'Persistent issues require root cause analysis and corrective action plan.'
-    },
-    'KPI05': {
-      title: 'Proactive Partnership',
-      category: 'Quality of Collaboration',
-      target: '90%',
-      description: 'Measures the Supplier\'s proactive engagement and contribution to project success beyond contractual minimums.',
-      measurement: 'Assessment score based on proactive suggestions, risk identification, and value-add contributions.',
-      frequency: 'Quarterly',
-      dataSource: 'Stakeholder feedback, meeting records, innovation log',
-      calculation: 'Weighted score from stakeholder assessment (scale 1-100)',
-      remediation: 'Engagement improvement plan if score falls below target.'
-    },
-    'KPI06': {
-      title: 'Responsiveness',
-      category: 'Quality of Collaboration',
-      target: '90%',
-      description: 'Measures the Supplier\'s responsiveness to queries, requests, and issues raised by the Authority.',
-      measurement: 'Percentage of queries and requests responded to within agreed SLA timeframes.',
-      frequency: 'Monthly',
-      dataSource: 'Communication logs, ticket system, email records',
-      calculation: '(Responses within SLA / Total queries) × 100',
-      remediation: 'Communication protocol review if target not achieved.'
-    },
-    'KPI07': {
-      title: 'Communication & Collaboration',
-      category: 'Quality of Collaboration',
-      target: '90%',
-      description: 'Measures the effectiveness of communication and collaborative working between Supplier and Authority teams.',
-      measurement: 'Assessment score based on communication clarity, meeting effectiveness, and stakeholder satisfaction.',
-      frequency: 'Monthly',
-      dataSource: 'Stakeholder surveys, meeting effectiveness reviews',
-      calculation: 'Weighted score from collaboration assessment (scale 1-100)',
-      remediation: 'Communication improvement workshop if target not met.'
-    },
-    'KPI08': {
-      title: 'Planning & Reporting',
-      category: 'Delivery Performance',
-      target: '90%',
-      description: 'Measures the quality and timeliness of project planning and reporting activities.',
-      measurement: 'Percentage of reports delivered on time with required quality and completeness.',
-      frequency: 'Monthly',
-      dataSource: 'Report submission records, quality assessments',
-      calculation: '(Compliant reports / Total reports due) × 100',
-      remediation: 'Reporting process review and template updates if required.'
-    },
-    'KPI09': {
-      title: 'Documentation Quality',
-      category: 'Delivery Performance',
-      target: '95%',
-      description: 'Measures the quality, accuracy, and completeness of all project documentation.',
-      measurement: 'Documentation quality score based on accuracy, completeness, and adherence to standards.',
-      frequency: 'Monthly',
-      dataSource: 'Document reviews, audit findings',
-      calculation: 'Quality score from documentation audits (scale 1-100)',
-      remediation: 'Documentation standards training if quality falls below target.'
-    },
-    'KPI10': {
-      title: 'Risk Management',
-      category: 'Delivery Performance',
-      target: '90%',
-      description: 'Measures the effectiveness of risk identification, assessment, and mitigation activities.',
-      measurement: 'Percentage of identified risks with documented mitigation plans and timely updates.',
-      frequency: 'Monthly',
-      dataSource: 'Risk register, risk review meeting minutes',
-      calculation: '(Risks with current mitigation plans / Total identified risks) × 100',
-      remediation: 'Risk management process enhancement if target not achieved.'
-    },
-    'KPI11': {
-      title: 'Innovation & Improvement',
-      category: 'Delivery Performance',
-      target: '90%',
-      description: 'Measures the Supplier\'s contribution to innovation and continuous improvement.',
-      measurement: 'Number and quality of improvement suggestions implemented or accepted for consideration.',
-      frequency: 'Quarterly',
-      dataSource: 'Innovation log, improvement tracker',
-      calculation: 'Score based on quantity and impact of accepted improvements',
-      remediation: 'Innovation workshop if contribution falls below expectations.'
-    }
-  };
-
   useEffect(() => {
     fetchKPI();
     fetchUserRole();
@@ -170,7 +45,7 @@ export default function KPIDetail() {
       setEditForm({
         name: data.name || '',
         category: data.category || '',
-        target_value: data.target_value || '',
+        target: data.target || '',
         current_value: data.current_value || '',
         description: data.description || '',
         measurement_method: data.measurement_method || '',
@@ -194,7 +69,7 @@ export default function KPIDetail() {
         .update({
           name: editForm.name,
           category: editForm.category,
-          target_value: parseFloat(editForm.target_value) || null,
+          target: parseFloat(editForm.target) || null,
           current_value: parseFloat(editForm.current_value) || null,
           description: editForm.description,
           measurement_method: editForm.measurement_method,
@@ -213,21 +88,6 @@ export default function KPIDetail() {
     } catch (error) {
       console.error('Error updating KPI:', error);
       alert('Failed to update KPI: ' + error.message);
-    }
-  }
-
-  async function populateFromSOW() {
-    const sowData = sowDescriptions[kpi?.kpi_id];
-    if (sowData) {
-      setEditForm({
-        ...editForm,
-        description: sowData.description,
-        measurement_method: sowData.measurement,
-        frequency: sowData.frequency,
-        data_source: sowData.dataSource,
-        calculation: sowData.calculation,
-        remediation: sowData.remediation
-      });
     }
   }
 
@@ -262,8 +122,7 @@ export default function KPIDetail() {
     );
   }
 
-  const statusInfo = getStatusInfo(kpi.current_value, kpi.target_value);
-  const sowData = sowDescriptions[kpi.kpi_id];
+  const statusInfo = getStatusInfo(kpi.current_value, kpi.target);
   const canEdit = userRole === 'admin' || userRole === 'contributor';
 
   return (
@@ -280,7 +139,7 @@ export default function KPIDetail() {
           <TrendingUp size={28} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <h1>{kpi.kpi_id}</h1>
+              <h1>{kpi.kpi_ref}</h1>
               <span style={{ 
                 padding: '0.25rem 0.75rem', 
                 borderRadius: '9999px',
@@ -316,7 +175,7 @@ export default function KPIDetail() {
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card">
           <div className="stat-label">Target</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>{kpi.target_value || '-'}%</div>
+          <div className="stat-value" style={{ color: '#3b82f6' }}>{kpi.target || '-'}%</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Current</div>
@@ -342,27 +201,9 @@ export default function KPIDetail() {
         <div>
           {/* Description */}
           <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Info size={20} /> Description
-              </h3>
-              {editing && sowData && (
-                <button 
-                  onClick={populateFromSOW}
-                  style={{ 
-                    padding: '0.25rem 0.75rem', 
-                    fontSize: '0.85rem',
-                    backgroundColor: '#dbeafe',
-                    color: '#2563eb',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Load from SOW
-                </button>
-              )}
-            </div>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <Info size={20} /> Description
+            </h3>
             {editing ? (
               <textarea
                 className="form-input"
@@ -373,7 +214,7 @@ export default function KPIDetail() {
               />
             ) : (
               <p style={{ color: '#374151', lineHeight: '1.6' }}>
-                {kpi.description || sowData?.description || 'No description available.'}
+                {kpi.description || 'No description available.'}
               </p>
             )}
           </div>
@@ -393,7 +234,7 @@ export default function KPIDetail() {
               />
             ) : (
               <p style={{ color: '#374151', lineHeight: '1.6' }}>
-                {kpi.measurement_method || sowData?.measurement || 'Not specified.'}
+                {kpi.measurement_method || 'Not specified.'}
               </p>
             )}
           </div>
@@ -419,7 +260,7 @@ export default function KPIDetail() {
                 padding: '0.75rem',
                 borderRadius: '4px'
               }}>
-                {kpi.calculation || sowData?.calculation || 'Not specified.'}
+                {kpi.calculation || 'Not specified.'}
               </p>
             )}
           </div>
@@ -439,7 +280,7 @@ export default function KPIDetail() {
               />
             ) : (
               <p style={{ color: '#92400e', lineHeight: '1.6' }}>
-                {kpi.remediation || sowData?.remediation || 'Not specified.'}
+                {kpi.remediation || 'Not specified.'}
               </p>
             )}
           </div>
@@ -469,7 +310,7 @@ export default function KPIDetail() {
                 </select>
               ) : (
                 <div style={{ fontWeight: '500' }}>
-                  {kpi.frequency || sowData?.frequency || 'Not specified'}
+                  {kpi.frequency || 'Not specified'}
                 </div>
               )}
             </div>
@@ -488,7 +329,7 @@ export default function KPIDetail() {
                 />
               ) : (
                 <div style={{ fontWeight: '500' }}>
-                  {kpi.data_source || sowData?.dataSource || 'Not specified'}
+                  {kpi.data_source || 'Not specified'}
                 </div>
               )}
             </div>
@@ -501,12 +342,12 @@ export default function KPIDetail() {
                 <input
                   type="number"
                   className="form-input"
-                  value={editForm.target_value}
-                  onChange={(e) => setEditForm({ ...editForm, target_value: e.target.value })}
+                  value={editForm.target}
+                  onChange={(e) => setEditForm({ ...editForm, target: e.target.value })}
                   placeholder="Target %"
                 />
               ) : (
-                <div style={{ fontWeight: '500' }}>{kpi.target_value || '-'}%</div>
+                <div style={{ fontWeight: '500' }}>{kpi.target || '-'}%</div>
               )}
             </div>
 
@@ -545,19 +386,6 @@ export default function KPIDetail() {
               </p>
             )}
           </div>
-
-          {/* SOW Reference */}
-          {sowData && (
-            <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e' }}>
-              <h4 style={{ color: '#166534', marginBottom: '0.5rem' }}>
-                <CheckCircle size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
-                SOW Reference
-              </h4>
-              <p style={{ color: '#166534', fontSize: '0.85rem' }}>
-                This KPI is defined in the Statement of Work. Click "Load from SOW" while editing to populate fields with SOW definitions.
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>
