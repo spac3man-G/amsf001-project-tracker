@@ -10,7 +10,8 @@ import {
   FileText,
   UserCog,
   Settings as SettingsIcon,
-  LogOut
+  LogOut,
+  BookOpen
 } from 'lucide-react'
 
 export default function Layout({ session }) {
@@ -23,6 +24,7 @@ export default function Layout({ session }) {
     { name: 'Timesheets', href: '/timesheets', icon: Clock },
     { name: 'Expenses', href: '/expenses', icon: Receipt },
     { name: 'KPIs', href: '/kpis', icon: TrendingUp },
+    { name: 'Standards', href: '/standards', icon: BookOpen },
     { name: 'Reports', href: '/reports', icon: FileText },
     { name: 'Users', href: '/users', icon: UserCog },
     { name: 'Settings', href: '/settings', icon: SettingsIcon },
