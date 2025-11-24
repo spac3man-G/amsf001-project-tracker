@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Package, Plus, Edit2, Save, X, Trash2, CheckCircle, 
-  Clock, AlertCircle, Target, FileText
+  Clock, AlertCircle
 } from 'lucide-react';
 
 export default function Deliverables() {
@@ -76,7 +76,6 @@ export default function Deliverables() {
     const pid = projId || projectId;
 
     try {
-      // Fetch deliverables with their KPI links
       const { data: deliverablesData } = await supabase
         .from('deliverables')
         .select('*, deliverable_kpis(kpi_id)')
@@ -85,7 +84,6 @@ export default function Deliverables() {
       
       setDeliverables(deliverablesData || []);
 
-      // Fetch milestones
       const { data: milestonesData } = await supabase
         .from('milestones')
         .select('id, milestone_ref, name')
@@ -94,7 +92,6 @@ export default function Deliverables() {
       
       setMilestones(milestonesData || []);
 
-      // Fetch KPIs
       const { data: kpisData } = await supabase
         .from('kpis')
         .select('id, kpi_ref, name, description, measurement_method, target')
@@ -114,7 +111,6 @@ export default function Deliverables() {
     }
 
     try {
-      // Insert deliverable
       const { data: inserted, error } = await supabase
         .from('deliverables')
         .insert({
@@ -133,7 +129,6 @@ export default function Deliverables() {
 
       if (error) throw error;
 
-      // Insert KPI links
       if (newDeliverable.kpi_ids.length > 0) {
         const kpiLinks = newDeliverable.kpi_ids.map(kpiId => ({
           deliverable_id: inserted.id,
@@ -143,6 +138,7 @@ export default function Deliverables() {
       }
 
       await fetchData();
+      await updateMilestoneProgress(newDeliverable.milestone_id);
       setShowAddForm(false);
       setNewDeliverable({
         deliverable_ref: '',
@@ -161,7 +157,7 @@ export default function Deliverables() {
     }
   }
 
-  async function handleEdit(deliverable) {
+  function handleEdit(deliverable) {
     setEditingId(deliverable.id);
     setEditForm({
       name: deliverable.name,
@@ -176,13 +172,16 @@ export default function Deliverables() {
 
   async function handleSave(id) {
     try {
+      const deliverable = deliverables.find(d => d.id === id);
+      const oldMilestoneId = deliverable?.milestone_id;
+
       const { error } = await supabase
         .from('deliverables')
         .update({
           name: editForm.name,
           milestone_id: editForm.milestone_id,
           status: editForm.status,
-          progress: editForm.progress,
+          progress: parseInt(editForm.progress) || 0,
           assigned_to: editForm.assigned_to,
           due_date: editForm.due_date || null
         })
@@ -192,7 +191,7 @@ export default function Deliverables() {
 
       // Update KPI links
       await supabase.from('deliverable_kpis').delete().eq('deliverable_id', id);
-      if (editForm.kpi_ids.length > 0) {
+      if (editForm.kpi_ids && editForm.kpi_ids.length > 0) {
         const kpiLinks = editForm.kpi_ids.map(kpiId => ({
           deliverable_id: id,
           kpi_id: kpiId
@@ -201,37 +200,100 @@ export default function Deliverables() {
       }
 
       await fetchData();
+      
+      // Update milestone progress
+      await updateMilestoneProgress(editForm.milestone_id);
+      if (oldMilestoneId && oldMilestoneId !== editForm.milestone_id) {
+        await updateMilestoneProgress(oldMilestoneId);
+      }
+
       setEditingId(null);
+      alert('Deliverable saved successfully!');
     } catch (error) {
       console.error('Error updating deliverable:', error);
-      alert('Failed to update deliverable');
+      alert('Failed to update deliverable: ' + error.message);
     }
   }
 
   async function handleDelete(id) {
     if (!confirm('Delete this deliverable?')) return;
     try {
+      const deliverable = deliverables.find(d => d.id === id);
+      const milestoneId = deliverable?.milestone_id;
+
       await supabase.from('deliverables').delete().eq('id', id);
       await fetchData();
+      
+      if (milestoneId) {
+        await updateMilestoneProgress(milestoneId);
+      }
     } catch (error) {
       console.error('Error deleting:', error);
+    }
+  }
+
+  async function updateMilestoneProgress(milestoneId) {
+    if (!milestoneId) return;
+
+    try {
+      const { data: milestoneDeliverables } = await supabase
+        .from('deliverables')
+        .select('status')
+        .eq('milestone_id', milestoneId);
+
+      if (!milestoneDeliverables || milestoneDeliverables.length === 0) {
+        await supabase
+          .from('milestones')
+          .update({ progress: 0 })
+          .eq('id', milestoneId);
+        return;
+      }
+
+      const total = milestoneDeliverables.length;
+      const completed = milestoneDeliverables.filter(d => d.status === 'Complete').length;
+      const progress = Math.round((completed / total) * 100);
+
+      await supabase
+        .from('milestones')
+        .update({ 
+          progress: progress,
+          status: progress >= 100 ? 'Completed' : progress > 0 ? 'In Progress' : 'Not Started'
+        })
+        .eq('id', milestoneId);
+    } catch (error) {
+      console.error('Error updating milestone progress:', error);
     }
   }
 
   // Open completion modal
   function openCompletionModal(deliverable) {
     const linkedKpiIds = deliverable.deliverable_kpis?.map(dk => dk.kpi_id) || [];
-    const linkedKpis = kpis.filter(k => linkedKpiIds.includes(k.id));
     
-    if (linkedKpis.length === 0) {
-      // No KPIs linked, just mark complete
-      markComplete(deliverable.id, {});
+    if (linkedKpiIds.length === 0) {
+      // No KPIs linked, just mark complete directly
+      markCompleteWithoutKPIs(deliverable);
       return;
     }
 
     setCompletingDeliverable(deliverable);
     setKpiAssessments({});
     setShowCompletionModal(true);
+  }
+
+  async function markCompleteWithoutKPIs(deliverable) {
+    try {
+      await supabase
+        .from('deliverables')
+        .update({ status: 'Complete', progress: 100 })
+        .eq('id', deliverable.id);
+
+      await fetchData();
+      await updateMilestoneProgress(deliverable.milestone_id);
+      alert('Deliverable marked as complete!');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to complete deliverable');
+    }
   }
 
   // Save completion with KPI assessments
@@ -254,11 +316,12 @@ export default function Deliverables() {
         .update({ status: 'Complete', progress: 100 })
         .eq('id', completingDeliverable.id);
 
-      // Insert/update KPI assessments
+      // Insert KPI assessments
       for (const kpiId of linkedKpiIds) {
         const criteriaMet = kpiAssessments[kpiId];
         
-        await supabase
+        // Upsert the assessment
+        const { error } = await supabase
           .from('deliverable_kpi_assessments')
           .upsert({
             deliverable_id: completingDeliverable.id,
@@ -269,7 +332,17 @@ export default function Deliverables() {
           }, {
             onConflict: 'deliverable_id,kpi_id'
           });
+
+        if (error) {
+          console.error('Error inserting assessment:', error);
+        }
       }
+
+      // Update KPI scores
+      await updateKPIScores(linkedKpiIds);
+
+      // Update milestone progress
+      await updateMilestoneProgress(completingDeliverable.milestone_id);
 
       await fetchData();
       setShowCompletionModal(false);
@@ -282,15 +355,32 @@ export default function Deliverables() {
     }
   }
 
-  async function markComplete(deliverableId, assessments) {
-    try {
-      await supabase
-        .from('deliverables')
-        .update({ status: 'Complete', progress: 100 })
-        .eq('id', deliverableId);
-      await fetchData();
-    } catch (error) {
-      console.error('Error:', error);
+  async function updateKPIScores(kpiIds) {
+    for (const kpiId of kpiIds) {
+      try {
+        // Get all assessments for this KPI
+        const { data: assessments } = await supabase
+          .from('deliverable_kpi_assessments')
+          .select('criteria_met')
+          .eq('kpi_id', kpiId)
+          .not('criteria_met', 'is', null);
+
+        if (assessments && assessments.length > 0) {
+          const total = assessments.length;
+          const met = assessments.filter(a => a.criteria_met === true).length;
+          const score = Math.round((met / total) * 100);
+
+          await supabase
+            .from('kpis')
+            .update({ 
+              current_value: score,
+              last_measured: new Date().toISOString()
+            })
+            .eq('id', kpiId);
+        }
+      } catch (error) {
+        console.error('Error updating KPI score:', error);
+      }
     }
   }
 
@@ -314,9 +404,9 @@ export default function Deliverables() {
 
   function getStatusColor(status) {
     switch (status) {
-      case 'Complete': return 'status-completed';
-      case 'In Progress': return 'status-in-progress';
-      default: return 'status-not-started';
+      case 'Complete': return { bg: '#dcfce7', color: '#16a34a' };
+      case 'In Progress': return { bg: '#dbeafe', color: '#2563eb' };
+      default: return { bg: '#f1f5f9', color: '#64748b' };
     }
   }
 
@@ -356,7 +446,7 @@ export default function Deliverables() {
         <div className="stat-card">
           <div className="stat-label">Not Started</div>
           <div className="stat-value" style={{ color: '#64748b' }}>
-            {deliverables.filter(d => d.status === 'Not Started').length}
+            {deliverables.filter(d => d.status === 'Not Started' || !d.status).length}
           </div>
         </div>
         <div className="stat-card">
@@ -401,9 +491,9 @@ export default function Deliverables() {
 
       {/* Add Form */}
       {showAddForm && (
-        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
+        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid #10b981' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add New Deliverable</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label className="form-label">Reference *</label>
               <input 
@@ -430,7 +520,7 @@ export default function Deliverables() {
             <textarea 
               className="form-input" 
               rows={2}
-              placeholder="Description of the deliverable"
+              placeholder="Description"
               value={newDeliverable.description}
               onChange={(e) => setNewDeliverable({ ...newDeliverable, description: e.target.value })}
             />
@@ -454,7 +544,7 @@ export default function Deliverables() {
               <input 
                 type="text" 
                 className="form-input" 
-                placeholder="Person responsible"
+                placeholder="Person"
                 value={newDeliverable.assigned_to}
                 onChange={(e) => setNewDeliverable({ ...newDeliverable, assigned_to: e.target.value })}
               />
@@ -480,7 +570,7 @@ export default function Deliverables() {
             </div>
           </div>
           <div style={{ marginBottom: '1rem' }}>
-            <label className="form-label">Link to KPIs (select all that apply)</label>
+            <label className="form-label">Link to KPIs</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {kpis.map(kpi => (
                 <label 
@@ -502,7 +592,6 @@ export default function Deliverables() {
                     onChange={() => toggleKpiSelection(kpi.id)}
                   />
                   <span style={{ fontWeight: '500' }}>{kpi.kpi_ref}</span>
-                  <span style={{ color: '#64748b' }}>- {kpi.name}</span>
                 </label>
               ))}
             </div>
@@ -530,38 +619,41 @@ export default function Deliverables() {
               <th>Progress</th>
               <th>Linked KPIs</th>
               <th>Due Date</th>
-              <th>Actions</th>
+              <th style={{ width: '150px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredDeliverables.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
-                  No deliverables found. Click "Add Deliverable" to create one.
+                <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                  No deliverables found.
                 </td>
               </tr>
             ) : (
               filteredDeliverables.map(del => {
                 const milestone = milestones.find(m => m.id === del.milestone_id);
                 const linkedKpiIds = del.deliverable_kpis?.map(dk => dk.kpi_id) || [];
+                const isEditing = editingId === del.id;
+                const statusColors = getStatusColor(del.status);
                 
                 return (
                   <tr key={del.id}>
                     <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{del.deliverable_ref}</td>
                     <td>
-                      {editingId === del.id ? (
+                      {isEditing ? (
                         <input 
                           type="text" 
                           className="form-input" 
                           value={editForm.name}
                           onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          style={{ width: '100%' }}
                         />
                       ) : (
                         del.name
                       )}
                     </td>
                     <td>
-                      {editingId === del.id ? (
+                      {isEditing ? (
                         <select 
                           className="form-input"
                           value={editForm.milestone_id}
@@ -584,7 +676,7 @@ export default function Deliverables() {
                       )}
                     </td>
                     <td>
-                      {editingId === del.id ? (
+                      {isEditing ? (
                         <select 
                           className="form-input"
                           value={editForm.status}
@@ -593,20 +685,29 @@ export default function Deliverables() {
                           {statuses.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       ) : (
-                        <span className={`status-badge ${getStatusColor(del.status)}`}>
-                          {del.status === 'Complete' && <CheckCircle size={12} style={{ marginRight: '0.25rem' }} />}
-                          {del.status === 'In Progress' && <Clock size={12} style={{ marginRight: '0.25rem' }} />}
+                        <span style={{ 
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.85rem',
+                          backgroundColor: statusColors.bg,
+                          color: statusColors.color,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}>
+                          {del.status === 'Complete' && <CheckCircle size={12} />}
+                          {del.status === 'In Progress' && <Clock size={12} />}
                           {del.status || 'Not Started'}
                         </span>
                       )}
                     </td>
                     <td>
-                      {editingId === del.id ? (
+                      {isEditing ? (
                         <input 
                           type="number" 
                           className="form-input" 
                           value={editForm.progress}
-                          onChange={(e) => setEditForm({ ...editForm, progress: parseInt(e.target.value) || 0 })}
+                          onChange={(e) => setEditForm({ ...editForm, progress: e.target.value })}
                           min="0"
                           max="100"
                           style={{ width: '70px' }}
@@ -623,8 +724,7 @@ export default function Deliverables() {
                             <div style={{ 
                               width: `${del.progress || 0}%`, 
                               height: '100%', 
-                              backgroundColor: del.status === 'Complete' ? '#10b981' : '#3b82f6',
-                              borderRadius: '3px'
+                              backgroundColor: del.status === 'Complete' ? '#10b981' : '#3b82f6'
                             }}></div>
                           </div>
                           <span style={{ fontSize: '0.85rem' }}>{del.progress || 0}%</span>
@@ -632,10 +732,10 @@ export default function Deliverables() {
                       )}
                     </td>
                     <td>
-                      {editingId === del.id ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '100px', overflowY: 'auto' }}>
-                          {kpis.map(kpi => (
-                            <label key={kpi.id} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                          {kpis.slice(0, 5).map(kpi => (
+                            <label key={kpi.id} style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', fontSize: '0.75rem' }}>
                               <input 
                                 type="checkbox"
                                 checked={editForm.kpi_ids?.includes(kpi.id)}
@@ -647,7 +747,7 @@ export default function Deliverables() {
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                          {linkedKpiIds.map(kpiId => {
+                          {linkedKpiIds.slice(0, 4).map(kpiId => {
                             const kpi = kpis.find(k => k.id === kpiId);
                             return kpi ? (
                               <span key={kpiId} style={{ 
@@ -655,17 +755,20 @@ export default function Deliverables() {
                                 backgroundColor: '#dbeafe', 
                                 color: '#2563eb',
                                 borderRadius: '4px',
-                                fontSize: '0.75rem'
+                                fontSize: '0.7rem'
                               }}>
                                 {kpi.kpi_ref}
                               </span>
                             ) : null;
                           })}
+                          {linkedKpiIds.length > 4 && (
+                            <span style={{ fontSize: '0.7rem', color: '#64748b' }}>+{linkedKpiIds.length - 4}</span>
+                          )}
                         </div>
                       )}
                     </td>
                     <td>
-                      {editingId === del.id ? (
+                      {isEditing ? (
                         <input 
                           type="date" 
                           className="form-input"
@@ -677,38 +780,101 @@ export default function Deliverables() {
                       )}
                     </td>
                     <td>
-                      {editingId === del.id ? (
-                        <div className="action-buttons">
-                          <button className="btn-icon btn-success" onClick={() => handleSave(del.id)}>
-                            <Save size={16} />
-                          </button>
-                          <button className="btn-icon btn-secondary" onClick={() => setEditingId(null)}>
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="action-buttons">
-                          {canEdit && (
-                            <>
-                              <button className="btn-icon" onClick={() => handleEdit(del)} title="Edit">
-                                <Edit2 size={16} />
-                              </button>
-                              {del.status !== 'Complete' && (
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        {isEditing ? (
+                          <>
+                            <button 
+                              onClick={() => handleSave(del.id)}
+                              style={{
+                                padding: '0.5rem',
+                                backgroundColor: '#10b981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                              title="Save"
+                            >
+                              <Save size={16} />
+                            </button>
+                            <button 
+                              onClick={() => setEditingId(null)}
+                              style={{
+                                padding: '0.5rem',
+                                backgroundColor: '#64748b',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                              title="Cancel"
+                            >
+                              <X size={16} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {canEdit && (
+                              <>
                                 <button 
-                                  className="btn-icon btn-success" 
-                                  onClick={() => openCompletionModal(del)}
-                                  title="Mark Complete"
+                                  onClick={() => handleEdit(del)}
+                                  style={{
+                                    padding: '0.5rem',
+                                    backgroundColor: '#f1f5f9',
+                                    color: '#374151',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}
+                                  title="Edit"
                                 >
-                                  <CheckCircle size={16} />
+                                  <Edit2 size={16} />
                                 </button>
-                              )}
-                              <button className="btn-icon btn-danger" onClick={() => handleDelete(del.id)} title="Delete">
-                                <Trash2 size={16} />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
+                                {del.status !== 'Complete' && (
+                                  <button 
+                                    onClick={() => openCompletionModal(del)}
+                                    style={{
+                                      padding: '0.5rem',
+                                      backgroundColor: '#10b981',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center'
+                                    }}
+                                    title="Mark Complete"
+                                  >
+                                    <CheckCircle size={16} />
+                                  </button>
+                                )}
+                                <button 
+                                  onClick={() => handleDelete(del.id)}
+                                  style={{
+                                    padding: '0.5rem',
+                                    backgroundColor: '#fef2f2',
+                                    color: '#ef4444',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}
+                                  title="Delete"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -756,10 +922,9 @@ export default function Deliverables() {
               marginBottom: '1.5rem',
               borderLeft: '4px solid #f59e0b'
             }}>
-              <h4 style={{ color: '#92400e', marginBottom: '0.5rem' }}>KPI Assessment Required</h4>
-              <p style={{ color: '#92400e', fontSize: '0.9rem' }}>
-                Please assess whether each linked KPI's criteria was met for this deliverable.
-                Your responses will update the overall KPI scores.
+              <h4 style={{ color: '#92400e', marginBottom: '0.5rem' }}>⚠️ KPI Assessment Required</h4>
+              <p style={{ color: '#92400e', fontSize: '0.9rem', margin: 0 }}>
+                Please assess whether each KPI criteria was met for this deliverable.
               </p>
             </div>
 
@@ -774,21 +939,22 @@ export default function Deliverables() {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                     <div>
-                      <div style={{ fontWeight: '600', color: '#1e40af' }}>{kpi.kpi_ref}</div>
+                      <div style={{ fontWeight: '600', color: '#1e40af', marginBottom: '0.25rem' }}>{kpi.kpi_ref}</div>
                       <div style={{ fontWeight: '500' }}>{kpi.name}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button
                         onClick={() => setKpiAssessments({ ...kpiAssessments, [kpi.id]: true })}
                         style={{
-                          padding: '0.5rem 1rem',
+                          padding: '0.5rem 1.25rem',
                           border: '2px solid',
                           borderColor: kpiAssessments[kpi.id] === true ? '#10b981' : '#d1d5db',
                           backgroundColor: kpiAssessments[kpi.id] === true ? '#dcfce7' : 'white',
                           color: kpiAssessments[kpi.id] === true ? '#16a34a' : '#374151',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontWeight: '500'
+                          fontWeight: '600',
+                          fontSize: '0.9rem'
                         }}
                       >
                         ✓ Yes
@@ -796,21 +962,28 @@ export default function Deliverables() {
                       <button
                         onClick={() => setKpiAssessments({ ...kpiAssessments, [kpi.id]: false })}
                         style={{
-                          padding: '0.5rem 1rem',
+                          padding: '0.5rem 1.25rem',
                           border: '2px solid',
                           borderColor: kpiAssessments[kpi.id] === false ? '#ef4444' : '#d1d5db',
                           backgroundColor: kpiAssessments[kpi.id] === false ? '#fef2f2' : 'white',
                           color: kpiAssessments[kpi.id] === false ? '#dc2626' : '#374151',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontWeight: '500'
+                          fontWeight: '600',
+                          fontSize: '0.9rem'
                         }}
                       >
                         ✗ No
                       </button>
                     </div>
                   </div>
-                  <div style={{ fontSize: '0.9rem', color: '#64748b', backgroundColor: '#f8fafc', padding: '0.75rem', borderRadius: '6px' }}>
+                  <div style={{ 
+                    fontSize: '0.9rem', 
+                    color: '#64748b', 
+                    backgroundColor: '#f8fafc', 
+                    padding: '0.75rem', 
+                    borderRadius: '6px' 
+                  }}>
                     <strong>Criteria:</strong> {kpi.description || kpi.measurement_method || 'No criteria specified'}
                   </div>
                 </div>
@@ -818,17 +991,39 @@ export default function Deliverables() {
 
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button 
-                className="btn btn-secondary"
                 onClick={() => {
                   setShowCompletionModal(false);
                   setCompletingDeliverable(null);
                   setKpiAssessments({});
                 }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#f1f5f9',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleCompleteWithAssessments}>
-                <CheckCircle size={16} /> Complete & Save Assessments
+              <button 
+                onClick={handleCompleteWithAssessments}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <CheckCircle size={18} /> Complete & Save
               </button>
             </div>
           </div>
@@ -837,14 +1032,12 @@ export default function Deliverables() {
 
       {/* Info Box */}
       <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e' }}>
-        <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>💡 Automatic Updates</h4>
-        <p style={{ color: '#166534', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-          When you mark a deliverable as <strong>Complete</strong>, the system:
-        </p>
+        <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>💡 How It Works</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
-          <li>Asks you to assess each linked KPI (Yes/No on criteria met)</li>
-          <li>Updates the KPI scores based on your assessments</li>
-          <li>Updates the milestone progress percentage</li>
+          <li>Click the <strong>green checkmark</strong> to mark a deliverable as Complete</li>
+          <li>You'll be asked to assess each linked KPI (Yes/No)</li>
+          <li>KPI scores update automatically based on your assessments</li>
+          <li>Milestone progress updates based on completed deliverables</li>
         </ul>
       </div>
     </div>
