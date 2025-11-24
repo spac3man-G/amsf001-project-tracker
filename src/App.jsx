@@ -26,13 +26,11 @@ function ProtectedRoute({ children }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -66,10 +64,8 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Public Route */}
         <Route path="/login" element={<Login />} />
 
-        {/* Protected Routes */}
         <Route path="/" element={
           <ProtectedRoute>
             <Layout />
@@ -90,7 +86,6 @@ function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
 
-        {/* Catch all - redirect to dashboard */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
