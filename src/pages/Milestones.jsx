@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { 
-  Target, Plus, Edit2, Save, X, Trash2, Calendar,
-  CheckCircle, Clock, AlertCircle
-} from 'lucide-react';
+import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw } from 'lucide-react';
 
 export default function Milestones() {
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
   const [userRole, setUserRole] = useState('viewer');
   const [projectId, setProjectId] = useState(null);
 
@@ -21,11 +16,8 @@ export default function Milestones() {
     description: '',
     start_date: '',
     end_date: '',
-    value: '',
-    status: 'Not Started'
+    budget: ''
   });
-
-  const statuses = ['Not Started', 'In Progress', 'Completed', 'On Hold'];
 
   useEffect(() => {
     fetchInitialData();
@@ -62,8 +54,6 @@ export default function Milestones() {
 
   async function fetchMilestones(projId) {
     const pid = projId || projectId;
-    if (!pid) return;
-
     try {
       const { data, error } = await supabase
         .from('milestones')
@@ -80,7 +70,7 @@ export default function Milestones() {
 
   async function handleAdd() {
     if (!newMilestone.milestone_ref || !newMilestone.name) {
-      alert('Please fill in Reference and Name');
+      alert('Please fill in at least Milestone Reference and Name');
       return;
     }
 
@@ -94,9 +84,9 @@ export default function Milestones() {
           description: newMilestone.description,
           start_date: newMilestone.start_date || null,
           end_date: newMilestone.end_date || null,
-          value: parseFloat(newMilestone.value) || 0,
-          status: newMilestone.status,
-          progress: 0
+          budget: parseFloat(newMilestone.budget) || 0,
+          progress: 0,
+          status: 'Not Started'
         });
 
       if (error) throw error;
@@ -109,105 +99,71 @@ export default function Milestones() {
         description: '',
         start_date: '',
         end_date: '',
-        value: '',
-        status: 'Not Started'
+        budget: ''
       });
+      alert('Milestone added successfully!');
     } catch (error) {
       console.error('Error adding milestone:', error);
       alert('Failed to add milestone: ' + error.message);
     }
   }
 
-  async function handleEdit(milestone) {
-    setEditingId(milestone.id);
-    setEditForm({
-      name: milestone.name,
-      description: milestone.description || '',
-      start_date: milestone.start_date || '',
-      end_date: milestone.end_date || '',
-      value: milestone.value || '',
-      status: milestone.status || 'Not Started',
-      progress: milestone.progress || 0
-    });
-  }
-
-  async function handleSave(id) {
+  async function handleDelete(id) {
+    if (!confirm('Delete this milestone? This will also delete all associated deliverables.')) return;
     try {
       const { error } = await supabase
         .from('milestones')
-        .update({
-          name: editForm.name,
-          description: editForm.description,
-          start_date: editForm.start_date || null,
-          end_date: editForm.end_date || null,
-          value: parseFloat(editForm.value) || 0,
-          status: editForm.status,
-          progress: editForm.progress
-        })
+        .delete()
         .eq('id', id);
 
       if (error) throw error;
       await fetchMilestones();
-      setEditingId(null);
+      alert('Milestone deleted successfully');
     } catch (error) {
-      console.error('Error updating milestone:', error);
-      alert('Failed to update milestone');
-    }
-  }
-
-  async function handleDelete(id) {
-    if (!confirm('Delete this milestone? This will also remove linked deliverables.')) return;
-    try {
-      const { error } = await supabase.from('milestones').delete().eq('id', id);
-      if (error) throw error;
-      await fetchMilestones();
-    } catch (error) {
-      console.error('Error deleting:', error);
-      alert('Failed to delete milestone');
+      console.error('Error deleting milestone:', error);
+      alert('Failed to delete milestone: ' + error.message);
     }
   }
 
   function getStatusColor(status) {
     switch (status) {
-      case 'Completed': return 'status-completed';
-      case 'In Progress': return 'status-in-progress';
-      case 'On Hold': return 'status-at-risk';
-      default: return 'status-not-started';
+      case 'Completed': return { bg: '#dcfce7', color: '#16a34a' };
+      case 'In Progress': return { bg: '#dbeafe', color: '#2563eb' };
+      default: return { bg: '#f1f5f9', color: '#64748b' };
     }
   }
 
-  function formatDate(dateStr) {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-GB');
-  }
-
-  function formatCurrency(value) {
-    return '£' + (parseFloat(value) || 0).toLocaleString();
-  }
-
-  const totalBudget = milestones.reduce((sum, m) => sum + (parseFloat(m.value) || 0), 0);
-  const completedMilestones = milestones.filter(m => m.status === 'Completed').length;
-  const inProgressMilestones = milestones.filter(m => m.status === 'In Progress').length;
-
-  const canEdit = userRole === 'admin' || userRole === 'contributor';
+  const canEdit = userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm';
 
   if (loading) return <div className="loading">Loading milestones...</div>;
+
+  // Calculate stats
+  const totalBudget = milestones.reduce((sum, m) => sum + (m.budget || 0), 0);
+  const avgProgress = milestones.length > 0 
+    ? Math.round(milestones.reduce((sum, m) => sum + (m.progress || 0), 0) / milestones.length)
+    : 0;
+  const completedCount = milestones.filter(m => m.status === 'Completed').length;
 
   return (
     <div className="page-container">
       <div className="page-header">
         <div className="page-title">
-          <Target size={28} />
+          <MilestoneIcon size={28} />
           <div>
-            <h1>Project Milestones</h1>
-            <p>Track milestone progress and deliverables</p>
+            <h1>Milestones</h1>
+            <p>Track project milestones and deliverables</p>
           </div>
         </div>
-        {canEdit && !showAddForm && (
-          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-            <Plus size={18} /> Add Milestone
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-secondary" onClick={() => fetchMilestones()}>
+            <RefreshCw size={18} /> Refresh
           </button>
-        )}
+          {canEdit && !showAddForm && (
+            <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
+              <Plus size={18} /> Add Milestone
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -218,29 +174,29 @@ export default function Milestones() {
         </div>
         <div className="stat-card">
           <div className="stat-label">Completed</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>{completedMilestones}</div>
+          <div className="stat-value" style={{ color: '#10b981' }}>{completedCount}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">In Progress</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>{inProgressMilestones}</div>
+          <div className="stat-label">Average Progress</div>
+          <div className="stat-value" style={{ color: '#3b82f6' }}>{avgProgress}%</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Total Budget</div>
-          <div className="stat-value" style={{ fontSize: '1.25rem' }}>{formatCurrency(totalBudget)}</div>
+          <div className="stat-value">£{totalBudget.toLocaleString()}</div>
         </div>
       </div>
 
       {/* Add Form */}
-      {showAddForm && (
-        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
+      {showAddForm && canEdit && (
+        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid #10b981' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add New Milestone</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
-              <label className="form-label">Reference *</label>
+              <label className="form-label">Milestone Reference *</label>
               <input 
                 type="text" 
                 className="form-input" 
-                placeholder="M12"
+                placeholder="M01"
                 value={newMilestone.milestone_ref}
                 onChange={(e) => setNewMilestone({ ...newMilestone, milestone_ref: e.target.value })}
               />
@@ -261,12 +217,12 @@ export default function Milestones() {
             <textarea 
               className="form-input" 
               rows={2}
-              placeholder="Milestone description"
+              placeholder="Description"
               value={newMilestone.description}
               onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
             />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label className="form-label">Start Date</label>
               <input 
@@ -286,32 +242,22 @@ export default function Milestones() {
               />
             </div>
             <div>
-              <label className="form-label">Value (£)</label>
+              <label className="form-label">Budget (£)</label>
               <input 
                 type="number" 
-                className="form-input" 
-                placeholder="0"
-                value={newMilestone.value}
-                onChange={(e) => setNewMilestone({ ...newMilestone, value: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="form-label">Status</label>
-              <select 
                 className="form-input"
-                value={newMilestone.status}
-                onChange={(e) => setNewMilestone({ ...newMilestone, status: e.target.value })}
-              >
-                {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+                placeholder="0"
+                value={newMilestone.budget}
+                onChange={(e) => setNewMilestone({ ...newMilestone, budget: e.target.value })}
+              />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-primary" onClick={handleAdd}>
-              <Save size={16} /> Save Milestone
+              <Plus size={16} /> Add Milestone
             </button>
             <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
-              <X size={16} /> Cancel
+              Cancel
             </button>
           </div>
         </div>
@@ -319,134 +265,65 @@ export default function Milestones() {
 
       {/* Milestones Table */}
       <div className="card">
+        <h3 style={{ marginBottom: '1rem' }}>Project Milestones</h3>
         <table>
           <thead>
             <tr>
               <th>Ref</th>
               <th>Name</th>
-              <th>Duration</th>
-              <th>Budget</th>
               <th>Status</th>
               <th>Progress</th>
-              <th>Actions</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+              <th>Budget</th>
+              {canEdit && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {milestones.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
+                <td colSpan={canEdit ? 8 : 7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                   No milestones found. Click "Add Milestone" to create one.
                 </td>
               </tr>
             ) : (
-              milestones.map(milestone => (
-                <tr key={milestone.id}>
-                  <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>
-                    <Link 
-                      to={`/milestones/${milestone.id}`}
-                      style={{ 
-                        color: '#3b82f6', 
-                        textDecoration: 'none',
-                        cursor: 'pointer'
-                      }}
-                      onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                      onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                    >
-                      {milestone.milestone_ref}
-                    </Link>
-                  </td>
-                  <td>
-                    {editingId === milestone.id ? (
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={editForm.name}
-                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      />
-                    ) : (
-                      <div>
-                        <div style={{ fontWeight: '500' }}>{milestone.name}</div>
-                        {milestone.description && (
-                          <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
-                            {milestone.description}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    {editingId === milestone.id ? (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <input 
-                          type="date" 
-                          className="form-input"
-                          value={editForm.start_date}
-                          onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
-                          style={{ width: '130px' }}
-                        />
-                        <input 
-                          type="date" 
-                          className="form-input"
-                          value={editForm.end_date}
-                          onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
-                          style={{ width: '130px' }}
-                        />
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.9rem' }}>
-                        <div>{formatDate(milestone.start_date)}</div>
-                        <div style={{ color: '#64748b' }}>-{formatDate(milestone.end_date)}</div>
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    {editingId === milestone.id ? (
-                      <input 
-                        type="number" 
-                        className="form-input"
-                        value={editForm.value}
-                        onChange={(e) => setEditForm({ ...editForm, value: e.target.value })}
-                        style={{ width: '100px' }}
-                      />
-                    ) : (
-                      <div>
-                        <div style={{ fontWeight: '600' }}>{formatCurrency(milestone.value)}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                          {totalBudget > 0 ? Math.round((milestone.value / totalBudget) * 100) : 0}% of total
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    {editingId === milestone.id ? (
-                      <select 
-                        className="form-input"
-                        value={editForm.status}
-                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+              milestones.map(milestone => {
+                const statusColors = getStatusColor(milestone.status);
+                
+                return (
+                  <tr key={milestone.id}>
+                    <td>
+                      <Link 
+                        to={`/milestones/${milestone.id}`}
+                        style={{ 
+                          fontFamily: 'monospace', 
+                          fontWeight: '600',
+                          color: '#3b82f6',
+                          textDecoration: 'none'
+                        }}
+                        onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                        onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
                       >
-                        {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    ) : (
-                      <span className={`status-badge ${getStatusColor(milestone.status)}`}>
+                        {milestone.milestone_ref}
+                      </Link>
+                    </td>
+                    <td style={{ fontWeight: '500' }}>{milestone.name}</td>
+                    <td>
+                      <span style={{ 
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        backgroundColor: statusColors.bg,
+                        color: statusColors.color,
+                        fontWeight: '500'
+                      }}>
                         {milestone.status || 'Not Started'}
                       </span>
-                    )}
-                  </td>
-                  <td>
-                    {editingId === milestone.id ? (
-                      <input 
-                        type="number" 
-                        className="form-input"
-                        value={editForm.progress}
-                        onChange={(e) => setEditForm({ ...editForm, progress: parseInt(e.target.value) || 0 })}
-                        min="0"
-                        max="100"
-                        style={{ width: '70px' }}
-                      />
-                    ) : (
+                    </td>
+                    <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <div style={{ 
-                          width: '60px', 
+                          width: '80px', 
                           height: '8px', 
                           backgroundColor: '#e2e8f0', 
                           borderRadius: '4px',
@@ -456,40 +333,55 @@ export default function Milestones() {
                             width: `${milestone.progress || 0}%`, 
                             height: '100%', 
                             backgroundColor: milestone.status === 'Completed' ? '#10b981' : '#3b82f6',
-                            borderRadius: '4px'
+                            transition: 'width 0.3s'
                           }}></div>
                         </div>
-                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{milestone.progress || 0}%</span>
+                        <span style={{ 
+                          fontSize: '0.85rem', 
+                          fontWeight: '600',
+                          minWidth: '40px'
+                        }}>
+                          {milestone.progress || 0}%
+                        </span>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          color: '#64748b',
+                          fontStyle: 'italic'
+                        }}>
+                          (auto)
+                        </span>
                       </div>
-                    )}
-                  </td>
-                  <td>
-                    {editingId === milestone.id ? (
-                      <div className="action-buttons">
-                        <button className="btn-icon btn-success" onClick={() => handleSave(milestone.id)}>
-                          <Save size={16} />
+                    </td>
+                    <td>
+                      {milestone.start_date ? new Date(milestone.start_date).toLocaleDateString('en-GB') : '-'}
+                    </td>
+                    <td>
+                      {milestone.end_date ? new Date(milestone.end_date).toLocaleDateString('en-GB') : '-'}
+                    </td>
+                    <td>£{(milestone.budget || 0).toLocaleString()}</td>
+                    {canEdit && (
+                      <td>
+                        <button 
+                          onClick={() => handleDelete(milestone.id)}
+                          style={{
+                            padding: '0.5rem',
+                            backgroundColor: '#fef2f2',
+                            color: '#ef4444',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
                         </button>
-                        <button className="btn-icon btn-secondary" onClick={() => setEditingId(null)}>
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="action-buttons">
-                        {canEdit && (
-                          <>
-                            <button className="btn-icon" onClick={() => handleEdit(milestone)} title="Edit">
-                              <Edit2 size={16} />
-                            </button>
-                            <button className="btn-icon btn-danger" onClick={() => handleDelete(milestone.id)} title="Delete">
-                              <Trash2 size={16} />
-                            </button>
-                          </>
-                        )}
-                      </div>
+                      </td>
                     )}
-                  </td>
-                </tr>
-              ))
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -497,11 +389,14 @@ export default function Milestones() {
 
       {/* Info Box */}
       <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#eff6ff', borderLeft: '4px solid #3b82f6' }}>
-        <h4 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>💡 Milestone Tips</h4>
+        <h4 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>💡 How Milestone Progress Works</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#1e40af', fontSize: '0.9rem' }}>
-          <li>Click on a milestone reference to view its deliverables</li>
-          <li>Progress is automatically updated when deliverables are completed</li>
-          <li>Payment is aligned to milestone completion per the SOW</li>
+          <li>Milestone progress is <strong>automatically calculated</strong> from deliverable completion</li>
+          <li>Click milestone reference to view deliverables and track progress</li>
+          <li>Progress = average of all deliverable progress percentages</li>
+          <li>Example: 5 deliverables at 20%, 40%, 60%, 80%, 100% = 60% milestone progress</li>
+          <li>Timesheets continue to be logged against milestones (not individual deliverables)</li>
+          <li>Payment aligned to milestone completion per SOW requirements</li>
         </ul>
       </div>
     </div>
