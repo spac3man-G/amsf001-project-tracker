@@ -1,408 +1,503 @@
-import { useState, useEffect } from 'react'
-import { format } from 'date-fns'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { TrendingUp, TrendingDown, Users, Target, Clock, PoundSterling, Receipt, BookOpen } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { 
+  TrendingUp, Clock, Package, Users, AlertCircle,
+  CheckCircle, Target
+} from 'lucide-react';
 
 export default function Dashboard() {
-  const [loading, setLoading] = useState(true)
-  const [milestones, setMilestones] = useState([])
-  const [resources, setResources] = useState([])
-  const [kpis, setKpis] = useState([])
-  const [expenses, setExpenses] = useState([])
-  const [standards, setStandards] = useState([])
-  const [project, setProject] = useState(null)
-  
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    totalBudget: 326829,
-    expensesBudget: 20520,
-    spentExpenses: 0,
-    completedMilestones: 0,
     totalMilestones: 0,
-    activeResources: 0,
-    totalDays: 0,
-    kpisOnTarget: 0,
-    totalKpis: 0,
-    standardsComplete: 0,
-    totalStandards: 0
-  })
-
-  const COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6']
+    completedMilestones: 0,
+    totalDeliverables: 0,
+    deliveredCount: 0,
+    totalResources: 0,
+    totalKPIs: 0,
+    achievedKPIs: 0
+  });
+  const [milestones, setMilestones] = useState([]);
+  const [kpisByCategory, setKpisByCategory] = useState({});
+  const [projectProgress, setProjectProgress] = useState(0);
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    fetchDashboardData();
+  }, []);
 
-  const fetchDashboardData = async () => {
+  async function fetchDashboardData() {
     try {
-      // Fetch project
-      const { data: projectData } = await supabase
+      const { data: project } = await supabase
         .from('projects')
-        .select('*')
+        .select('id')
         .eq('reference', 'AMSF001')
-        .single()
-      
-      if (projectData) setProject(projectData)
+        .single();
+
+      if (!project) return;
 
       // Fetch milestones
       const { data: milestonesData } = await supabase
         .from('milestones')
         .select('*')
-        .order('milestone_ref')
-      
-      if (milestonesData) setMilestones(milestonesData)
+        .eq('project_id', project.id)
+        .order('milestone_ref');
+
+      setMilestones(milestonesData || []);
+
+      // Fetch deliverables
+      const { data: deliverablesData } = await supabase
+        .from('deliverables')
+        .select('*')
+        .eq('project_id', project.id);
 
       // Fetch resources
       const { data: resourcesData } = await supabase
         .from('resources')
         .select('*')
-        .order('resource_ref')
-      
-      if (resourcesData) setResources(resourcesData)
+        .eq('project_id', project.id);
 
       // Fetch KPIs
       const { data: kpisData } = await supabase
         .from('kpis')
         .select('*')
-        .order('kpi_ref')
-      
-      if (kpisData) setKpis(kpisData)
+        .eq('project_id', project.id)
+        .order('kpi_ref');
 
-      // Fetch approved expenses
-      const { data: expensesData } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('status', 'Approved')
-      
-      if (expensesData) setExpenses(expensesData)
-
-      // Fetch network standards (if table exists)
-      const { data: standardsData } = await supabase
-        .from('network_standards')
-        .select('*')
-        .order('standard_ref')
-      
-      if (standardsData) setStandards(standardsData)
+      // Group KPIs by category
+      const grouped = {};
+      if (kpisData) {
+        kpisData.forEach(kpi => {
+          const category = kpi.category || 'Other';
+          if (!grouped[category]) {
+            grouped[category] = [];
+          }
+          grouped[category].push(kpi);
+        });
+      }
+      setKpisByCategory(grouped);
 
       // Calculate stats
-      const completedMilestones = milestonesData?.filter(m => m.status === 'Completed').length || 0
-      const totalDays = resourcesData?.reduce((sum, r) => sum + (r.days_allocated || 0), 0) || 0
-      const kpisOnTarget = kpisData?.filter(k => (k.current_value || 0) >= (k.target || 0)).length || 0
-      const spentExpenses = expensesData?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0
-      const standardsComplete = standardsData?.filter(s => ['Approved', 'Published'].includes(s.status)).length || 0
+      const totalMilestones = milestonesData?.length || 0;
+      const completedMilestones = milestonesData?.filter(m => m.status === 'Completed').length || 0;
+      const totalDeliverables = deliverablesData?.length || 0;
+      const deliveredCount = deliverablesData?.filter(d => d.status === 'Delivered').length || 0;
+      const totalResources = resourcesData?.length || 0;
+      const totalKPIs = kpisData?.length || 0;
+      const achievedKPIs = kpisData?.filter(k => {
+        const currentValue = k.current_value || 0;
+        const target = k.target || 90;
+        return currentValue >= target;
+      }).length || 0;
+
+      // Calculate overall project progress (average of milestone progress)
+      const avgProgress = totalMilestones > 0
+        ? Math.round(milestonesData.reduce((sum, m) => sum + (m.progress || 0), 0) / totalMilestones)
+        : 0;
+
+      setProjectProgress(avgProgress);
 
       setStats({
-        totalBudget: projectData?.total_budget || 326829,
-        expensesBudget: projectData?.expenses_budget || 20520,
-        spentExpenses,
+        totalMilestones,
         completedMilestones,
-        totalMilestones: milestonesData?.length || 0,
-        activeResources: resourcesData?.length || 0,
-        totalDays,
-        kpisOnTarget,
-        totalKpis: kpisData?.length || 0,
-        standardsComplete,
-        totalStandards: standardsData?.length || 0
-      })
+        totalDeliverables,
+        deliveredCount,
+        totalResources,
+        totalKPIs,
+        achievedKPIs
+      });
 
-      setLoading(false)
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-      setLoading(false)
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
     }
   }
 
-  if (loading) {
-    return <div className="loading"><div className="spinner"></div></div>
+  function getStatusColor(status) {
+    switch (status) {
+      case 'Completed': return { bg: '#dcfce7', color: '#16a34a' };
+      case 'In Progress': return { bg: '#dbeafe', color: '#2563eb' };
+      default: return { bg: '#f1f5f9', color: '#64748b' };
+    }
   }
 
-  // Prepare chart data
-  const milestoneChartData = milestones.map(m => ({
-    name: m.milestone_ref,
-    budget: parseFloat(m.budget) || 0,
-    percent: m.payment_percent || 0
-  }))
-
-  const budgetData = [
-    { name: 'Invoiced', value: milestones.filter(m => m.status === 'Completed').reduce((sum, m) => sum + (parseFloat(m.budget) || 0), 0) },
-    { name: 'Remaining', value: stats.totalBudget - milestones.filter(m => m.status === 'Completed').reduce((sum, m) => sum + (parseFloat(m.budget) || 0), 0) }
-  ]
-
-  const expensesBudgetData = [
-    { name: 'Spent', value: stats.spentExpenses },
-    { name: 'Remaining', value: stats.expensesBudget - stats.spentExpenses }
-  ]
-
-  // KPI data grouped by category
-  const kpiCategories = [...new Set(kpis.map(k => k.category))].map(cat => {
-    const catKpis = kpis.filter(k => k.category === cat)
-    return {
-      category: cat?.replace('Performance', '').trim() || 'Other',
-      value: Math.round(catKpis.reduce((sum, k) => sum + (k.current_value || 0), 0) / catKpis.length) || 0,
-      target: Math.round(catKpis.reduce((sum, k) => sum + (k.target || 0), 0) / catKpis.length) || 90
+  function getCategoryColor(category) {
+    switch (category) {
+      case 'Time Performance':
+        return '#3b82f6'; // Blue
+      case 'Quality of Collaboration':
+        return '#8b5cf6'; // Purple
+      case 'Delivery Performance':
+        return '#10b981'; // Green
+      default:
+        return '#64748b'; // Gray
     }
-  })
+  }
+
+  if (loading) return <div className="loading">Loading dashboard...</div>;
 
   return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">Project Overview</h2>
-          <span style={{ color: 'var(--text-light)', fontSize: '0.875rem' }}>
-            Network Standards and Design Architectural Services - GOJ/2025/2409
-          </span>
+    <div className="page-container">
+      <div className="page-header">
+        <div className="page-title">
+          <Target size={28} />
+          <div>
+            <h1>AMSF001 Dashboard</h1>
+            <p>Network Standards & Design Architectural Services</p>
+          </div>
         </div>
       </div>
 
-      {/* Stats Grid - Row 1 */}
-      <div className="stats-grid">
+      {/* Project Progress */}
+      <div className="card" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '2rem', color: 'white' }}>
+              {projectProgress}%
+            </h2>
+            <p style={{ margin: '0.5rem 0 0 0', opacity: 0.9 }}>Overall Project Progress</p>
+          </div>
+          <div style={{ width: '120px', height: '120px', position: 'relative' }}>
+            <svg width="120" height="120" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="10"/>
+              <circle 
+                cx="60" 
+                cy="60" 
+                r="50" 
+                fill="none" 
+                stroke="white" 
+                strokeWidth="10"
+                strokeDasharray={`${2 * Math.PI * 50 * projectProgress / 100} ${2 * Math.PI * 50}`}
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card">
-          <div className="stat-label">Contract Value</div>
-          <div className="stat-value">£{stats.totalBudget.toLocaleString()}</div>
-          <div className="stat-change positive">
-            <TrendingUp size={16} />
-            <span>20-week programme</span>
+          <div className="stat-label">
+            <Clock size={20} style={{ color: '#3b82f6' }} />
+            Milestones
+          </div>
+          <div className="stat-value">
+            {stats.completedMilestones} / {stats.totalMilestones}
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+            {stats.totalMilestones > 0 
+              ? Math.round((stats.completedMilestones / stats.totalMilestones) * 100)
+              : 0}% Complete
           </div>
         </div>
-
-        <div className="stat-card" style={{ borderLeftColor: 'var(--success)' }}>
-          <div className="stat-label">Milestones Progress</div>
-          <div className="stat-value">{stats.completedMilestones}/{stats.totalMilestones}</div>
-          <div className="progress-bar" style={{ marginTop: '0.75rem' }}>
-            <div 
-              className="progress-fill" 
-              style={{ width: `${(stats.completedMilestones / stats.totalMilestones) * 100}%` }}
-            />
+        <div className="stat-card">
+          <div className="stat-label">
+            <Package size={20} style={{ color: '#10b981' }} />
+            Deliverables
+          </div>
+          <div className="stat-value">
+            {stats.deliveredCount} / {stats.totalDeliverables}
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+            {stats.totalDeliverables > 0 
+              ? Math.round((stats.deliveredCount / stats.totalDeliverables) * 100)
+              : 0}% Delivered
           </div>
         </div>
-
-        <div className="stat-card" style={{ borderLeftColor: 'var(--warning)' }}>
-          <div className="stat-label">Team Resources</div>
-          <div className="stat-value">{stats.activeResources}</div>
-          <div className="stat-change positive">
-            <Users size={16} />
-            <span>{stats.totalDays} allocated days</span>
+        <div className="stat-card">
+          <div className="stat-label">
+            <TrendingUp size={20} style={{ color: '#8b5cf6' }} />
+            KPIs
+          </div>
+          <div className="stat-value">
+            {stats.achievedKPIs} / {stats.totalKPIs}
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+            {stats.totalKPIs > 0 
+              ? Math.round((stats.achievedKPIs / stats.totalKPIs) * 100)
+              : 0}% Achieved
           </div>
         </div>
-
-        <div className="stat-card" style={{ borderLeftColor: 'var(--danger)' }}>
-          <div className="stat-label">KPIs On Target</div>
-          <div className="stat-value">{stats.kpisOnTarget}/{stats.totalKpis}</div>
-          <div className="progress-bar" style={{ marginTop: '0.75rem' }}>
-            <div 
-              className="progress-fill" 
-              style={{ 
-                width: `${stats.totalKpis > 0 ? (stats.kpisOnTarget / stats.totalKpis) * 100 : 0}%`,
-                background: 'var(--success)'
-              }}
-            />
+        <div className="stat-card">
+          <div className="stat-label">
+            <Users size={20} style={{ color: '#f59e0b' }} />
+            Team Resources
           </div>
-        </div>
-      </div>
-
-      {/* Stats Grid - Row 2: Expenses and Standards */}
-      <div className="stats-grid" style={{ marginTop: '1rem' }}>
-        <div className="stat-card" style={{ borderLeftColor: '#8b5cf6' }}>
-          <div className="stat-label">Expenses Budget</div>
-          <div className="stat-value">£{stats.expensesBudget.toLocaleString()}</div>
-          <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-light)' }}>
-            Spent: £{stats.spentExpenses.toLocaleString()} ({Math.round((stats.spentExpenses / stats.expensesBudget) * 100)}%)
-          </div>
-          <div className="progress-bar" style={{ marginTop: '0.5rem' }}>
-            <div 
-              className="progress-fill" 
-              style={{ 
-                width: `${(stats.spentExpenses / stats.expensesBudget) * 100}%`,
-                background: stats.spentExpenses > stats.expensesBudget * 0.8 ? 'var(--danger)' : '#8b5cf6'
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="stat-card" style={{ borderLeftColor: '#0ea5e9' }}>
-          <div className="stat-label">Network Standards</div>
-          <div className="stat-value">{stats.standardsComplete}/{stats.totalStandards}</div>
-          <div className="stat-change positive">
-            <BookOpen size={16} />
-            <span>Documentation progress</span>
-          </div>
-          <div className="progress-bar" style={{ marginTop: '0.5rem' }}>
-            <div 
-              className="progress-fill" 
-              style={{ 
-                width: `${stats.totalStandards > 0 ? (stats.standardsComplete / stats.totalStandards) * 100 : 0}%`,
-                background: '#0ea5e9'
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="stat-card" style={{ borderLeftColor: '#10b981' }}>
-          <div className="stat-label">Remaining Expenses</div>
-          <div className="stat-value">£{(stats.expensesBudget - stats.spentExpenses).toLocaleString()}</div>
-          <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-light)' }}>
-            Travel & Accommodation
-          </div>
-        </div>
-
-        <div className="stat-card" style={{ borderLeftColor: '#f59e0b' }}>
-          <div className="stat-label">Project Days</div>
-          <div className="stat-value">{stats.totalDays}</div>
-          <div className="stat-change">
-            <Clock size={16} />
-            <span>Total allocated</span>
+          <div className="stat-value">{stats.totalResources}</div>
+          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+            Active team members
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        {/* Milestones Chart */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Milestone Budget Allocation ({milestones.length} milestones)</h3>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={milestoneChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={11} />
-              <YAxis />
-              <Tooltip formatter={(value) => `£${value.toLocaleString()}`} />
-              <Bar dataKey="budget" fill="var(--primary)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Budget Pie Charts */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Budget Status</h3>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: '500', marginBottom: '0.5rem' }}>Contract Budget</div>
-              <ResponsiveContainer width="100%" height={120}>
-                <PieChart>
-                  <Pie
-                    data={budgetData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={30}
-                    outerRadius={50}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {budgetData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => `£${value.toLocaleString()}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: '500', marginBottom: '0.5rem' }}>Expenses Budget (£{stats.expensesBudget.toLocaleString()})</div>
-              <ResponsiveContainer width="100%" height={120}>
-                <PieChart>
-                  <Pie
-                    data={expensesBudgetData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={30}
-                    outerRadius={50}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    <Cell fill="#8b5cf6" />
-                    <Cell fill="#22c55e" />
-                  </Pie>
-                  <Tooltip formatter={(value) => `£${value.toLocaleString()}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+      {/* Budget Overview */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginBottom: '1rem' }}>Budget Overview by Milestone</h3>
+        <div style={{ display: 'flex', gap: '0.5rem', height: '200px', alignItems: 'flex-end' }}>
+          {milestones.map((milestone, index) => {
+            const maxBudget = Math.max(...milestones.map(m => m.budget || 0));
+            const height = maxBudget > 0 ? ((milestone.budget || 0) / maxBudget) * 100 : 0;
+            
+            return (
+              <div 
+                key={milestone.id}
+                style={{ 
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <div 
+                  style={{ 
+                    width: '100%',
+                    height: `${height}%`,
+                    backgroundColor: milestone.status === 'Completed' ? '#10b981' : '#3b82f6',
+                    borderRadius: '4px 4px 0 0',
+                    position: 'relative',
+                    minHeight: '20px'
+                  }}
+                  title={`£${(milestone.budget || 0).toLocaleString()}`}
+                >
+                  <span style={{
+                    position: 'absolute',
+                    top: '-20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    color: '#374151',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    £{Math.round((milestone.budget || 0) / 1000)}k
+                  </span>
+                </div>
+                <span style={{ 
+                  fontSize: '0.7rem', 
+                  fontWeight: '600',
+                  color: '#64748b'
+                }}>
+                  {milestone.milestone_ref}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* KPI Performance */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">KPI Performance by Category</h3>
+      {/* KPI Performance by Category */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginBottom: '1rem' }}>KPI Performance by Category</h3>
+        <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-end', height: '250px' }}>
+          {Object.entries(kpisByCategory).map(([category, kpis]) => {
+            const totalKPIs = kpis.length;
+            const achievedKPIs = kpis.filter(k => (k.current_value || 0) >= (k.target || 90)).length;
+            const achievedPercentage = totalKPIs > 0 ? (achievedKPIs / totalKPIs) * 100 : 0;
+            const color = getCategoryColor(category);
+            
+            return (
+              <div key={category} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  height: '200px',
+                  position: 'relative'
+                }}>
+                  {/* Not Achieved portion */}
+                  <div style={{
+                    height: `${100 - achievedPercentage}%`,
+                    backgroundColor: '#e2e8f0',
+                    borderRadius: achievedPercentage > 0 ? '4px 4px 0 0' : '4px'
+                  }}></div>
+                  
+                  {/* Achieved portion */}
+                  <div style={{
+                    height: `${achievedPercentage}%`,
+                    backgroundColor: color,
+                    borderRadius: achievedPercentage < 100 ? '0 0 4px 4px' : '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: '700',
+                    fontSize: '1.25rem'
+                  }}>
+                    {achievedKPIs}/{totalKPIs}
+                  </div>
+                </div>
+                
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                    {category}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    {Math.round(achievedPercentage)}% Achieved
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={kpiCategories} layout="horizontal">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="category" />
-            <YAxis domain={[0, 100]} />
-            <Tooltip />
-            <Bar dataKey="value" fill="var(--primary)" name="Current %" />
-            <Bar dataKey="target" fill="var(--success)" name="Target %" />
-          </BarChart>
-        </ResponsiveContainer>
       </div>
 
-      {/* Milestones Table */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Milestone Summary</h3>
+      {/* Milestone Summary - Show ALL milestones */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0 }}>Milestone Summary</h3>
+          <Link 
+            to="/milestones"
+            style={{ 
+              color: '#3b82f6', 
+              textDecoration: 'none', 
+              fontSize: '0.9rem',
+              fontWeight: '500'
+            }}
+          >
+            View Details →
+          </Link>
         </div>
-        <div style={{ padding: '1rem 0' }}>
-          <table>
-            <thead>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Ref</th>
+              <th>Name</th>
+              <th>Due</th>
+              <th>Budget</th>
+              <th>Progress</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {milestones.length === 0 ? (
               <tr>
-                <th>Ref</th>
-                <th>Name</th>
-                <th>Due</th>
-                <th>Budget</th>
-                <th>Progress</th>
-                <th>Status</th>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                  No milestones found
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {milestones.slice(0, 6).map(m => (
-                <tr key={m.id}>
-                  <td style={{ fontWeight: '600', fontFamily: 'monospace' }}>{m.milestone_ref}</td>
-                  <td>{m.name}</td>
-                  <td>{m.duration}</td>
-                  <td>£{parseFloat(m.budget || 0).toLocaleString()} ({m.payment_percent}%)</td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{ 
-                        width: '60px', 
-                        height: '8px', 
-                        backgroundColor: '#e2e8f0', 
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                      }}>
+            ) : (
+              milestones.map(milestone => {
+                const statusColors = getStatusColor(milestone.status);
+                return (
+                  <tr key={milestone.id}>
+                    <td>
+                      <Link 
+                        to={`/milestones/${milestone.id}`}
+                        style={{ 
+                          fontFamily: 'monospace', 
+                          fontWeight: '600',
+                          color: '#3b82f6',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        {milestone.milestone_ref}
+                      </Link>
+                    </td>
+                    <td style={{ fontWeight: '500' }}>{milestone.name}</td>
+                    <td>
+                      {milestone.end_date ? new Date(milestone.end_date).toLocaleDateString('en-GB') : '-'}
+                    </td>
+                    <td>£{(milestone.budget || 0).toLocaleString()} ({Math.round((milestone.budget / 326829) * 100)}%)</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <div style={{ 
-                          width: `${m.percent_complete || 0}%`, 
-                          height: '100%', 
-                          backgroundColor: m.percent_complete >= 100 ? '#10b981' : '#3b82f6'
-                        }} />
+                          width: '60px', 
+                          height: '6px', 
+                          backgroundColor: '#e2e8f0', 
+                          borderRadius: '3px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{ 
+                            width: `${milestone.progress || 0}%`, 
+                            height: '100%', 
+                            backgroundColor: milestone.status === 'Completed' ? '#10b981' : '#3b82f6'
+                          }}></div>
+                        </div>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '35px' }}>
+                          {milestone.progress || 0}%
+                        </span>
                       </div>
-                      <span style={{ fontSize: '0.85rem' }}>{m.percent_complete || 0}%</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`badge ${
-                      m.status === 'Completed' ? 'badge-success' :
-                      m.status === 'In Progress' ? 'badge-warning' :
-                      m.status === 'At Risk' ? 'badge-danger' :
-                      'badge-info'
-                    }`}>
-                      {m.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {milestones.length > 6 && (
-            <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-light)' }}>
-              Showing 6 of {milestones.length} milestones. <a href="/milestones" style={{ color: 'var(--primary)' }}>View all →</a>
-            </div>
-          )}
-        </div>
+                    </td>
+                    <td>
+                      <span style={{ 
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        backgroundColor: statusColors.bg,
+                        color: statusColors.color,
+                        fontWeight: '500'
+                      }}>
+                        {milestone.status || 'Not Started'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Quick Links */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+        <Link to="/milestones" className="card" style={{ 
+          textDecoration: 'none', 
+          padding: '1.5rem',
+          cursor: 'pointer',
+          transition: 'transform 0.2s',
+          border: '2px solid #e2e8f0'
+        }}>
+          <Clock size={32} style={{ color: '#3b82f6', marginBottom: '0.5rem' }} />
+          <h4 style={{ margin: '0 0 0.25rem 0', color: '#1e293b' }}>Milestones</h4>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+            Track project milestones
+          </p>
+        </Link>
+
+        <Link to="/deliverables" className="card" style={{ 
+          textDecoration: 'none', 
+          padding: '1.5rem',
+          cursor: 'pointer',
+          transition: 'transform 0.2s',
+          border: '2px solid #e2e8f0'
+        }}>
+          <Package size={32} style={{ color: '#10b981', marginBottom: '0.5rem' }} />
+          <h4 style={{ margin: '0 0 0.25rem 0', color: '#1e293b' }}>Deliverables</h4>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+            Manage deliverables
+          </p>
+        </Link>
+
+        <Link to="/kpis" className="card" style={{ 
+          textDecoration: 'none', 
+          padding: '1.5rem',
+          cursor: 'pointer',
+          transition: 'transform 0.2s',
+          border: '2px solid #e2e8f0'
+        }}>
+          <TrendingUp size={32} style={{ color: '#8b5cf6', marginBottom: '0.5rem' }} />
+          <h4 style={{ margin: '0 0 0.25rem 0', color: '#1e293b' }}>KPIs</h4>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+            View performance indicators
+          </p>
+        </Link>
+
+        <Link to="/reports" className="card" style={{ 
+          textDecoration: 'none', 
+          padding: '1.5rem',
+          cursor: 'pointer',
+          transition: 'transform 0.2s',
+          border: '2px solid #e2e8f0'
+        }}>
+          <CheckCircle size={32} style={{ color: '#f59e0b', marginBottom: '0.5rem' }} />
+          <h4 style={{ margin: '0 0 0.25rem 0', color: '#1e293b' }}>Reports</h4>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+            Generate project reports
+          </p>
+        </Link>
       </div>
     </div>
-  )
+  );
 }
