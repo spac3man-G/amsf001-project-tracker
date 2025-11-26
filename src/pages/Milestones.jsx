@@ -5,6 +5,7 @@ import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X } f
 
 export default function Milestones() {
   const [milestones, setMilestones] = useState([]);
+  const [milestoneDeliverables, setMilestoneDeliverables] = useState({});
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -27,13 +28,43 @@ export default function Milestones() {
     description: '',
     start_date: '',
     end_date: '',
-    budget: '',
-    status: 'Not Started'
+    budget: ''
   });
 
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  // Calculate milestone status from its deliverables
+  function calculateMilestoneStatus(deliverables) {
+    if (!deliverables || deliverables.length === 0) {
+      return 'Not Started';
+    }
+
+    const allNotStarted = deliverables.every(d => d.status === 'Not Started' || !d.status);
+    const allDelivered = deliverables.every(d => d.status === 'Delivered');
+    
+    if (allDelivered) {
+      return 'Completed';
+    }
+    
+    if (allNotStarted) {
+      return 'Not Started';
+    }
+    
+    // Any other combination means work is in progress
+    return 'In Progress';
+  }
+
+  // Calculate milestone progress from deliverables
+  function calculateMilestoneProgress(deliverables) {
+    if (!deliverables || deliverables.length === 0) {
+      return 0;
+    }
+    
+    const totalProgress = deliverables.reduce((sum, d) => sum + (d.progress || 0), 0);
+    return Math.round(totalProgress / deliverables.length);
+  }
 
   async function fetchInitialData() {
     try {
@@ -75,6 +106,27 @@ export default function Milestones() {
 
       if (error) throw error;
       setMilestones(data || []);
+
+      // Fetch deliverables for all milestones to calculate status
+      if (data && data.length > 0) {
+        const milestoneIds = data.map(m => m.id);
+        const { data: deliverables, error: delError } = await supabase
+          .from('deliverables')
+          .select('id, milestone_id, status, progress')
+          .in('milestone_id', milestoneIds);
+
+        if (!delError && deliverables) {
+          // Group deliverables by milestone_id
+          const grouped = {};
+          deliverables.forEach(d => {
+            if (!grouped[d.milestone_id]) {
+              grouped[d.milestone_id] = [];
+            }
+            grouped[d.milestone_id].push(d);
+          });
+          setMilestoneDeliverables(grouped);
+        }
+      }
     } catch (error) {
       console.error('Error fetching milestones:', error);
     }
@@ -145,8 +197,7 @@ export default function Milestones() {
       description: milestone.description || '',
       start_date: milestone.start_date || '',
       end_date: milestone.end_date || '',
-      budget: milestone.budget || '',
-      status: milestone.status || 'Not Started'
+      budget: milestone.budget || ''
     });
     setShowEditModal(true);
   }
@@ -158,6 +209,7 @@ export default function Milestones() {
     }
 
     try {
+      // Note: We don't update status here - it's calculated from deliverables
       const { error } = await supabase
         .from('milestones')
         .update({
@@ -166,8 +218,7 @@ export default function Milestones() {
           description: editForm.description,
           start_date: editForm.start_date || null,
           end_date: editForm.end_date || null,
-          budget: parseFloat(editForm.budget) || 0,
-          status: editForm.status
+          budget: parseFloat(editForm.budget) || 0
         })
         .eq('id', editForm.id);
 
@@ -194,12 +245,17 @@ export default function Milestones() {
 
   if (loading) return <div className="loading">Loading milestones...</div>;
 
-  // Calculate stats
+  // Calculate stats using computed status
   const totalBudget = milestones.reduce((sum, m) => sum + (m.budget || 0), 0);
+  const milestonesWithStatus = milestones.map(m => ({
+    ...m,
+    computedStatus: calculateMilestoneStatus(milestoneDeliverables[m.id]),
+    computedProgress: calculateMilestoneProgress(milestoneDeliverables[m.id])
+  }));
   const avgProgress = milestones.length > 0 
-    ? Math.round(milestones.reduce((sum, m) => sum + (m.progress || 0), 0) / milestones.length)
+    ? Math.round(milestonesWithStatus.reduce((sum, m) => sum + m.computedProgress, 0) / milestones.length)
     : 0;
-  const completedCount = milestones.filter(m => m.status === 'Completed').length;
+  const completedCount = milestonesWithStatus.filter(m => m.computedStatus === 'Completed').length;
 
   return (
     <div className="page-container">
@@ -309,6 +365,16 @@ export default function Milestones() {
               />
             </div>
           </div>
+          <div style={{ 
+            padding: '0.75rem', 
+            backgroundColor: '#eff6ff', 
+            borderRadius: '6px', 
+            marginBottom: '1rem',
+            fontSize: '0.9rem',
+            color: '#1e40af'
+          }}>
+            <strong>Note:</strong> Milestone status and progress will be automatically calculated from associated deliverables.
+          </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-primary" onClick={handleAdd}>
               <Plus size={16} /> Add Milestone
@@ -344,8 +410,9 @@ export default function Milestones() {
                 </td>
               </tr>
             ) : (
-              milestones.map(milestone => {
-                const statusColors = getStatusColor(milestone.status);
+              milestonesWithStatus.map(milestone => {
+                const statusColors = getStatusColor(milestone.computedStatus);
+                const deliverableCount = milestoneDeliverables[milestone.id]?.length || 0;
                 
                 return (
                   <tr key={milestone.id}>
@@ -374,8 +441,17 @@ export default function Milestones() {
                         color: statusColors.color,
                         fontWeight: '500'
                       }}>
-                        {milestone.status || 'Not Started'}
+                        {milestone.computedStatus}
                       </span>
+                      {deliverableCount > 0 && (
+                        <span style={{
+                          marginLeft: '0.5rem',
+                          fontSize: '0.75rem',
+                          color: '#64748b'
+                        }}>
+                          ({deliverableCount} deliverable{deliverableCount !== 1 ? 's' : ''})
+                        </span>
+                      )}
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -387,9 +463,9 @@ export default function Milestones() {
                           overflow: 'hidden'
                         }}>
                           <div style={{ 
-                            width: `${milestone.progress || 0}%`, 
+                            width: `${milestone.computedProgress}%`, 
                             height: '100%', 
-                            backgroundColor: milestone.status === 'Completed' ? '#10b981' : '#3b82f6',
+                            backgroundColor: milestone.computedStatus === 'Completed' ? '#10b981' : '#3b82f6',
                             transition: 'width 0.3s'
                           }}></div>
                         </div>
@@ -398,7 +474,7 @@ export default function Milestones() {
                           fontWeight: '600',
                           minWidth: '40px'
                         }}>
-                          {milestone.progress || 0}%
+                          {milestone.computedProgress}%
                         </span>
                         <span style={{
                           fontSize: '0.75rem',
@@ -542,39 +618,30 @@ export default function Milestones() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Budget (£)</label>
-                <input
-                  type="number"
-                  value={editForm.budget}
-                  onChange={(e) => setEditForm({ ...editForm, budget: e.target.value })}
-                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Status</label>
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
-                >
-                  <option value="Not Started">Not Started</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Budget (£)</label>
+              <input
+                type="number"
+                value={editForm.budget}
+                onChange={(e) => setEditForm({ ...editForm, budget: e.target.value })}
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+              />
             </div>
 
             <div style={{ 
               padding: '0.75rem', 
-              backgroundColor: '#fef3c7', 
+              backgroundColor: '#eff6ff', 
               borderRadius: '6px', 
               marginBottom: '1rem',
               fontSize: '0.9rem',
-              color: '#92400e'
+              color: '#1e40af'
             }}>
-              <strong>Note:</strong> Progress is automatically calculated from deliverable completion and cannot be manually edited.
+              <strong>💡 Note:</strong> Status and progress are <strong>automatically calculated</strong> from associated deliverables and cannot be manually edited.
+              <ul style={{ margin: '0.5rem 0 0 1rem', paddingLeft: '0.5rem' }}>
+                <li><strong>Not Started</strong> — No deliverables have begun</li>
+                <li><strong>In Progress</strong> — At least one deliverable is in progress</li>
+                <li><strong>Completed</strong> — All deliverables are delivered</li>
+              </ul>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
@@ -617,12 +684,14 @@ export default function Milestones() {
 
       {/* Info Box */}
       <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#eff6ff', borderLeft: '4px solid #3b82f6' }}>
-        <h4 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>💡 How Milestone Progress Works</h4>
+        <h4 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>💡 How Milestone Status & Progress Work</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#1e40af', fontSize: '0.9rem' }}>
-          <li>Milestone progress is <strong>automatically calculated</strong> from deliverable completion</li>
-          <li>Click milestone reference to view deliverables and track progress</li>
+          <li>Milestone <strong>status</strong> and <strong>progress</strong> are automatically calculated from deliverables</li>
+          <li><strong>Not Started:</strong> All deliverables are "Not Started" (or no deliverables exist)</li>
+          <li><strong>In Progress:</strong> At least one deliverable has begun work</li>
+          <li><strong>Completed:</strong> All deliverables have been delivered</li>
+          <li>Click milestone reference to view and manage deliverables</li>
           <li>Progress = average of all deliverable progress percentages</li>
-          <li>Example: 5 deliverables at 20%, 40%, 60%, 80%, 100% = 60% milestone progress</li>
           <li>Timesheets continue to be logged against milestones (not individual deliverables)</li>
           <li>Payment aligned to milestone completion per SOW requirements</li>
         </ul>

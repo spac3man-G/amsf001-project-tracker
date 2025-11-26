@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Target, ArrowLeft, Package, CheckCircle, Clock, 
-  AlertCircle, Calendar, DollarSign
+  AlertCircle, Calendar, DollarSign, Info
 } from 'lucide-react';
 
 export default function MilestoneDetail() {
@@ -16,6 +16,27 @@ export default function MilestoneDetail() {
   useEffect(() => {
     fetchMilestoneData();
   }, [id]);
+
+  // Calculate milestone status from its deliverables
+  function calculateMilestoneStatus(deliverables) {
+    if (!deliverables || deliverables.length === 0) {
+      return 'Not Started';
+    }
+
+    const allNotStarted = deliverables.every(d => d.status === 'Not Started' || !d.status);
+    const allDelivered = deliverables.every(d => d.status === 'Delivered');
+    
+    if (allDelivered) {
+      return 'Completed';
+    }
+    
+    if (allNotStarted) {
+      return 'Not Started';
+    }
+    
+    // Any other combination means work is in progress
+    return 'In Progress';
+  }
 
   async function fetchMilestoneData() {
     try {
@@ -47,10 +68,36 @@ export default function MilestoneDetail() {
 
   function getStatusColor(status) {
     switch (status) {
-      case 'Complete': case 'Completed': return { bg: '#dcfce7', color: '#16a34a' };
-      case 'In Progress': return { bg: '#dbeafe', color: '#2563eb' };
-      case 'Not Started': return { bg: '#f1f5f9', color: '#64748b' };
-      default: return { bg: '#f1f5f9', color: '#64748b' };
+      case 'Delivered': 
+      case 'Complete': 
+      case 'Completed': 
+        return { bg: '#dcfce7', color: '#16a34a' };
+      case 'In Progress': 
+        return { bg: '#dbeafe', color: '#2563eb' };
+      case 'Submitted for Review':
+        return { bg: '#fef3c7', color: '#d97706' };
+      case 'Returned for More Work':
+        return { bg: '#fee2e2', color: '#dc2626' };
+      case 'Review Complete':
+        return { bg: '#f3e8ff', color: '#7c3aed' };
+      case 'Not Started': 
+      default: 
+        return { bg: '#f1f5f9', color: '#64748b' };
+    }
+  }
+
+  function getStatusIcon(status) {
+    switch (status) {
+      case 'Delivered':
+      case 'Complete':
+      case 'Completed':
+        return <CheckCircle size={12} style={{ marginRight: '0.25rem' }} />;
+      case 'In Progress':
+      case 'Submitted for Review':
+      case 'Review Complete':
+        return <Clock size={12} style={{ marginRight: '0.25rem' }} />;
+      default:
+        return null;
     }
   }
 
@@ -72,10 +119,24 @@ export default function MilestoneDetail() {
     );
   }
 
+  // Calculate stats from deliverables
   const totalDeliverables = deliverables.length;
-  const completedDeliverables = deliverables.filter(d => d.status === 'Complete').length;
-  const inProgressDeliverables = deliverables.filter(d => d.status === 'In Progress').length;
-  const progress = totalDeliverables > 0 ? Math.round((completedDeliverables / totalDeliverables) * 100) : 0;
+  const deliveredDeliverables = deliverables.filter(d => d.status === 'Delivered').length;
+  const inProgressDeliverables = deliverables.filter(d => 
+    d.status === 'In Progress' || 
+    d.status === 'Submitted for Review' || 
+    d.status === 'Returned for More Work' ||
+    d.status === 'Review Complete'
+  ).length;
+  
+  // Calculate progress as average of all deliverable progress
+  const progress = totalDeliverables > 0 
+    ? Math.round(deliverables.reduce((sum, d) => sum + (d.progress || 0), 0) / totalDeliverables) 
+    : 0;
+  
+  // Calculate status from deliverables
+  const computedStatus = calculateMilestoneStatus(deliverables);
+  const statusColors = getStatusColor(computedStatus);
 
   return (
     <div className="page-container">
@@ -97,10 +158,10 @@ export default function MilestoneDetail() {
                 borderRadius: '9999px',
                 fontSize: '0.85rem',
                 fontWeight: '500',
-                backgroundColor: getStatusColor(milestone.status).bg,
-                color: getStatusColor(milestone.status).color
+                backgroundColor: statusColors.bg,
+                color: statusColors.color
               }}>
-                {milestone.status || 'Not Started'}
+                {computedStatus}
               </span>
             </div>
             <p>{milestone.name}</p>
@@ -116,7 +177,7 @@ export default function MilestoneDetail() {
         </div>
         <div className="stat-card">
           <div className="stat-label">Completed</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>{completedDeliverables}</div>
+          <div className="stat-value" style={{ color: '#10b981' }}>{deliveredDeliverables}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">In Progress</div>
@@ -151,6 +212,21 @@ export default function MilestoneDetail() {
         </div>
       </div>
 
+      {/* Status Info Box */}
+      <div className="card" style={{ marginBottom: '1.5rem', backgroundColor: '#f0f9ff', borderLeft: '4px solid #3b82f6' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+          <Info size={20} style={{ color: '#3b82f6', marginTop: '2px' }} />
+          <div>
+            <h4 style={{ margin: '0 0 0.5rem 0', color: '#1e40af' }}>Milestone Status: {computedStatus}</h4>
+            <p style={{ margin: 0, color: '#1e40af', fontSize: '0.9rem' }}>
+              {computedStatus === 'Not Started' && 'No deliverables have begun. Status will change to "In Progress" when any deliverable starts.'}
+              {computedStatus === 'In Progress' && `${inProgressDeliverables} deliverable${inProgressDeliverables !== 1 ? 's are' : ' is'} currently being worked on. Status will change to "Completed" when all deliverables are delivered.`}
+              {computedStatus === 'Completed' && 'All deliverables have been delivered! 🎉'}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Milestone Details */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
         <div className="card">
@@ -180,7 +256,7 @@ export default function MilestoneDetail() {
               <DollarSign size={16} style={{ color: '#64748b' }} />
               <span style={{ color: '#64748b' }}>Budget:</span>
               <span style={{ fontWeight: '500' }}>
-                £{(milestone.value || 0).toLocaleString()}
+                £{(milestone.budget || 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -202,6 +278,9 @@ export default function MilestoneDetail() {
           <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
             <Package size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
             <p>No deliverables assigned to this milestone yet.</p>
+            <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
+              Add deliverables to this milestone to track progress automatically.
+            </p>
             <Link to="/deliverables" className="btn btn-primary" style={{ marginTop: '1rem', textDecoration: 'none' }}>
               Add Deliverable
             </Link>
@@ -220,21 +299,22 @@ export default function MilestoneDetail() {
             </thead>
             <tbody>
               {deliverables.map(del => {
-                const statusColors = getStatusColor(del.status);
+                const delStatusColors = getStatusColor(del.status);
                 return (
                   <tr key={del.id}>
                     <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{del.deliverable_ref}</td>
                     <td style={{ fontWeight: '500' }}>{del.name}</td>
                     <td>
                       <span style={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
                         padding: '0.25rem 0.5rem', 
                         borderRadius: '4px',
                         fontSize: '0.85rem',
-                        backgroundColor: statusColors.bg,
-                        color: statusColors.color
+                        backgroundColor: delStatusColors.bg,
+                        color: delStatusColors.color
                       }}>
-                        {del.status === 'Complete' && <CheckCircle size={12} style={{ marginRight: '0.25rem' }} />}
-                        {del.status === 'In Progress' && <Clock size={12} style={{ marginRight: '0.25rem' }} />}
+                        {getStatusIcon(del.status)}
                         {del.status || 'Not Started'}
                       </span>
                     </td>
@@ -250,7 +330,7 @@ export default function MilestoneDetail() {
                           <div style={{ 
                             width: `${del.progress || 0}%`, 
                             height: '100%', 
-                            backgroundColor: del.status === 'Complete' ? '#10b981' : '#3b82f6',
+                            backgroundColor: del.status === 'Delivered' ? '#10b981' : '#3b82f6',
                             borderRadius: '3px'
                           }}></div>
                         </div>
@@ -285,6 +365,18 @@ export default function MilestoneDetail() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Info Box */}
+      <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#eff6ff', borderLeft: '4px solid #3b82f6' }}>
+        <h4 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>💡 How Milestone Status Works</h4>
+        <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#1e40af', fontSize: '0.9rem' }}>
+          <li>Milestone status is <strong>automatically calculated</strong> from deliverable statuses</li>
+          <li><strong>Not Started:</strong> All deliverables are "Not Started"</li>
+          <li><strong>In Progress:</strong> At least one deliverable has begun (In Progress, Submitted, In Review, etc.)</li>
+          <li><strong>Completed:</strong> All deliverables have been "Delivered"</li>
+          <li>Progress % = average of all deliverable progress percentages</li>
+        </ul>
       </div>
     </div>
   );
