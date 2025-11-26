@@ -116,7 +116,7 @@ export default function Timesheets() {
           milestones (id, milestone_ref, name)
         `)
         .eq('project_id', pid)
-        .order('work_date', { ascending: false });
+        .order('date', { ascending: false });
 
       if (tsError) {
         console.error('Timesheets error:', tsError);
@@ -178,10 +178,13 @@ export default function Timesheets() {
         resource_id: newTimesheet.resource_id,
         milestone_id: newTimesheet.milestone_id || null,
         user_id: resource?.user_id || currentUserId,
+        date: dateToUse,  // Original schema column (NOT NULL)
         work_date: dateToUse,
         week_ending: entryMode === 'weekly' ? newTimesheet.week_ending : null,
         hours_worked: parseFloat(newTimesheet.hours_worked),
+        hours: parseFloat(newTimesheet.hours_worked),  // Original schema column
         description: newTimesheet.description,
+        comments: newTimesheet.description,  // Original schema column
         status: newTimesheet.status,
         entry_type: entryMode
       };
@@ -216,10 +219,10 @@ export default function Timesheets() {
     setEditForm({
       resource_id: timesheet.resource_id,
       milestone_id: timesheet.milestone_id || '',
-      work_date: timesheet.work_date || '',
+      work_date: timesheet.work_date || timesheet.date || '',  // Support both column names
       week_ending: timesheet.week_ending || '',
-      hours_worked: timesheet.hours_worked,
-      description: timesheet.description || '',
+      hours_worked: timesheet.hours_worked || timesheet.hours || 0,  // Support both
+      description: timesheet.description || timesheet.comments || '',  // Support both
       status: timesheet.status,
       entry_type: timesheet.entry_type || 'daily'
     });
@@ -232,9 +235,12 @@ export default function Timesheets() {
         .update({
           resource_id: editForm.resource_id,
           milestone_id: editForm.milestone_id || null,
+          date: editForm.work_date,  // Original schema column
           work_date: editForm.work_date,
           week_ending: editForm.week_ending || null,
+          hours: parseFloat(editForm.hours_worked),  // Original schema column
           hours_worked: parseFloat(editForm.hours_worked),
+          comments: editForm.description,  // Original schema column
           description: editForm.description,
           status: editForm.status
         })
@@ -306,11 +312,11 @@ export default function Timesheets() {
   // Get unique weeks from timesheets
   const uniqueWeeks = [...new Set(timesheets.map(ts => ts.week_ending).filter(Boolean))].sort().reverse();
 
-  // Calculate stats
-  const totalHours = filteredTimesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || 0), 0);
+  // Calculate stats (support both old and new column names)
+  const totalHours = filteredTimesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
   const approvedHours = filteredTimesheets
     .filter(ts => ts.status === 'Approved')
-    .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || 0), 0);
+    .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
   const pendingCount = filteredTimesheets.filter(ts => ts.status === 'Submitted').length;
 
   // Calculate hours by resource
@@ -318,7 +324,7 @@ export default function Timesheets() {
     name: r.name,
     hours: filteredTimesheets
       .filter(ts => ts.resource_id === r.id)
-      .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || 0), 0)
+      .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0)
   })).filter(r => r.hours > 0);
 
   // Available resources for current user
@@ -580,7 +586,7 @@ export default function Timesheets() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Calendar size={14} style={{ color: '#64748b' }} />
                         <div>
-                          {ts.work_date ? new Date(ts.work_date).toLocaleDateString('en-GB') : '-'}
+                          {(ts.work_date || ts.date) ? new Date(ts.work_date || ts.date).toLocaleDateString('en-GB') : '-'}
                           {ts.entry_type === 'weekly' && (
                             <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>
                               (Weekly)
@@ -604,15 +610,15 @@ export default function Timesheets() {
                     {editingId === ts.id ? (
                       <input type="number" step="0.5" className="form-input" value={editForm.hours_worked} onChange={(e) => setEditForm({ ...editForm, hours_worked: e.target.value })} style={{ width: '80px', textAlign: 'right' }} />
                     ) : (
-                      `${parseFloat(ts.hours_worked).toFixed(1)}h`
+                      `${parseFloat(ts.hours_worked || ts.hours || 0).toFixed(1)}h`
                     )}
                   </td>
                   <td style={{ maxWidth: '200px' }}>
                     {editingId === ts.id ? (
                       <input type="text" className="form-input" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
                     ) : (
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: ts.description ? 'inherit' : '#9ca3af' }}>
-                        {ts.description || 'No description'}
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: (ts.description || ts.comments) ? 'inherit' : '#9ca3af' }}>
+                        {ts.description || ts.comments || 'No description'}
                       </div>
                     )}
                   </td>
