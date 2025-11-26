@@ -1,9 +1,7 @@
 # AMSF001 Project Tracker - Setup Instructions
 
 ## Network Standards and Design Architectural Services
-**Project Reference:** GOJ/2025/2409  
-**Budget:** £326,829  
-**Duration:** 20 weeks  
+
 
 ---
 
