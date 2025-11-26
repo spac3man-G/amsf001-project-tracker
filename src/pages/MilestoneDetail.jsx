@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Target, ArrowLeft, Package, CheckCircle, Clock, 
-  AlertCircle, Calendar, DollarSign, Info
+  AlertCircle, Calendar, DollarSign, Info, TrendingUp, User
 } from 'lucide-react';
 
 export default function MilestoneDetail() {
@@ -11,6 +11,7 @@ export default function MilestoneDetail() {
   const navigate = useNavigate();
   const [milestone, setMilestone] = useState(null);
   const [deliverables, setDeliverables] = useState([]);
+  const [timesheets, setTimesheets] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,6 +60,17 @@ export default function MilestoneDetail() {
 
       if (deliverablesError) throw deliverablesError;
       setDeliverables(deliverablesData || []);
+
+      // Fetch timesheets for this milestone
+      const { data: timesheetsData, error: tsError } = await supabase
+        .from('timesheets')
+        .select('*, resources(id, name, daily_rate, discount_percent)')
+        .eq('milestone_id', id)
+        .order('date', { ascending: false });
+
+      if (!tsError) {
+        setTimesheets(timesheetsData || []);
+      }
     } catch (error) {
       console.error('Error fetching milestone data:', error);
     } finally {
@@ -262,6 +274,131 @@ export default function MilestoneDetail() {
           </div>
         </div>
       </div>
+
+      {/* Budget & Spend Tracking */}
+      {(() => {
+        // Calculate spend from timesheets
+        const totalHours = timesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
+        const totalSpend = timesheets.reduce((sum, ts) => {
+          const hours = parseFloat(ts.hours_worked || ts.hours || 0);
+          const resource = ts.resources;
+          if (resource) {
+            const dailyRate = resource.daily_rate || 0;
+            return sum + (hours / 8) * dailyRate;
+          }
+          return sum;
+        }, 0);
+        const budget = milestone.budget || 0;
+        const spendPercent = budget > 0 ? Math.round((totalSpend / budget) * 100) : 0;
+        const isOverBudget = spendPercent > 100;
+
+        // Group spend by resource
+        const spendByResource = {};
+        timesheets.forEach(ts => {
+          const resourceName = ts.resources?.name || 'Unknown';
+          const hours = parseFloat(ts.hours_worked || ts.hours || 0);
+          const resource = ts.resources;
+          let cost = 0;
+          if (resource) {
+            const dailyRate = resource.daily_rate || 0;
+            cost = (hours / 8) * dailyRate;
+          }
+          if (!spendByResource[resourceName]) {
+            spendByResource[resourceName] = { hours: 0, cost: 0 };
+          }
+          spendByResource[resourceName].hours += hours;
+          spendByResource[resourceName].cost += cost;
+        });
+
+        return (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <TrendingUp size={20} /> Budget & Spend Tracking
+            </h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ padding: '1rem', backgroundColor: '#f1f5f9', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Budget</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6' }}>
+                  £{budget.toLocaleString()}
+                </div>
+              </div>
+              <div style={{ padding: '1rem', backgroundColor: isOverBudget ? '#fef2f2' : '#f0fdf4', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Spend to Date</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: isOverBudget ? '#dc2626' : '#10b981' }}>
+                  £{Math.round(totalSpend).toLocaleString()}
+                </div>
+              </div>
+              <div style={{ padding: '1rem', backgroundColor: '#f1f5f9', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Hours Logged</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#64748b' }}>
+                  {totalHours.toFixed(1)}h
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                  ({(totalHours / 8).toFixed(1)} days)
+                </div>
+              </div>
+              <div style={{ padding: '1rem', backgroundColor: spendPercent > 80 ? '#fef3c7' : '#f1f5f9', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>% of Budget</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: isOverBudget ? '#dc2626' : spendPercent > 80 ? '#d97706' : '#64748b' }}>
+                  {spendPercent}%
+                </div>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Budget Utilization</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: isOverBudget ? '#dc2626' : '#10b981' }}>
+                  £{Math.round(totalSpend).toLocaleString()} / £{budget.toLocaleString()}
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '10px', backgroundColor: '#e2e8f0', borderRadius: '5px', overflow: 'hidden' }}>
+                <div style={{ 
+                  width: `${Math.min(spendPercent, 100)}%`, 
+                  height: '100%', 
+                  backgroundColor: isOverBudget ? '#dc2626' : spendPercent > 80 ? '#f59e0b' : '#10b981',
+                  borderRadius: '5px'
+                }}></div>
+              </div>
+            </div>
+
+            {/* Spend by Resource */}
+            {Object.keys(spendByResource).length > 0 && (
+              <div>
+                <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#374151' }}>Spend by Resource</h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  {Object.entries(spendByResource).map(([name, data]) => (
+                    <div key={name} style={{ 
+                      padding: '0.75rem 1rem', 
+                      backgroundColor: '#f8fafc', 
+                      borderRadius: '8px', 
+                      border: '1px solid #e2e8f0',
+                      minWidth: '150px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <User size={14} style={{ color: '#64748b' }} />
+                        <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{name}</span>
+                      </div>
+                      <div style={{ color: '#10b981', fontWeight: '700' }}>£{Math.round(data.cost).toLocaleString()}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{data.hours.toFixed(1)}h logged</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {timesheets.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <Clock size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                <p style={{ margin: 0 }}>No timesheets logged against this milestone yet.</p>
+                <Link to="/timesheets" style={{ color: '#3b82f6', fontSize: '0.9rem' }}>Log time →</Link>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Deliverables List */}
       <div className="card">

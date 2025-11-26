@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Clock, Package, Users, Target, Award } from 'lucide-react';
+import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling } from 'lucide-react';
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ totalMilestones: 0, completedMilestones: 0, totalDeliverables: 0, deliveredCount: 0, totalResources: 0, totalKPIs: 0, achievedKPIs: 0, totalQS: 0, achievedQS: 0 });
+  const [stats, setStats] = useState({ 
+    totalMilestones: 0, completedMilestones: 0, 
+    totalDeliverables: 0, deliveredCount: 0, 
+    totalResources: 0, 
+    totalKPIs: 0, achievedKPIs: 0, 
+    totalQS: 0, achievedQS: 0,
+    totalBudget: 0, spendToDate: 0
+  });
   const [milestones, setMilestones] = useState([]);
+  const [milestoneSpend, setMilestoneSpend] = useState({});
   const [kpisByCategory, setKpisByCategory] = useState({});
   const [qualityStandards, setQualityStandards] = useState([]);
   const [projectProgress, setProjectProgress] = useState(0);
@@ -22,9 +30,36 @@ export default function Dashboard() {
       setMilestones(milestonesData || []);
 
       const { data: deliverablesData } = await supabase.from('deliverables').select('*').eq('project_id', project.id);
-      const { data: resourcesData } = await supabase.from('resources').select('*').eq('project_id', project.id);
+      const { data: resourcesData } = await supabase.from('resources').select('*');
       const { data: kpisData } = await supabase.from('kpis').select('*').eq('project_id', project.id).order('kpi_ref');
       const { data: qsData } = await supabase.from('quality_standards').select('*').eq('project_id', project.id).order('qs_ref');
+
+      // Fetch timesheets to calculate spend
+      const { data: timesheetsData } = await supabase
+        .from('timesheets')
+        .select('*, resources(id, daily_rate, discount_percent)')
+        .eq('project_id', project.id);
+
+      // Calculate spend per milestone
+      const spendByMilestone = {};
+      let totalSpend = 0;
+      
+      if (timesheetsData && resourcesData) {
+        timesheetsData.forEach(ts => {
+          const hours = parseFloat(ts.hours_worked || ts.hours || 0);
+          const resource = ts.resources || resourcesData.find(r => r.id === ts.resource_id);
+          if (resource) {
+            const dailyRate = resource.daily_rate || 0;
+            const dayCost = (hours / 8) * dailyRate; // Convert hours to days
+            
+            if (ts.milestone_id) {
+              spendByMilestone[ts.milestone_id] = (spendByMilestone[ts.milestone_id] || 0) + dayCost;
+            }
+            totalSpend += dayCost;
+          }
+        });
+      }
+      setMilestoneSpend(spendByMilestone);
 
       setQualityStandards(qsData || []);
 
@@ -47,11 +82,22 @@ export default function Dashboard() {
       const achievedKPIs = kpisData?.filter(k => (k.current_value || 0) >= (k.target || 90)).length || 0;
       const totalQS = qsData?.length || 0;
       const achievedQS = qsData?.filter(q => (q.current_value || 0) >= (q.target || 100)).length || 0;
+      
+      // Calculate total budget from milestones
+      const totalBudget = milestonesData?.reduce((sum, m) => sum + (m.budget || 0), 0) || 0;
 
       const avgProgress = totalMilestones > 0 ? Math.round(milestonesData.reduce((sum, m) => sum + (m.progress || 0), 0) / totalMilestones) : 0;
       setProjectProgress(avgProgress);
 
-      setStats({ totalMilestones, completedMilestones, totalDeliverables, deliveredCount, totalResources, totalKPIs, achievedKPIs, totalQS, achievedQS });
+      setStats({ 
+        totalMilestones, completedMilestones, 
+        totalDeliverables, deliveredCount, 
+        totalResources, 
+        totalKPIs, achievedKPIs, 
+        totalQS, achievedQS,
+        totalBudget,
+        spendToDate: totalSpend
+      });
     } catch (error) { console.error('Error:', error); }
     finally { setLoading(false); }
   }
@@ -80,22 +126,54 @@ export default function Dashboard() {
       <div className="page-header">
         <div className="page-title">
           <Target size={28} />
-          <div><h1>AMSF001 Dashboard</h1><p>Network Standards & Design Architectural Services</p></div>
+          <div>
+            <h1>AMSF001 Dashboard</h1>
+            <p>Network Standards & Design Architectural Services</p>
+          </div>
         </div>
       </div>
 
-      {/* Project Progress */}
-      <div className="card" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+      {/* Project Progress Hero */}
+      <div className="card" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', color: 'white' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '2rem', color: 'white' }}>{projectProgress}%</h2>
-            <p style={{ margin: '0.5rem 0 0 0', opacity: 0.9 }}>Overall Project Progress</p>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '700', margin: 0 }}>{projectProgress}%</h2>
+            <p style={{ opacity: 0.9, margin: 0 }}>Overall Project Progress</p>
           </div>
-          <div style={{ width: '120px', height: '120px' }}>
-            <svg width="120" height="120" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="10"/>
-              <circle cx="60" cy="60" r="50" fill="none" stroke="white" strokeWidth="10" strokeDasharray={`${2 * Math.PI * 50 * projectProgress / 100} ${2 * Math.PI * 50}`} strokeLinecap="round"/>
+          <div style={{ width: '120px', height: '120px', position: 'relative' }}>
+            <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="10" />
+              <circle cx="50" cy="50" r="40" fill="none" stroke="white" strokeWidth="10" strokeDasharray={`${projectProgress * 2.51} 251`} strokeLinecap="round" />
             </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Budget & Spend Summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>Total Budget</div>
+              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#3b82f6' }}>£{stats.totalBudget.toLocaleString()}</div>
+            </div>
+            <div style={{ padding: '0.75rem', backgroundColor: '#dbeafe', borderRadius: '8px' }}>
+              <DollarSign size={24} style={{ color: '#3b82f6' }} />
+            </div>
+          </div>
+        </div>
+        <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>Spend to Date</div>
+              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#10b981' }}>£{Math.round(stats.spendToDate).toLocaleString()}</div>
+              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                {stats.totalBudget > 0 ? Math.round((stats.spendToDate / stats.totalBudget) * 100) : 0}% of budget
+              </div>
+            </div>
+            <div style={{ padding: '0.75rem', backgroundColor: '#dcfce7', borderRadius: '8px' }}>
+              <TrendingUp size={24} style={{ color: '#10b981' }} />
+            </div>
           </div>
         </div>
       </div>
@@ -124,17 +202,83 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Budget Overview */}
+      {/* Budget vs Spend by Milestone */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginBottom: '1rem' }}>Budget Overview by Milestone</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', height: '200px', alignItems: 'flex-end' }}>
+        <h3 style={{ marginBottom: '1rem' }}>Budget vs Spend by Milestone</h3>
+        <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', marginRight: '1rem' }}>
+            <span style={{ width: '12px', height: '12px', backgroundColor: '#3b82f6', borderRadius: '2px' }}></span>
+            Budget
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem' }}>
+            <span style={{ width: '12px', height: '12px', backgroundColor: '#10b981', borderRadius: '2px' }}></span>
+            Spend to Date
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', height: '220px', alignItems: 'flex-end' }}>
           {milestones.map(milestone => {
             const maxBudget = Math.max(...milestones.map(m => m.budget || 0));
-            const height = maxBudget > 0 ? ((milestone.budget || 0) / maxBudget) * 100 : 0;
+            const spend = milestoneSpend[milestone.id] || 0;
+            const budgetHeight = maxBudget > 0 ? ((milestone.budget || 0) / maxBudget) * 100 : 0;
+            const spendHeight = maxBudget > 0 ? (spend / maxBudget) * 100 : 0;
+            
             return (
               <div key={milestone.id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ width: '100%', height: `${height}%`, backgroundColor: milestone.status === 'Completed' ? '#10b981' : '#3b82f6', borderRadius: '4px 4px 0 0', position: 'relative', minHeight: '20px' }} title={`£${(milestone.budget || 0).toLocaleString()}`}>
-                  <span style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.75rem', fontWeight: '600', color: '#374151', whiteSpace: 'nowrap' }}>£{Math.round((milestone.budget || 0) / 1000)}k</span>
+                <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '180px', width: '100%', justifyContent: 'center' }}>
+                  {/* Budget bar */}
+                  <div 
+                    style={{ 
+                      width: '45%', 
+                      height: `${budgetHeight}%`, 
+                      backgroundColor: '#3b82f6', 
+                      borderRadius: '4px 4px 0 0',
+                      minHeight: milestone.budget > 0 ? '20px' : '0',
+                      position: 'relative'
+                    }} 
+                    title={`Budget: £${(milestone.budget || 0).toLocaleString()}`}
+                  >
+                    {budgetHeight > 15 && (
+                      <span style={{ 
+                        position: 'absolute', 
+                        top: '4px', 
+                        left: '50%', 
+                        transform: 'translateX(-50%)', 
+                        fontSize: '0.65rem', 
+                        fontWeight: '600', 
+                        color: 'white',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        £{Math.round((milestone.budget || 0) / 1000)}k
+                      </span>
+                    )}
+                  </div>
+                  {/* Spend bar */}
+                  <div 
+                    style={{ 
+                      width: '45%', 
+                      height: `${spendHeight}%`, 
+                      backgroundColor: '#10b981', 
+                      borderRadius: '4px 4px 0 0',
+                      minHeight: spend > 0 ? '20px' : '0',
+                      position: 'relative'
+                    }} 
+                    title={`Spend: £${Math.round(spend).toLocaleString()}`}
+                  >
+                    {spendHeight > 15 && (
+                      <span style={{ 
+                        position: 'absolute', 
+                        top: '4px', 
+                        left: '50%', 
+                        transform: 'translateX(-50%)', 
+                        fontSize: '0.65rem', 
+                        fontWeight: '600', 
+                        color: 'white',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        £{Math.round(spend / 1000)}k
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <span style={{ fontSize: '0.7rem', fontWeight: '600', color: '#64748b' }}>{milestone.milestone_ref}</span>
               </div>
@@ -201,19 +345,42 @@ export default function Dashboard() {
         </div>
         <table>
           <thead>
-            <tr><th>Ref</th><th>Name</th><th>Due</th><th>Budget</th><th>Progress</th><th>Status</th></tr>
+            <tr>
+              <th>Ref</th>
+              <th>Name</th>
+              <th>Due</th>
+              <th>Budget</th>
+              <th>Spend</th>
+              <th>Progress</th>
+              <th>Status</th>
+            </tr>
           </thead>
           <tbody>
             {milestones.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No milestones found</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No milestones found</td></tr>
             ) : milestones.map(milestone => {
               const statusColors = getStatusColor(milestone.status);
+              const spend = milestoneSpend[milestone.id] || 0;
+              const spendPercent = milestone.budget > 0 ? Math.round((spend / milestone.budget) * 100) : 0;
               return (
                 <tr key={milestone.id}>
                   <td><Link to={`/milestones/${milestone.id}`} style={{ fontFamily: 'monospace', fontWeight: '600', color: '#3b82f6', textDecoration: 'none' }}>{milestone.milestone_ref}</Link></td>
                   <td style={{ fontWeight: '500' }}>{milestone.name}</td>
                   <td>{milestone.end_date ? new Date(milestone.end_date).toLocaleDateString('en-GB') : '-'}</td>
-                  <td>£{(milestone.budget || 0).toLocaleString()} ({Math.round((milestone.budget / 326829) * 100)}%)</td>
+                  <td>£{(milestone.budget || 0).toLocaleString()}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ color: spend > 0 ? '#10b981' : '#9ca3af' }}>£{Math.round(spend).toLocaleString()}</span>
+                      {milestone.budget > 0 && (
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          color: spendPercent > 100 ? '#dc2626' : '#64748b'
+                        }}>
+                          ({spendPercent}%)
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <div style={{ width: '60px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
