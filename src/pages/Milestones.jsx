@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X } from 'lucide-react';
 
 export default function Milestones() {
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [userRole, setUserRole] = useState('viewer');
   const [projectId, setProjectId] = useState(null);
 
@@ -17,6 +18,17 @@ export default function Milestones() {
     start_date: '',
     end_date: '',
     budget: ''
+  });
+
+  const [editForm, setEditForm] = useState({
+    id: '',
+    milestone_ref: '',
+    name: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+    budget: '',
+    status: 'Not Started'
   });
 
   useEffect(() => {
@@ -122,6 +134,51 @@ export default function Milestones() {
     } catch (error) {
       console.error('Error deleting milestone:', error);
       alert('Failed to delete milestone: ' + error.message);
+    }
+  }
+
+  function openEditModal(milestone) {
+    setEditForm({
+      id: milestone.id,
+      milestone_ref: milestone.milestone_ref || '',
+      name: milestone.name || '',
+      description: milestone.description || '',
+      start_date: milestone.start_date || '',
+      end_date: milestone.end_date || '',
+      budget: milestone.budget || '',
+      status: milestone.status || 'Not Started'
+    });
+    setShowEditModal(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!editForm.milestone_ref || !editForm.name) {
+      alert('Please fill in at least Milestone Reference and Name');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('milestones')
+        .update({
+          milestone_ref: editForm.milestone_ref,
+          name: editForm.name,
+          description: editForm.description,
+          start_date: editForm.start_date || null,
+          end_date: editForm.end_date || null,
+          budget: parseFloat(editForm.budget) || 0,
+          status: editForm.status
+        })
+        .eq('id', editForm.id);
+
+      if (error) throw error;
+
+      await fetchMilestones();
+      setShowEditModal(false);
+      alert('Milestone updated successfully!');
+    } catch (error) {
+      console.error('Error updating milestone:', error);
+      alert('Failed to update milestone: ' + error.message);
     }
   }
 
@@ -361,22 +418,40 @@ export default function Milestones() {
                     <td>£{(milestone.budget || 0).toLocaleString()}</td>
                     {canEdit && (
                       <td>
-                        <button 
-                          onClick={() => handleDelete(milestone.id)}
-                          style={{
-                            padding: '0.5rem',
-                            backgroundColor: '#fef2f2',
-                            color: '#ef4444',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                          <button 
+                            onClick={() => openEditModal(milestone)}
+                            style={{
+                              padding: '0.5rem',
+                              backgroundColor: '#eff6ff',
+                              color: '#3b82f6',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title="Edit"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(milestone.id)}
+                            style={{
+                              padding: '0.5rem',
+                              backgroundColor: '#fef2f2',
+                              color: '#ef4444',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -386,6 +461,159 @@ export default function Milestones() {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: 0 }}>
+              <Edit2 size={20} />
+              Edit Milestone - {editForm.milestone_ref}
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Reference *</label>
+                <input
+                  type="text"
+                  value={editForm.milestone_ref}
+                  onChange={(e) => setEditForm({ ...editForm, milestone_ref: e.target.value })}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Name *</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Description</label>
+              <textarea
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                rows={3}
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Start Date</label>
+                <input
+                  type="date"
+                  value={editForm.start_date}
+                  onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>End Date</label>
+                <input
+                  type="date"
+                  value={editForm.end_date}
+                  onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Budget (£)</label>
+                <input
+                  type="number"
+                  value={editForm.budget}
+                  onChange={(e) => setEditForm({ ...editForm, budget: e.target.value })}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                >
+                  <option value="Not Started">Not Started</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ 
+              padding: '0.75rem', 
+              backgroundColor: '#fef3c7', 
+              borderRadius: '6px', 
+              marginBottom: '1rem',
+              fontSize: '0.9rem',
+              color: '#92400e'
+            }}>
+              <strong>Note:</strong> Progress is automatically calculated from deliverable completion and cannot be manually edited.
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button
+                onClick={() => setShowEditModal(false)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#f1f5f9',
+                  color: '#64748b',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}
+              >
+                <X size={16} /> Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}
+              >
+                <Save size={16} /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Info Box */}
       <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#eff6ff', borderLeft: '4px solid #3b82f6' }}>
