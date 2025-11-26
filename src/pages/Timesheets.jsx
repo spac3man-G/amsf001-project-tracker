@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Clock, Plus, Edit2, Save, X, Trash2, Calendar,
-  CheckCircle, AlertCircle, User
+  CheckCircle, AlertCircle, User, CalendarDays
 } from 'lucide-react';
 
 export default function Timesheets() {
@@ -19,14 +19,17 @@ export default function Timesheets() {
   const [editForm, setEditForm] = useState({});
   const [filterResource, setFilterResource] = useState('all');
   const [filterWeek, setFilterWeek] = useState('all');
+  const [entryMode, setEntryMode] = useState('daily'); // 'daily' or 'weekly'
 
   const [newTimesheet, setNewTimesheet] = useState({
     resource_id: '',
     milestone_id: '',
+    work_date: new Date().toISOString().split('T')[0],
     week_ending: getNextSunday(),
     hours_worked: '',
     description: '',
-    status: 'Draft'
+    status: 'Draft',
+    entry_type: 'daily'
   });
 
   const statuses = ['Draft', 'Submitted', 'Approved', 'Rejected'];
@@ -35,8 +38,15 @@ export default function Timesheets() {
     const today = new Date();
     const daysUntilSunday = 7 - today.getDay();
     const nextSunday = new Date(today);
-    nextSunday.setDate(today.getDate() + daysUntilSunday);
+    nextSunday.setDate(today.getDate() + (today.getDay() === 0 ? 0 : daysUntilSunday));
     return nextSunday.toISOString().split('T')[0];
+  }
+
+  function getWeekDates(weekEndingDate) {
+    const end = new Date(weekEndingDate);
+    const start = new Date(end);
+    start.setDate(end.getDate() - 6);
+    return { start, end };
   }
 
   useEffect(() => {
@@ -106,7 +116,7 @@ export default function Timesheets() {
           milestones (id, milestone_ref, name)
         `)
         .eq('project_id', pid)
-        .order('week_ending', { ascending: false });
+        .order('work_date', { ascending: false });
 
       if (tsError) {
         console.error('Timesheets error:', tsError);
@@ -114,7 +124,7 @@ export default function Timesheets() {
         setTimesheets(timesheetsData || []);
       }
 
-      // Fetch ALL resources (not filtered by project since resources may not have project_id)
+      // Fetch ALL resources
       const { data: resourcesData, error: resError } = await supabase
         .from('resources')
         .select('id, name, email, user_id')
@@ -123,7 +133,6 @@ export default function Timesheets() {
       if (resError) {
         console.error('Resources error:', resError);
       } else {
-        console.log('Resources loaded:', resourcesData?.length);
         setResources(resourcesData || []);
       }
 
@@ -137,7 +146,6 @@ export default function Timesheets() {
       if (msError) {
         console.error('Milestones error:', msError);
       } else {
-        console.log('Milestones loaded:', milestonesData?.length);
         setMilestones(milestonesData || []);
       }
 
@@ -162,18 +170,25 @@ export default function Timesheets() {
     try {
       const resource = resources.find(r => r.id === newTimesheet.resource_id);
 
+      // Determine which date field to use based on entry mode
+      const dateToUse = entryMode === 'daily' ? newTimesheet.work_date : newTimesheet.week_ending;
+
+      const insertData = {
+        project_id: projectId,
+        resource_id: newTimesheet.resource_id,
+        milestone_id: newTimesheet.milestone_id || null,
+        user_id: resource?.user_id || currentUserId,
+        work_date: dateToUse,
+        week_ending: entryMode === 'weekly' ? newTimesheet.week_ending : null,
+        hours_worked: parseFloat(newTimesheet.hours_worked),
+        description: newTimesheet.description,
+        status: newTimesheet.status,
+        entry_type: entryMode
+      };
+
       const { error } = await supabase
         .from('timesheets')
-        .insert([{
-          project_id: projectId,
-          resource_id: newTimesheet.resource_id,
-          milestone_id: newTimesheet.milestone_id || null,
-          user_id: resource?.user_id || currentUserId,
-          week_ending: newTimesheet.week_ending,
-          hours_worked: parseFloat(newTimesheet.hours_worked),
-          description: newTimesheet.description,
-          status: newTimesheet.status
-        }]);
+        .insert([insertData]);
 
       if (error) throw error;
 
@@ -182,10 +197,12 @@ export default function Timesheets() {
       setNewTimesheet({
         resource_id: currentUserResourceId || '',
         milestone_id: '',
+        work_date: new Date().toISOString().split('T')[0],
         week_ending: getNextSunday(),
         hours_worked: '',
         description: '',
-        status: 'Draft'
+        status: 'Draft',
+        entry_type: entryMode
       });
       alert('Timesheet added successfully!');
     } catch (error) {
@@ -199,10 +216,12 @@ export default function Timesheets() {
     setEditForm({
       resource_id: timesheet.resource_id,
       milestone_id: timesheet.milestone_id || '',
-      week_ending: timesheet.week_ending,
+      work_date: timesheet.work_date || '',
+      week_ending: timesheet.week_ending || '',
       hours_worked: timesheet.hours_worked,
       description: timesheet.description || '',
-      status: timesheet.status
+      status: timesheet.status,
+      entry_type: timesheet.entry_type || 'daily'
     });
   }
 
@@ -213,7 +232,8 @@ export default function Timesheets() {
         .update({
           resource_id: editForm.resource_id,
           milestone_id: editForm.milestone_id || null,
-          week_ending: editForm.week_ending,
+          work_date: editForm.work_date,
+          week_ending: editForm.week_ending || null,
           hours_worked: parseFloat(editForm.hours_worked),
           description: editForm.description,
           status: editForm.status
@@ -221,31 +241,13 @@ export default function Timesheets() {
         .eq('id', id);
 
       if (error) throw error;
-      
+
       await fetchData();
       setEditingId(null);
-      alert('Timesheet updated successfully!');
+      alert('Timesheet updated!');
     } catch (error) {
       console.error('Error updating timesheet:', error);
-      alert('Failed to update timesheet: ' + error.message);
-    }
-  }
-
-  async function handleDelete(id) {
-    if (!confirm('Are you sure you want to delete this timesheet?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('timesheets')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      await fetchData();
-      alert('Timesheet deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting timesheet:', error);
-      alert('Failed to delete timesheet');
+      alert('Failed to update: ' + error.message);
     }
   }
 
@@ -254,61 +256,77 @@ export default function Timesheets() {
     setEditForm({});
   }
 
-  function canEditTimesheet(timesheet) {
-    if (userRole === 'admin') return true;
-    if (userRole === 'contributor') {
-      return timesheet.user_id === currentUserId || 
-             timesheet.resource_id === currentUserResourceId;
-    }
-    return false;
-  }
+  async function handleDelete(id) {
+    if (!confirm('Delete this timesheet entry?')) return;
 
-  function canDeleteTimesheet(timesheet) {
-    if (userRole === 'admin') return true;
-    if (timesheet.status === 'Draft') {
-      return timesheet.user_id === currentUserId || 
-             timesheet.resource_id === currentUserResourceId;
+    try {
+      const { error } = await supabase
+        .from('timesheets')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchData();
+      alert('Timesheet deleted');
+    } catch (error) {
+      console.error('Error deleting timesheet:', error);
+      alert('Failed to delete: ' + error.message);
     }
-    return false;
   }
 
   function getStatusColor(status) {
     switch (status) {
-      case 'Approved': return 'status-completed';
-      case 'Submitted': return 'status-in-progress';
-      case 'Rejected': return 'status-at-risk';
-      default: return 'status-not-started';
+      case 'Approved': return 'status-approved';
+      case 'Submitted': return 'status-submitted';
+      case 'Rejected': return 'status-rejected';
+      default: return 'status-draft';
     }
   }
 
-  const uniqueWeeks = [...new Set(timesheets.map(t => t.week_ending))].sort().reverse();
+  function canEditTimesheet(ts) {
+    if (userRole === 'admin') return true;
+    if (ts.user_id === currentUserId && ts.status !== 'Approved') return true;
+    return false;
+  }
 
-  const filteredTimesheets = timesheets.filter(t => {
-    if (filterResource !== 'all' && t.resource_id !== filterResource) return false;
-    if (filterWeek !== 'all' && t.week_ending !== filterWeek) return false;
+  function canDeleteTimesheet(ts) {
+    if (userRole === 'admin') return true;
+    if (ts.user_id === currentUserId && ts.status === 'Draft') return true;
+    return false;
+  }
+
+  // Filter timesheets
+  const filteredTimesheets = timesheets.filter(ts => {
+    if (filterResource !== 'all' && ts.resource_id !== filterResource) return false;
+    // Note: week filter would need adjustment for daily entries
     return true;
   });
 
-  const totalHours = filteredTimesheets.reduce((sum, t) => sum + (parseFloat(t.hours_worked) || 0), 0);
-  const approvedHours = filteredTimesheets.filter(t => t.status === 'Approved')
-    .reduce((sum, t) => sum + (parseFloat(t.hours_worked) || 0), 0);
+  // Get unique weeks from timesheets
+  const uniqueWeeks = [...new Set(timesheets.map(ts => ts.week_ending).filter(Boolean))].sort().reverse();
 
+  // Calculate stats
+  const totalHours = filteredTimesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || 0), 0);
+  const approvedHours = filteredTimesheets
+    .filter(ts => ts.status === 'Approved')
+    .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || 0), 0);
+  const pendingCount = filteredTimesheets.filter(ts => ts.status === 'Submitted').length;
+
+  // Calculate hours by resource
   const hoursByResource = resources.map(r => ({
     name: r.name,
-    hours: timesheets.filter(t => t.resource_id === r.id)
-      .reduce((sum, t) => sum + (parseFloat(t.hours_worked) || 0), 0)
-  })).filter(r => r.hours > 0).sort((a, b) => b.hours - a.hours);
+    hours: filteredTimesheets
+      .filter(ts => ts.resource_id === r.id)
+      .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || 0), 0)
+  })).filter(r => r.hours > 0);
 
-  if (loading) {
-    return <div className="loading">Loading timesheets...</div>;
-  }
-
-  const canAdd = userRole === 'admin' || userRole === 'contributor';
-  
-  // Admins see all resources, others see only their linked resource
+  // Available resources for current user
   const availableResources = userRole === 'admin' 
     ? resources 
-    : resources.filter(r => r.id === currentUserResourceId || r.user_id === currentUserId);
+    : resources.filter(r => r.user_id === currentUserId);
+
+  if (loading) return <div className="loading">Loading timesheets...</div>;
 
   return (
     <div className="page-container">
@@ -320,14 +338,14 @@ export default function Timesheets() {
             <p>Track time spent on project activities</p>
           </div>
         </div>
-        {canAdd && (
+        {!showAddForm && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-            <Plus size={18} />
-            Add Timesheet
+            <Plus size={18} /> Add Timesheet
           </button>
         )}
       </div>
 
+      {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card">
           <div className="stat-label">Total Entries</div>
@@ -343,15 +361,14 @@ export default function Timesheets() {
         </div>
         <div className="stat-card">
           <div className="stat-label">Pending Approval</div>
-          <div className="stat-value" style={{ color: '#f59e0b' }}>
-            {filteredTimesheets.filter(t => t.status === 'Submitted').length}
-          </div>
+          <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
         </div>
       </div>
 
+      {/* Hours by Resource Summary */}
       {hoursByResource.length > 0 && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Hours by Resource</h3>
+          <h4 style={{ marginBottom: '0.75rem' }}>Hours by Resource</h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
             {hoursByResource.map(r => (
               <div key={r.name} style={{ padding: '0.75rem 1rem', backgroundColor: '#f1f5f9', borderRadius: '8px', minWidth: '120px' }}>
@@ -363,6 +380,7 @@ export default function Timesheets() {
         </div>
       )}
 
+      {/* Filters */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: '500' }}>Filter:</span>
@@ -370,68 +388,166 @@ export default function Timesheets() {
             <option value="all">All Resources</option>
             {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
-          <select value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)} style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-            <option value="all">All Weeks</option>
-            {uniqueWeeks.map(week => <option key={week} value={week}>Week ending {new Date(week).toLocaleDateString('en-GB')}</option>)}
-          </select>
         </div>
       </div>
 
+      {/* Add Timesheet Form */}
       {showAddForm && (
         <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add Timesheet Entry</h3>
           
-          {/* Debug info - remove after testing */}
-          {resources.length === 0 && (
-            <div style={{ padding: '0.5rem', backgroundColor: '#fef2f2', borderRadius: '4px', marginBottom: '1rem', color: '#dc2626', fontSize: '0.85rem' }}>
-              ⚠️ No resources loaded. Check console for errors.
+          {/* Entry Mode Toggle */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ fontWeight: '500', marginBottom: '0.5rem', display: 'block' }}>Entry Type</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setEntryMode('daily')}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: '2px solid',
+                  borderColor: entryMode === 'daily' ? '#10b981' : '#e2e8f0',
+                  backgroundColor: entryMode === 'daily' ? '#f0fdf4' : 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: entryMode === 'daily' ? '600' : '400',
+                  color: entryMode === 'daily' ? '#16a34a' : '#64748b'
+                }}
+              >
+                <Calendar size={18} />
+                Daily Entry
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryMode('weekly')}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: '2px solid',
+                  borderColor: entryMode === 'weekly' ? '#10b981' : '#e2e8f0',
+                  backgroundColor: entryMode === 'weekly' ? '#f0fdf4' : 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: entryMode === 'weekly' ? '600' : '400',
+                  color: entryMode === 'weekly' ? '#16a34a' : '#64748b'
+                }}
+              >
+                <CalendarDays size={18} />
+                Weekly Summary
+              </button>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.5rem' }}>
+              {entryMode === 'daily' 
+                ? 'Log hours for a specific day - ideal when working on different milestones each day.' 
+                : 'Log total hours for an entire week - ideal for consistent weekly work on a single milestone.'}
+            </p>
+          </div>
+          
+          {availableResources.length === 0 && (
+            <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '6px', marginBottom: '1rem', color: '#dc2626', fontSize: '0.9rem' }}>
+              ⚠️ Your account is not linked to a resource. Contact an admin to be added.
             </div>
           )}
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label className="form-label">Resource * ({availableResources.length} available)</label>
-              <select className="form-input" value={newTimesheet.resource_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}>
+              <select 
+                className="form-input" 
+                value={newTimesheet.resource_id} 
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}
+              >
                 <option value="">Select Resource</option>
                 {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-              {userRole !== 'admin' && availableResources.length === 0 && (
-                <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem' }}>Your account is not linked to a resource. Contact admin.</div>
-              )}
             </div>
+            
+            {entryMode === 'daily' ? (
+              <div>
+                <label className="form-label">Date *</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  value={newTimesheet.work_date} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })} 
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="form-label">Week Ending (Sunday) *</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  value={newTimesheet.week_ending} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} 
+                />
+              </div>
+            )}
+            
             <div>
-              <label className="form-label">Week Ending *</label>
-              <input type="date" className="form-input" value={newTimesheet.week_ending} onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Milestone (optional) ({milestones.length} available)</label>
-              <select className="form-input" value={newTimesheet.milestone_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}>
+              <label className="form-label">Milestone ({milestones.length} available)</label>
+              <select 
+                className="form-input" 
+                value={newTimesheet.milestone_id} 
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}
+              >
                 <option value="">-- No specific milestone --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
               </select>
             </div>
+            
             <div>
               <label className="form-label">Hours Worked *</label>
-              <input type="number" step="0.5" min="0" max="80" className="form-input" placeholder="e.g., 8" value={newTimesheet.hours_worked} onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} />
+              <input 
+                type="number" 
+                step="0.5" 
+                min="0.5" 
+                max={entryMode === 'daily' ? '12' : '60'} 
+                className="form-input" 
+                placeholder={entryMode === 'daily' ? 'e.g., 8' : 'e.g., 40'} 
+                value={newTimesheet.hours_worked} 
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} 
+              />
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                {entryMode === 'daily' ? 'Max 12 hours per day' : 'Total hours for the week'}
+              </span>
             </div>
+            
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="form-label">Description</label>
-              <textarea className="form-input" rows={2} placeholder="What did you work on?" value={newTimesheet.description} onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} />
+              <textarea 
+                className="form-input" 
+                rows={2} 
+                placeholder="What did you work on?" 
+                value={newTimesheet.description} 
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} 
+              />
             </div>
           </div>
+          
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-primary" onClick={handleAdd}><Save size={16} /> Save Timesheet</button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
+            <button className="btn btn-primary" onClick={handleAdd}>
+              <Save size={16} /> Save Timesheet
+            </button>
+            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
+              <X size={16} /> Cancel
+            </button>
           </div>
         </div>
       )}
 
+      {/* Timesheets Table */}
       <div className="card">
         <table>
           <thead>
             <tr>
               <th>Resource</th>
-              <th>Week Ending</th>
+              <th>Date</th>
               <th>Milestone</th>
               <th style={{ textAlign: 'right' }}>Hours</th>
               <th>Description</th>
@@ -459,11 +575,18 @@ export default function Timesheets() {
                   </td>
                   <td>
                     {editingId === ts.id ? (
-                      <input type="date" className="form-input" value={editForm.week_ending} onChange={(e) => setEditForm({ ...editForm, week_ending: e.target.value })} />
+                      <input type="date" className="form-input" value={editForm.work_date} onChange={(e) => setEditForm({ ...editForm, work_date: e.target.value })} />
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Calendar size={14} style={{ color: '#64748b' }} />
-                        {new Date(ts.week_ending).toLocaleDateString('en-GB')}
+                        <div>
+                          {ts.work_date ? new Date(ts.work_date).toLocaleDateString('en-GB') : '-'}
+                          {ts.entry_type === 'weekly' && (
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>
+                              (Weekly)
+                            </span>
+                          )}
+                        </div>
                       </div>
                     )}
                   </td>
@@ -522,11 +645,14 @@ export default function Timesheets() {
         </table>
       </div>
 
+      {/* Tips */}
       <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e' }}>
         <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>💡 Timesheet Tips</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
-          <li>Submit timesheets weekly by Sunday</li>
-          <li>Link time to specific milestones when possible</li>
+          <li><strong>Daily Entry:</strong> Use when working on different milestones on different days</li>
+          <li><strong>Weekly Entry:</strong> Use when working consistently on the same milestone all week</li>
+          <li>Link time to specific milestones when possible for better tracking</li>
+          <li>Submit timesheets for approval when complete</li>
           {userRole === 'admin' && <li><strong>As admin:</strong> You can edit and approve any timesheet</li>}
         </ul>
       </div>
