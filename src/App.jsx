@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Milestones from './pages/Milestones';
 import MilestoneDetail from './pages/MilestoneDetail';
@@ -15,6 +16,7 @@ import KPIDetail from './pages/KPIDetail';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
+import AccountSettings from './pages/AccountSettings';
 
 function ProtectedRoute({ children }) {
   const [session, setSession] = useState(null);
@@ -69,7 +71,11 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        
+        {/* Protected routes */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/milestones" element={<ProtectedRoute><Milestones /></ProtectedRoute>} />
         <Route path="/milestones/:id" element={<ProtectedRoute><MilestoneDetail /></ProtectedRoute>} />
@@ -82,6 +88,9 @@ function App() {
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
+        
+        {/* Default redirects */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
