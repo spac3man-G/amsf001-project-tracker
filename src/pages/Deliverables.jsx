@@ -412,7 +412,17 @@ export default function Deliverables() {
                 else if (newStatus === 'Returned for More Work') newProgress = 50;
                 setEditForm({ ...editForm, status: newStatus, progress: newProgress });
               }}>{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-              <div><label>Progress: {editForm.progress}%</label><input type="range" min="0" max="100" value={editForm.progress} onChange={(e) => setEditForm({ ...editForm, progress: parseInt(e.target.value) })} style={{ width: '100%' }} disabled={['Delivered', 'Submitted for Review', 'Review Complete'].includes(editForm.status)} /></div>
+              <div><label>Progress: {editForm.progress}%</label><input type="range" min="0" max="100" value={editForm.progress} onChange={(e) => {
+                const newProgress = parseInt(e.target.value);
+                let newStatus = editForm.status;
+                // Auto-set status based on progress
+                if (newProgress === 0 && editForm.status !== 'Returned for More Work') {
+                  newStatus = 'Not Started';
+                } else if (newProgress > 0 && newProgress < 100 && editForm.status === 'Not Started') {
+                  newStatus = 'In Progress';
+                }
+                setEditForm({ ...editForm, progress: newProgress, status: newStatus });
+              }} style={{ width: '100%' }} disabled={['Delivered', 'Submitted for Review', 'Review Complete'].includes(editForm.status)} /></div>
             </div>
             <KPISelector kpis={kpis} selectedIds={editForm.kpi_ids} onChange={(ids) => setEditForm({ ...editForm, kpi_ids: ids })} />
             <QSSelector qualityStandards={qualityStandards} selectedIds={editForm.qs_ids} onChange={(ids) => setEditForm({ ...editForm, qs_ids: ids })} />
