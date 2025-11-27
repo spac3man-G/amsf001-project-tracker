@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling } from 'lucide-react';
+import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling, Briefcase } from 'lucide-react';
+
+// Helper function to check if a role is PMO
+function isPMORole(role) {
+  if (!role) return false;
+  const roleLower = role.toLowerCase();
+  return roleLower.includes('pmo') || roleLower.includes('project manager');
+}
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -12,6 +19,14 @@ export default function Dashboard() {
     totalKPIs: 0, achievedKPIs: 0, 
     totalQS: 0, achievedQS: 0,
     totalBudget: 0, spendToDate: 0
+  });
+  const [pmoStats, setPmoStats] = useState({
+    pmoBudget: 0,
+    pmoSpend: 0,
+    nonPmoBudget: 0,
+    nonPmoSpend: 0,
+    pmoResources: [],
+    nonPmoResources: []
   });
   const [milestones, setMilestones] = useState([]);
   const [milestoneSpend, setMilestoneSpend] = useState({});
@@ -37,13 +52,34 @@ export default function Dashboard() {
       // Fetch timesheets to calculate spend
       const { data: timesheetsData } = await supabase
         .from('timesheets')
-        .select('*, resources(id, daily_rate, discount_percent)')
+        .select('*, resources(id, name, role, daily_rate, discount_percent)')
         .eq('project_id', project.id);
 
-      // Calculate spend per milestone
+      // Calculate PMO budget from resources
+      let pmoBudget = 0;
+      let nonPmoBudget = 0;
+      const pmoResourcesList = [];
+      const nonPmoResourcesList = [];
+      
+      if (resourcesData) {
+        resourcesData.forEach(r => {
+          const budget = (r.daily_rate || 0) * (r.days_allocated || 0);
+          if (isPMORole(r.role)) {
+            pmoBudget += budget;
+            pmoResourcesList.push({ name: r.name, role: r.role, budget });
+          } else {
+            nonPmoBudget += budget;
+            nonPmoResourcesList.push({ name: r.name, role: r.role, budget });
+          }
+        });
+      }
+
+      // Calculate spend per milestone and PMO spend
       // Only count: Approved OR (Submitted AND not previously rejected)
       const spendByMilestone = {};
       let totalSpend = 0;
+      let pmoSpend = 0;
+      let nonPmoSpend = 0;
       
       if (timesheetsData && resourcesData) {
         timesheetsData.forEach(ts => {
@@ -63,10 +99,27 @@ export default function Dashboard() {
               spendByMilestone[ts.milestone_id] = (spendByMilestone[ts.milestone_id] || 0) + dayCost;
             }
             totalSpend += dayCost;
+            
+            // Track PMO vs non-PMO spend
+            if (isPMORole(resource.role)) {
+              pmoSpend += dayCost;
+            } else {
+              nonPmoSpend += dayCost;
+            }
           }
         });
       }
       setMilestoneSpend(spendByMilestone);
+      
+      // Set PMO stats
+      setPmoStats({
+        pmoBudget,
+        pmoSpend,
+        nonPmoBudget,
+        nonPmoSpend,
+        pmoResources: pmoResourcesList,
+        nonPmoResources: nonPmoResourcesList
+      });
 
       setQualityStandards(qsData || []);
 
@@ -183,6 +236,135 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* PMO vs Non-PMO Cost Tracking */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Briefcase size={20} /> PMO Cost Tracking
+        </h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+          {/* PMO Budget (Forecast) */}
+          <div style={{ padding: '1rem', backgroundColor: '#fef3c7', borderRadius: '8px', borderLeft: '4px solid #f59e0b' }}>
+            <div style={{ fontSize: '0.8rem', color: '#92400e', marginBottom: '0.25rem' }}>PMO Budget</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#d97706' }}>
+              £{Math.round(pmoStats.pmoBudget).toLocaleString()}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#92400e' }}>
+              {(pmoStats.pmoBudget + pmoStats.nonPmoBudget) > 0 
+                ? Math.round((pmoStats.pmoBudget / (pmoStats.pmoBudget + pmoStats.nonPmoBudget)) * 100) 
+                : 0}% of total budget
+            </div>
+          </div>
+          
+          {/* PMO Spend */}
+          <div style={{ padding: '1rem', backgroundColor: '#ffedd5', borderRadius: '8px', borderLeft: '4px solid #ea580c' }}>
+            <div style={{ fontSize: '0.8rem', color: '#9a3412', marginBottom: '0.25rem' }}>PMO Spend</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ea580c' }}>
+              £{Math.round(pmoStats.pmoSpend).toLocaleString()}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#9a3412' }}>
+              {pmoStats.pmoBudget > 0 
+                ? Math.round((pmoStats.pmoSpend / pmoStats.pmoBudget) * 100) 
+                : 0}% of PMO budget
+            </div>
+          </div>
+          
+          {/* Non-PMO Budget */}
+          <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
+            <div style={{ fontSize: '0.8rem', color: '#1e40af', marginBottom: '0.25rem' }}>Non-PMO Budget</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2563eb' }}>
+              £{Math.round(pmoStats.nonPmoBudget).toLocaleString()}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#1e40af' }}>
+              {(pmoStats.pmoBudget + pmoStats.nonPmoBudget) > 0 
+                ? Math.round((pmoStats.nonPmoBudget / (pmoStats.pmoBudget + pmoStats.nonPmoBudget)) * 100) 
+                : 0}% of total budget
+            </div>
+          </div>
+          
+          {/* Non-PMO Spend */}
+          <div style={{ padding: '1rem', backgroundColor: '#dcfce7', borderRadius: '8px', borderLeft: '4px solid #16a34a' }}>
+            <div style={{ fontSize: '0.8rem', color: '#166534', marginBottom: '0.25rem' }}>Non-PMO Spend</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#16a34a' }}>
+              £{Math.round(pmoStats.nonPmoSpend).toLocaleString()}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#166534' }}>
+              {pmoStats.nonPmoBudget > 0 
+                ? Math.round((pmoStats.nonPmoSpend / pmoStats.nonPmoBudget) * 100) 
+                : 0}% of non-PMO budget
+            </div>
+          </div>
+        </div>
+        
+        {/* PMO vs Non-PMO Comparison Bar */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>Spend Distribution</span>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+              PMO: {stats.spendToDate > 0 ? Math.round((pmoStats.pmoSpend / stats.spendToDate) * 100) : 0}% | 
+              Non-PMO: {stats.spendToDate > 0 ? Math.round((pmoStats.nonPmoSpend / stats.spendToDate) * 100) : 0}%
+            </span>
+          </div>
+          <div style={{ display: 'flex', height: '24px', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#e2e8f0' }}>
+            <div 
+              style={{ 
+                width: `${stats.spendToDate > 0 ? (pmoStats.pmoSpend / stats.spendToDate) * 100 : 0}%`,
+                backgroundColor: '#f59e0b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                minWidth: pmoStats.pmoSpend > 0 ? '40px' : '0'
+              }}
+            >
+              {pmoStats.pmoSpend > 0 && 'PMO'}
+            </div>
+            <div 
+              style={{ 
+                width: `${stats.spendToDate > 0 ? (pmoStats.nonPmoSpend / stats.spendToDate) * 100 : 0}%`,
+                backgroundColor: '#3b82f6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                minWidth: pmoStats.nonPmoSpend > 0 ? '60px' : '0'
+              }}
+            >
+              {pmoStats.nonPmoSpend > 0 && 'Non-PMO'}
+            </div>
+          </div>
+        </div>
+        
+        {/* PMO Resources List */}
+        {pmoStats.pmoResources.length > 0 && (
+          <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#fffbeb', borderRadius: '8px' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#92400e', marginBottom: '0.5rem' }}>
+              PMO Resources ({pmoStats.pmoResources.length})
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {pmoStats.pmoResources.map((r, idx) => (
+                <span 
+                  key={idx}
+                  style={{ 
+                    padding: '0.25rem 0.75rem', 
+                    backgroundColor: '#fef3c7', 
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    color: '#92400e'
+                  }}
+                >
+                  {r.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats Grid */}
