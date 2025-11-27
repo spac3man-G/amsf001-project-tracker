@@ -395,10 +395,10 @@ export default function Timesheets() {
     return false;
   }
 
-  // NEW: Can validate (approve/reject) - for PMs and admins on Submitted timesheets
+  // NEW: Can validate (approve/reject) - for Supplier PM and Customer PM ONLY (not admin)
   function canValidateTimesheet(ts) {
     if (ts.status !== 'Submitted') return false;
-    return ['admin', 'supplier_pm', 'customer_pm'].includes(userRole);
+    return ['supplier_pm', 'customer_pm'].includes(userRole);
   }
 
   // Filter timesheets
@@ -788,8 +788,8 @@ export default function Timesheets() {
           <li><strong>Weekly Entry:</strong> Use when working consistently on the same milestone all week</li>
           <li>Link time to specific milestones when possible for better tracking</li>
           <li><strong>Submit:</strong> Click the send icon (→) to submit for approval</li>
-          {['admin', 'supplier_pm', 'customer_pm'].includes(userRole) && (
-            <li><strong>As {userRole.replace('_', ' ')}:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
+          {['supplier_pm', 'customer_pm'].includes(userRole) && (
+            <li><strong>As {userRole === 'supplier_pm' ? 'Supplier PM' : 'Customer PM'}:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
           )}
         </ul>
       </div>
