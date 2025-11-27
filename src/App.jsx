@@ -1,12 +1,13 @@
 // src/App.jsx
-// Updated to include TestUserProvider for session-level test user visibility
+// Updated to include TestUserProvider and WorkflowSummary route
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-// Import the TestUserProvider
+// Import the TestUserProvider and NotificationProvider
 import { TestUserProvider } from './contexts/TestUserContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Layout and Pages
 import Layout from './components/Layout';
@@ -28,6 +29,7 @@ import Reports from './pages/Reports';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import AccountSettings from './pages/AccountSettings';
+import WorkflowSummary from './pages/WorkflowSummary';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -61,10 +63,10 @@ function ProtectedRoute({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-      {/* Wrap entire app with TestUserProvider */}
-      {/* This provides the showTestUsers state to all components */}
+      {/* Wrap entire app with TestUserProvider and NotificationProvider */}
       <TestUserProvider>
-        <Routes>
+        <NotificationProvider>
+          <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -132,10 +134,16 @@ export default function App() {
           <Route path="/account" element={
             <ProtectedRoute><AccountSettings /></ProtectedRoute>
           } />
+
+          {/* Workflow Summary - for PMs and admins */}
+          <Route path="/workflow-summary" element={
+            <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
+          } />
           
           {/* Catch all - redirect to dashboard */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </NotificationProvider>
       </TestUserProvider>
     </BrowserRouter>
   );
