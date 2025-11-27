@@ -21,6 +21,10 @@ export default function Milestones() {
     milestone_ref: '',
     name: '',
     description: '',
+    baseline_start_date: '',
+    baseline_end_date: '',
+    actual_start_date: '',
+    forecast_end_date: '',
     start_date: '',
     end_date: '',
     budget: ''
@@ -31,6 +35,10 @@ export default function Milestones() {
     milestone_ref: '',
     name: '',
     description: '',
+    baseline_start_date: '',
+    baseline_end_date: '',
+    actual_start_date: '',
+    forecast_end_date: '',
     start_date: '',
     end_date: '',
     budget: ''
@@ -177,8 +185,12 @@ export default function Milestones() {
           milestone_ref: newMilestone.milestone_ref,
           name: newMilestone.name,
           description: newMilestone.description,
-          start_date: newMilestone.start_date || null,
-          end_date: newMilestone.end_date || null,
+          start_date: newMilestone.start_date || newMilestone.baseline_start_date || null,
+          end_date: newMilestone.end_date || newMilestone.baseline_end_date || null,
+          baseline_start_date: newMilestone.baseline_start_date || newMilestone.start_date || null,
+          baseline_end_date: newMilestone.baseline_end_date || newMilestone.end_date || null,
+          actual_start_date: newMilestone.actual_start_date || newMilestone.start_date || null,
+          forecast_end_date: newMilestone.forecast_end_date || newMilestone.end_date || null,
           budget: parseFloat(newMilestone.budget) || 0,
           progress: 0,
           status: 'Not Started'
@@ -192,6 +204,10 @@ export default function Milestones() {
         milestone_ref: '',
         name: '',
         description: '',
+        baseline_start_date: '',
+        baseline_end_date: '',
+        actual_start_date: '',
+        forecast_end_date: '',
         start_date: '',
         end_date: '',
         budget: ''
@@ -226,6 +242,10 @@ export default function Milestones() {
       milestone_ref: milestone.milestone_ref || '',
       name: milestone.name || '',
       description: milestone.description || '',
+      baseline_start_date: milestone.baseline_start_date || milestone.start_date || '',
+      baseline_end_date: milestone.baseline_end_date || milestone.end_date || '',
+      actual_start_date: milestone.actual_start_date || milestone.start_date || '',
+      forecast_end_date: milestone.forecast_end_date || milestone.end_date || '',
       start_date: milestone.start_date || '',
       end_date: milestone.end_date || '',
       budget: milestone.budget || ''
@@ -247,8 +267,12 @@ export default function Milestones() {
           milestone_ref: editForm.milestone_ref,
           name: editForm.name,
           description: editForm.description,
-          start_date: editForm.start_date || null,
-          end_date: editForm.end_date || null,
+          start_date: editForm.start_date || editForm.baseline_start_date || null,
+          end_date: editForm.end_date || editForm.baseline_end_date || null,
+          baseline_start_date: editForm.baseline_start_date || null,
+          baseline_end_date: editForm.baseline_end_date || null,
+          actual_start_date: editForm.actual_start_date || null,
+          forecast_end_date: editForm.forecast_end_date || null,
           budget: parseFloat(editForm.budget) || 0
         })
         .eq('id', editForm.id);
@@ -472,10 +496,18 @@ export default function Milestones() {
           <div className="stat-label">Average Progress</div>
           <div className="stat-value" style={{ color: '#3b82f6' }}>{avgProgress}%</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Budget</div>
+        <div className="stat-card" title="Total amount that can be invoiced when milestones are completed">
+          <div className="stat-label">Total Billable</div>
           <div className="stat-value">£{totalBudget.toLocaleString()}</div>
+          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>on completion</div>
         </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <Link to="/gantt" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          📊 View Gantt Chart
+        </Link>
       </div>
 
       {/* Certificate Stats */}
@@ -536,36 +568,73 @@ export default function Milestones() {
               onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
             />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label className="form-label">Start Date</label>
-              <input 
-                type="date" 
-                className="form-input"
-                value={newMilestone.start_date}
-                onChange={(e) => setNewMilestone({ ...newMilestone, start_date: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="form-label">End Date</label>
-              <input 
-                type="date" 
-                className="form-input"
-                value={newMilestone.end_date}
-                onChange={(e) => setNewMilestone({ ...newMilestone, end_date: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="form-label">Budget (£)</label>
-              <input 
-                type="number" 
-                className="form-input"
-                placeholder="0"
-                value={newMilestone.budget}
-                onChange={(e) => setNewMilestone({ ...newMilestone, budget: e.target.value })}
-              />
+          
+          {/* Baseline Dates */}
+          <div style={{ marginBottom: '1rem' }}>
+            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#64748b' }}>Baseline Schedule (Original Plan)</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label className="form-label">Baseline Start Date</label>
+                <input 
+                  type="date" 
+                  className="form-input"
+                  value={newMilestone.baseline_start_date || newMilestone.start_date}
+                  onChange={(e) => setNewMilestone({ ...newMilestone, baseline_start_date: e.target.value, start_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="form-label">Baseline End Date</label>
+                <input 
+                  type="date" 
+                  className="form-input"
+                  value={newMilestone.baseline_end_date || newMilestone.end_date}
+                  onChange={(e) => setNewMilestone({ ...newMilestone, baseline_end_date: e.target.value, end_date: e.target.value })}
+                />
+              </div>
             </div>
           </div>
+          
+          {/* Actual/Forecast Dates */}
+          <div style={{ marginBottom: '1rem' }}>
+            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#64748b' }}>Current Schedule</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label className="form-label">Actual Start Date</label>
+                <input 
+                  type="date" 
+                  className="form-input"
+                  value={newMilestone.actual_start_date || newMilestone.start_date}
+                  onChange={(e) => setNewMilestone({ ...newMilestone, actual_start_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="form-label">Forecast End Date</label>
+                <input 
+                  type="date" 
+                  className="form-input"
+                  value={newMilestone.forecast_end_date || newMilestone.end_date}
+                  onChange={(e) => setNewMilestone({ ...newMilestone, forecast_end_date: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          
+          {/* Billable Amount */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label className="form-label">Billable Amount (£)</label>
+            <input 
+              type="number" 
+              className="form-input"
+              placeholder="0"
+              style={{ maxWidth: '200px' }}
+              value={newMilestone.budget}
+              onChange={(e) => setNewMilestone({ ...newMilestone, budget: e.target.value })}
+            />
+            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
+              The amount that can be invoiced when this milestone is completed (not a budget for doing the work)
+            </p>
+          </div>
+          
           <div style={{ 
             padding: '0.75rem', 
             backgroundColor: '#eff6ff', 
@@ -597,9 +666,9 @@ export default function Milestones() {
               <th>Name</th>
               <th>Status</th>
               <th>Progress</th>
-              <th>Start Date</th>
-              <th>End Date</th>
-              <th>Budget</th>
+              <th>Actual Start</th>
+              <th>Forecast End</th>
+              <th title="Amount invoiced on completion">Billable</th>
               <th>Certificate</th>
               {canEdit && <th>Actions</th>}
             </tr>
@@ -689,12 +758,16 @@ export default function Milestones() {
                       </div>
                     </td>
                     <td>
-                      {milestone.start_date ? new Date(milestone.start_date).toLocaleDateString('en-GB') : '-'}
+                      {(milestone.actual_start_date || milestone.start_date) 
+                        ? new Date(milestone.actual_start_date || milestone.start_date).toLocaleDateString('en-GB') 
+                        : '-'}
                     </td>
                     <td>
-                      {milestone.end_date ? new Date(milestone.end_date).toLocaleDateString('en-GB') : '-'}
+                      {(milestone.forecast_end_date || milestone.end_date) 
+                        ? new Date(milestone.forecast_end_date || milestone.end_date).toLocaleDateString('en-GB') 
+                        : '-'}
                     </td>
-                    <td>£{(milestone.budget || 0).toLocaleString()}</td>
+                    <td title="Invoiced on completion">£{(milestone.budget || 0).toLocaleString()}</td>
                     <td>
                       {milestone.computedStatus === 'Completed' ? (
                         cert ? (
@@ -853,35 +926,67 @@ export default function Milestones() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Start Date</label>
-                <input
-                  type="date"
-                  value={editForm.start_date}
-                  onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
-                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
-                />
+            {/* Baseline Dates */}
+            <div style={{ marginBottom: '1rem' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#64748b' }}>Baseline Schedule (Original Plan)</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Baseline Start</label>
+                  <input
+                    type="date"
+                    value={editForm.baseline_start_date}
+                    onChange={(e) => setEditForm({ ...editForm, baseline_start_date: e.target.value })}
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Baseline End</label>
+                  <input
+                    type="date"
+                    value={editForm.baseline_end_date}
+                    onChange={(e) => setEditForm({ ...editForm, baseline_end_date: e.target.value })}
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                  />
+                </div>
               </div>
-              <div>
-                <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>End Date</label>
-                <input
-                  type="date"
-                  value={editForm.end_date}
-                  onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
-                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
-                />
+            </div>
+
+            {/* Actual/Forecast Dates */}
+            <div style={{ marginBottom: '1rem' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#64748b' }}>Current Schedule</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Actual Start</label>
+                  <input
+                    type="date"
+                    value={editForm.actual_start_date}
+                    onChange={(e) => setEditForm({ ...editForm, actual_start_date: e.target.value })}
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Forecast End</label>
+                  <input
+                    type="date"
+                    value={editForm.forecast_end_date}
+                    onChange={(e) => setEditForm({ ...editForm, forecast_end_date: e.target.value })}
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                  />
+                </div>
               </div>
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Budget (£)</label>
+              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Billable Amount (£)</label>
               <input
                 type="number"
                 value={editForm.budget}
                 onChange={(e) => setEditForm({ ...editForm, budget: e.target.value })}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                style={{ width: '200px', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
               />
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
+                Amount invoiced when milestone is completed (not a budget for doing the work)
+              </p>
             </div>
 
             <div style={{ 

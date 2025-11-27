@@ -460,17 +460,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Budget vs Spend by Milestone */}
+      {/* Billable vs Spend by Milestone */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginBottom: '1rem' }}>Budget vs Spend by Milestone</h3>
+        <h3 style={{ marginBottom: '0.5rem' }}>Billable vs Spend by Milestone</h3>
+        <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1rem' }}>
+          Comparing the amount invoiced on completion (billable) against actual cost to date from timesheets
+        </p>
         <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', marginRight: '1rem' }}>
             <span style={{ width: '12px', height: '12px', backgroundColor: '#3b82f6', borderRadius: '2px' }}></span>
-            Budget
+            Billable on Completion
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem' }}>
             <span style={{ width: '12px', height: '12px', backgroundColor: '#10b981', borderRadius: '2px' }}></span>
-            Spend to Date
+            Spend to Date (Cost)
           </span>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', height: '220px', alignItems: 'flex-end' }}>
@@ -483,7 +486,7 @@ export default function Dashboard() {
             return (
               <div key={milestone.id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '180px', width: '100%', justifyContent: 'center' }}>
-                  {/* Budget bar */}
+                  {/* Billable bar */}
                   <div 
                     style={{ 
                       width: '45%', 
@@ -493,7 +496,7 @@ export default function Dashboard() {
                       minHeight: milestone.budget > 0 ? '20px' : '0',
                       position: 'relative'
                     }} 
-                    title={`Budget: £${(milestone.budget || 0).toLocaleString()}`}
+                    title={`Billable: £${(milestone.budget || 0).toLocaleString()}`}
                   >
                     {budgetHeight > 15 && (
                       <span style={{ 
