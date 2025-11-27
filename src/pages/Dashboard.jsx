@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling, Briefcase, FileCheck } from 'lucide-react';
+import { useTestUsers } from '../contexts/TestUserContext';
 
 // Helper function to check if a role is PMO
 function isPMORole(role) {
@@ -39,7 +40,10 @@ export default function Dashboard() {
   const [qualityStandards, setQualityStandards] = useState([]);
   const [projectProgress, setProjectProgress] = useState(0);
 
-  useEffect(() => { fetchDashboardData(); }, []);
+  // Test user context for filtering
+  const { showTestUsers, testUserIds } = useTestUsers();
+
+  useEffect(() => { fetchDashboardData(); }, [showTestUsers]);
 
   async function fetchDashboardData() {
     try {
@@ -54,11 +58,18 @@ export default function Dashboard() {
       const { data: kpisData } = await supabase.from('kpis').select('*').eq('project_id', project.id).order('kpi_ref');
       const { data: qsData } = await supabase.from('quality_standards').select('*').eq('project_id', project.id).order('qs_ref');
 
-      // Fetch timesheets to calculate spend
-      const { data: timesheetsData } = await supabase
+      // Fetch timesheets to calculate spend - with test content filter
+      let timesheetQuery = supabase
         .from('timesheets')
         .select('*, resources(id, name, role, daily_rate, discount_percent)')
         .eq('project_id', project.id);
+      
+      // Filter out test content unless admin/supplier_pm has enabled it
+      if (!showTestUsers) {
+        timesheetQuery = timesheetQuery.or('is_test_content.is.null,is_test_content.eq.false');
+      }
+      
+      const { data: timesheetsData } = await timesheetQuery;
 
       // Calculate PMO budget from resources
       let pmoBudget = 0;

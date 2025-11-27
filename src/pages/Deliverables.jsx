@@ -5,6 +5,7 @@ import {
   Package, Plus, X, Edit2, Trash2, Save, CheckCircle, Clock, 
   AlertCircle, Send, ThumbsUp, RotateCcw, Info
 } from 'lucide-react';
+import { useTestUsers } from '../contexts/TestUserContext';
 
 const STATUS_OPTIONS = [
   'Not Started',
@@ -139,10 +140,16 @@ export default function Deliverables() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [projectId, setProjectId] = useState(null);
 
+  // Test user context for filtering
+  const { showTestUsers } = useTestUsers();
+
   const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
   const [editForm, setEditForm] = useState({ id: '', deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
 
   useEffect(() => { fetchData(); }, []);
+
+  // Re-fetch when showTestUsers changes
+  useEffect(() => { if (projectId) fetchData(); }, [showTestUsers]);
 
   async function fetchData() {
     try {
@@ -166,7 +173,15 @@ export default function Deliverables() {
       const { data: qsData } = await supabase.from('quality_standards').select('*').eq('project_id', project.id).order('qs_ref');
       setQualityStandards(qsData || []);
 
-      const { data: deliverablesData } = await supabase.from('deliverables').select(`*, milestones(milestone_ref, name), deliverable_kpis(kpi_id, kpis(kpi_ref, name)), deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name))`).eq('project_id', project.id).order('deliverable_ref');
+      // Build deliverables query with test content filter
+      let deliverableQuery = supabase.from('deliverables').select(`*, milestones(milestone_ref, name), deliverable_kpis(kpi_id, kpis(kpi_ref, name)), deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name))`).eq('project_id', project.id).order('deliverable_ref');
+      
+      // Filter out test content unless admin/supplier_pm has enabled it
+      if (!showTestUsers) {
+        deliverableQuery = deliverableQuery.or('is_test_content.is.null,is_test_content.eq.false');
+      }
+      
+      const { data: deliverablesData } = await deliverableQuery;
       setDeliverables(deliverablesData || []);
     } catch (error) { console.error('Error:', error); }
     finally { setLoading(false); }

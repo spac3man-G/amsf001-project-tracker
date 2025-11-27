@@ -4,6 +4,7 @@ import {
   Receipt, Plus, Edit2, Save, X, Trash2, Upload, Download,
   Car, Home, Utensils, AlertCircle, FileText, Check, User
 } from 'lucide-react';
+import { useTestUsers } from '../contexts/TestUserContext';
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
@@ -20,6 +21,9 @@ export default function Expenses() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterChargeable, setFilterChargeable] = useState('all');
   const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  // Test user context for filtering
+  const { showTestUsers, testUserIds } = useTestUsers();
 
   const BUDGET = 20520;
 
@@ -50,6 +54,13 @@ export default function Expenses() {
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  // Re-fetch when showTestUsers changes
+  useEffect(() => {
+    if (projectId) {
+      fetchData(projectId);
+    }
+  }, [showTestUsers]);
 
   async function fetchInitialData() {
     try {
@@ -86,18 +97,35 @@ export default function Expenses() {
     if (!pid) return;
 
     try {
-      const { data: expensesData } = await supabase
+      // Build expenses query with test content filter
+      let expenseQuery = supabase
         .from('expenses')
         .select('*, expense_files(*)')
         .eq('project_id', pid)
         .order('expense_date', { ascending: false });
+
+      // Filter out test content unless admin/supplier_pm has enabled it
+      if (!showTestUsers) {
+        expenseQuery = expenseQuery.or('is_test_content.is.null,is_test_content.eq.false');
+      }
+
+      const { data: expensesData } = await expenseQuery;
       setExpenses(expensesData || []);
 
+      // Fetch resources - filter out resources linked to test users
       const { data: resourcesData } = await supabase
         .from('resources')
-        .select('id, name, email')
+        .select('id, name, email, user_id')
         .order('name');
-      setResources(resourcesData || []);
+      
+      // Filter out resources linked to test users if not showing test users
+      let filteredResources = resourcesData || [];
+      if (!showTestUsers && testUserIds && testUserIds.length > 0) {
+        filteredResources = filteredResources.filter(r => 
+          !r.user_id || !testUserIds.includes(r.user_id)
+        );
+      }
+      setResources(filteredResources);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
