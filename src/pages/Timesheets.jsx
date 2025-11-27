@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Clock, Plus, Edit2, Save, X, Trash2, Calendar,
-  CheckCircle, AlertCircle, User, CalendarDays
+  CheckCircle, AlertCircle, User, CalendarDays, Send
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 
@@ -308,6 +308,64 @@ export default function Timesheets() {
     }
   }
 
+  // NEW: Submit timesheet for approval
+  async function handleSubmit(id) {
+    if (!confirm('Submit this timesheet for approval?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('timesheets')
+        .update({ status: 'Submitted' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchData();
+      alert('Timesheet submitted for approval!');
+    } catch (error) {
+      console.error('Error submitting timesheet:', error);
+      alert('Failed to submit: ' + error.message);
+    }
+  }
+
+  // NEW: Approve timesheet (for validators)
+  async function handleApprove(id) {
+    try {
+      const { error } = await supabase
+        .from('timesheets')
+        .update({ status: 'Approved' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchData();
+      alert('Timesheet approved!');
+    } catch (error) {
+      console.error('Error approving timesheet:', error);
+      alert('Failed to approve: ' + error.message);
+    }
+  }
+
+  // NEW: Reject timesheet (for validators)
+  async function handleReject(id) {
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    
+    try {
+      const { error } = await supabase
+        .from('timesheets')
+        .update({ status: 'Rejected' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchData();
+      alert('Timesheet rejected.');
+    } catch (error) {
+      console.error('Error rejecting timesheet:', error);
+      alert('Failed to reject: ' + error.message);
+    }
+  }
+
   function getStatusColor(status) {
     switch (status) {
       case 'Approved': return 'status-approved';
@@ -327,6 +385,20 @@ export default function Timesheets() {
     if (userRole === 'admin') return true;
     if (ts.user_id === currentUserId && ts.status === 'Draft') return true;
     return false;
+  }
+
+  // NEW: Can submit (owner of Draft timesheet)
+  function canSubmitTimesheet(ts) {
+    if (ts.status !== 'Draft' && ts.status !== 'Rejected') return false;
+    if (userRole === 'admin') return true;
+    if (ts.user_id === currentUserId) return true;
+    return false;
+  }
+
+  // NEW: Can validate (approve/reject) - for PMs and admins on Submitted timesheets
+  function canValidateTimesheet(ts) {
+    if (ts.status !== 'Submitted') return false;
+    return ['admin', 'supplier_pm', 'customer_pm'].includes(userRole);
   }
 
   // Filter timesheets
@@ -381,19 +453,19 @@ export default function Timesheets() {
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card">
-          <div className="stat-label">Total Entries</div>
+          <div className="stat-label">TOTAL ENTRIES</div>
           <div className="stat-value">{filteredTimesheets.length}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Total Hours</div>
+          <div className="stat-label">TOTAL HOURS</div>
           <div className="stat-value" style={{ color: '#3b82f6' }}>{totalHours.toFixed(1)}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Approved Hours</div>
+          <div className="stat-label">APPROVED HOURS</div>
           <div className="stat-value" style={{ color: '#10b981' }}>{approvedHours.toFixed(1)}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Pending Approval</div>
+          <div className="stat-label">PENDING APPROVAL</div>
           <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
         </div>
       </div>
@@ -666,6 +738,36 @@ export default function Timesheets() {
                       </div>
                     ) : (
                       <div className="action-buttons">
+                        {/* Submit button for Draft/Rejected timesheets */}
+                        {canSubmitTimesheet(ts) && (
+                          <button 
+                            className="btn-icon" 
+                            onClick={() => handleSubmit(ts.id)} 
+                            title="Submit for Approval"
+                            style={{ color: '#3b82f6' }}
+                          >
+                            <Send size={16} />
+                          </button>
+                        )}
+                        {/* Approve/Reject buttons for validators */}
+                        {canValidateTimesheet(ts) && (
+                          <>
+                            <button 
+                              className="btn-icon btn-success" 
+                              onClick={() => handleApprove(ts.id)} 
+                              title="Approve"
+                            >
+                              <CheckCircle size={16} />
+                            </button>
+                            <button 
+                              className="btn-icon btn-danger" 
+                              onClick={() => handleReject(ts.id)} 
+                              title="Reject"
+                            >
+                              <X size={16} />
+                            </button>
+                          </>
+                        )}
                         {canEditTimesheet(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
                         {canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
                       </div>
@@ -685,8 +787,10 @@ export default function Timesheets() {
           <li><strong>Daily Entry:</strong> Use when working on different milestones on different days</li>
           <li><strong>Weekly Entry:</strong> Use when working consistently on the same milestone all week</li>
           <li>Link time to specific milestones when possible for better tracking</li>
-          <li>Submit timesheets for approval when complete</li>
-          {userRole === 'admin' && <li><strong>As admin:</strong> You can edit and approve any timesheet</li>}
+          <li><strong>Submit:</strong> Click the send icon (→) to submit for approval</li>
+          {['admin', 'supplier_pm', 'customer_pm'].includes(userRole) && (
+            <li><strong>As {userRole.replace('_', ' ')}:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
+          )}
         </ul>
       </div>
     </div>
