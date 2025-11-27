@@ -18,12 +18,18 @@ import {
   UserCog,
   Award,
   GanttChart,
-  GripVertical
+  GripVertical,
+  ClipboardList
 } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 // Permission checks
 function canManageSystem(role) {
   return role === 'admin' || role === 'supplier_pm';
+}
+
+function canViewWorkflow(role) {
+  return ['admin', 'supplier_pm', 'customer_pm'].includes(role);
 }
 
 function getRoleConfig(role) {
@@ -104,6 +110,7 @@ export default function Layout({ children }) {
 
   // Permission checks using centralized permissions
   const hasSystemAccess = canManageSystem(userRole);
+  const hasWorkflowAccess = canViewWorkflow(userRole);
 
   // Base navigation items (before user ordering)
   const baseNavItems = [
@@ -117,6 +124,10 @@ export default function Layout({ children }) {
     { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
     { path: '/quality-standards', icon: Award, label: 'Quality Standards' },
     { path: '/reports', icon: FileText, label: 'Reports' },
+    // Workflow Summary only visible to PMs and admins
+    ...(hasWorkflowAccess ? [
+      { path: '/workflow-summary', icon: ClipboardList, label: 'Workflow Summary' }
+    ] : []),
     // Users and Settings only visible to admin and supplier_pm
     ...(hasSystemAccess ? [
       { path: '/users', icon: UserCircle, label: 'Users' },
@@ -447,9 +458,29 @@ export default function Layout({ children }) {
         flex: 1,
         marginLeft: sidebarOpen ? '260px' : '70px',
         transition: 'margin-left 0.3s ease',
-        minHeight: '100vh'
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
-        {children}
+        {/* Top Header Bar with Notification Bell */}
+        <header style={{
+          padding: '0.75rem 1.5rem',
+          backgroundColor: 'white',
+          borderBottom: '1px solid #e2e8f0',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          position: 'sticky',
+          top: 0,
+          zIndex: 40
+        }}>
+          <NotificationBell />
+        </header>
+
+        {/* Page Content */}
+        <div style={{ flex: 1 }}>
+          {children}
+        </div>
       </main>
     </div>
   );
