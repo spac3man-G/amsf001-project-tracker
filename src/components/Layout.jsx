@@ -15,8 +15,25 @@ import {
   Menu,
   X,
   UserCircle,
-  UserCog
+  UserCog,
+  Award
 } from 'lucide-react';
+
+// Permission checks
+function canManageSystem(role) {
+  return role === 'admin' || role === 'supplier_pm';
+}
+
+function getRoleConfig(role) {
+  const configs = {
+    admin: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
+    supplier_pm: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
+    customer_pm: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+    contributor: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
+    viewer: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' }
+  };
+  return configs[role] || configs.viewer;
+}
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -74,9 +91,10 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
-  // Check if user can see admin-only menu items
-  const canManageUsers = userRole === 'admin' || userRole === 'customer_pm';
+  // Permission checks using centralized permissions
+  const hasSystemAccess = canManageSystem(userRole);
 
+  // Build navigation items based on permissions
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/milestones', icon: Milestone, label: 'Milestones' },
@@ -85,31 +103,17 @@ export default function Layout({ children }) {
     { path: '/timesheets', icon: Clock, label: 'Timesheets' },
     { path: '/expenses', icon: Receipt, label: 'Expenses' },
     { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
+    { path: '/quality-standards', icon: Award, label: 'Quality Standards' },
     { path: '/reports', icon: FileText, label: 'Reports' },
-    // Users link only visible to admin and customer_pm
-    ...(canManageUsers ? [{ path: '/users', icon: UserCircle, label: 'Users' }] : []),
-    { path: '/settings', icon: Settings, label: 'Settings' },
+    // Users and Settings only visible to admin and supplier_pm
+    ...(hasSystemAccess ? [
+      { path: '/users', icon: UserCircle, label: 'Users' },
+      { path: '/settings', icon: Settings, label: 'Settings' }
+    ] : []),
   ];
 
-  function getRoleLabel(role) {
-    switch (role) {
-      case 'admin': return 'Admin';
-      case 'customer_pm': return 'Customer PM';
-      case 'contributor': return 'Contributor';
-      default: return 'Viewer';
-    }
-  }
+  const roleConfig = getRoleConfig(userRole);
 
-  function getRoleColor(role) {
-    switch (role) {
-      case 'admin': return { bg: '#f3e8ff', color: '#7c3aed' };
-      case 'customer_pm': return { bg: '#fef3c7', color: '#d97706' };
-      case 'contributor': return { bg: '#dbeafe', color: '#2563eb' };
-      default: return { bg: '#f1f5f9', color: '#64748b' };
-    }
-  }
-
-  const roleStyle = getRoleColor(userRole);
   const isAccountPage = location.pathname === '/account';
 
   return (
@@ -119,32 +123,33 @@ export default function Layout({ children }) {
         width: sidebarOpen ? '240px' : '60px',
         backgroundColor: 'white',
         borderRight: '1px solid #e2e8f0',
-        transition: 'width 0.3s',
         display: 'flex',
         flexDirection: 'column',
+        transition: 'width 0.2s ease',
         position: 'fixed',
         height: '100vh',
         zIndex: 100
       }}>
-        {/* Logo */}
+        {/* Logo section */}
         <div style={{
           padding: '1rem',
           borderBottom: '1px solid #e2e8f0',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: sidebarOpen ? 'space-between' : 'center'
         }}>
           {sidebarOpen && (
             <div>
-              <h1 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#1e293b' }}>
                 AMSF001 Tracker
-              </h1>
-              <span style={{
-                fontSize: '0.7rem',
-                backgroundColor: '#10b981',
-                color: 'white',
-                padding: '0.125rem 0.5rem',
-                borderRadius: '9999px'
+              </h2>
+              <span style={{ 
+                fontSize: '0.7rem', 
+                backgroundColor: '#10b981', 
+                color: 'white', 
+                padding: '0.125rem 0.375rem', 
+                borderRadius: '4px',
+                fontWeight: '600'
               }}>
                 GOJ2025/2409
               </span>
@@ -157,7 +162,10 @@ export default function Layout({ children }) {
               border: 'none',
               cursor: 'pointer',
               padding: '0.5rem',
-              color: '#64748b'
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -166,9 +174,10 @@ export default function Layout({ children }) {
 
         {/* Navigation */}
         <nav style={{ flex: 1, padding: '0.5rem', overflowY: 'auto' }}>
-          {navItems.map(item => {
+          {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || 
+                           (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
@@ -177,14 +186,15 @@ export default function Layout({ children }) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.75rem',
-                  padding: '0.75rem',
+                  padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem',
+                  marginBottom: '0.25rem',
                   borderRadius: '8px',
                   textDecoration: 'none',
                   color: isActive ? '#10b981' : '#64748b',
                   backgroundColor: isActive ? '#f0fdf4' : 'transparent',
-                  marginBottom: '0.25rem',
-                  fontWeight: isActive ? '600' : '400',
-                  transition: 'all 0.2s'
+                  fontWeight: isActive ? '600' : '500',
+                  justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 <Icon size={20} />
@@ -195,20 +205,24 @@ export default function Layout({ children }) {
         </nav>
 
         {/* My Account Link */}
-        <div style={{ padding: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
+        <div style={{ 
+          padding: '0.5rem', 
+          borderTop: '1px solid #e2e8f0'
+        }}>
           <Link
             to="/account"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
-              padding: '0.75rem',
+              padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem',
               borderRadius: '8px',
               textDecoration: 'none',
               color: isAccountPage ? '#10b981' : '#64748b',
               backgroundColor: isAccountPage ? '#f0fdf4' : 'transparent',
-              fontWeight: isAccountPage ? '600' : '400',
-              transition: 'all 0.2s'
+              fontWeight: isAccountPage ? '600' : '500',
+              justifyContent: sidebarOpen ? 'flex-start' : 'center',
+              transition: 'all 0.15s ease'
             }}
           >
             <UserCog size={20} />
@@ -229,21 +243,22 @@ export default function Layout({ children }) {
             height: '36px',
             borderRadius: '50%',
             backgroundColor: '#10b981',
+            color: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white',
             fontWeight: '600',
-            fontSize: '0.9rem'
+            fontSize: '0.85rem',
+            flexShrink: 0
           }}>
             {initials}
           </div>
           {sidebarOpen && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ 
-                fontWeight: '500', 
-                color: '#1e293b', 
-                fontSize: '0.9rem',
+                fontWeight: '600', 
+                fontSize: '0.9rem', 
+                color: '#1e293b',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis'
@@ -251,33 +266,36 @@ export default function Layout({ children }) {
                 {displayName}
               </div>
               <div style={{
-                fontSize: '0.7rem',
+                fontSize: '0.75rem',
                 padding: '0.125rem 0.375rem',
                 borderRadius: '4px',
-                backgroundColor: roleStyle.bg,
-                color: roleStyle.color,
                 display: 'inline-block',
+                marginTop: '0.125rem',
+                backgroundColor: roleConfig.bg,
+                color: roleConfig.color,
                 fontWeight: '500'
               }}>
-                {getRoleLabel(userRole)}
+                {roleConfig.label}
               </div>
             </div>
           )}
-          {sidebarOpen && (
-            <button
-              onClick={handleLogout}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0.5rem',
-                color: '#64748b'
-              }}
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          )}
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.5rem',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}
+            title="Logout"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </aside>
 
@@ -285,8 +303,7 @@ export default function Layout({ children }) {
       <main style={{
         flex: 1,
         marginLeft: sidebarOpen ? '240px' : '60px',
-        transition: 'margin-left 0.3s',
-        padding: '1.5rem',
+        transition: 'margin-left 0.2s ease',
         minHeight: '100vh'
       }}>
         {children}
