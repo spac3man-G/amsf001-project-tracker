@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, X, Check, Clock, FileText, Receipt, Award, ChevronRight } from 'lucide-react';
-import { useNotifications } from '../context/NotificationContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
