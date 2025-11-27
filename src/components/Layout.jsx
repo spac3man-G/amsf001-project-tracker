@@ -16,7 +16,8 @@ import {
   X,
   UserCircle,
   UserCog,
-  Award
+  Award,
+  GanttChart
 } from 'lucide-react';
 
 // Permission checks
@@ -98,6 +99,7 @@ export default function Layout({ children }) {
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/milestones', icon: Milestone, label: 'Milestones' },
+    { path: '/gantt', icon: GanttChart, label: 'Gantt Chart' },
     { path: '/deliverables', icon: Package, label: 'Deliverables' },
     { path: '/resources', icon: Users, label: 'Resources' },
     { path: '/timesheets', icon: Clock, label: 'Timesheets' },
