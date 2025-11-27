@@ -29,7 +29,7 @@ function canManageSystem(role) {
 }
 
 function canViewWorkflow(role) {
-  return ['admin', 'supplier_pm', 'customer_pm'].includes(role);
+  return ['supplier_pm', 'customer_pm'].includes(role);
 }
 
 function getRoleConfig(role) {
