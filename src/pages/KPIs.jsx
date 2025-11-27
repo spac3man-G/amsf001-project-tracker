@@ -171,7 +171,7 @@ export default function KPIs() {
     return status.label === 'Not Started';
   }).length;
 
-  const canEdit = userRole === 'admin' || userRole === 'contributor';
+  const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
 
   if (loading) return <div className="loading">Loading KPIs...</div>;
 

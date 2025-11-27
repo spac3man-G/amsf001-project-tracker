@@ -33,7 +33,14 @@ export default function Timesheets() {
     entry_type: 'daily'
   });
 
+  // Database uses 'Approved' but we display 'Validated'
   const statuses = ['Draft', 'Submitted', 'Approved', 'Rejected'];
+  const statusDisplayNames = {
+    'Draft': 'Draft',
+    'Submitted': 'Submitted', 
+    'Approved': 'Validated',
+    'Rejected': 'Rejected'
+  };
 
   function getNextSunday() {
     const today = new Date();
@@ -299,7 +306,7 @@ export default function Timesheets() {
     }
   }
 
-  async function handleApprove(id) {
+  async function handleValidate(id) {
     try {
       const { error } = await supabase
         .from('timesheets')
@@ -308,10 +315,10 @@ export default function Timesheets() {
 
       if (error) throw error;
       await fetchData();
-      alert('Timesheet approved');
+      alert('Timesheet validated');
     } catch (error) {
-      console.error('Error approving:', error);
-      alert('Failed to approve: ' + error.message);
+      console.error('Error validating:', error);
+      alert('Failed to validate: ' + error.message);
     }
   }
 
@@ -336,17 +343,17 @@ export default function Timesheets() {
     }
   }
 
-  async function handleApproveAll() {
+  async function handleValidateAll() {
     const pendingTimesheets = timesheets.filter(ts => 
       ts.status === 'Submitted' || ts.status === 'Rejected'
     );
     
     if (pendingTimesheets.length === 0) {
-      alert('No timesheets pending approval');
+      alert('No timesheets pending validation');
       return;
     }
 
-    if (!confirm(`Approve ${pendingTimesheets.length} timesheet(s)?`)) return;
+    if (!confirm(`Validate ${pendingTimesheets.length} timesheet(s)?`)) return;
 
     try {
       const { error } = await supabase
@@ -356,10 +363,10 @@ export default function Timesheets() {
 
       if (error) throw error;
       await fetchData();
-      alert(`${pendingTimesheets.length} timesheet(s) approved`);
+      alert(`${pendingTimesheets.length} timesheet(s) validated`);
     } catch (error) {
-      console.error('Error approving all:', error);
-      alert('Failed to approve: ' + error.message);
+      console.error('Error validating all:', error);
+      alert('Failed to validate: ' + error.message);
     }
   }
 
@@ -373,19 +380,25 @@ export default function Timesheets() {
   }
 
   function canEditTimesheet(ts) {
-    if (userRole === 'admin') return true;
+    if (userRole === 'admin' || userRole === 'supplier_pm') return true;
     if (ts.user_id === currentUserId && (ts.status === 'Draft' || ts.status === 'Rejected')) return true;
     return false;
   }
 
   function canDeleteTimesheet(ts) {
-    if (userRole === 'admin') return true;
+    if (userRole === 'admin' || userRole === 'supplier_pm') return true;
     if (ts.user_id === currentUserId && ts.status === 'Draft') return true;
     return false;
   }
 
-  function canApprove() {
-    return userRole === 'admin' || userRole === 'customer_pm';
+  function canValidate() {
+    return userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
+  }
+
+  // Display "Validated" instead of "Approved" in UI
+  function getDisplayStatus(status) {
+    if (status === 'Approved') return 'Validated';
+    return status;
   }
 
   // Check if timesheet counts towards costs
@@ -423,8 +436,8 @@ export default function Timesheets() {
       .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0)
   })).filter(r => r.hours > 0);
 
-  // Available resources
-  const availableResources = userRole === 'admin' 
+  // Available resources - admin and supplier_pm can add for anyone, others only for themselves
+  const availableResources = (userRole === 'admin' || userRole === 'supplier_pm')
     ? resources 
     : resources.filter(r => r.user_id === currentUserId);
 
@@ -441,13 +454,13 @@ export default function Timesheets() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {canApprove() && (
+          {canValidate() && (
             <button 
               className="btn btn-success" 
-              onClick={handleApproveAll}
+              onClick={handleValidateAll}
               style={{ backgroundColor: '#10b981', color: 'white' }}
             >
-              <CheckCheck size={18} /> Approve All Pending
+              <CheckCheck size={18} /> Validate All Pending
             </button>
           )}
           {!showAddForm && (
@@ -470,7 +483,7 @@ export default function Timesheets() {
           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Submitted or Approved</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Approved Hours</div>
+          <div className="stat-label">Validated Hours</div>
           <div className="stat-value" style={{ color: '#10b981' }}>{approvedHours.toFixed(1)}</div>
         </div>
         <div className="stat-card">
@@ -780,13 +793,13 @@ export default function Timesheets() {
                           </button>
                         )}
                         
-                        {/* Approve/Reject for admin or customer_pm */}
-                        {canApprove() && (ts.status === 'Submitted' || ts.status === 'Rejected') && (
+                        {/* Validate/Reject for admin, supplier_pm, or customer_pm */}
+                        {canValidate() && (ts.status === 'Submitted' || ts.status === 'Rejected') && (
                           <>
                             <button 
                               className="btn-icon" 
-                              onClick={() => handleApprove(ts.id)} 
-                              title="Approve"
+                              onClick={() => handleValidate(ts.id)} 
+                              title="Validate"
                               style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}
                             >
                               <CheckCircle size={16} />
@@ -818,10 +831,10 @@ export default function Timesheets() {
         <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>💡 Timesheet Tips</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
           <li><strong>Draft:</strong> Save your work - not yet submitted</li>
-          <li><strong>Submitted:</strong> Sent for approval - counts towards project costs</li>
-          <li><strong>Approved:</strong> Confirmed by PM - counts towards project costs</li>
-          <li><strong>Rejected:</strong> Needs revision - does NOT count until approved</li>
-          {canApprove() && <li><strong>As approver:</strong> Use "Approve All Pending" to batch approve timesheets</li>}
+          <li><strong>Submitted:</strong> Sent for validation - counts towards project costs</li>
+          <li><strong>Validated:</strong> Confirmed by PM - counts towards project costs</li>
+          <li><strong>Rejected:</strong> Needs revision - does NOT count until validated</li>
+          {canValidate() && <li><strong>As validator:</strong> Use "Validate All Pending" to batch validate timesheets</li>}
         </ul>
       </div>
     </div>

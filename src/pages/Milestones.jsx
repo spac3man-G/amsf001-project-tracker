@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X } from 'lucide-react';
+import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X, FileCheck, Award, CheckCircle, PenTool } from 'lucide-react';
 
 export default function Milestones() {
   const [milestones, setMilestones] = useState([]);
   const [milestoneDeliverables, setMilestoneDeliverables] = useState({});
+  const [certificates, setCertificates] = useState({});
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [userRole, setUserRole] = useState('viewer');
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUserName, setCurrentUserName] = useState('');
   const [projectId, setProjectId] = useState(null);
 
   const [newMilestone, setNewMilestone] = useState({
@@ -70,12 +75,16 @@ export default function Milestones() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setCurrentUserId(user.id);
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, full_name')
           .eq('id', user.id)
           .single();
-        if (profile) setUserRole(profile.role);
+        if (profile) {
+          setUserRole(profile.role);
+          setCurrentUserName(profile.full_name || user.email || 'Unknown');
+        }
       }
 
       const { data: project } = await supabase
@@ -87,11 +96,33 @@ export default function Milestones() {
       if (project) {
         setProjectId(project.id);
         await fetchMilestones(project.id);
+        await fetchCertificates(project.id);
       }
     } catch (error) {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchCertificates(projId) {
+    const pid = projId || projectId;
+    try {
+      const { data, error } = await supabase
+        .from('milestone_certificates')
+        .select('*')
+        .eq('project_id', pid);
+
+      if (!error && data) {
+        // Index by milestone_id for easy lookup
+        const certsMap = {};
+        data.forEach(cert => {
+          certsMap[cert.milestone_id] = cert;
+        });
+        setCertificates(certsMap);
+      }
+    } catch (error) {
+      console.error('Error fetching certificates:', error);
     }
   }
 
@@ -241,7 +272,148 @@ export default function Milestones() {
     }
   }
 
-  const canEdit = userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm';
+  function getCertificateStatusColor(status) {
+    switch (status) {
+      case 'Signed': return { bg: '#dcfce7', color: '#16a34a' };
+      case 'Pending Supplier Signature': return { bg: '#fef3c7', color: '#d97706' };
+      case 'Pending Customer Signature': return { bg: '#dbeafe', color: '#2563eb' };
+      case 'Draft': return { bg: '#f1f5f9', color: '#64748b' };
+      default: return { bg: '#f1f5f9', color: '#64748b' };
+    }
+  }
+
+  async function generateCertificate(milestone) {
+    const deliverables = milestoneDeliverables[milestone.id] || [];
+    
+    // Verify all deliverables are delivered
+    const allDelivered = deliverables.length > 0 && deliverables.every(d => d.status === 'Delivered');
+    if (!allDelivered) {
+      alert('Cannot generate certificate: All deliverables must be delivered first.');
+      return;
+    }
+
+    // Check if certificate already exists
+    if (certificates[milestone.id]) {
+      openCertificateModal(milestone);
+      return;
+    }
+
+    try {
+      // Fetch full deliverable details for the snapshot
+      const { data: fullDeliverables } = await supabase
+        .from('deliverables')
+        .select('deliverable_ref, name, status, progress')
+        .eq('milestone_id', milestone.id)
+        .eq('status', 'Delivered');
+
+      const certificateNumber = `CERT-${milestone.milestone_ref}-${Date.now().toString(36).toUpperCase()}`;
+
+      const { data: cert, error } = await supabase
+        .from('milestone_certificates')
+        .insert({
+          project_id: projectId,
+          milestone_id: milestone.id,
+          certificate_number: certificateNumber,
+          milestone_ref: milestone.milestone_ref,
+          milestone_name: milestone.name,
+          payment_milestone_value: milestone.budget || 0,
+          status: 'Draft',
+          deliverables_snapshot: fullDeliverables || [],
+          generated_by: currentUserId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await fetchCertificates();
+      openCertificateModal(milestone);
+      alert('Certificate generated successfully!');
+    } catch (error) {
+      console.error('Error generating certificate:', error);
+      alert('Failed to generate certificate: ' + error.message);
+    }
+  }
+
+  function openCertificateModal(milestone) {
+    const cert = certificates[milestone.id];
+    setSelectedCertificate({
+      ...cert,
+      milestone,
+      deliverables: milestoneDeliverables[milestone.id] || []
+    });
+    setShowCertificateModal(true);
+  }
+
+  async function signCertificate(signatureType) {
+    if (!selectedCertificate) return;
+
+    const isSupplier = signatureType === 'supplier';
+    const isCustomer = signatureType === 'customer';
+
+    // Check role permissions
+    if (isSupplier && !['admin', 'supplier_pm'].includes(userRole)) {
+      alert('Only Admin or Supplier PM can sign as supplier.');
+      return;
+    }
+    if (isCustomer && userRole !== 'customer_pm') {
+      alert('Only Customer PM can sign as customer.');
+      return;
+    }
+
+    try {
+      const updates = {};
+      let newStatus = selectedCertificate.status;
+
+      if (isSupplier) {
+        updates.supplier_pm_id = currentUserId;
+        updates.supplier_pm_name = currentUserName;
+        updates.supplier_pm_signed_at = new Date().toISOString();
+        
+        if (selectedCertificate.customer_pm_signed_at) {
+          newStatus = 'Signed';
+        } else {
+          newStatus = 'Pending Customer Signature';
+        }
+      }
+
+      if (isCustomer) {
+        updates.customer_pm_id = currentUserId;
+        updates.customer_pm_name = currentUserName;
+        updates.customer_pm_signed_at = new Date().toISOString();
+        
+        if (selectedCertificate.supplier_pm_signed_at) {
+          newStatus = 'Signed';
+        } else {
+          newStatus = 'Pending Supplier Signature';
+        }
+      }
+
+      updates.status = newStatus;
+
+      const { error } = await supabase
+        .from('milestone_certificates')
+        .update(updates)
+        .eq('id', selectedCertificate.id);
+
+      if (error) throw error;
+
+      await fetchCertificates();
+      
+      // Refresh modal data
+      const updatedCert = { ...selectedCertificate, ...updates };
+      setSelectedCertificate(updatedCert);
+      
+      alert('Certificate signed successfully!');
+    } catch (error) {
+      console.error('Error signing certificate:', error);
+      alert('Failed to sign certificate: ' + error.message);
+    }
+  }
+
+  const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
+  const canSignAsSupplier = userRole === 'admin' || userRole === 'supplier_pm';
+  const canSignAsCustomer = userRole === 'customer_pm';
 
   if (loading) return <div className="loading">Loading milestones...</div>;
 
@@ -256,6 +428,13 @@ export default function Milestones() {
     ? Math.round(milestonesWithStatus.reduce((sum, m) => sum + m.computedProgress, 0) / milestones.length)
     : 0;
   const completedCount = milestonesWithStatus.filter(m => m.computedStatus === 'Completed').length;
+  
+  // Certificate stats
+  const signedCertificates = Object.values(certificates).filter(c => c.status === 'Signed').length;
+  const pendingCertificates = Object.values(certificates).filter(c => 
+    c.status === 'Pending Customer Signature' || c.status === 'Pending Supplier Signature'
+  ).length;
+  const certificatesNeeded = completedCount - Object.keys(certificates).length;
 
   return (
     <div className="page-container">
@@ -296,6 +475,28 @@ export default function Milestones() {
         <div className="stat-card">
           <div className="stat-label">Total Budget</div>
           <div className="stat-value">£{totalBudget.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Certificate Stats */}
+      <div className="card" style={{ marginBottom: '1.5rem', backgroundColor: '#fefce8', borderLeft: '4px solid #eab308' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <Award size={24} style={{ color: '#ca8a04' }} />
+          <h4 style={{ margin: 0, color: '#854d0e' }}>Milestone Acceptance Certificates</h4>
+          <div style={{ display: 'flex', gap: '1.5rem', marginLeft: 'auto' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#16a34a' }}>{signedCertificates}</div>
+              <div style={{ fontSize: '0.8rem', color: '#166534' }}>Signed</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#d97706' }}>{pendingCertificates}</div>
+              <div style={{ fontSize: '0.8rem', color: '#92400e' }}>Pending</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: certificatesNeeded > 0 ? '#dc2626' : '#64748b' }}>{certificatesNeeded > 0 ? certificatesNeeded : 0}</div>
+              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Awaiting Generation</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -399,19 +600,21 @@ export default function Milestones() {
               <th>Start Date</th>
               <th>End Date</th>
               <th>Budget</th>
+              <th>Certificate</th>
               {canEdit && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {milestones.length === 0 ? (
               <tr>
-                <td colSpan={canEdit ? 8 : 7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                <td colSpan={canEdit ? 9 : 8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                   No milestones found. Click "Add Milestone" to create one.
                 </td>
               </tr>
             ) : (
               milestonesWithStatus.map(milestone => {
                 const statusColors = getStatusColor(milestone.computedStatus);
+                const cert = certificates[milestone.id];
                 const deliverableCount = milestoneDeliverables[milestone.id]?.length || 0;
                 
                 return (
@@ -492,6 +695,59 @@ export default function Milestones() {
                       {milestone.end_date ? new Date(milestone.end_date).toLocaleDateString('en-GB') : '-'}
                     </td>
                     <td>£{(milestone.budget || 0).toLocaleString()}</td>
+                    <td>
+                      {milestone.computedStatus === 'Completed' ? (
+                        cert ? (
+                          <button
+                            onClick={() => openCertificateModal(milestone)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              padding: '0.25rem 0.5rem',
+                              backgroundColor: getCertificateStatusColor(cert.status).bg,
+                              color: getCertificateStatusColor(cert.status).color,
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              fontWeight: '500'
+                            }}
+                          >
+                            <FileCheck size={14} />
+                            {cert.status === 'Signed' ? 'Signed' : 
+                             cert.status === 'Pending Customer Signature' ? 'Awaiting Customer' :
+                             cert.status === 'Pending Supplier Signature' ? 'Awaiting Supplier' : 'View'}
+                          </button>
+                        ) : (
+                          canEdit && (
+                            <button
+                              onClick={() => generateCertificate(milestone)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                padding: '0.25rem 0.5rem',
+                                backgroundColor: '#fef3c7',
+                                color: '#d97706',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                fontWeight: '500'
+                              }}
+                            >
+                              <Award size={14} />
+                              Generate
+                            </button>
+                          )
+                        )
+                      ) : (
+                        <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                          Not ready
+                        </span>
+                      )}
+                    </td>
                     {canEdit && (
                       <td>
                         <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -676,6 +932,226 @@ export default function Milestones() {
                 }}
               >
                 <Save size={16} /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Certificate Modal */}
+      {showCertificateModal && selectedCertificate && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            maxWidth: '700px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            {/* Certificate Header */}
+            <div style={{ textAlign: 'center', borderBottom: '2px solid #10b981', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <Award size={32} style={{ color: '#10b981' }} />
+                <h2 style={{ margin: 0, color: '#166534' }}>Milestone Acceptance Certificate</h2>
+              </div>
+              <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                Certificate No: <strong>{selectedCertificate.certificate_number}</strong>
+              </div>
+              <div style={{ 
+                display: 'inline-block',
+                marginTop: '0.5rem',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '999px',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                backgroundColor: getCertificateStatusColor(selectedCertificate.status).bg,
+                color: getCertificateStatusColor(selectedCertificate.status).color
+              }}>
+                {selectedCertificate.status}
+              </div>
+            </div>
+
+            {/* Milestone Details */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 0.75rem 0', color: '#1e293b' }}>Milestone Details</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Reference</div>
+                  <div style={{ fontWeight: '600' }}>{selectedCertificate.milestone_ref}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Name</div>
+                  <div style={{ fontWeight: '600' }}>{selectedCertificate.milestone_name}</div>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Payment Milestone Associated</div>
+                  <div style={{ fontWeight: '700', fontSize: '1.25rem', color: '#10b981' }}>
+                    £{(selectedCertificate.payment_milestone_value || 0).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Delivered Items */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 0.75rem 0', color: '#1e293b' }}>Deliverables Accepted</h4>
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', fontSize: '0.9rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f1f5f9' }}>
+                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Ref</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Name</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'center' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedCertificate.deliverables_snapshot || []).map((d, idx) => (
+                      <tr key={idx} style={{ borderTop: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontWeight: '600' }}>{d.deliverable_ref}</td>
+                        <td style={{ padding: '0.5rem' }}>{d.name}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#16a34a' }}>
+                            <CheckCircle size={14} /> Accepted
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Signatures */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 0.75rem 0', color: '#1e293b' }}>Signatures</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {/* Supplier PM Signature */}
+                <div style={{ 
+                  padding: '1rem', 
+                  border: '2px solid', 
+                  borderColor: selectedCertificate.supplier_pm_signed_at ? '#10b981' : '#e2e8f0',
+                  borderRadius: '8px',
+                  backgroundColor: selectedCertificate.supplier_pm_signed_at ? '#f0fdf4' : '#f8fafc'
+                }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>Supplier PM</div>
+                  {selectedCertificate.supplier_pm_signed_at ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '600', color: '#166534' }}>
+                        <PenTool size={16} />
+                        {selectedCertificate.supplier_pm_name}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                        {new Date(selectedCertificate.supplier_pm_signed_at).toLocaleString('en-GB')}
+                      </div>
+                    </div>
+                  ) : (
+                    canSignAsSupplier && selectedCertificate.status !== 'Signed' ? (
+                      <button
+                        onClick={() => signCertificate('supplier')}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        <PenTool size={16} /> Sign as Supplier PM
+                      </button>
+                    ) : (
+                      <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>Awaiting signature</div>
+                    )
+                  )}
+                </div>
+
+                {/* Customer PM Signature */}
+                <div style={{ 
+                  padding: '1rem', 
+                  border: '2px solid', 
+                  borderColor: selectedCertificate.customer_pm_signed_at ? '#10b981' : '#e2e8f0',
+                  borderRadius: '8px',
+                  backgroundColor: selectedCertificate.customer_pm_signed_at ? '#f0fdf4' : '#f8fafc'
+                }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>Customer PM</div>
+                  {selectedCertificate.customer_pm_signed_at ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '600', color: '#166534' }}>
+                        <PenTool size={16} />
+                        {selectedCertificate.customer_pm_name}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                        {new Date(selectedCertificate.customer_pm_signed_at).toLocaleString('en-GB')}
+                      </div>
+                    </div>
+                  ) : (
+                    canSignAsCustomer && selectedCertificate.status !== 'Signed' ? (
+                      <button
+                        onClick={() => signCertificate('customer')}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        <PenTool size={16} /> Sign as Customer PM
+                      </button>
+                    ) : (
+                      <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>Awaiting signature</div>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Generated Info */}
+            <div style={{ fontSize: '0.8rem', color: '#64748b', textAlign: 'center', marginBottom: '1rem' }}>
+              Generated: {new Date(selectedCertificate.generated_at).toLocaleString('en-GB')}
+            </div>
+
+            {/* Close Button */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowCertificateModal(false)}
+                style={{
+                  padding: '0.75rem 2rem',
+                  backgroundColor: '#f1f5f9',
+                  color: '#64748b',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Close
               </button>
             </div>
           </div>

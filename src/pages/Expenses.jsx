@@ -37,7 +37,15 @@ export default function Expenses() {
     chargeable_to_customer: true
   });
 
+  // Database uses 'Approved' but we display 'Validated'
   const statuses = ['Draft', 'Submitted', 'Approved', 'Rejected', 'Paid'];
+  const statusDisplayNames = {
+    'Draft': 'Draft',
+    'Submitted': 'Submitted',
+    'Approved': 'Validated',
+    'Rejected': 'Rejected',
+    'Paid': 'Paid'
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -347,7 +355,18 @@ export default function Expenses() {
   }
 
   function canEditChargeable() {
-    return userRole === 'admin' || userRole === 'customer_pm';
+    return userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
+  }
+
+  // Check if user can validate (change status to Approved)
+  function canValidate() {
+    return userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
+  }
+
+  // Display "Validated" instead of "Approved" in UI
+  function getDisplayStatus(status) {
+    if (status === 'Approved') return 'Validated';
+    return status;
   }
 
   const filteredExpenses = expenses.filter(e => {
@@ -395,7 +414,7 @@ export default function Expenses() {
 
   if (loading) return <div className="loading">Loading expenses...</div>;
 
-  const canAdd = userRole === 'admin' || userRole === 'contributor';
+  const canAdd = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor';
 
   return (
     <div className="page-container">
@@ -437,7 +456,7 @@ export default function Expenses() {
       {/* Additional Stats Row */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
         <div className="stat-card">
-          <div className="stat-label">Approved/Paid</div>
+          <div className="stat-label">Validated/Paid</div>
           <div className="stat-value" style={{ color: '#10b981' }}>£{approvedSpent.toLocaleString()}</div>
         </div>
         <div className="stat-card">
@@ -879,12 +898,12 @@ export default function Expenses() {
                       )}
                     </td>
                     <td>
-                      {editingId === exp.id && userRole === 'admin' ? (
+                      {editingId === exp.id && canValidate() ? (
                         <select className="form-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
-                          {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                          {statuses.map(s => <option key={s} value={s}>{statusDisplayNames[s] || s}</option>)}
                         </select>
                       ) : (
-                        <span className={`status-badge ${getStatusColor(exp.status)}`}>{exp.status}</span>
+                        <span className={`status-badge ${getStatusColor(exp.status)}`}>{statusDisplayNames[exp.status] || exp.status}</span>
                       )}
                     </td>
                     <td>
@@ -911,10 +930,10 @@ export default function Expenses() {
                         </div>
                       ) : (
                         <div className="action-buttons">
-                          {(userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm') && (
+                          {(userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor' || userRole === 'customer_pm') && (
                             <button className="btn-icon" onClick={() => handleEdit(exp)}><Edit2 size={16} /></button>
                           )}
-                          {userRole === 'admin' && (
+                          {(userRole === 'admin' || userRole === 'supplier_pm') && (
                             <button className="btn-icon btn-danger" onClick={() => handleDelete(exp.id)}><Trash2 size={16} /></button>
                           )}
                         </div>

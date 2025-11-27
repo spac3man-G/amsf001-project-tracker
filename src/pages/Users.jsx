@@ -24,6 +24,7 @@ export default function Users() {
     { value: 'viewer', label: 'Viewer', color: '#64748b', bg: '#f1f5f9' },
     { value: 'contributor', label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
     { value: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+    { value: 'supplier_pm', label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
     { value: 'admin', label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' }
   ];
 

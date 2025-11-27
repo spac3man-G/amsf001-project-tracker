@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Award, CheckCircle, AlertCircle, Clock, TrendingUp,
-  AlertTriangle, Info
+  AlertTriangle, Info, Plus, Edit2, Trash2, Save, X
 } from 'lucide-react';
 
 export default function QualityStandards() {
@@ -11,12 +11,27 @@ export default function QualityStandards() {
   const [assessmentCounts, setAssessmentCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('viewer');
+  const [projectId, setProjectId] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  
+  const [newQS, setNewQS] = useState({
+    qs_ref: '',
+    name: '',
+    description: '',
+    target: 100,
+    current_value: 0
+  });
+
+  // Permission check
+  const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
 
   useEffect(() => {
-    fetchQualityStandards();
+    fetchInitialData();
   }, []);
 
-  async function fetchQualityStandards() {
+  async function fetchInitialData() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -34,12 +49,26 @@ export default function QualityStandards() {
         .eq('reference', 'AMSF001')
         .single();
 
-      if (!project) return;
+      if (project) {
+        setProjectId(project.id);
+        await fetchQualityStandards(project.id);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
+  async function fetchQualityStandards(projId) {
+    const pid = projId || projectId;
+    if (!pid) return;
+
+    try {
       const { data, error } = await supabase
         .from('quality_standards')
         .select('*')
-        .eq('project_id', project.id)
+        .eq('project_id', pid)
         .order('qs_ref');
 
       if (error) throw error;
@@ -58,11 +87,100 @@ export default function QualityStandards() {
         counts[qs.id] = { total, met };
       }
       setAssessmentCounts(counts);
-
     } catch (error) {
       console.error('Error fetching quality standards:', error);
-    } finally {
-      setLoading(false);
+    }
+  }
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    if (!newQS.qs_ref || !newQS.name) {
+      alert('Please fill in Reference and Name');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('quality_standards')
+        .insert({
+          project_id: projectId,
+          qs_ref: newQS.qs_ref,
+          name: newQS.name,
+          description: newQS.description,
+          target: parseInt(newQS.target) || 100,
+          current_value: parseInt(newQS.current_value) || 0
+        });
+
+      if (error) throw error;
+
+      await fetchQualityStandards();
+      setShowAddForm(false);
+      setNewQS({ qs_ref: '', name: '', description: '', target: 100, current_value: 0 });
+      alert('Quality Standard added successfully!');
+    } catch (error) {
+      console.error('Error adding quality standard:', error);
+      alert('Failed to add: ' + error.message);
+    }
+  }
+
+  function handleEdit(qs) {
+    setEditingId(qs.id);
+    setEditForm({
+      qs_ref: qs.qs_ref,
+      name: qs.name,
+      description: qs.description || '',
+      target: qs.target || 100,
+      current_value: qs.current_value || 0
+    });
+  }
+
+  async function handleSave(id) {
+    try {
+      const { error } = await supabase
+        .from('quality_standards')
+        .update({
+          qs_ref: editForm.qs_ref,
+          name: editForm.name,
+          description: editForm.description,
+          target: parseInt(editForm.target) || 100,
+          current_value: parseInt(editForm.current_value) || 0
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchQualityStandards();
+      setEditingId(null);
+      alert('Quality Standard updated!');
+    } catch (error) {
+      console.error('Error updating:', error);
+      alert('Failed to update: ' + error.message);
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('Delete this Quality Standard? This will also remove all associated assessments.')) return;
+
+    try {
+      // First delete assessments
+      await supabase
+        .from('deliverable_qs_assessments')
+        .delete()
+        .eq('quality_standard_id', id);
+
+      // Then delete the QS
+      const { error } = await supabase
+        .from('quality_standards')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchQualityStandards();
+      alert('Quality Standard deleted');
+    } catch (error) {
+      console.error('Error deleting:', error);
+      alert('Failed to delete: ' + error.message);
     }
   }
 
@@ -141,6 +259,11 @@ export default function QualityStandards() {
             <p>Track quality compliance across deliverables</p>
           </div>
         </div>
+        {canEdit && !showAddForm && (
+          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
+            <Plus size={18} /> Add Quality Standard
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -163,6 +286,81 @@ export default function QualityStandards() {
         </div>
       </div>
 
+      {/* Add Form */}
+      {showAddForm && canEdit && (
+        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
+          <h3 style={{ marginBottom: '1rem' }}>Add New Quality Standard</h3>
+          <form onSubmit={handleAdd}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+              <div>
+                <label className="form-label">Reference *</label>
+                <input 
+                  type="text" 
+                  className="form-input"
+                  placeholder="e.g., QS08"
+                  value={newQS.qs_ref}
+                  onChange={(e) => setNewQS({ ...newQS, qs_ref: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="form-label">Name *</label>
+                <input 
+                  type="text" 
+                  className="form-input"
+                  placeholder="e.g., Documentation Quality"
+                  value={newQS.name}
+                  onChange={(e) => setNewQS({ ...newQS, name: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div style={{ marginTop: '1rem' }}>
+              <label className="form-label">Description</label>
+              <textarea 
+                className="form-input"
+                rows={3}
+                placeholder="Describe what this quality standard measures..."
+                value={newQS.description}
+                onChange={(e) => setNewQS({ ...newQS, description: e.target.value })}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+              <div>
+                <label className="form-label">Target (%)</label>
+                <input 
+                  type="number" 
+                  className="form-input"
+                  min="0"
+                  max="100"
+                  value={newQS.target}
+                  onChange={(e) => setNewQS({ ...newQS, target: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="form-label">Current Value (%)</label>
+                <input 
+                  type="number" 
+                  className="form-input"
+                  min="0"
+                  max="100"
+                  value={newQS.current_value}
+                  onChange={(e) => setNewQS({ ...newQS, current_value: e.target.value })}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button type="submit" className="btn btn-primary">
+                <Save size={16} /> Save Quality Standard
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
+                <X size={16} /> Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Quality Standards Table */}
       <div className="card">
         <table>
@@ -174,13 +372,14 @@ export default function QualityStandards() {
               <th>Current</th>
               <th>Assessments</th>
               <th>Status</th>
+              {canEdit && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {qualityStandards.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                  No quality standards found
+                <td colSpan={canEdit ? 7 : 6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                  No quality standards found. {canEdit && 'Click "Add Quality Standard" to create one.'}
                 </td>
               </tr>
             ) : (
@@ -188,42 +387,88 @@ export default function QualityStandards() {
                 const status = getQSStatus(qs);
                 const StatusIcon = status.icon;
                 const assessments = assessmentCounts[qs.id] || { total: 0, met: 0 };
+                const isEditing = editingId === qs.id;
 
                 return (
                   <tr key={qs.id}>
                     <td>
-                      <Link 
-                        to={`/quality-standards/${qs.id}`}
-                        style={{ 
-                          fontFamily: 'monospace', 
-                          fontWeight: '600',
-                          color: '#8b5cf6',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        {qs.qs_ref}
-                      </Link>
+                      {isEditing ? (
+                        <input 
+                          type="text"
+                          className="form-input"
+                          value={editForm.qs_ref}
+                          onChange={(e) => setEditForm({ ...editForm, qs_ref: e.target.value })}
+                          style={{ width: '80px' }}
+                        />
+                      ) : (
+                        <Link 
+                          to={`/quality-standards/${qs.id}`}
+                          style={{ 
+                            fontFamily: 'monospace', 
+                            fontWeight: '600',
+                            color: '#8b5cf6',
+                            textDecoration: 'none'
+                          }}
+                        >
+                          {qs.qs_ref}
+                        </Link>
+                      )}
                     </td>
                     <td>
-                      <Link 
-                        to={`/quality-standards/${qs.id}`}
-                        style={{ 
-                          fontWeight: '500',
-                          color: '#3b82f6',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        {qs.name}
-                      </Link>
+                      {isEditing ? (
+                        <input 
+                          type="text"
+                          className="form-input"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        />
+                      ) : (
+                        <Link 
+                          to={`/quality-standards/${qs.id}`}
+                          style={{ 
+                            fontWeight: '500',
+                            color: '#3b82f6',
+                            textDecoration: 'none'
+                          }}
+                        >
+                          {qs.name}
+                        </Link>
+                      )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>{qs.target}%</td>
                     <td style={{ textAlign: 'center' }}>
-                      <span style={{ 
-                        fontWeight: '600',
-                        color: qs.current_value >= qs.target ? '#16a34a' : '#64748b'
-                      }}>
-                        {qs.current_value}%
-                      </span>
+                      {isEditing ? (
+                        <input 
+                          type="number"
+                          className="form-input"
+                          min="0"
+                          max="100"
+                          value={editForm.target}
+                          onChange={(e) => setEditForm({ ...editForm, target: e.target.value })}
+                          style={{ width: '70px', textAlign: 'center' }}
+                        />
+                      ) : (
+                        `${qs.target}%`
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {isEditing ? (
+                        <input 
+                          type="number"
+                          className="form-input"
+                          min="0"
+                          max="100"
+                          value={editForm.current_value}
+                          onChange={(e) => setEditForm({ ...editForm, current_value: e.target.value })}
+                          style={{ width: '70px', textAlign: 'center' }}
+                        />
+                      ) : (
+                        <span style={{ 
+                          fontWeight: '600',
+                          color: qs.current_value >= qs.target ? '#16a34a' : '#64748b'
+                        }}>
+                          {qs.current_value}%
+                        </span>
+                      )}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       {assessments.total > 0 ? (
@@ -252,6 +497,45 @@ export default function QualityStandards() {
                         {status.label}
                       </span>
                     </td>
+                    {canEdit && (
+                      <td>
+                        {isEditing ? (
+                          <div className="action-buttons">
+                            <button 
+                              className="btn-icon btn-success" 
+                              onClick={() => handleSave(qs.id)}
+                              title="Save"
+                            >
+                              <Save size={16} />
+                            </button>
+                            <button 
+                              className="btn-icon btn-secondary" 
+                              onClick={() => setEditingId(null)}
+                              title="Cancel"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="action-buttons">
+                            <button 
+                              className="btn-icon" 
+                              onClick={() => handleEdit(qs)}
+                              title="Edit"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              className="btn-icon btn-danger" 
+                              onClick={() => handleDelete(qs.id)}
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })
@@ -278,6 +562,7 @@ export default function QualityStandards() {
               <li><strong>On Track:</strong> Within 80% of target</li>
               <li><strong>At Risk:</strong> 60-80% of target</li>
               <li><strong>Critical:</strong> Below 60% of target (only for assessed standards)</li>
+              {canEdit && <li><strong>Permissions:</strong> Admin, Supplier PM, and Customer PM can add/edit quality standards</li>}
             </ul>
           </div>
         </div>

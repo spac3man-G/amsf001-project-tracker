@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling, Briefcase } from 'lucide-react';
+import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling, Briefcase, FileCheck } from 'lucide-react';
 
 // Helper function to check if a role is PMO
 function isPMORole(role) {
@@ -19,6 +19,11 @@ export default function Dashboard() {
     totalKPIs: 0, achievedKPIs: 0, 
     totalQS: 0, achievedQS: 0,
     totalBudget: 0, spendToDate: 0
+  });
+  const [certificateStats, setCertificateStats] = useState({
+    signed: 0,
+    pending: 0,
+    awaitingGeneration: 0
   });
   const [pmoStats, setPmoStats] = useState({
     pmoBudget: 0,
@@ -142,6 +147,25 @@ export default function Dashboard() {
       const achievedKPIs = kpisData?.filter(k => (k.current_value || 0) >= (k.target || 90)).length || 0;
       const totalQS = qsData?.length || 0;
       const achievedQS = qsData?.filter(q => (q.current_value || 0) >= (q.target || 100)).length || 0;
+      
+      // Fetch certificates
+      const { data: certificatesData } = await supabase
+        .from('milestone_certificates')
+        .select('*')
+        .eq('project_id', project.id);
+      
+      const signedCerts = certificatesData?.filter(c => c.status === 'Signed').length || 0;
+      const pendingCerts = certificatesData?.filter(c => 
+        c.status === 'Pending Customer Signature' || c.status === 'Pending Supplier Signature'
+      ).length || 0;
+      const certsGenerated = certificatesData?.length || 0;
+      const awaitingGen = Math.max(0, completedMilestones - certsGenerated);
+      
+      setCertificateStats({
+        signed: signedCerts,
+        pending: pendingCerts,
+        awaitingGeneration: awaitingGen
+      });
       
       // Calculate total budget from milestones
       const totalBudget = milestonesData?.reduce((sum, m) => sum + (m.budget || 0), 0) || 0;
@@ -388,6 +412,51 @@ export default function Dashboard() {
           <div className="stat-label"><Award size={20} style={{ color: '#8b5cf6' }} /> Quality Standards</div>
           <div className="stat-value">{stats.achievedQS} / {stats.totalQS}</div>
           <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{stats.totalQS > 0 ? Math.round((stats.achievedQS / stats.totalQS) * 100) : 0}% Achieved</div>
+        </div>
+      </div>
+
+      {/* Milestone Certificates Meter */}
+      <div className="card" style={{ marginBottom: '1.5rem', backgroundColor: '#fefce8', borderLeft: '4px solid #eab308' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <FileCheck size={28} style={{ color: '#ca8a04' }} />
+            <div>
+              <h4 style={{ margin: 0, color: '#854d0e' }}>Milestone Acceptance Certificates</h4>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#a16207' }}>
+                Track payment milestone sign-offs
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '2rem' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#16a34a' }}>{certificateStats.signed}</div>
+              <div style={{ fontSize: '0.8rem', color: '#166534', fontWeight: '500' }}>Signed</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#d97706' }}>{certificateStats.pending}</div>
+              <div style={{ fontSize: '0.8rem', color: '#92400e', fontWeight: '500' }}>Pending Signature</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', fontWeight: '700', color: certificateStats.awaitingGeneration > 0 ? '#dc2626' : '#64748b' }}>
+                {certificateStats.awaitingGeneration}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '500' }}>Awaiting Generation</div>
+            </div>
+          </div>
+          <Link 
+            to="/milestones" 
+            style={{ 
+              padding: '0.5rem 1rem', 
+              backgroundColor: '#ca8a04', 
+              color: 'white', 
+              textDecoration: 'none', 
+              borderRadius: '6px',
+              fontWeight: '500',
+              fontSize: '0.9rem'
+            }}
+          >
+            View Milestones →
+          </Link>
         </div>
       </div>
 
