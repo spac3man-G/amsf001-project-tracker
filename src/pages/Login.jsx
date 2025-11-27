@@ -1,20 +1,22 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
-import { AlertCircle } from 'lucide-react'
+import { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { AlertCircle, Mail, KeyRound, RefreshCw } from 'lucide-react';
 
 export default function Login() {
-  const navigate = useNavigate()
-  const [loading, setLoading] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState(null)
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showResendVerification, setShowResendVerification] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       if (isSignUp) {
@@ -24,29 +26,260 @@ export default function Login() {
           password,
           options: {
             data: {
-              full_name: email.split('@')[0], // Default name from email
+              full_name: email.split('@')[0],
             }
           }
-        })
-        if (error) throw error
-        setError('Check your email for confirmation link!')
+        });
+        if (error) throw error;
+        setSuccess('Check your email for confirmation link!');
       } else {
         // Sign in existing user
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
-        })
-        if (error) throw error
-        // Redirect to dashboard after successful login
-        navigate('/dashboard')
+        });
+        if (error) throw error;
       }
     } catch (error) {
-      setError(error.message)
+      setError(error.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setSuccess('Password reset email sent! Check your inbox.');
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async (e) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+      if (error) throw error;
+      setSuccess('Verification email resent! Check your inbox.');
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetView = () => {
+    setShowForgotPassword(false);
+    setShowResendVerification(false);
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Forgot Password View
+  if (showForgotPassword) {
+    return (
+      <div className="auth-container">
+        <div className="auth-box">
+          <div className="auth-logo">
+            <KeyRound size={40} style={{ color: 'var(--primary)', marginBottom: '0.5rem' }} />
+            <h1 className="auth-title">Reset Password</h1>
+            <p className="auth-subtitle">Enter your email to receive a reset link</p>
+          </div>
+
+          <form onSubmit={handleForgotPassword}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="email">
+                Email Address
+              </label>
+              <input
+                id="email"
+                className="form-input"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                padding: '0.75rem',
+                background: '#fee2e2',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: '#991b1b'
+              }}>
+                <AlertCircle size={20} />
+                <span style={{ fontSize: '0.875rem' }}>{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div style={{
+                padding: '0.75rem',
+                background: '#dcfce7',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: '#166534'
+              }}>
+                <Mail size={20} />
+                <span style={{ fontSize: '0.875rem' }}>{success}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+          </form>
+
+          <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+            <button
+              onClick={resetView}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                cursor: 'pointer',
+                fontSize: '0.875rem'
+              }}
+            >
+              ← Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
+  // Resend Verification View
+  if (showResendVerification) {
+    return (
+      <div className="auth-container">
+        <div className="auth-box">
+          <div className="auth-logo">
+            <RefreshCw size={40} style={{ color: 'var(--primary)', marginBottom: '0.5rem' }} />
+            <h1 className="auth-title">Resend Verification</h1>
+            <p className="auth-subtitle">Enter your email to resend the verification link</p>
+          </div>
+
+          <form onSubmit={handleResendVerification}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="email">
+                Email Address
+              </label>
+              <input
+                id="email"
+                className="form-input"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                padding: '0.75rem',
+                background: '#fee2e2',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: '#991b1b'
+              }}>
+                <AlertCircle size={20} />
+                <span style={{ fontSize: '0.875rem' }}>{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div style={{
+                padding: '0.75rem',
+                background: '#dcfce7',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: '#166534'
+              }}>
+                <Mail size={20} />
+                <span style={{ fontSize: '0.875rem' }}>{success}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              {loading ? 'Sending...' : 'Resend Verification Email'}
+            </button>
+          </form>
+
+          <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+            <button
+              onClick={resetView}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                cursor: 'pointer',
+                fontSize: '0.875rem'
+              }}
+            >
+              ← Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main Login View
   return (
     <div className="auth-container">
       <div className="auth-box">
@@ -89,16 +322,32 @@ export default function Login() {
           {error && (
             <div style={{
               padding: '0.75rem',
-              background: error.includes('Check your email') ? '#dcfce7' : '#fee2e2',
+              background: '#fee2e2',
               borderRadius: '0.5rem',
               marginBottom: '1rem',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              color: error.includes('Check your email') ? '#166534' : '#991b1b'
+              color: '#991b1b'
             }}>
               <AlertCircle size={20} />
               <span style={{ fontSize: '0.875rem' }}>{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div style={{
+              padding: '0.75rem',
+              background: '#dcfce7',
+              borderRadius: '0.5rem',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#166534'
+            }}>
+              <Mail size={20} />
+              <span style={{ fontSize: '0.875rem' }}>{success}</span>
             </div>
           )}
 
@@ -112,11 +361,36 @@ export default function Login() {
           </button>
         </form>
 
-        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+        {/* Forgot Password Link */}
+        {!isSignUp && (
+          <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+            <button
+              onClick={() => {
+                setShowForgotPassword(true);
+                setError(null);
+                setSuccess(null);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                textDecoration: 'underline'
+              }}
+            >
+              Forgot your password?
+            </button>
+          </div>
+        )}
+
+        {/* Toggle Sign In / Sign Up */}
+        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
           <button
             onClick={() => {
-              setIsSignUp(!isSignUp)
-              setError(null)
+              setIsSignUp(!isSignUp);
+              setError(null);
+              setSuccess(null);
             }}
             style={{
               background: 'none',
@@ -129,7 +403,33 @@ export default function Login() {
             {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
           </button>
         </div>
+
+        {/* Resend Verification Link */}
+        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>
+            Haven't received your verification email?
+          </p>
+          <button
+            onClick={() => {
+              setShowResendVerification(true);
+              setError(null);
+              setSuccess(null);
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
+          >
+            <RefreshCw size={14} /> Resend Verification Email
+          </button>
+        </div>
       </div>
     </div>
-  )
+  );
 }
