@@ -15,6 +15,7 @@ import KPIs from './pages/KPIs';
 import KPIDetail from './pages/KPIDetail';
 import QualityStandards from './pages/QualityStandards';
 import QualityStandardDetail from './pages/QualityStandardDetail';
+import Gantt from './pages/Gantt';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
@@ -81,6 +82,7 @@ function App() {
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/milestones" element={<ProtectedRoute><Milestones /></ProtectedRoute>} />
         <Route path="/milestones/:id" element={<ProtectedRoute><MilestoneDetail /></ProtectedRoute>} />
+        <Route path="/gantt" element={<ProtectedRoute><Gantt /></ProtectedRoute>} />
         <Route path="/deliverables" element={<ProtectedRoute><Deliverables /></ProtectedRoute>} />
         <Route path="/resources" element={<ProtectedRoute><Resources /></ProtectedRoute>} />
         <Route path="/timesheets" element={<ProtectedRoute><Timesheets /></ProtectedRoute>} />
