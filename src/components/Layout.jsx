@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
@@ -17,7 +17,8 @@ import {
   UserCircle,
   UserCog,
   Award,
-  GanttChart
+  GanttChart,
+  GripVertical
 } from 'lucide-react';
 
 // Permission checks
@@ -44,6 +45,10 @@ export default function Layout({ children }) {
   const [userRole, setUserRole] = useState('viewer');
   const [displayName, setDisplayName] = useState('User');
   const [initials, setInitials] = useState('U');
+  const [navOrder, setNavOrder] = useState(null);
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverItem, setDragOverItem] = useState(null);
+  const dragNode = useRef(null);
 
   useEffect(() => {
     fetchUser();
@@ -55,15 +60,20 @@ export default function Layout({ children }) {
       if (user) {
         setUser(user);
         
-        // Fetch profile for role and full name
+        // Fetch profile for role, full name, and nav_order
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role, full_name, email')
+          .select('role, full_name, email, nav_order')
           .eq('id', user.id)
           .single();
         
         if (profile) {
           setUserRole(profile.role || 'viewer');
+          
+          // Set nav order if saved
+          if (profile.nav_order && Array.isArray(profile.nav_order)) {
+            setNavOrder(profile.nav_order);
+          }
           
           // Set display name - prefer full_name, then profile email, then user email
           const name = profile.full_name || profile.email || user.email || 'User';
@@ -95,8 +105,8 @@ export default function Layout({ children }) {
   // Permission checks using centralized permissions
   const hasSystemAccess = canManageSystem(userRole);
 
-  // Build navigation items based on permissions
-  const navItems = [
+  // Base navigation items (before user ordering)
+  const baseNavItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/milestones', icon: Milestone, label: 'Milestones' },
     { path: '/gantt', icon: GanttChart, label: 'Gantt Chart' },
@@ -114,6 +124,102 @@ export default function Layout({ children }) {
     ] : []),
   ];
 
+  // Get sorted nav items based on user's saved order
+  function getSortedNavItems() {
+    if (!navOrder || navOrder.length === 0) {
+      return baseNavItems;
+    }
+    
+    // Create a map of items by path for quick lookup
+    const itemMap = {};
+    baseNavItems.forEach(item => {
+      itemMap[item.path] = item;
+    });
+    
+    // Build sorted array based on saved order
+    const sorted = [];
+    navOrder.forEach(path => {
+      if (itemMap[path]) {
+        sorted.push(itemMap[path]);
+        delete itemMap[path];
+      }
+    });
+    
+    // Add any items not in the saved order at the end
+    Object.values(itemMap).forEach(item => {
+      sorted.push(item);
+    });
+    
+    return sorted;
+  }
+
+  const navItems = getSortedNavItems();
+
+  // Drag and drop handlers
+  function handleDragStart(e, index) {
+    dragNode.current = e.target;
+    setDraggedItem(index);
+    
+    // Add a slight delay to allow the drag image to be created
+    setTimeout(() => {
+      if (dragNode.current) {
+        dragNode.current.style.opacity = '0.5';
+      }
+    }, 0);
+  }
+
+  function handleDragEnter(e, index) {
+    if (index !== draggedItem) {
+      setDragOverItem(index);
+    }
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+  }
+
+  function handleDragEnd() {
+    if (dragNode.current) {
+      dragNode.current.style.opacity = '1';
+    }
+    
+    if (draggedItem !== null && dragOverItem !== null && draggedItem !== dragOverItem) {
+      // Reorder the items
+      const newNavItems = [...navItems];
+      const draggedItemContent = newNavItems[draggedItem];
+      
+      // Remove from old position and insert at new position
+      newNavItems.splice(draggedItem, 1);
+      newNavItems.splice(dragOverItem, 0, draggedItemContent);
+      
+      // Save the new order
+      const newOrder = newNavItems.map(item => item.path);
+      setNavOrder(newOrder);
+      saveNavOrder(newOrder);
+    }
+    
+    setDraggedItem(null);
+    setDragOverItem(null);
+    dragNode.current = null;
+  }
+
+  async function saveNavOrder(order) {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ nav_order: order })
+        .eq('id', user.id);
+      
+      if (error) {
+        console.error('Error saving nav order:', error);
+      }
+    } catch (error) {
+      console.error('Error saving nav order:', error);
+    }
+  }
+
   const roleConfig = getRoleConfig(userRole);
 
   const isAccountPage = location.pathname === '/account';
@@ -122,49 +228,40 @@ export default function Layout({ children }) {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       {/* Sidebar */}
       <aside style={{
-        width: sidebarOpen ? '240px' : '60px',
+        width: sidebarOpen ? '260px' : '70px',
         backgroundColor: 'white',
         borderRight: '1px solid #e2e8f0',
+        transition: 'width 0.3s ease',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'width 0.2s ease',
         position: 'fixed',
         height: '100vh',
-        zIndex: 100
+        zIndex: 50
       }}>
-        {/* Logo section */}
-        <div style={{
-          padding: '1rem',
+        {/* Logo/Header */}
+        <div style={{ 
+          padding: '1rem', 
           borderBottom: '1px solid #e2e8f0',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: sidebarOpen ? 'space-between' : 'center'
+          justifyContent: 'space-between'
         }}>
           {sidebarOpen && (
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#1e293b' }}>
-                AMSF001 Tracker
+              <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
+                AMSF001
               </h2>
-              <span style={{ 
-                fontSize: '0.7rem', 
-                backgroundColor: '#10b981', 
-                color: 'white', 
-                padding: '0.125rem 0.375rem', 
-                borderRadius: '4px',
-                fontWeight: '600'
-              }}>
-                GOJ2025/2409
-              </span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Project Tracker</span>
             </div>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
               padding: '0.5rem',
-              color: '#64748b',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: '#f1f5f9',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -176,32 +273,60 @@ export default function Layout({ children }) {
 
         {/* Navigation */}
         <nav style={{ flex: 1, padding: '0.5rem', overflowY: 'auto' }}>
-          {navItems.map((item) => {
+          {navItems.map((item, index) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path || 
                            (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+            const isDragging = draggedItem === index;
+            const isDragOver = dragOverItem === index;
+            
             return (
-              <Link
+              <div
                 key={item.path}
-                to={item.path}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragEnter={(e) => handleDragEnter(e, index)}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem',
+                  position: 'relative',
                   marginBottom: '0.25rem',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  color: isActive ? '#10b981' : '#64748b',
-                  backgroundColor: isActive ? '#f0fdf4' : 'transparent',
-                  fontWeight: isActive ? '600' : '500',
-                  justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                  transition: 'all 0.15s ease'
+                  borderTop: isDragOver && draggedItem > index ? '2px solid #10b981' : '2px solid transparent',
+                  borderBottom: isDragOver && draggedItem < index ? '2px solid #10b981' : '2px solid transparent',
+                  transition: 'border-color 0.15s ease'
                 }}
               >
-                <Icon size={20} />
-                {sidebarOpen && <span>{item.label}</span>}
-              </Link>
+                <Link
+                  to={item.path}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    color: isActive ? '#10b981' : '#64748b',
+                    backgroundColor: isActive ? '#f0fdf4' : isDragging ? '#f1f5f9' : 'transparent',
+                    fontWeight: isActive ? '600' : '500',
+                    justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                    transition: 'all 0.15s ease',
+                    cursor: 'grab'
+                  }}
+                >
+                  {sidebarOpen && (
+                    <GripVertical 
+                      size={14} 
+                      style={{ 
+                        color: '#cbd5e1',
+                        marginRight: '-0.25rem',
+                        flexShrink: 0
+                      }} 
+                    />
+                  )}
+                  <Icon size={20} />
+                  {sidebarOpen && <span>{item.label}</span>}
+                </Link>
+              </div>
             );
           })}
         </nav>
@@ -232,80 +357,96 @@ export default function Layout({ children }) {
           </Link>
         </div>
 
-        {/* User section */}
-        <div style={{
-          padding: '1rem',
+        {/* User Info & Logout */}
+        <div style={{ 
+          padding: '1rem', 
           borderTop: '1px solid #e2e8f0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem'
+          backgroundColor: '#f8fafc'
         }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            backgroundColor: '#10b981',
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: '600',
-            fontSize: '0.85rem',
-            flexShrink: 0
-          }}>
-            {initials}
-          </div>
-          {sidebarOpen && (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ 
-                fontWeight: '600', 
-                fontSize: '0.9rem', 
-                color: '#1e293b',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                {displayName}
-              </div>
+          {sidebarOpen ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{
-                fontSize: '0.75rem',
-                padding: '0.125rem 0.375rem',
-                borderRadius: '4px',
-                display: 'inline-block',
-                marginTop: '0.125rem',
-                backgroundColor: roleConfig.bg,
-                color: roleConfig.color,
-                fontWeight: '500'
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: '#10b981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '0.875rem'
               }}>
-                {roleConfig.label}
+                {initials}
               </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  fontSize: '0.875rem',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {displayName}
+                </div>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '0.125rem 0.5rem',
+                  backgroundColor: roleConfig.bg,
+                  color: roleConfig.color,
+                  borderRadius: '4px',
+                  fontSize: '0.7rem',
+                  fontWeight: '600'
+                }}>
+                  {roleConfig.label}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              backgroundColor: '#10b981',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '0.875rem',
+              margin: '0 auto 0.75rem'
+            }}>
+              {initials}
             </div>
           )}
           <button
             onClick={handleLogout}
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '0.5rem',
-              color: '#64748b',
+              width: '100%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
+              justifyContent: sidebarOpen ? 'flex-start' : 'center',
+              gap: '0.75rem',
+              padding: '0.75rem',
+              backgroundColor: '#fef2f2',
+              color: '#ef4444',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500'
             }}
-            title="Logout"
           >
-            <LogOut size={18} />
+            <LogOut size={20} />
+            {sidebarOpen && <span>Logout</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main Content */}
       <main style={{
         flex: 1,
-        marginLeft: sidebarOpen ? '240px' : '60px',
-        transition: 'margin-left 0.2s ease',
+        marginLeft: sidebarOpen ? '260px' : '70px',
+        transition: 'margin-left 0.3s ease',
         minHeight: '100vh'
       }}>
         {children}
