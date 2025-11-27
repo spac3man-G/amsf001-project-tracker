@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Receipt, Plus, Edit2, Save, X, Trash2, Upload, Download,
-  Car, Home, Utensils, AlertCircle, FileText
+  Car, Home, Utensils, AlertCircle, FileText, Check, User
 } from 'lucide-react';
 
 export default function Expenses() {
@@ -18,11 +18,11 @@ export default function Expenses() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterResource, setFilterResource] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterChargeable, setFilterChargeable] = useState('all');
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const BUDGET = 20520;
 
-  // Multi-category form
   const [newExpense, setNewExpense] = useState({
     resource_id: '',
     expense_date: new Date().toISOString().split('T')[0],
@@ -33,7 +33,8 @@ export default function Expenses() {
     sustenance_amount: '',
     sustenance_reason: '',
     notes: '',
-    files: []
+    files: [],
+    chargeable_to_customer: true
   });
 
   const statuses = ['Draft', 'Submitted', 'Approved', 'Rejected', 'Paid'];
@@ -124,18 +125,20 @@ export default function Expenses() {
 
     try {
       const expensesToInsert = [];
+      const resourceName = resources.find(r => r.id === newExpense.resource_id)?.name;
 
       if (hasTravel) {
         expensesToInsert.push({
           project_id: projectId,
           category: 'Travel',
-          resource_name: resources.find(r => r.id === newExpense.resource_id)?.name,
+          resource_name: resourceName,
           expense_date: newExpense.expense_date,
           reason: newExpense.travel_reason,
           amount: parseFloat(newExpense.travel_amount),
           notes: newExpense.notes,
           status: 'Draft',
-          created_by: currentUserId
+          created_by: currentUserId,
+          chargeable_to_customer: newExpense.chargeable_to_customer
         });
       }
 
@@ -143,13 +146,14 @@ export default function Expenses() {
         expensesToInsert.push({
           project_id: projectId,
           category: 'Accommodation',
-          resource_name: resources.find(r => r.id === newExpense.resource_id)?.name,
+          resource_name: resourceName,
           expense_date: newExpense.expense_date,
           reason: newExpense.accommodation_reason,
           amount: parseFloat(newExpense.accommodation_amount),
           notes: newExpense.notes,
           status: 'Draft',
-          created_by: currentUserId
+          created_by: currentUserId,
+          chargeable_to_customer: newExpense.chargeable_to_customer
         });
       }
 
@@ -157,13 +161,14 @@ export default function Expenses() {
         expensesToInsert.push({
           project_id: projectId,
           category: 'Sustenance',
-          resource_name: resources.find(r => r.id === newExpense.resource_id)?.name,
+          resource_name: resourceName,
           expense_date: newExpense.expense_date,
           reason: newExpense.sustenance_reason,
           amount: parseFloat(newExpense.sustenance_amount),
           notes: newExpense.notes,
           status: 'Draft',
-          created_by: currentUserId
+          created_by: currentUserId,
+          chargeable_to_customer: newExpense.chargeable_to_customer
         });
       }
 
@@ -174,7 +179,6 @@ export default function Expenses() {
 
       if (error) throw error;
 
-      // Handle file uploads for all inserted expenses
       if (newExpense.files.length > 0 && insertedExpenses) {
         setUploadingFiles(true);
         for (const expense of insertedExpenses) {
@@ -211,18 +215,17 @@ export default function Expenses() {
         sustenance_amount: '',
         sustenance_reason: '',
         notes: '',
-        files: []
+        files: [],
+        chargeable_to_customer: true
       });
-
-      const count = expensesToInsert.length;
-      alert(`${count} expense${count > 1 ? 's' : ''} added successfully!`);
+      alert('Expenses added successfully!');
     } catch (error) {
-      console.error('Error adding expenses:', error);
+      console.error('Error adding expense:', error);
       alert('Failed to add expenses: ' + error.message);
     }
   }
 
-  async function handleEdit(expense) {
+  function handleEdit(expense) {
     setEditingId(expense.id);
     setEditForm({
       category: expense.category,
@@ -230,8 +233,9 @@ export default function Expenses() {
       expense_date: expense.expense_date,
       reason: expense.reason,
       amount: expense.amount,
-      notes: expense.notes || '',
-      status: expense.status
+      notes: expense.notes,
+      status: expense.status,
+      chargeable_to_customer: expense.chargeable_to_customer !== false
     });
   }
 
@@ -246,27 +250,38 @@ export default function Expenses() {
           reason: editForm.reason,
           amount: parseFloat(editForm.amount),
           notes: editForm.notes,
-          status: editForm.status
+          status: editForm.status,
+          chargeable_to_customer: editForm.chargeable_to_customer
         })
         .eq('id', id);
 
       if (error) throw error;
+
       await fetchData();
       setEditingId(null);
+      alert('Expense updated!');
     } catch (error) {
       console.error('Error updating expense:', error);
-      alert('Failed to update expense');
+      alert('Failed to update: ' + error.message);
     }
   }
 
   async function handleDelete(id) {
     if (!confirm('Delete this expense?')) return;
+
     try {
-      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id);
+
       if (error) throw error;
+
       await fetchData();
+      alert('Expense deleted');
     } catch (error) {
-      console.error('Error deleting:', error);
+      console.error('Error deleting expense:', error);
+      alert('Failed to delete: ' + error.message);
     }
   }
 
@@ -276,9 +291,10 @@ export default function Expenses() {
   }
 
   function removeFile(index) {
-    const updated = [...newExpense.files];
-    updated.splice(index, 1);
-    setNewExpense({ ...newExpense, files: updated });
+    setNewExpense({
+      ...newExpense,
+      files: newExpense.files.filter((_, i) => i !== index)
+    });
   }
 
   async function downloadFile(filePath, fileName) {
@@ -286,14 +302,19 @@ export default function Expenses() {
       const { data, error } = await supabase.storage
         .from('receipts')
         .download(filePath);
+
       if (error) throw error;
+
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
       a.download = fileName;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('Error downloading file:', error);
       alert('Failed to download file');
     }
   }
@@ -325,23 +346,52 @@ export default function Expenses() {
     }
   }
 
+  function canEditChargeable() {
+    return userRole === 'admin' || userRole === 'customer_pm';
+  }
+
   const filteredExpenses = expenses.filter(e => {
     if (filterCategory !== 'all' && e.category !== filterCategory) return false;
     if (filterResource !== 'all' && e.resource_name !== filterResource) return false;
     if (filterStatus !== 'all' && e.status !== filterStatus) return false;
+    if (filterChargeable === 'chargeable' && e.chargeable_to_customer === false) return false;
+    if (filterChargeable === 'non-chargeable' && e.chargeable_to_customer !== false) return false;
     return true;
   });
 
+  // Calculate totals
   const totalSpent = expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+  const chargeableTotal = expenses
+    .filter(e => e.chargeable_to_customer !== false)
+    .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+  const nonChargeableTotal = expenses
+    .filter(e => e.chargeable_to_customer === false)
+    .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
   const approvedSpent = expenses.filter(e => ['Approved', 'Paid'].includes(e.status))
     .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
   const remaining = BUDGET - approvedSpent;
 
+  // Category totals
   const categoryTotals = {
     Travel: expenses.filter(e => e.category === 'Travel').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0),
     Accommodation: expenses.filter(e => e.category === 'Accommodation').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0),
     Sustenance: expenses.filter(e => e.category === 'Sustenance').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
   };
+
+  // Resource totals
+  const resourceTotals = {};
+  expenses.forEach(e => {
+    if (!resourceTotals[e.resource_name]) {
+      resourceTotals[e.resource_name] = { total: 0, chargeable: 0, nonChargeable: 0 };
+    }
+    const amount = parseFloat(e.amount || 0);
+    resourceTotals[e.resource_name].total += amount;
+    if (e.chargeable_to_customer !== false) {
+      resourceTotals[e.resource_name].chargeable += amount;
+    } else {
+      resourceTotals[e.resource_name].nonChargeable += amount;
+    }
+  });
 
   if (loading) return <div className="loading">Loading expenses...</div>;
 
@@ -375,11 +425,23 @@ export default function Expenses() {
           <div className="stat-value" style={{ color: '#3b82f6' }}>£{totalSpent.toLocaleString()}</div>
         </div>
         <div className="stat-card">
+          <div className="stat-label">Chargeable</div>
+          <div className="stat-value" style={{ color: '#10b981' }}>£{chargeableTotal.toLocaleString()}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Non-Chargeable</div>
+          <div className="stat-value" style={{ color: '#f59e0b' }}>£{nonChargeableTotal.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Additional Stats Row */}
+      <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        <div className="stat-card">
           <div className="stat-label">Approved/Paid</div>
           <div className="stat-value" style={{ color: '#10b981' }}>£{approvedSpent.toLocaleString()}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Remaining</div>
+          <div className="stat-label">Remaining Budget</div>
           <div className="stat-value" style={{ color: remaining < BUDGET * 0.2 ? '#ef4444' : '#10b981' }}>
             £{remaining.toLocaleString()}
           </div>
@@ -388,11 +450,14 @@ export default function Expenses() {
 
       {/* Category Breakdown */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginBottom: '1rem' }}>Category Breakdown</h3>
+        <h3 style={{ marginBottom: '1rem' }}>Breakdown by Type</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
           {['Travel', 'Accommodation', 'Sustenance'].map(cat => {
             const colors = getCategoryColor(cat);
             const count = expenses.filter(e => e.category === cat).length;
+            const chargeableAmt = expenses
+              .filter(e => e.category === cat && e.chargeable_to_customer !== false)
+              .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
             return (
               <div key={cat} style={{ padding: '1rem', backgroundColor: colors.bg, borderRadius: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: colors.color, marginBottom: '0.5rem' }}>
@@ -400,21 +465,52 @@ export default function Expenses() {
                   <span style={{ fontWeight: '600' }}>{cat}</span>
                 </div>
                 <div style={{ fontSize: '1.5rem', fontWeight: '700', color: colors.color }}>
-                  £{categoryTotals[cat].toLocaleString()}
+                  £{categoryTotals[cat].toFixed(2)}
                 </div>
-                <div style={{ fontSize: '0.85rem', color: colors.color }}>{count} entries</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{count} expense(s)</div>
+                <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem' }}>
+                  £{chargeableAmt.toFixed(2)} chargeable
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
+      {/* Resource Breakdown */}
+      {Object.keys(resourceTotals).length > 0 && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ marginBottom: '1rem' }}>Breakdown by Resource</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+            {Object.entries(resourceTotals).map(([name, totals]) => (
+              <div key={name} style={{ padding: '1rem', backgroundColor: '#f1f5f9', borderRadius: '8px', minWidth: '180px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <User size={16} style={{ color: '#64748b' }} />
+                  <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{name}</span>
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#3b82f6' }}>
+                  £{totals.total.toFixed(2)}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#10b981' }}>
+                  £{totals.chargeable.toFixed(2)} chargeable
+                </div>
+                {totals.nonChargeable > 0 && (
+                  <div style={{ fontSize: '0.75rem', color: '#f59e0b' }}>
+                    £{totals.nonChargeable.toFixed(2)} non-chargeable
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: '500' }}>Filter:</span>
           <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-            <option value="all">All Categories</option>
+            <option value="all">All Types</option>
             <option value="Travel">Travel</option>
             <option value="Accommodation">Accommodation</option>
             <option value="Sustenance">Sustenance</option>
@@ -428,6 +524,11 @@ export default function Expenses() {
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}>
             <option value="all">All Statuses</option>
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={filterChargeable} onChange={(e) => setFilterChargeable(e.target.value)} style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+            <option value="all">All Expenses</option>
+            <option value="chargeable">Chargeable Only</option>
+            <option value="non-chargeable">Non-Chargeable Only</option>
           </select>
         </div>
       </div>
@@ -461,6 +562,24 @@ export default function Expenses() {
                 onChange={(e) => setNewExpense({ ...newExpense, expense_date: e.target.value })} 
               />
             </div>
+          </div>
+
+          {/* Chargeable to Customer Checkbox */}
+          <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                checked={newExpense.chargeable_to_customer}
+                onChange={(e) => setNewExpense({ ...newExpense, chargeable_to_customer: e.target.checked })}
+                style={{ width: '20px', height: '20px', accentColor: '#10b981' }}
+              />
+              <div>
+                <span style={{ fontWeight: '600', color: '#166534' }}>Chargeable to Customer</span>
+                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  Uncheck if this expense should not be charged to the customer
+                </div>
+              </div>
+            </label>
           </div>
 
           {/* Travel */}
@@ -548,7 +667,7 @@ export default function Expenses() {
                 <input 
                   type="text" 
                   className="form-input" 
-                  placeholder="e.g., Meals during site visit"
+                  placeholder="e.g., Lunch during site visit"
                   value={newExpense.sustenance_reason} 
                   onChange={(e) => setNewExpense({ ...newExpense, sustenance_reason: e.target.value })} 
                 />
@@ -556,57 +675,57 @@ export default function Expenses() {
             </div>
           </div>
 
-          {/* Notes & Receipts */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label className="form-label">Notes (optional)</label>
-              <textarea 
-                className="form-input" 
-                rows={2}
-                placeholder="Additional notes for all expenses"
-                value={newExpense.notes} 
-                onChange={(e) => setNewExpense({ ...newExpense, notes: e.target.value })} 
+          {/* Notes */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label className="form-label">Additional Notes</label>
+            <textarea 
+              className="form-input" 
+              rows={2}
+              placeholder="Any additional information..."
+              value={newExpense.notes} 
+              onChange={(e) => setNewExpense({ ...newExpense, notes: e.target.value })} 
+            />
+          </div>
+
+          {/* File Upload */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label className="form-label">Attach Receipts</label>
+            <div 
+              style={{ 
+                border: '2px dashed #d1d5db', 
+                borderRadius: '8px', 
+                padding: '1.5rem', 
+                textAlign: 'center',
+                cursor: 'pointer',
+                backgroundColor: '#f9fafb'
+              }}
+              onClick={() => document.getElementById('file-upload').click()}
+            >
+              <Upload size={24} style={{ color: '#9ca3af', marginBottom: '0.5rem' }} />
+              <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Click to upload receipts</div>
+              <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>PDF, JPG, PNG, ZIP</div>
+              <input 
+                id="file-upload"
+                type="file" 
+                multiple 
+                accept=".pdf,.jpg,.jpeg,.png,.zip"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
               />
             </div>
-            <div>
-              <label className="form-label">Receipt(s)</label>
-              <div 
-                style={{ 
-                  border: '2px dashed #d1d5db', 
-                  borderRadius: '8px', 
-                  padding: '1rem', 
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: '#f9fafb'
-                }}
-                onClick={() => document.getElementById('file-upload').click()}
-              >
-                <Upload size={24} style={{ color: '#9ca3af', marginBottom: '0.5rem' }} />
-                <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Click to upload receipts</div>
-                <div style={{ color: '#9ca3af', fontSize: '0.75rem' }}>PDF, JPG, PNG, ZIP</div>
-                <input 
-                  id="file-upload"
-                  type="file" 
-                  multiple 
-                  accept=".pdf,.jpg,.jpeg,.png,.zip"
-                  style={{ display: 'none' }}
-                  onChange={handleFileSelect}
-                />
+            {newExpense.files.length > 0 && (
+              <div style={{ marginTop: '0.5rem' }}>
+                {newExpense.files.map((file, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0', fontSize: '0.85rem' }}>
+                    <FileText size={14} />
+                    <span style={{ flex: 1 }}>{file.name}</span>
+                    <button onClick={() => removeFile(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
-              {newExpense.files.length > 0 && (
-                <div style={{ marginTop: '0.5rem' }}>
-                  {newExpense.files.map((file, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0', fontSize: '0.85rem' }}>
-                      <FileText size={14} />
-                      <span style={{ flex: 1 }}>{file.name}</span>
-                      <button onClick={() => removeFile(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Summary */}
@@ -631,6 +750,13 @@ export default function Expenses() {
                   ).toFixed(2)}
                 </div>
               </div>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                {newExpense.chargeable_to_customer ? (
+                  <span style={{ color: '#10b981' }}>✓ Will be charged to customer</span>
+                ) : (
+                  <span style={{ color: '#f59e0b' }}>✗ Not chargeable to customer</span>
+                )}
+              </div>
             </div>
           )}
 
@@ -651,11 +777,12 @@ export default function Expenses() {
           <thead>
             <tr>
               <th>Ref</th>
-              <th>Category</th>
+              <th>Type</th>
               <th>Resource</th>
               <th>Date</th>
               <th>Reason</th>
               <th style={{ textAlign: 'right' }}>Amount</th>
+              <th>Chargeable</th>
               <th>Status</th>
               <th>Receipts</th>
               <th>Actions</th>
@@ -663,12 +790,13 @@ export default function Expenses() {
           </thead>
           <tbody>
             {filteredExpenses.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No expenses found.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No expenses found.</td></tr>
             ) : (
               filteredExpenses.map(exp => {
                 const catColors = getCategoryColor(exp.category);
+                const isChargeable = exp.chargeable_to_customer !== false;
                 return (
-                  <tr key={exp.id}>
+                  <tr key={exp.id} style={{ backgroundColor: !isChargeable ? '#fffbeb' : 'inherit' }}>
                     <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{exp.expense_ref || '-'}</td>
                     <td>
                       {editingId === exp.id ? (
@@ -724,6 +852,33 @@ export default function Expenses() {
                       )}
                     </td>
                     <td>
+                      {editingId === exp.id && canEditChargeable() ? (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={editForm.chargeable_to_customer}
+                            onChange={(e) => setEditForm({ ...editForm, chargeable_to_customer: e.target.checked })}
+                            style={{ width: '18px', height: '18px' }}
+                          />
+                        </label>
+                      ) : (
+                        <span style={{ 
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: '500',
+                          backgroundColor: isChargeable ? '#dcfce7' : '#fef3c7',
+                          color: isChargeable ? '#166534' : '#92400e'
+                        }}>
+                          {isChargeable ? <Check size={12} /> : <X size={12} />}
+                          {isChargeable ? 'Yes' : 'No'}
+                        </span>
+                      )}
+                    </td>
+                    <td>
                       {editingId === exp.id && userRole === 'admin' ? (
                         <select className="form-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
                           {statuses.map(s => <option key={s} value={s}>{s}</option>)}
@@ -756,7 +911,7 @@ export default function Expenses() {
                         </div>
                       ) : (
                         <div className="action-buttons">
-                          {(userRole === 'admin' || userRole === 'contributor') && (
+                          {(userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm') && (
                             <button className="btn-icon" onClick={() => handleEdit(exp)}><Edit2 size={16} /></button>
                           )}
                           {userRole === 'admin' && (
@@ -780,6 +935,8 @@ export default function Expenses() {
           <li>PMO travel/accommodation requires advance approval from Authority Project Manager</li>
           <li>Attach receipts for all expenses over £25</li>
           <li>Submit expenses within 30 days of incurring them</li>
+          <li><strong>Chargeable:</strong> Expenses that will be invoiced to the customer</li>
+          <li><strong>Non-Chargeable:</strong> Internal expenses not invoiced to customer</li>
         </ul>
       </div>
     </div>

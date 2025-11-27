@@ -50,14 +50,21 @@ export default function Resources() {
       setResources(data || []);
 
       // Fetch timesheets to calculate actual hours worked per resource
+      // Only count: Approved OR (Submitted AND not previously rejected)
       const { data: timesheets } = await supabase
         .from('timesheets')
-        .select('resource_id, hours_worked, hours');
+        .select('resource_id, hours_worked, hours, status, was_rejected');
 
-      // Calculate total hours per resource
+      // Calculate total hours per resource (only counting valid timesheets)
       const hoursByResource = {};
       if (timesheets) {
         timesheets.forEach(ts => {
+          // Only count if: Approved OR (Submitted AND not previously rejected)
+          const countsTowardsCost = ts.status === 'Approved' || 
+            (ts.status === 'Submitted' && !ts.was_rejected);
+          
+          if (!countsTowardsCost) return;
+          
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           hoursByResource[ts.resource_id] = (hoursByResource[ts.resource_id] || 0) + hours;
         });
@@ -105,7 +112,6 @@ export default function Resources() {
 
   async function handleAdd() {
     try {
-      // First check if user exists in profiles
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -117,9 +123,27 @@ export default function Resources() {
         return;
       }
 
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('reference', 'AMSF001')
+        .single();
+
+      if (!project) {
+        alert('Project not found');
+        return;
+      }
+
       const { error } = await supabase
         .from('resources')
-        .insert([newResource]);
+        .insert([{
+          ...newResource,
+          project_id: project.id,
+          user_id: existingProfile.id,
+          daily_rate: parseFloat(newResource.daily_rate),
+          days_allocated: parseInt(newResource.days_allocated),
+          discount_percent: parseFloat(newResource.discount_percent) || 0
+        }]);
 
       if (error) throw error;
       
@@ -139,12 +163,12 @@ export default function Resources() {
       alert('Resource added successfully!');
     } catch (error) {
       console.error('Error adding resource:', error);
-      alert('Failed to add resource');
+      alert('Failed to add resource: ' + error.message);
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('Are you sure you want to delete this resource? This will also delete their timesheet entries.')) return;
+    if (!confirm('Are you sure you want to delete this resource?')) return;
     
     try {
       const { error } = await supabase
@@ -172,6 +196,7 @@ export default function Resources() {
     }
   };
 
+  // Calculate totals
   const totalBudget = resources.reduce((sum, r) => {
     return sum + ((r.daily_rate || 0) * (r.days_allocated || 0));
   }, 0);
@@ -261,7 +286,7 @@ export default function Resources() {
               />
               <input
                 className="input-field"
-                placeholder="Role/Title"
+                placeholder="Role"
                 value={newResource.role}
                 onChange={(e) => setNewResource({...newResource, role: e.target.value})}
               />
@@ -270,49 +295,46 @@ export default function Resources() {
                 value={newResource.sfia_level}
                 onChange={(e) => setNewResource({...newResource, sfia_level: e.target.value})}
               >
-                <option value="L3">L3 - Junior</option>
-                <option value="L4">L4 - Mid-Level</option>
-                <option value="L5">L5 - Senior</option>
-                <option value="L6">L6 - Lead</option>
+                <option value="L3">SFIA Level 3</option>
+                <option value="L4">SFIA Level 4</option>
+                <option value="L5">SFIA Level 5</option>
+                <option value="L6">SFIA Level 6</option>
               </select>
               <input
                 className="input-field"
-                type="number"
                 placeholder="Daily Rate (£)"
+                type="number"
                 value={newResource.daily_rate}
                 onChange={(e) => setNewResource({...newResource, daily_rate: e.target.value})}
               />
               <input
                 className="input-field"
-                type="number"
                 placeholder="Discount %"
+                type="number"
                 value={newResource.discount_percent}
                 onChange={(e) => setNewResource({...newResource, discount_percent: e.target.value})}
               />
               <input
                 className="input-field"
-                type="number"
                 placeholder="Days Allocated"
+                type="number"
                 value={newResource.days_allocated}
                 onChange={(e) => setNewResource({...newResource, days_allocated: e.target.value})}
               />
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-primary" onClick={handleAdd}>
-                  <Save size={16} /> Save
-                </button>
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={() => setShowAddForm(false)}
-                >
-                  <X size={16} /> Cancel
-                </button>
-              </div>
+            </div>
+            <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-primary" onClick={handleAdd}>
+                <Save size={16} /> Save
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
+                <X size={16} /> Cancel
+              </button>
             </div>
           </div>
         )}
 
-        <div className="table-container">
-          <table className="data-table">
+        <div style={{ overflowX: 'auto' }}>
+          <table>
             <thead>
               <tr>
                 <th>Name</th>
@@ -326,181 +348,155 @@ export default function Resources() {
               </tr>
             </thead>
             <tbody>
-              {resources.map((resource) => (
-                <tr key={resource.id}>
-                  {editingId === resource.id ? (
-                    <>
-                      <td>
-                        <input
-                          className="input-field"
-                          value={editForm.name}
-                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="input-field"
-                          value={editForm.role}
-                          onChange={(e) => setEditForm({...editForm, role: e.target.value})}
-                        />
-                      </td>
-                      <td>
-                        <select
-                          className="input-field"
-                          value={editForm.sfia_level}
-                          onChange={(e) => setEditForm({...editForm, sfia_level: e.target.value})}
-                        >
-                          <option value="L3">L3</option>
-                          <option value="L4">L4</option>
-                          <option value="L5">L5</option>
-                          <option value="L6">L6</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          className="input-field"
-                          type="number"
-                          value={editForm.daily_rate}
-                          onChange={(e) => setEditForm({...editForm, daily_rate: e.target.value})}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="input-field"
-                          type="number"
-                          value={editForm.days_allocated}
-                          onChange={(e) => setEditForm({...editForm, days_allocated: e.target.value})}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="input-field"
-                          type="number"
-                          value={editForm.days_used}
-                          onChange={(e) => setEditForm({...editForm, days_used: e.target.value})}
-                        />
-                      </td>
-                      <td>-</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button 
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleSave(resource.id)}
+              {resources.map(resource => {
+                const hoursWorked = timesheetHours[resource.id] || 0;
+                const daysUsed = hoursWorked / 8;
+                const daysAllocated = resource.days_allocated || 0;
+                const remaining = Math.max(0, daysAllocated - daysUsed);
+                const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
+                
+                return (
+                  <tr key={resource.id}>
+                    {editingId === resource.id ? (
+                      <>
+                        <td>
+                          <input
+                            className="input-field"
+                            value={editForm.name}
+                            onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="input-field"
+                            value={editForm.role}
+                            onChange={(e) => setEditForm({...editForm, role: e.target.value})}
+                          />
+                        </td>
+                        <td>
+                          <select
+                            className="input-field"
+                            value={editForm.sfia_level}
+                            onChange={(e) => setEditForm({...editForm, sfia_level: e.target.value})}
                           >
-                            <Save size={16} />
-                          </button>
-                          <button 
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => setEditingId(null)}
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td>
-                        <div>
-                          <strong>{resource.name}</strong>
-                          <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
-                            {resource.email}
-                          </div>
-                        </div>
-                      </td>
-                      <td>{resource.role}</td>
-                      <td>
-                        <span className={`badge ${getSfiaColor(resource.sfia_level)}`}>
-                          <Award size={14} style={{ marginRight: '0.25rem' }} />
-                          {resource.sfia_level}
-                        </span>
-                      </td>
-                      <td>
-                        <div>
-                          £{resource.daily_rate}
-                          {resource.discount_percent > 0 && (
-                            <div style={{ fontSize: '0.875rem', color: 'var(--success)' }}>
-                              -{resource.discount_percent}%
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        {(() => {
-                          const hoursWorked = timesheetHours[resource.id] || 0;
-                          const daysUsed = hoursWorked / 8;
-                          const daysAllocated = resource.days_allocated || 0;
-                          const remaining = Math.max(0, daysAllocated - daysUsed);
-                          return (
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                <span style={{ fontWeight: '500' }}>{daysUsed.toFixed(1)}</span>
-                                <span style={{ color: 'var(--text-light)' }}>/</span>
-                                <span>{daysAllocated}</span>
-                              </div>
-                              <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
-                                {remaining.toFixed(1)} remaining
-                              </div>
-                              {hoursWorked > 0 && (
-                                <div style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                  <Clock size={12} /> {hoursWorked.toFixed(1)}h logged
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td>
-                        {(() => {
-                          const hoursWorked = timesheetHours[resource.id] || 0;
-                          const daysUsed = hoursWorked / 8;
-                          const daysAllocated = resource.days_allocated || 0;
-                          const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
-                          return (
-                            <div>
-                              <div className="progress-bar">
-                                <div 
-                                  className="progress-bar-fill"
-                                  style={{ 
-                                    width: `${Math.min(utilization, 100)}%`,
-                                    background: utilization > 100 ? 'var(--danger)' : utilization > 0 ? 'var(--primary)' : '#e2e8f0'
-                                  }}
-                                />
-                              </div>
-                              <span style={{ fontSize: '0.875rem', color: utilization > 0 ? 'inherit' : '#9ca3af' }}>
-                                {Math.round(utilization)}%
-                              </span>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td>
-                        <strong>
-                          £{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}
-                        </strong>
-                      </td>
-                      {userRole === 'admin' && (
+                            <option value="L3">L3</option>
+                            <option value="L4">L4</option>
+                            <option value="L5">L5</option>
+                            <option value="L6">L6</option>
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            className="input-field"
+                            type="number"
+                            value={editForm.daily_rate}
+                            onChange={(e) => setEditForm({...editForm, daily_rate: e.target.value})}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="input-field"
+                            type="number"
+                            value={editForm.days_allocated}
+                            onChange={(e) => setEditForm({...editForm, days_allocated: e.target.value})}
+                          />
+                        </td>
+                        <td>-</td>
+                        <td>-</td>
                         <td>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <button 
-                              className="btn btn-sm btn-secondary"
-                              onClick={() => handleEdit(resource)}
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleSave(resource.id)}
                             >
-                              <Edit2 size={16} />
+                              <Save size={16} />
                             </button>
                             <button 
-                              className="btn btn-sm btn-danger"
-                              onClick={() => handleDelete(resource.id)}
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => setEditingId(null)}
                             >
-                              <Trash2 size={16} />
+                              <X size={16} />
                             </button>
                           </div>
                         </td>
-                      )}
-                    </>
-                  )}
-                </tr>
-              ))}
+                      </>
+                    ) : (
+                      <>
+                        <td>
+                          <div>
+                            <strong>{resource.name}</strong>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                              {resource.email}
+                            </div>
+                          </div>
+                        </td>
+                        <td>{resource.role}</td>
+                        <td>
+                          <span className={`badge ${getSfiaColor(resource.sfia_level)}`}>
+                            <Award size={14} style={{ marginRight: '0.25rem' }} />
+                            {resource.sfia_level}
+                          </span>
+                        </td>
+                        <td>£{resource.daily_rate}</td>
+                        <td>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span style={{ fontWeight: '500' }}>{daysUsed.toFixed(1)}</span>
+                              <span style={{ color: 'var(--text-light)' }}>/</span>
+                              <span>{daysAllocated}</span>
+                            </div>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                              {remaining.toFixed(1)} remaining
+                            </div>
+                            {hoursWorked > 0 && (
+                              <div style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <Clock size={12} /> {hoursWorked.toFixed(1)}h logged
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div>
+                            <div className="progress-bar">
+                              <div 
+                                className="progress-bar-fill"
+                                style={{ 
+                                  width: `${Math.min(utilization, 100)}%`,
+                                  background: utilization > 100 ? 'var(--danger)' : utilization > 0 ? 'var(--primary)' : '#e2e8f0'
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontSize: '0.875rem', color: utilization > 0 ? 'inherit' : '#9ca3af' }}>
+                              {Math.round(utilization)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <strong>£{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong>
+                        </td>
+                        {userRole === 'admin' && (
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button 
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => handleEdit(resource)}
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                className="btn btn-sm btn-danger"
+                                onClick={() => handleDelete(resource.id)}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -509,39 +505,83 @@ export default function Resources() {
       <style jsx>{`
         .form-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem;
-          margin-bottom: 1rem;
-        }
-        
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          grid-template-columns: repeat(4, 1fr);
           gap: 1rem;
         }
         
-        .stat-card {
-          background: var(--card-bg);
+        .input-field {
+          width: 100%;
+          padding: 0.5rem;
           border: 1px solid var(--border);
-          border-radius: 0.5rem;
-          padding: 1rem;
-          text-align: center;
+          border-radius: 4px;
         }
         
-        .stat-value {
-          font-size: 1.5rem;
-          font-weight: bold;
-          color: var(--primary);
-        }
-        
-        .stat-label {
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
           font-size: 0.875rem;
-          color: var(--text-light);
-          margin-top: 0.25rem;
+        }
+        
+        .badge-success {
+          background: #dcfce7;
+          color: #166534;
+        }
+        
+        .badge-primary {
+          background: #dbeafe;
+          color: #1e40af;
+        }
+        
+        .badge-secondary {
+          background: #f1f5f9;
+          color: #475569;
+        }
+        
+        .badge-warning {
+          background: #fef3c7;
+          color: #92400e;
+        }
+        
+        .progress-bar {
+          width: 60px;
+          height: 6px;
+          background: #e2e8f0;
+          border-radius: 3px;
+          overflow: hidden;
+          margin-bottom: 0.25rem;
+        }
+        
+        .progress-bar-fill {
+          height: 100%;
+          border-radius: 3px;
         }
         
         .btn-danger {
-          background: var(--danger);
+          background: #fee2e2;
+          color: #dc2626;
+          border: none;
+          cursor: pointer;
+          padding: 0.5rem;
+          border-radius: 4px;
+        }
+        
+        .btn-danger:hover {
+          background: #fecaca;
+        }
+        
+        .btn-secondary {
+          background: #f1f5f9;
+          color: #475569;
+          border: none;
+          cursor: pointer;
+          padding: 0.5rem;
+          border-radius: 4px;
+        }
+        
+        .btn-primary {
+          background: var(--primary);
           color: white;
         }
         

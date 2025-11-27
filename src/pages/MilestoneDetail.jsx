@@ -277,9 +277,14 @@ export default function MilestoneDetail() {
 
       {/* Budget & Spend Tracking */}
       {(() => {
-        // Calculate spend from timesheets
-        const totalHours = timesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
-        const totalSpend = timesheets.reduce((sum, ts) => {
+        // Only count timesheets that are: Approved OR (Submitted AND not previously rejected)
+        const countingTimesheets = timesheets.filter(ts => 
+          ts.status === 'Approved' || (ts.status === 'Submitted' && !ts.was_rejected)
+        );
+        
+        // Calculate spend from valid timesheets only
+        const totalHours = countingTimesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
+        const totalSpend = countingTimesheets.reduce((sum, ts) => {
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           const resource = ts.resources;
           if (resource) {
@@ -292,9 +297,9 @@ export default function MilestoneDetail() {
         const spendPercent = budget > 0 ? Math.round((totalSpend / budget) * 100) : 0;
         const isOverBudget = spendPercent > 100;
 
-        // Group spend by resource
+        // Group spend by resource (only counting timesheets)
         const spendByResource = {};
-        timesheets.forEach(ts => {
+        countingTimesheets.forEach(ts => {
           const resourceName = ts.resources?.name || 'Unknown';
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           const resource = ts.resources;

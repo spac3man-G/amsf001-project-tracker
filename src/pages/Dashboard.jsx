@@ -41,11 +41,18 @@ export default function Dashboard() {
         .eq('project_id', project.id);
 
       // Calculate spend per milestone
+      // Only count: Approved OR (Submitted AND not previously rejected)
       const spendByMilestone = {};
       let totalSpend = 0;
       
       if (timesheetsData && resourcesData) {
         timesheetsData.forEach(ts => {
+          // Check if this timesheet counts towards costs
+          const countsTowardsCost = ts.status === 'Approved' || 
+            (ts.status === 'Submitted' && !ts.was_rejected);
+          
+          if (!countsTowardsCost) return; // Skip rejected or draft timesheets
+          
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           const resource = ts.resources || resourcesData.find(r => r.id === ts.resource_id);
           if (resource) {
