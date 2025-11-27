@@ -74,6 +74,9 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
+  // Check if user can see admin-only menu items
+  const canManageUsers = userRole === 'admin' || userRole === 'customer_pm';
+
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/milestones', icon: Milestone, label: 'Milestones' },
@@ -83,7 +86,8 @@ export default function Layout({ children }) {
     { path: '/expenses', icon: Receipt, label: 'Expenses' },
     { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
     { path: '/reports', icon: FileText, label: 'Reports' },
-    { path: '/users', icon: UserCircle, label: 'Users' },
+    // Users link only visible to admin and customer_pm
+    ...(canManageUsers ? [{ path: '/users', icon: UserCircle, label: 'Users' }] : []),
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
