@@ -14,7 +14,8 @@ import {
   LogOut,
   Menu,
   X,
-  UserCircle
+  UserCircle,
+  UserCog
 } from 'lucide-react';
 
 export default function Layout({ children }) {
@@ -105,6 +106,7 @@ export default function Layout({ children }) {
   }
 
   const roleStyle = getRoleColor(userRole);
+  const isAccountPage = location.pathname === '/account';
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
@@ -187,6 +189,28 @@ export default function Layout({ children }) {
             );
           })}
         </nav>
+
+        {/* My Account Link */}
+        <div style={{ padding: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
+          <Link
+            to="/account"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              color: isAccountPage ? '#10b981' : '#64748b',
+              backgroundColor: isAccountPage ? '#f0fdf4' : 'transparent',
+              fontWeight: isAccountPage ? '600' : '400',
+              transition: 'all 0.2s'
+            }}
+          >
+            <UserCog size={20} />
+            {sidebarOpen && <span>My Account</span>}
+          </Link>
+        </div>
 
         {/* User section */}
         <div style={{
