@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Receipt, Plus, Edit2, Save, X, Trash2, Upload, Download,
-  Car, Home, Utensils, AlertCircle, FileText, Check, User
+  Car, Home, Utensils, AlertCircle, FileText, Check, User, Send, CheckCircle
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 
@@ -321,6 +321,101 @@ export default function Expenses() {
     }
   }
 
+  // Submit expense for validation
+  async function handleSubmit(id) {
+    if (!confirm('Submit this expense for validation?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({ status: 'Submitted' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchData();
+      alert('Expense submitted for validation!');
+    } catch (error) {
+      console.error('Error submitting expense:', error);
+      alert('Failed to submit: ' + error.message);
+    }
+  }
+
+  // Validate (approve) expense
+  async function handleApprove(id) {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({ status: 'Approved' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchData();
+      alert('Expense validated!');
+    } catch (error) {
+      console.error('Error validating expense:', error);
+      alert('Failed to validate: ' + error.message);
+    }
+  }
+
+  // Reject expense
+  async function handleReject(id) {
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    
+    try {
+      const updateData = { status: 'Rejected' };
+      if (reason) {
+        updateData.rejection_reason = reason;
+      }
+      
+      const { error } = await supabase
+        .from('expenses')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchData();
+      alert('Expense rejected.');
+    } catch (error) {
+      console.error('Error rejecting expense:', error);
+      alert('Failed to reject: ' + error.message);
+    }
+  }
+
+  // Can submit (owner of Draft/Rejected expense, or admin/supplier_pm)
+  function canSubmitExpense(exp) {
+    if (exp.status !== 'Draft' && exp.status !== 'Rejected') return false;
+    if (userRole === 'admin') return true;
+    if (userRole === 'supplier_pm') return true;
+    if (exp.created_by === currentUserId) return true;
+    return false;
+  }
+
+  // Can validate (approve/reject) - for Admin and Customer PM
+  function canValidateExpense(exp) {
+    if (exp.status !== 'Submitted') return false;
+    return ['admin', 'customer_pm'].includes(userRole);
+  }
+
+  // Can edit expense
+  function canEditExpense(exp) {
+    if (userRole === 'admin') return true;
+    if (userRole === 'supplier_pm') return true;
+    if (userRole === 'customer_pm') return true;
+    if (exp.created_by === currentUserId && exp.status === 'Draft') return true;
+    return false;
+  }
+
+  // Can delete expense
+  function canDeleteExpense(exp) {
+    if (userRole === 'admin') return true;
+    if (userRole === 'supplier_pm') return true;
+    if (exp.created_by === currentUserId && exp.status === 'Draft') return true;
+    return false;
+  }
+
   function handleFileSelect(e) {
     const files = Array.from(e.target.files);
     setNewExpense({ ...newExpense, files: [...newExpense.files, ...files] });
@@ -386,17 +481,6 @@ export default function Expenses() {
     return userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
   }
 
-  // Check if user can validate (change status to Approved)
-  function canValidate() {
-    return userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
-  }
-
-  // Display "Validated" instead of "Approved" in UI
-  function getDisplayStatus(status) {
-    if (status === 'Approved') return 'Validated';
-    return status;
-  }
-
   const filteredExpenses = expenses.filter(e => {
     if (filterCategory !== 'all' && e.category !== filterCategory) return false;
     if (filterResource !== 'all' && e.resource_name !== filterResource) return false;
@@ -417,6 +501,7 @@ export default function Expenses() {
   const approvedSpent = expenses.filter(e => ['Approved', 'Paid'].includes(e.status))
     .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
   const remaining = BUDGET - approvedSpent;
+  const pendingCount = expenses.filter(e => e.status === 'Submitted').length;
 
   // Category totals
   const categoryTotals = {
@@ -442,8 +527,8 @@ export default function Expenses() {
 
   if (loading) return <div className="loading">Loading expenses...</div>;
 
-  // Allow admin, supplier_pm, customer_pm, and contributor to add expenses
-  const canAdd = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm' || userRole === 'contributor';
+  // Allow admin, supplier_pm, and contributor to add expenses
+  const canAdd = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor';
 
   return (
     <div className="page-container">
@@ -483,7 +568,7 @@ export default function Expenses() {
       </div>
 
       {/* Additional Stats Row */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
         <div className="stat-card">
           <div className="stat-label">Validated/Paid</div>
           <div className="stat-value" style={{ color: '#10b981' }}>£{approvedSpent.toLocaleString()}</div>
@@ -493,6 +578,10 @@ export default function Expenses() {
           <div className="stat-value" style={{ color: remaining < BUDGET * 0.2 ? '#ef4444' : '#10b981' }}>
             £{remaining.toLocaleString()}
           </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Pending Validation</div>
+          <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
         </div>
       </div>
 
@@ -571,7 +660,7 @@ export default function Expenses() {
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}>
             <option value="all">All Statuses</option>
-            {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+            {statuses.map(s => <option key={s} value={s}>{statusDisplayNames[s] || s}</option>)}
           </select>
           <select value={filterChargeable} onChange={(e) => setFilterChargeable(e.target.value)} style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}>
             <option value="all">All Expenses</option>
@@ -927,7 +1016,7 @@ export default function Expenses() {
                       )}
                     </td>
                     <td>
-                      {editingId === exp.id && canValidate() ? (
+                      {editingId === exp.id && canValidateExpense(exp) ? (
                         <select className="form-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
                           {statuses.map(s => <option key={s} value={s}>{statusDisplayNames[s] || s}</option>)}
                         </select>
@@ -959,11 +1048,41 @@ export default function Expenses() {
                         </div>
                       ) : (
                         <div className="action-buttons">
-                          {(userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor' || userRole === 'customer_pm') && (
-                            <button className="btn-icon" onClick={() => handleEdit(exp)}><Edit2 size={16} /></button>
+                          {/* Submit button for Draft/Rejected expenses */}
+                          {canSubmitExpense(exp) && (
+                            <button 
+                              className="btn-icon" 
+                              onClick={() => handleSubmit(exp.id)} 
+                              title="Submit for Validation"
+                              style={{ color: '#3b82f6' }}
+                            >
+                              <Send size={16} />
+                            </button>
                           )}
-                          {(userRole === 'admin' || userRole === 'supplier_pm') && (
-                            <button className="btn-icon btn-danger" onClick={() => handleDelete(exp.id)}><Trash2 size={16} /></button>
+                          {/* Validate/Reject buttons for validators */}
+                          {canValidateExpense(exp) && (
+                            <>
+                              <button 
+                                className="btn-icon btn-success" 
+                                onClick={() => handleApprove(exp.id)} 
+                                title="Validate"
+                              >
+                                <CheckCircle size={16} />
+                              </button>
+                              <button 
+                                className="btn-icon btn-danger" 
+                                onClick={() => handleReject(exp.id)} 
+                                title="Reject"
+                              >
+                                <X size={16} />
+                              </button>
+                            </>
+                          )}
+                          {canEditExpense(exp) && (
+                            <button className="btn-icon" onClick={() => handleEdit(exp)} title="Edit"><Edit2 size={16} /></button>
+                          )}
+                          {canDeleteExpense(exp) && (
+                            <button className="btn-icon btn-danger" onClick={() => handleDelete(exp.id)} title="Delete"><Trash2 size={16} /></button>
                           )}
                         </div>
                       )}
@@ -983,8 +1102,12 @@ export default function Expenses() {
           <li>PMO travel/accommodation requires advance approval from Authority Project Manager</li>
           <li>Attach receipts for all expenses over £25</li>
           <li>Submit expenses within 30 days of incurring them</li>
+          <li><strong>Submit:</strong> Click the send icon (→) to submit for validation</li>
           <li><strong>Chargeable:</strong> Expenses that will be invoiced to the customer</li>
           <li><strong>Non-Chargeable:</strong> Internal expenses not invoiced to customer</li>
+          {['admin', 'customer_pm'].includes(userRole) && (
+            <li><strong>As {userRole === 'admin' ? 'Admin' : 'Customer PM'}:</strong> You can validate (✓) or reject (✗) submitted expenses</li>
+          )}
         </ul>
       </div>
     </div>
