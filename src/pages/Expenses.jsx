@@ -173,6 +173,7 @@ export default function Expenses() {
           amount: parseFloat(newExpense.travel_amount),
           notes: newExpense.notes,
           status: 'Draft',
+          user_id: currentUserId,
           created_by: currentUserId,
           chargeable_to_customer: newExpense.chargeable_to_customer
         });
@@ -188,6 +189,7 @@ export default function Expenses() {
           amount: parseFloat(newExpense.accommodation_amount),
           notes: newExpense.notes,
           status: 'Draft',
+          user_id: currentUserId,
           created_by: currentUserId,
           chargeable_to_customer: newExpense.chargeable_to_customer
         });
@@ -203,6 +205,7 @@ export default function Expenses() {
           amount: parseFloat(newExpense.sustenance_amount),
           notes: newExpense.notes,
           status: 'Draft',
+          user_id: currentUserId,
           created_by: currentUserId,
           chargeable_to_customer: newExpense.chargeable_to_customer
         });
