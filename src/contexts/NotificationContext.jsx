@@ -23,12 +23,10 @@ export function NotificationProvider({ children }) {
   // Fetch pending workflow items count (source of truth)
   const fetchPendingWorkflowCount = useCallback(async (userId, role) => {
     try {
-      let totalPending = 0;
       let pendingItems = [];
 
-      // Only count if user is admin/PM
+      // For regular users (contributors), count only their own submissions
       if (!canSeeAllWorkflows(role)) {
-        // For regular users, count only their own submissions
         const { data: timesheets } = await supabase
           .from('timesheets')
           .select('id, hours_worked, hours, work_date, date, resource_id')
@@ -46,9 +44,13 @@ export function NotificationProvider({ children }) {
             pendingItems.push({
               id: `ts-${ts.id}`,
               type: 'timesheet',
+              notification_type: 'action',
               title: 'Timesheet Submitted',
               message: `Your timesheet for ${ts.hours_worked || ts.hours || 0}h is pending approval`,
-              created_at: new Date().toISOString()
+              action_url: '/timesheets',
+              created_at: new Date().toISOString(),
+              is_read: false,
+              is_actioned: false
             });
           });
         }
@@ -57,16 +59,18 @@ export function NotificationProvider({ children }) {
             pendingItems.push({
               id: `exp-${exp.id}`,
               type: 'expense',
+              notification_type: 'action',
               title: 'Expense Submitted',
               message: `Your expense (£${parseFloat(exp.amount || 0).toFixed(2)}) is pending validation`,
-              created_at: new Date().toISOString()
+              action_url: '/expenses',
+              created_at: new Date().toISOString(),
+              is_read: false,
+              is_actioned: false
             });
           });
         }
-        
-        totalPending = pendingItems.length;
       } else {
-        // For PMs/admins, count all submitted items they need to action
+        // For PMs/admins, count ALL submitted items (they can see everything)
         const { data: timesheets } = await supabase
           .from('timesheets')
           .select('id, hours_worked, hours, work_date, date')
@@ -87,7 +91,7 @@ export function NotificationProvider({ children }) {
           .select('id, milestone_id')
           .eq('status', 'Submitted');
 
-        // Build notification-like items for display
+        // Build notification-like items for display - ALL items visible to PM
         if (timesheets) {
           timesheets.forEach(ts => {
             pendingItems.push({
@@ -104,31 +108,26 @@ export function NotificationProvider({ children }) {
           });
         }
         
+        // ALL expenses are visible to PMs (they see the full picture)
         if (expenses) {
           expenses.forEach(exp => {
-            // Check if this expense should be shown based on role
             const isChargeable = exp.chargeable_to_customer !== false;
-            const validatorRole = isChargeable ? 'customer_pm' : 'supplier_pm';
-            
-            // Show to appropriate role (or admin sees all)
-            if (role === 'admin' || role === validatorRole) {
-              pendingItems.push({
-                id: `exp-${exp.id}`,
-                type: 'expense',
-                notification_type: 'action',
-                title: 'Expense Submitted',
-                message: `${exp.resource_name || 'Unknown'} expense (£${parseFloat(exp.amount || 0).toFixed(2)}) pending validation`,
-                action_url: '/expenses',
-                created_at: new Date().toISOString(),
-                is_read: false,
-                is_actioned: false,
-                isChargeable
-              });
-            }
+            pendingItems.push({
+              id: `exp-${exp.id}`,
+              type: 'expense',
+              notification_type: 'action',
+              title: 'Expense Submitted',
+              message: `${exp.resource_name || 'Unknown'} expense (£${parseFloat(exp.amount || 0).toFixed(2)}) pending validation`,
+              action_url: '/expenses',
+              created_at: new Date().toISOString(),
+              is_read: false,
+              is_actioned: false,
+              isChargeable
+            });
           });
         }
 
-        if (deliverables && (role === 'admin' || role === 'customer_pm')) {
+        if (deliverables) {
           deliverables.forEach(del => {
             pendingItems.push({
               id: `del-${del.id}`,
@@ -144,7 +143,7 @@ export function NotificationProvider({ children }) {
           });
         }
 
-        if (certificates && (role === 'admin' || role === 'customer_pm')) {
+        if (certificates) {
           certificates.forEach(cert => {
             pendingItems.push({
               id: `cert-${cert.id}`,
@@ -159,11 +158,9 @@ export function NotificationProvider({ children }) {
             });
           });
         }
-
-        totalPending = pendingItems.length;
       }
 
-      return { count: totalPending, items: pendingItems };
+      return { count: pendingItems.length, items: pendingItems };
     } catch (error) {
       console.error('Error fetching pending workflow count:', error);
       return { count: 0, items: [] };
