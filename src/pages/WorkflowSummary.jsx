@@ -12,6 +12,7 @@ export default function WorkflowSummary() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterAssignee, setFilterAssignee] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -35,7 +36,7 @@ export default function WorkflowSummary() {
       // Get user role
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('id, role, full_name, email')
         .eq('id', user.id)
         .single();
 
@@ -47,18 +48,20 @@ export default function WorkflowSummary() {
       }
 
       setUserRole(profile.role);
-      await fetchWorkflowItems(user.id);
+      setCurrentUserProfile(profile);
+      await fetchWorkflowItems(user.id, profile);
     } catch (error) {
       console.error('Error checking permissions:', error);
       setLoading(false);
     }
   }
 
-  async function fetchWorkflowItems(userId) {
+  async function fetchWorkflowItems(userId, profile) {
     setRefreshing(true);
     try {
       // Use passed userId or fall back to state
       const userIdToUse = userId || currentUserId;
+      const profileToUse = profile || currentUserProfile;
       
       if (!userIdToUse) {
         console.error('No user ID available for fetching workflow items');
@@ -68,27 +71,30 @@ export default function WorkflowSummary() {
         return;
       }
 
-      // Fetch pending action notifications for the current user with related data
+      // Query notifications the same way NotificationContext does - simple query, no JOINs
+      // This avoids any RLS complications with JOIN queries
       const { data, error } = await supabase
         .from('notifications')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            full_name,
-            email,
-            role
-          )
-        `)
-        .eq('user_id', userIdToUse)  // FIX: Add user_id filter to match RLS policy
-        .eq('notification_type', 'action')
-        .eq('is_actioned', false)
+        .select('*')
+        .eq('user_id', userIdToUse)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        throw error;
+      }
+
+      console.log('Raw notifications fetched:', data?.length || 0);
+
+      // Filter client-side for action notifications that are not actioned (matching NotificationContext logic)
+      const actionNotifications = (data || []).filter(
+        n => n.notification_type === 'action' && !n.is_actioned
+      );
+
+      console.log('Action notifications after filter:', actionNotifications.length);
 
       // Enhance data with additional context
-      const enhancedItems = await Promise.all((data || []).map(async (item) => {
+      const enhancedItems = await Promise.all(actionNotifications.map(async (item) => {
         let itemDetails = null;
         let entityName = '';
 
@@ -148,7 +154,9 @@ export default function WorkflowSummary() {
         return {
           ...item,
           itemDetails,
-          entityName
+          entityName,
+          // Add profile info from current user since we know these are their notifications
+          profiles: profileToUse
         };
       }));
 
@@ -252,7 +260,7 @@ export default function WorkflowSummary() {
         </div>
         <button 
           className="btn btn-secondary" 
-          onClick={() => fetchWorkflowItems(currentUserId)}
+          onClick={() => fetchWorkflowItems(currentUserId, currentUserProfile)}
           disabled={refreshing}
         >
           <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
