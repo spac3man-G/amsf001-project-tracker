@@ -14,9 +14,24 @@ export default function WorkflowSummary() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [filterCategory, setFilterCategory] = useState('all');
-  const [filterAssignee, setFilterAssignee] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
+
+  // Define which role should action each category
+  const getTargetRoleForCategory = (category) => {
+    switch (category) {
+      case 'timesheet':
+        return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
+      case 'expense':
+        return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
+      case 'deliverable':
+        return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
+      case 'certificate':
+        return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
+      default:
+        return { role: 'admin', label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' };
+    }
+  };
 
   // Check permissions and fetch data
   useEffect(() => {
@@ -154,9 +169,7 @@ export default function WorkflowSummary() {
         return {
           ...item,
           itemDetails,
-          entityName,
-          // Add profile info from current user since we know these are their notifications
-          profiles: profileToUse
+          entityName
         };
       }));
 
@@ -210,7 +223,6 @@ export default function WorkflowSummary() {
   // Filter items
   const filteredItems = workflowItems.filter(item => {
     if (filterCategory !== 'all' && item.category !== filterCategory) return false;
-    if (filterAssignee !== 'all' && item.profiles?.id !== filterAssignee) return false;
     return true;
   });
 
@@ -221,13 +233,6 @@ export default function WorkflowSummary() {
     acc[cat].push(item);
     return acc;
   }, {});
-
-  // Get unique assignees for filter
-  const uniqueAssignees = [...new Map(
-    workflowItems
-      .filter(item => item.profiles)
-      .map(item => [item.profiles.id, item.profiles])
-  ).values()];
 
   // Summary stats
   const stats = {
@@ -313,17 +318,6 @@ export default function WorkflowSummary() {
             <option value="deliverable">Deliverables</option>
             <option value="certificate">Certificates</option>
           </select>
-
-          <select 
-            value={filterAssignee} 
-            onChange={(e) => setFilterAssignee(e.target.value)}
-            style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
-          >
-            <option value="all">All Assignees</option>
-            {uniqueAssignees.map(a => (
-              <option key={a.id} value={a.id}>{a.full_name || a.email}</option>
-            ))}
-          </select>
         </div>
       </div>
 
@@ -338,6 +332,7 @@ export default function WorkflowSummary() {
         /* Workflow Items by Category */
         Object.entries(groupedByCategory).map(([category, items]) => {
           const colors = getCategoryColor(category);
+          const targetRole = getTargetRoleForCategory(category);
           
           return (
             <div key={category} className="card" style={{ marginBottom: '1.5rem' }}>
@@ -418,13 +413,17 @@ export default function WorkflowSummary() {
                         </td>
                         <td style={{ padding: '0.75rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <User size={14} style={{ color: '#64748b' }} />
-                            <div>
-                              <div style={{ fontSize: '0.9rem' }}>{item.profiles?.full_name || 'Unknown'}</div>
-                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'capitalize' }}>
-                                {item.profiles?.role?.replace('_', ' ') || ''}
-                              </div>
-                            </div>
+                            <User size={14} style={{ color: targetRole.color }} />
+                            <span style={{
+                              padding: '4px 10px',
+                              backgroundColor: targetRole.bg,
+                              color: targetRole.color,
+                              borderRadius: '6px',
+                              fontSize: '0.85rem',
+                              fontWeight: '500'
+                            }}>
+                              {targetRole.label}
+                            </span>
                           </div>
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'center' }}>
@@ -476,7 +475,7 @@ export default function WorkflowSummary() {
             <strong style={{ color: '#dc2626' }}>Urgent (5+ days):</strong> Requires immediate attention
           </div>
           <div>
-            <strong>Assigned To:</strong> Who needs to take action
+            <strong>Assigned To:</strong> The role responsible for this action
           </div>
           <div>
             <strong>Go:</strong> Navigate to the item to take action
