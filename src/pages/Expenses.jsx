@@ -445,7 +445,8 @@ export default function Expenses() {
 
   if (loading) return <div className="loading">Loading expenses...</div>;
 
-  const canAdd = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor';
+  // Allow admin, supplier_pm, customer_pm, and contributor to add expenses
+  const canAdd = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm' || userRole === 'contributor';
 
   return (
     <div className="page-container">
