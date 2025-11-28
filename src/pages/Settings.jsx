@@ -1,183 +1,147 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Settings as SettingsIcon, Save, AlertCircle, CheckCircle, RefreshCw, Lock } from 'lucide-react';
-import { canAccessSettings } from '../utils/permissions';
+import { 
+  Settings as SettingsIcon, User, Shield, Bell, Database,
+  Save, RefreshCw, Trash2, AlertTriangle, CheckCircle, Eye, EyeOff
+} from 'lucide-react';
+import { useTestUsers } from '../contexts/TestUserContext';
+import { useToast } from '../components/Toast';
+import { TablePageSkeleton } from '../components/SkeletonLoader';
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userRole, setUserRole] = useState('viewer');
-  const [hasAccess, setHasAccess] = useState(false);
-  const [project, setProject] = useState(null);
-  const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
-  
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    reference: '',
-    total_budget: '',
-    expenses_budget: '',
-    allocated_days: '',
-    start_date: '',
-    end_date: '',
-    pmo_threshold: '',
-    expenses_notes: ''
+  const [currentUser, setCurrentUser] = useState(null);
+  const [profile, setProfile] = useState({
+    full_name: '',
+    email: '',
+    role: 'viewer'
   });
+  const [project, setProject] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [activeTab, setActiveTab] = useState('profile');
+
+  const toast = useToast();
+  const { showTestUsers, setShowTestUsers } = useTestUsers();
 
   useEffect(() => {
-    fetchInitialData();
+    fetchData();
   }, []);
 
-  async function fetchInitialData() {
+  async function fetchData() {
     try {
-      // Get current user and role
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
+        setCurrentUser(user);
+        
+        const { data: profileData } = await supabase
           .from('profiles')
-          .select('role')
+          .select('*')
           .eq('id', user.id)
           .single();
         
-        if (profile) {
-          setUserRole(profile.role);
-          setHasAccess(canAccessSettings(profile.role));
+        if (profileData) {
+          setUserRole(profileData.role);
+          setProfile({
+            full_name: profileData.full_name || '',
+            email: profileData.email || user.email,
+            role: profileData.role
+          });
         }
       }
 
-      // Get project data
-      const { data: projectData, error } = await supabase
+      const { data: projectData } = await supabase
         .from('projects')
         .select('*')
         .eq('reference', 'AMSF001')
         .single();
-
-      if (error) throw error;
-
+      
       if (projectData) {
         setProject(projectData);
-        setFormData({
-          name: projectData.name || '',
-          reference: projectData.reference || '',
-          total_budget: projectData.total_budget || '',
-          expenses_budget: projectData.expenses_budget || '',
-          allocated_days: projectData.allocated_days || '',
-          start_date: projectData.start_date || '',
-          end_date: projectData.end_date || '',
-          pmo_threshold: projectData.pmo_threshold || '15',
-          expenses_notes: projectData.expenses_notes || ''
-        });
       }
+
+      // Fetch all users for admin
+      const { data: usersData } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('email');
+      
+      setUsers(usersData || []);
+
     } catch (error) {
-      console.error('Error fetching project data:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to load project settings' });
+      console.error('Error fetching settings data:', error);
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleSave(e) {
-    e.preventDefault();
-    
-    if (!hasAccess) {
-      setSaveMessage({ type: 'error', text: 'You do not have permission to save settings' });
-      return;
-    }
-
+  async function handleSaveProfile() {
     setSaving(true);
-    setSaveMessage({ type: '', text: '' });
-
     try {
       const { error } = await supabase
-        .from('projects')
+        .from('profiles')
         .update({
-          name: formData.name,
-          total_budget: parseFloat(formData.total_budget) || 0,
-          expenses_budget: parseFloat(formData.expenses_budget) || 0,
-          allocated_days: parseInt(formData.allocated_days) || 0,
-          start_date: formData.start_date || null,
-          end_date: formData.end_date || null,
-          pmo_threshold: parseFloat(formData.pmo_threshold) || 15,
-          expenses_notes: formData.expenses_notes || null,
-          updated_at: new Date().toISOString()
+          full_name: profile.full_name
         })
-        .eq('id', project.id);
+        .eq('id', currentUser.id);
 
       if (error) throw error;
 
-      setSaveMessage({ type: 'success', text: 'Settings saved successfully!' });
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSaveMessage({ type: '', text: '' }), 3000);
+      toast.success('Profile updated successfully!');
     } catch (error) {
-      console.error('Error saving settings:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to save settings: ' + error.message });
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile', error.message);
     } finally {
       setSaving(false);
     }
   }
 
-  function handleChange(field, value) {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }
+  async function handleUpdateUserRole(userId, newRole) {
+    if (!confirm(`Change this user's role to ${newRole}?`)) return;
 
-  function handleReset() {
-    if (project) {
-      setFormData({
-        name: project.name || '',
-        reference: project.reference || '',
-        total_budget: project.total_budget || '',
-        expenses_budget: project.expenses_budget || '',
-        allocated_days: project.allocated_days || '',
-        start_date: project.start_date || '',
-        end_date: project.end_date || '',
-        pmo_threshold: project.pmo_threshold || '15',
-        expenses_notes: project.expenses_notes || ''
-      });
-      setSaveMessage({ type: '', text: '' });
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      await fetchData();
+      toast.success('User role updated!');
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      toast.error('Failed to update role', error.message);
     }
   }
 
-  // Calculate derived values
-  const pmoAllocation = formData.total_budget && formData.pmo_threshold 
-    ? (parseFloat(formData.total_budget) * parseFloat(formData.pmo_threshold) / 100).toFixed(2)
-    : '0.00';
-  
-  const nonPmoAllocation = formData.total_budget && formData.pmo_threshold
-    ? (parseFloat(formData.total_budget) * (100 - parseFloat(formData.pmo_threshold)) / 100).toFixed(2)
-    : '0.00';
-
-  if (loading) {
-    return <div className="loading">Loading settings...</div>;
+  async function handleResetTestData() {
+    if (!confirm('This will reset all test data. Are you sure?')) return;
+    
+    toast.info('Test data reset is not yet implemented.');
   }
 
-  // Access denied view
-  if (!hasAccess) {
-    return (
-      <div className="page-container">
-        <div className="page-header">
-          <div className="page-title">
-            <SettingsIcon size={28} />
-            <div>
-              <h1>Project Settings</h1>
-              <p>Configure project parameters and budgets</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <Lock size={48} style={{ color: '#9ca3af', marginBottom: '1rem' }} />
-          <h3 style={{ color: '#6b7280', marginBottom: '0.5rem' }}>Access Restricted</h3>
-          <p style={{ color: '#9ca3af' }}>
-            Only Supplier PM and Admin users can access project settings.
-          </p>
-          <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '1rem' }}>
-            Your current role: <strong style={{ textTransform: 'capitalize' }}>{userRole.replace('_', ' ')}</strong>
-          </p>
-        </div>
-      </div>
-    );
+  function getRoleColor(role) {
+    switch (role) {
+      case 'admin': return '#ef4444';
+      case 'project_manager': return '#8b5cf6';
+      case 'team_member': return '#3b82f6';
+      default: return '#64748b';
+    }
   }
+
+  function getRoleLabel(role) {
+    switch (role) {
+      case 'admin': return 'Admin';
+      case 'project_manager': return 'Project Manager';
+      case 'team_member': return 'Team Member';
+      default: return 'Viewer';
+    }
+  }
+
+  if (loading) return <TablePageSkeleton />;
 
   return (
     <div className="page-container">
@@ -185,235 +149,381 @@ export default function Settings() {
         <div className="page-title">
           <SettingsIcon size={28} />
           <div>
-            <h1>Project Settings</h1>
-            <p>Configure project parameters and budgets</p>
+            <h1>Settings</h1>
+            <p>Manage your account and application settings</p>
           </div>
         </div>
       </div>
 
-      {/* Save Message */}
-      {saveMessage.text && (
-        <div 
-          className="card" 
-          style={{ 
-            marginBottom: '1.5rem',
-            padding: '1rem',
-            backgroundColor: saveMessage.type === 'success' ? '#f0fdf4' : '#fef2f2',
-            borderLeft: `4px solid ${saveMessage.type === 'success' ? '#22c55e' : '#ef4444'}`,
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '2px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+        <button 
+          onClick={() => setActiveTab('profile')}
+          style={{
+            padding: '0.75rem 1.5rem',
+            border: 'none',
+            backgroundColor: activeTab === 'profile' ? 'var(--primary)' : 'transparent',
+            color: activeTab === 'profile' ? 'white' : '#64748b',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.75rem'
+            gap: '0.5rem',
+            fontWeight: '500'
           }}
         >
-          {saveMessage.type === 'success' ? (
-            <CheckCircle size={20} style={{ color: '#22c55e' }} />
-          ) : (
-            <AlertCircle size={20} style={{ color: '#ef4444' }} />
-          )}
-          <span style={{ color: saveMessage.type === 'success' ? '#166534' : '#dc2626' }}>
-            {saveMessage.text}
-          </span>
-        </div>
-      )}
+          <User size={18} /> Profile
+        </button>
+        <button 
+          onClick={() => setActiveTab('preferences')}
+          style={{
+            padding: '0.75rem 1.5rem',
+            border: 'none',
+            backgroundColor: activeTab === 'preferences' ? 'var(--primary)' : 'transparent',
+            color: activeTab === 'preferences' ? 'white' : '#64748b',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontWeight: '500'
+          }}
+        >
+          <Bell size={18} /> Preferences
+        </button>
+        {userRole === 'admin' && (
+          <>
+            <button 
+              onClick={() => setActiveTab('users')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                border: 'none',
+                backgroundColor: activeTab === 'users' ? 'var(--primary)' : 'transparent',
+                color: activeTab === 'users' ? 'white' : '#64748b',
+                borderRadius: '8px 8px 0 0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontWeight: '500'
+              }}
+            >
+              <Shield size={18} /> User Management
+            </button>
+            <button 
+              onClick={() => setActiveTab('data')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                border: 'none',
+                backgroundColor: activeTab === 'data' ? 'var(--primary)' : 'transparent',
+                color: activeTab === 'data' ? 'white' : '#64748b',
+                borderRadius: '8px 8px 0 0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontWeight: '500'
+              }}
+            >
+              <Database size={18} /> Data Management
+            </button>
+          </>
+        )}
+      </div>
 
-      <form onSubmit={handleSave}>
-        {/* Project Information */}
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <SettingsIcon size={20} />
-            Project Information
-          </h3>
+      {/* Profile Tab */}
+      {activeTab === 'profile' && (
+        <div className="card">
+          <h3 style={{ marginBottom: '1.5rem' }}>Your Profile</h3>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gap: '1rem', maxWidth: '500px' }}>
             <div>
-              <label className="form-label">Project Name</label>
+              <label className="form-label">Full Name</label>
               <input 
-                type="text"
+                type="text" 
                 className="form-input" 
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                placeholder="Enter project name"
+                value={profile.full_name}
+                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                placeholder="Enter your full name"
               />
             </div>
+            
             <div>
-              <label className="form-label">Project Reference</label>
+              <label className="form-label">Email</label>
               <input 
-                type="text"
+                type="email" 
                 className="form-input" 
-                value={formData.reference}
+                value={profile.email}
                 disabled
                 style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
               />
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Reference cannot be changed</span>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Email cannot be changed here</span>
             </div>
+            
             <div>
-              <label className="form-label">Start Date</label>
-              <input 
-                type="date"
-                className="form-input" 
-                value={formData.start_date}
-                onChange={(e) => handleChange('start_date', e.target.value)}
-              />
+              <label className="form-label">Role</label>
+              <div style={{ 
+                padding: '0.75rem 1rem', 
+                backgroundColor: `${getRoleColor(profile.role)}15`,
+                border: `1px solid ${getRoleColor(profile.role)}`,
+                borderRadius: '8px',
+                color: getRoleColor(profile.role),
+                fontWeight: '500'
+              }}>
+                {getRoleLabel(profile.role)}
+              </div>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Role is assigned by administrators</span>
             </div>
-            <div>
-              <label className="form-label">End Date</label>
-              <input 
-                type="date"
-                className="form-input" 
-                value={formData.end_date}
-                onChange={(e) => handleChange('end_date', e.target.value)}
-              />
+            
+            <button className="btn btn-primary" onClick={handleSaveProfile} disabled={saving} style={{ marginTop: '0.5rem' }}>
+              <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Preferences Tab */}
+      {activeTab === 'preferences' && (
+        <div className="card">
+          <h3 style={{ marginBottom: '1.5rem' }}>Display Preferences</h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Test Data Toggle */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              padding: '1rem',
+              backgroundColor: '#f8fafc',
+              borderRadius: '8px'
+            }}>
+              <div>
+                <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>Show Test Data</div>
+                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  Display test users, timesheets, and expenses in the application
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTestUsers(!showTestUsers);
+                  toast.info(`Test data ${!showTestUsers ? 'shown' : 'hidden'}`);
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: showTestUsers ? '#10b981' : '#e2e8f0',
+                  color: showTestUsers ? 'white' : '#64748b',
+                  border: 'none',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {showTestUsers ? <Eye size={16} /> : <EyeOff size={16} />}
+                {showTestUsers ? 'Visible' : 'Hidden'}
+              </button>
+            </div>
+            
+            {/* Future preferences can go here */}
+            <div style={{ 
+              padding: '1rem',
+              backgroundColor: '#eff6ff',
+              borderRadius: '8px',
+              border: '1px solid #bfdbfe'
+            }}>
+              <div style={{ fontWeight: '500', color: '#1e40af', marginBottom: '0.25rem' }}>
+                More preferences coming soon
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#3b82f6' }}>
+                Notification settings, theme options, and more will be available in future updates.
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Budget Settings */}
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>💰 Budget Settings</h3>
+      {/* User Management Tab (Admin Only) */}
+      {activeTab === 'users' && userRole === 'admin' && (
+        <div className="card">
+          <h3 style={{ marginBottom: '1.5rem' }}>User Management</h3>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            <div>
-              <label className="form-label">Total Project Budget (£)</label>
-              <input 
-                type="number"
-                step="0.01"
-                min="0"
-                className="form-input" 
-                value={formData.total_budget}
-                onChange={(e) => handleChange('total_budget', e.target.value)}
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <label className="form-label">Expenses Budget (£)</label>
-              <input 
-                type="number"
-                step="0.01"
-                min="0"
-                className="form-input" 
-                value={formData.expenses_budget}
-                onChange={(e) => handleChange('expenses_budget', e.target.value)}
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <label className="form-label">Allocated Days</label>
-              <input 
-                type="number"
-                min="0"
-                className="form-input" 
-                value={formData.allocated_days}
-                onChange={(e) => handleChange('allocated_days', e.target.value)}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="form-label">PMO Threshold (%)</label>
-              <input 
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                className="form-input" 
-                value={formData.pmo_threshold}
-                onChange={(e) => handleChange('pmo_threshold', e.target.value)}
-                placeholder="15"
-              />
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                Percentage of budget allocated to PMO activities
-              </span>
-            </div>
-          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Current Role</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(user => (
+                <tr key={user.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ 
+                        width: '36px', 
+                        height: '36px', 
+                        borderRadius: '50%', 
+                        backgroundColor: getRoleColor(user.role),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: '600'
+                      }}>
+                        {(user.full_name || user.email || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '500' }}>{user.full_name || 'No name set'}</div>
+                        {user.id === currentUser?.id && (
+                          <span style={{ fontSize: '0.75rem', color: '#10b981' }}>(You)</span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ color: '#64748b' }}>{user.email}</td>
+                  <td>
+                    <span style={{ 
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '9999px',
+                      backgroundColor: `${getRoleColor(user.role)}15`,
+                      color: getRoleColor(user.role),
+                      fontSize: '0.85rem',
+                      fontWeight: '500'
+                    }}>
+                      {getRoleLabel(user.role)}
+                    </span>
+                  </td>
+                  <td>
+                    {user.id !== currentUser?.id ? (
+                      <select 
+                        value={user.role}
+                        onChange={(e) => handleUpdateUserRole(user.id, e.target.value)}
+                        style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                      >
+                        <option value="viewer">Viewer</option>
+                        <option value="team_member">Team Member</option>
+                        <option value="project_manager">Project Manager</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>Cannot change own role</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-          {/* Budget Breakdown Preview */}
-          {formData.total_budget && (
-            <div style={{ 
-              marginTop: '1.5rem', 
-              padding: '1rem', 
-              backgroundColor: '#f8fafc', 
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0'
-            }}>
-              <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#64748b' }}>Budget Breakdown Preview</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+      {/* Data Management Tab (Admin Only) */}
+      {activeTab === 'data' && userRole === 'admin' && (
+        <div className="card">
+          <h3 style={{ marginBottom: '1.5rem' }}>Data Management</h3>
+          
+          {/* Project Info */}
+          {project && (
+            <div style={{ marginBottom: '2rem' }}>
+              <h4 style={{ marginBottom: '1rem' }}>Current Project</h4>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(3, 1fr)', 
+                gap: '1rem',
+                padding: '1rem',
+                backgroundColor: '#f8fafc',
+                borderRadius: '8px'
+              }}>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Total Budget</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e293b' }}>
-                    £{parseFloat(formData.total_budget || 0).toLocaleString()}
-                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Reference</div>
+                  <div style={{ fontWeight: '600' }}>{project.reference}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>PMO Allocation ({formData.pmo_threshold}%)</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#7c3aed' }}>
-                    £{parseFloat(pmoAllocation).toLocaleString()}
-                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Name</div>
+                  <div style={{ fontWeight: '600' }}>{project.name}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Non-PMO Allocation ({100 - parseFloat(formData.pmo_threshold || 0)}%)</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#3b82f6' }}>
-                    £{parseFloat(nonPmoAllocation).toLocaleString()}
-                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Budget</div>
+                  <div style={{ fontWeight: '600' }}>£{(project.budget || 0).toLocaleString('en-GB')}</div>
                 </div>
               </div>
             </div>
           )}
-        </div>
-
-        {/* Notes */}
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>📝 Notes</h3>
-          <div>
-            <label className="form-label">Expenses Notes</label>
-            <textarea 
-              className="form-input"
-              rows={3}
-              value={formData.expenses_notes}
-              onChange={(e) => handleChange('expenses_notes', e.target.value)}
-              placeholder="Add any notes about expenses policy, approval requirements, etc."
-            />
+          
+          {/* Danger Zone */}
+          <div style={{ 
+            padding: '1.5rem',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <AlertTriangle size={20} style={{ color: '#dc2626' }} />
+              <h4 style={{ margin: 0, color: '#dc2626' }}>Danger Zone</h4>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontWeight: '500', color: '#991b1b' }}>Reset Test Data</div>
+                <div style={{ fontSize: '0.85rem', color: '#dc2626' }}>
+                  This will remove all test timesheets, expenses, and test user data.
+                </div>
+              </div>
+              <button 
+                className="btn" 
+                onClick={handleResetTestData}
+                style={{ 
+                  backgroundColor: '#ef4444', 
+                  color: 'white',
+                  border: 'none'
+                }}
+              >
+                <RefreshCw size={16} /> Reset Test Data
+              </button>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Action Buttons */}
-        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button 
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleReset}
-            disabled={saving}
-          >
-            <RefreshCw size={16} />
-            Reset Changes
-          </button>
-          <button 
-            type="submit"
-            className="btn btn-primary"
-            disabled={saving}
-          >
-            {saving ? (
-              <>
-                <RefreshCw size={16} className="spinning" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                Save Settings
-              </>
-            )}
-          </button>
-        </div>
-      </form>
-
-      {/* Info Box */}
-      <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#eff6ff', borderLeft: '4px solid #3b82f6' }}>
-        <h4 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>ℹ️ About Project Settings</h4>
-        <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#1e40af', fontSize: '0.9rem' }}>
-          <li><strong>Total Budget:</strong> The overall contract value for the project</li>
-          <li><strong>Expenses Budget:</strong> Allocated budget specifically for travel, accommodation, and sustenance</li>
-          <li><strong>PMO Threshold:</strong> Percentage of budget allocated to Project Management Office activities</li>
-          <li><strong>Allocated Days:</strong> Total number of resource days budgeted for the project</li>
-          <li>Changes are saved to the database and will affect budget tracking across all pages</li>
+      {/* Role Info */}
+      <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e' }}>
+        <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>Your Permissions</h4>
+        <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
+          {userRole === 'admin' && (
+            <>
+              <li>Full access to all features and data</li>
+              <li>Can manage user roles and permissions</li>
+              <li>Can approve/reject all timesheets and expenses</li>
+              <li>Can access data management tools</li>
+            </>
+          )}
+          {userRole === 'project_manager' && (
+            <>
+              <li>Can view and manage all project data</li>
+              <li>Can approve/reject timesheets and expenses</li>
+              <li>Can add timesheets/expenses for any resource</li>
+              <li>Cannot change user roles</li>
+            </>
+          )}
+          {userRole === 'team_member' && (
+            <>
+              <li>Can submit your own timesheets and expenses</li>
+              <li>Can edit your own draft entries</li>
+              <li>Cannot approve/reject submissions</li>
+              <li>View access to project reports</li>
+            </>
+          )}
+          {userRole === 'viewer' && (
+            <>
+              <li>Read-only access to project data</li>
+              <li>Cannot create or edit entries</li>
+              <li>Contact an admin to upgrade your role</li>
+            </>
+          )}
         </ul>
       </div>
     </div>
