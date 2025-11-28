@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   TrendingUp, RefreshCw, CheckCircle, AlertCircle, 
-  AlertTriangle, Clock, Edit2
+  AlertTriangle, Clock, Edit2, Plus, Trash2, X, Save
 } from 'lucide-react';
+import { canManageKPIs } from '../utils/permissions';
 
 export default function KPIs() {
   const [kpis, setKpis] = useState([]);
@@ -12,6 +13,24 @@ export default function KPIs() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('viewer');
   const [projectId, setProjectId] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Form state for new KPI
+  const [newKPI, setNewKPI] = useState({
+    name: '',
+    category: 'Time Performance',
+    description: '',
+    target: 90,
+    measurement_method: '',
+    frequency: 'Monthly',
+    data_source: '',
+    calculation: '',
+    remediation: ''
+  });
+
+  const categories = ['Time Performance', 'Quality of Collaboration', 'Delivery Performance'];
+  const frequencies = ['Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Per Deliverable'];
 
   useEffect(() => {
     fetchInitialData();
@@ -54,7 +73,6 @@ export default function KPIs() {
       const { data, error } = await supabase
         .from('kpis')
         .select('*')
-        .eq('project_id', pid)
         .order('kpi_ref');
 
       if (error) throw error;
@@ -81,6 +99,117 @@ export default function KPIs() {
 
     } catch (error) {
       console.error('Error fetching KPIs:', error);
+    }
+  }
+
+  // Generate next KPI reference number
+  function getNextKPIRef() {
+    if (kpis.length === 0) return 'KPI01';
+    
+    const numbers = kpis
+      .map(k => {
+        const match = k.kpi_ref?.match(/KPI(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter(n => !isNaN(n));
+    
+    const maxNum = Math.max(...numbers, 0);
+    return `KPI${String(maxNum + 1).padStart(2, '0')}`;
+  }
+
+  async function handleAddKPI() {
+    if (!newKPI.name.trim()) {
+      alert('Please enter a KPI name');
+      return;
+    }
+
+    if (!newKPI.description.trim()) {
+      alert('Please enter a description');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const kpiRef = getNextKPIRef();
+      
+      const { error } = await supabase
+        .from('kpis')
+        .insert([{
+          project_id: projectId,
+          kpi_ref: kpiRef,
+          name: newKPI.name.trim(),
+          category: newKPI.category,
+          description: newKPI.description.trim(),
+          target: parseInt(newKPI.target) || 90,
+          measurement_method: newKPI.measurement_method.trim() || null,
+          frequency: newKPI.frequency,
+          data_source: newKPI.data_source.trim() || null,
+          calculation: newKPI.calculation.trim() || null,
+          remediation: newKPI.remediation.trim() || null,
+          current_value: 0,
+          unit: 'percent'
+        }]);
+
+      if (error) throw error;
+
+      await fetchKPIs();
+      setShowAddForm(false);
+      setNewKPI({
+        name: '',
+        category: 'Time Performance',
+        description: '',
+        target: 90,
+        measurement_method: '',
+        frequency: 'Monthly',
+        data_source: '',
+        calculation: '',
+        remediation: ''
+      });
+      alert(`KPI ${kpiRef} created successfully!`);
+    } catch (error) {
+      console.error('Error adding KPI:', error);
+      alert('Failed to add KPI: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteKPI(kpi) {
+    // Check if KPI has any assessments
+    const assessments = assessmentCounts[kpi.id];
+    
+    let confirmMessage = `Are you sure you want to delete KPI "${kpi.kpi_ref} - ${kpi.name}"?`;
+    
+    if (assessments && assessments.total > 0) {
+      confirmMessage += `\n\n⚠️ WARNING: This KPI has ${assessments.total} assessment(s) linked to deliverables. Deleting it will also remove these assessments.`;
+    }
+    
+    if (!confirm(confirmMessage)) return;
+
+    try {
+      // Delete linked assessments first (if any)
+      if (assessments && assessments.total > 0) {
+        const { error: assessmentError } = await supabase
+          .from('deliverable_kpi_assessments')
+          .delete()
+          .eq('kpi_id', kpi.id);
+        
+        if (assessmentError) throw assessmentError;
+      }
+
+      // Delete the KPI
+      const { error } = await supabase
+        .from('kpis')
+        .delete()
+        .eq('id', kpi.id);
+
+      if (error) throw error;
+
+      await fetchKPIs();
+      alert(`KPI ${kpi.kpi_ref} deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting KPI:', error);
+      alert('Failed to delete KPI: ' + error.message);
     }
   }
 
@@ -172,6 +301,7 @@ export default function KPIs() {
   }).length;
 
   const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
+  const canManage = canManageKPIs(userRole);
 
   if (loading) return <div className="loading">Loading KPIs...</div>;
 
@@ -185,12 +315,22 @@ export default function KPIs() {
             <p>Track project performance against SOW targets</p>
           </div>
         </div>
-        <button 
-          className="btn btn-primary" 
-          onClick={() => fetchKPIs()}
-        >
-          <RefreshCw size={18} /> Refresh Metrics
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {canManage && !showAddForm && (
+            <button 
+              className="btn btn-primary" 
+              onClick={() => setShowAddForm(true)}
+            >
+              <Plus size={18} /> Add KPI
+            </button>
+          )}
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => fetchKPIs()}
+          >
+            <RefreshCw size={18} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -213,6 +353,151 @@ export default function KPIs() {
         </div>
       </div>
 
+      {/* Add KPI Form */}
+      {showAddForm && canManage && (
+        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0 }}>Add New KPI</h3>
+            <span style={{ 
+              padding: '0.25rem 0.75rem', 
+              backgroundColor: '#f1f5f9', 
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+              fontWeight: '600'
+            }}>
+              {getNextKPIRef()}
+            </span>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">KPI Name *</label>
+              <input 
+                type="text"
+                className="form-input"
+                placeholder="e.g., First Time Quality of Deliverables"
+                value={newKPI.name}
+                onChange={(e) => setNewKPI({ ...newKPI, name: e.target.value })}
+              />
+            </div>
+            
+            <div>
+              <label className="form-label">Category *</label>
+              <select 
+                className="form-input"
+                value={newKPI.category}
+                onChange={(e) => setNewKPI({ ...newKPI, category: e.target.value })}
+              >
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="form-label">Target (%)</label>
+              <input 
+                type="number"
+                min="0"
+                max="100"
+                className="form-input"
+                value={newKPI.target}
+                onChange={(e) => setNewKPI({ ...newKPI, target: e.target.value })}
+              />
+            </div>
+            
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Description *</label>
+              <textarea 
+                className="form-input"
+                rows={2}
+                placeholder="Describe what this KPI measures..."
+                value={newKPI.description}
+                onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })}
+              />
+            </div>
+            
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Measurement Method</label>
+              <textarea 
+                className="form-input"
+                rows={2}
+                placeholder="How will this KPI be measured?"
+                value={newKPI.measurement_method}
+                onChange={(e) => setNewKPI({ ...newKPI, measurement_method: e.target.value })}
+              />
+            </div>
+            
+            <div>
+              <label className="form-label">Frequency</label>
+              <select 
+                className="form-input"
+                value={newKPI.frequency}
+                onChange={(e) => setNewKPI({ ...newKPI, frequency: e.target.value })}
+              >
+                {frequencies.map(freq => (
+                  <option key={freq} value={freq}>{freq}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="form-label">Data Source</label>
+              <input 
+                type="text"
+                className="form-input"
+                placeholder="e.g., Deliverable Review Records"
+                value={newKPI.data_source}
+                onChange={(e) => setNewKPI({ ...newKPI, data_source: e.target.value })}
+              />
+            </div>
+            
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Calculation Formula</label>
+              <input 
+                type="text"
+                className="form-input"
+                placeholder="e.g., Number approved at first review ÷ total reviewed"
+                value={newKPI.calculation}
+                onChange={(e) => setNewKPI({ ...newKPI, calculation: e.target.value })}
+              />
+            </div>
+            
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Remediation Plan</label>
+              <textarea 
+                className="form-input"
+                rows={2}
+                placeholder="What actions should be taken if target is not met?"
+                value={newKPI.remediation}
+                onChange={(e) => setNewKPI({ ...newKPI, remediation: e.target.value })}
+              />
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+            <button 
+              className="btn btn-primary" 
+              onClick={handleAddKPI}
+              disabled={saving}
+            >
+              {saving ? (
+                <><RefreshCw size={16} className="spinning" /> Saving...</>
+              ) : (
+                <><Save size={16} /> Save KPI</>
+              )}
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setShowAddForm(false)}
+              disabled={saving}
+            >
+              <X size={16} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* KPIs Table */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginBottom: '1rem' }}>Key Performance Indicators</h3>
@@ -230,95 +515,105 @@ export default function KPIs() {
             </tr>
           </thead>
           <tbody>
-            {kpis.map(kpi => {
-              const status = getKPIStatus(kpi);
-              const catColor = getCategoryColor(kpi.category);
-              const assessments = assessmentCounts[kpi.id];
-              const StatusIcon = status.icon;
+            {kpis.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
+                  No KPIs defined yet. {canManage && 'Click "Add KPI" to create one.'}
+                </td>
+              </tr>
+            ) : (
+              kpis.map(kpi => {
+                const status = getKPIStatus(kpi);
+                const catColor = getCategoryColor(kpi.category);
+                const assessments = assessmentCounts[kpi.id];
+                const StatusIcon = status.icon;
 
-              return (
-                <tr key={kpi.id}>
-                  <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{kpi.kpi_ref}</td>
-                  <td>
-                    <Link 
-                      to={`/kpis/${kpi.id}`}
-                      style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}
-                    >
-                      {kpi.name}
-                    </Link>
-                  </td>
-                  <td>
-                    <span style={{
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '4px',
-                      fontSize: '0.8rem',
-                      backgroundColor: catColor.bg,
-                      color: catColor.color
-                    }}>
-                      {kpi.category}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>{kpi.target}%</td>
-                  <td style={{ 
-                    textAlign: 'center', 
-                    fontWeight: '600',
-                    color: status.color
-                  }}>
-                    {assessments ? Math.round((assessments.met / assessments.total) * 100) : 0}%
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    {assessments ? (
-                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                        {assessments.met}/{assessments.total}
-                        <span style={{ 
-                          marginLeft: '0.25rem',
-                          color: assessments.notMet > 0 ? '#ef4444' : '#10b981'
-                        }}>
-                          ({assessments.notMet > 0 ? `${assessments.notMet} failed` : 'all passed'})
-                        </span>
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>None yet</span>
-                    )}
-                  </td>
-                  <td>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '4px',
-                      fontSize: '0.85rem',
-                      backgroundColor: status.bg,
-                      color: status.color
-                    }}>
-                      <StatusIcon size={14} />
-                      {status.label}
-                    </span>
-                  </td>
-                  <td>
-                    {canEdit && (
+                return (
+                  <tr key={kpi.id}>
+                    <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{kpi.kpi_ref}</td>
+                    <td>
                       <Link 
                         to={`/kpis/${kpi.id}`}
-                        style={{
-                          padding: '0.5rem',
-                          backgroundColor: '#f1f5f9',
-                          color: '#374151',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center'
-                        }}
-                        title="View/Edit"
+                        style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}
                       >
-                        <Edit2 size={16} />
+                        {kpi.name}
                       </Link>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+                    </td>
+                    <td>
+                      <span style={{
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem',
+                        backgroundColor: catColor.bg,
+                        color: catColor.color
+                      }}>
+                        {kpi.category}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>{kpi.target}%</td>
+                    <td style={{ 
+                      textAlign: 'center', 
+                      fontWeight: '600',
+                      color: status.color
+                    }}>
+                      {assessments ? Math.round((assessments.met / assessments.total) * 100) : 0}%
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {assessments ? (
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                          {assessments.met}/{assessments.total}
+                          <span style={{ 
+                            marginLeft: '0.25rem',
+                            color: assessments.notMet > 0 ? '#ef4444' : '#10b981'
+                          }}>
+                            ({assessments.notMet > 0 ? `${assessments.notMet} failed` : 'all passed'})
+                          </span>
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>None yet</span>
+                      )}
+                    </td>
+                    <td>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        backgroundColor: status.bg,
+                        color: status.color
+                      }}>
+                        <StatusIcon size={14} />
+                        {status.label}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        {canEdit && (
+                          <Link 
+                            to={`/kpis/${kpi.id}`}
+                            className="btn-icon"
+                            title="View/Edit"
+                          >
+                            <Edit2 size={16} />
+                          </Link>
+                        )}
+                        {canManage && (
+                          <button 
+                            className="btn-icon btn-danger"
+                            onClick={() => handleDeleteKPI(kpi)}
+                            title="Delete KPI"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -458,6 +753,9 @@ export default function KPIs() {
           <li><strong>On Track</strong> - Within 80% of target</li>
           <li><strong>At Risk</strong> - Between 60-80% of target</li>
           <li><strong>Critical</strong> - Below 60% of target (only for KPIs that have been assessed)</li>
+          {canManage && (
+            <li><strong>Management:</strong> As Supplier PM or Admin, you can add new KPIs and delete existing ones</li>
+          )}
         </ul>
       </div>
     </div>
