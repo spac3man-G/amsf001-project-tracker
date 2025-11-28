@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Handshake } from 'lucide-react';
 
 export default function Resources() {
   const [resources, setResources] = useState([]);
@@ -10,6 +10,7 @@ export default function Resources() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [showAddForm, setShowAddForm] = useState(false);
+  const [filterType, setFilterType] = useState('all');
   const [newResource, setNewResource] = useState({
     resource_ref: '',
     name: '',
@@ -19,8 +20,14 @@ export default function Resources() {
     daily_rate: '',
     discount_percent: 0,
     days_allocated: '',
-    days_used: 0
+    days_used: 0,
+    resource_type: 'internal'
   });
+
+  // Check if user can see and manage resource types
+  const canManageResourceType = () => {
+    return ['admin', 'supplier_pm'].includes(userRole);
+  };
 
   useEffect(() => {
     fetchResources();
@@ -50,7 +57,6 @@ export default function Resources() {
       setResources(data || []);
 
       // Fetch timesheets to calculate actual hours worked per resource
-      // Only count: Approved OR (Submitted AND not previously rejected)
       const { data: timesheets } = await supabase
         .from('timesheets')
         .select('resource_id, hours_worked, hours, status, was_rejected');
@@ -59,7 +65,6 @@ export default function Resources() {
       const hoursByResource = {};
       if (timesheets) {
         timesheets.forEach(ts => {
-          // Only count if: Approved OR (Submitted AND not previously rejected)
           const countsTowardsCost = ts.status === 'Approved' || 
             (ts.status === 'Submitted' && !ts.was_rejected);
           
@@ -88,7 +93,8 @@ export default function Resources() {
       daily_rate: resource.daily_rate,
       discount_percent: resource.discount_percent,
       days_allocated: resource.days_allocated,
-      days_used: resource.days_used
+      days_used: resource.days_used,
+      resource_type: resource.resource_type || 'internal'
     });
   }
 
@@ -158,7 +164,8 @@ export default function Resources() {
         daily_rate: '',
         discount_percent: 0,
         days_allocated: '',
-        days_used: 0
+        days_used: 0,
+        resource_type: 'internal'
       });
       alert('Resource added successfully!');
     } catch (error) {
@@ -186,6 +193,25 @@ export default function Resources() {
     }
   }
 
+  // Quick toggle resource type
+  async function handleToggleResourceType(resource) {
+    const newType = resource.resource_type === 'third_party' ? 'internal' : 'third_party';
+    
+    try {
+      const { error } = await supabase
+        .from('resources')
+        .update({ resource_type: newType })
+        .eq('id', resource.id);
+
+      if (error) throw error;
+      
+      await fetchResources();
+    } catch (error) {
+      console.error('Error updating resource type:', error);
+      alert('Failed to update resource type');
+    }
+  }
+
   const getSfiaColor = (level) => {
     switch(level) {
       case 'L6': return 'badge-warning';
@@ -196,19 +222,35 @@ export default function Resources() {
     }
   };
 
-  // Calculate totals
-  const totalBudget = resources.reduce((sum, r) => {
+  const getResourceTypeStyle = (type) => {
+    if (type === 'third_party') {
+      return { bg: '#fef3c7', color: '#92400e', icon: Handshake, label: 'Third-Party Partner' };
+    }
+    return { bg: '#dbeafe', color: '#1e40af', icon: Building2, label: 'Internal Resource' };
+  };
+
+  // Filter resources
+  const filteredResources = resources.filter(r => {
+    if (filterType === 'all') return true;
+    return (r.resource_type || 'internal') === filterType;
+  });
+
+  // Calculate totals (from filtered resources)
+  const totalBudget = filteredResources.reduce((sum, r) => {
     return sum + ((r.daily_rate || 0) * (r.days_allocated || 0));
   }, 0);
 
-  const totalDaysAllocated = resources.reduce((sum, r) => sum + (r.days_allocated || 0), 0);
+  const totalDaysAllocated = filteredResources.reduce((sum, r) => sum + (r.days_allocated || 0), 0);
   
-  // Calculate days used from actual timesheets (hours / 8 = days)
-  const totalHoursWorked = Object.values(timesheetHours).reduce((sum, hours) => sum + hours, 0);
+  // Calculate days used from actual timesheets
+  const totalHoursWorked = filteredResources.reduce((sum, r) => sum + (timesheetHours[r.id] || 0), 0);
   const totalDaysUsed = totalHoursWorked / 8;
   
-  // Calculate overall utilization
   const overallUtilization = totalDaysAllocated > 0 ? Math.round((totalDaysUsed / totalDaysAllocated) * 100) : 0;
+
+  // Count by type
+  const internalCount = resources.filter(r => (r.resource_type || 'internal') === 'internal').length;
+  const thirdPartyCount = resources.filter(r => r.resource_type === 'third_party').length;
 
   if (loading) {
     return (
@@ -229,8 +271,13 @@ export default function Resources() {
     <div>
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card">
-          <div className="stat-value">{resources.length}</div>
+          <div className="stat-value">{filteredResources.length}</div>
           <div className="stat-label">Team Members</div>
+          {canManageResourceType() && (
+            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+              {internalCount} internal, {thirdPartyCount} third-party
+            </div>
+          )}
         </div>
         <div className="stat-card">
           <div className="stat-value">£{totalBudget.toLocaleString()}</div>
@@ -249,7 +296,26 @@ export default function Resources() {
 
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Team Resources</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <h2 className="card-title">Team Resources</h2>
+            {/* Filter by type - only visible to admin/supplier_pm */}
+            {canManageResourceType() && (
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                style={{ 
+                  padding: '0.5rem', 
+                  borderRadius: '6px', 
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.875rem'
+                }}
+              >
+                <option value="all">All Resources ({resources.length})</option>
+                <option value="internal">Internal Only ({internalCount})</option>
+                <option value="third_party">Third-Party Only ({thirdPartyCount})</option>
+              </select>
+            )}
+          </div>
           {userRole === 'admin' && (
             <button 
               className="btn btn-primary"
@@ -321,6 +387,15 @@ export default function Resources() {
                 value={newResource.days_allocated}
                 onChange={(e) => setNewResource({...newResource, days_allocated: e.target.value})}
               />
+              {/* Resource Type selector */}
+              <select
+                className="input-field"
+                value={newResource.resource_type}
+                onChange={(e) => setNewResource({...newResource, resource_type: e.target.value})}
+              >
+                <option value="internal">Internal Supplier Resource</option>
+                <option value="third_party">Third-Party Partner</option>
+              </select>
             </div>
             <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
               <button className="btn btn-primary" onClick={handleAdd}>
@@ -338,22 +413,25 @@ export default function Resources() {
             <thead>
               <tr>
                 <th>Name</th>
+                {canManageResourceType() && <th>Type</th>}
                 <th>Role</th>
                 <th>SFIA Level</th>
                 <th>Daily Rate</th>
                 <th>Days</th>
                 <th>Utilization</th>
                 <th>Total Cost</th>
-                {userRole === 'admin' && <th>Actions</th>}
+                {(userRole === 'admin' || userRole === 'supplier_pm') && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {resources.map(resource => {
+              {filteredResources.map(resource => {
                 const hoursWorked = timesheetHours[resource.id] || 0;
                 const daysUsed = hoursWorked / 8;
                 const daysAllocated = resource.days_allocated || 0;
                 const remaining = Math.max(0, daysAllocated - daysUsed);
                 const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
+                const typeStyle = getResourceTypeStyle(resource.resource_type);
+                const TypeIcon = typeStyle.icon;
                 
                 return (
                   <tr key={resource.id}>
@@ -366,6 +444,18 @@ export default function Resources() {
                             onChange={(e) => setEditForm({...editForm, name: e.target.value})}
                           />
                         </td>
+                        {canManageResourceType() && (
+                          <td>
+                            <select
+                              className="input-field"
+                              value={editForm.resource_type || 'internal'}
+                              onChange={(e) => setEditForm({...editForm, resource_type: e.target.value})}
+                            >
+                              <option value="internal">Internal</option>
+                              <option value="third_party">Third-Party</option>
+                            </select>
+                          </td>
+                        )}
                         <td>
                           <input
                             className="input-field"
@@ -430,6 +520,31 @@ export default function Resources() {
                             </div>
                           </div>
                         </td>
+                        {canManageResourceType() && (
+                          <td>
+                            <button
+                              onClick={() => canManageResourceType() && handleToggleResourceType(resource)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.35rem 0.65rem',
+                                backgroundColor: typeStyle.bg,
+                                color: typeStyle.color,
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '0.8rem',
+                                fontWeight: '500',
+                                cursor: canManageResourceType() ? 'pointer' : 'default',
+                                transition: 'all 0.15s ease'
+                              }}
+                              title={canManageResourceType() ? 'Click to toggle type' : typeStyle.label}
+                            >
+                              <TypeIcon size={14} />
+                              {resource.resource_type === 'third_party' ? 'Third-Party' : 'Internal'}
+                            </button>
+                          </td>
+                        )}
                         <td>{resource.role}</td>
                         <td>
                           <span className={`badge ${getSfiaColor(resource.sfia_level)}`}>
@@ -474,21 +589,25 @@ export default function Resources() {
                         <td>
                           <strong>£{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong>
                         </td>
-                        {userRole === 'admin' && (
+                        {(userRole === 'admin' || userRole === 'supplier_pm') && (
                           <td>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                               <button 
                                 className="btn btn-sm btn-secondary"
                                 onClick={() => handleEdit(resource)}
+                                title="Edit resource"
                               >
                                 <Edit2 size={16} />
                               </button>
-                              <button 
-                                className="btn btn-sm btn-danger"
-                                onClick={() => handleDelete(resource.id)}
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                              {userRole === 'admin' && (
+                                <button 
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() => handleDelete(resource.id)}
+                                  title="Delete resource"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         )}
@@ -501,6 +620,54 @@ export default function Resources() {
           </table>
         </div>
       </div>
+
+      {/* Resource Type Legend - only visible to admin/supplier_pm */}
+      {canManageResourceType() && (
+        <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc' }}>
+          <h4 style={{ marginBottom: '0.75rem' }}>📋 Resource Types</h4>
+          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.35rem',
+                padding: '0.35rem 0.65rem',
+                backgroundColor: '#dbeafe',
+                color: '#1e40af',
+                borderRadius: '6px',
+                fontSize: '0.85rem'
+              }}>
+                <Building2 size={14} />
+                Internal
+              </div>
+              <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                Internal JT/Supplier staff allocated to the project
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.35rem',
+                padding: '0.35rem 0.65rem',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                borderRadius: '6px',
+                fontSize: '0.85rem'
+              }}>
+                <Handshake size={14} />
+                Third-Party
+              </div>
+              <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                External partners/contractors engaged for the project
+              </span>
+            </div>
+          </div>
+          <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#64748b' }}>
+            <strong>Note:</strong> Resource type is only visible to Admin and Supplier PM. Click on the type badge to toggle between Internal and Third-Party.
+          </p>
+        </div>
+      )}
 
       <style jsx>{`
         .form-grid {
