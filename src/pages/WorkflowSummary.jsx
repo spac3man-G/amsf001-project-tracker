@@ -15,26 +15,8 @@ export default function WorkflowSummary() {
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [filterCategory, setFilterCategory] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [projectId, setProjectId] = useState(null);
   const navigate = useNavigate();
-
-  // Define which role should action each category for validation workflow
-  const getTargetRoleForCategory = (category, notificationType, title) => {
-    // If this is a rejection notification, it's assigned back to the submitter
-    if (title?.includes('Rejected')) {
-      return { role: 'submitter', label: 'Submitter', color: '#dc2626', bg: '#fef2f2' };
-    }
-    
-    // For validation workflows, Customer PM is the validator
-    switch (category) {
-      case 'timesheet':
-      case 'expense':
-      case 'deliverable':
-      case 'certificate':
-        return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
-      default:
-        return { role: 'admin', label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' };
-    }
-  };
 
   // Check if user can see all workflows or just their own
   const canSeeAllWorkflows = (role) => {
@@ -88,20 +70,32 @@ export default function WorkflowSummary() {
         return;
       }
 
+      // Get project ID
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('reference', 'AMSF001')
+        .single();
+
+      if (project) {
+        setProjectId(project.id);
+      }
+
       setUserRole(profile.role);
       setCurrentUserProfile(profile);
-      await fetchWorkflowItems(user.id, profile);
+      await fetchWorkflowItems(user.id, profile, project?.id);
     } catch (error) {
       console.error('Error checking permissions:', error);
       setLoading(false);
     }
   }
 
-  async function fetchWorkflowItems(userId, profile) {
+  async function fetchWorkflowItems(userId, profile, projId) {
     setRefreshing(true);
     try {
       const userIdToUse = userId || currentUserId;
       const profileToUse = profile || currentUserProfile;
+      const projectIdToUse = projId || projectId;
       
       if (!userIdToUse || !profileToUse) {
         console.error('No user ID or profile available');
@@ -111,124 +105,162 @@ export default function WorkflowSummary() {
         return;
       }
 
-      let allNotifications = [];
+      let allItems = [];
 
-      // Admin, Supplier PM, Customer PM: Fetch ALL action notifications across all users
-      if (canSeeAllWorkflows(profileToUse.role)) {
-        // Query all notifications that are action type and not actioned
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('notification_type', 'action')
-          .eq('is_actioned', false)
-          .order('created_at', { ascending: false });
+      // =====================================================
+      // DIRECTLY QUERY SUBMITTED ITEMS FROM TABLES
+      // This bypasses the notifications dependency
+      // =====================================================
 
-        if (error) {
-          console.error('Error fetching all notifications:', error);
-          throw error;
-        }
-        
-        allNotifications = data || [];
-        
-        // Deduplicate by reference_id + reference_type (same item might have notifications for multiple users)
-        const seen = new Set();
-        allNotifications = allNotifications.filter(n => {
-          const key = `${n.reference_type}-${n.reference_id}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
+      // 1. Fetch submitted timesheets
+      const { data: submittedTimesheets, error: tsError } = await supabase
+        .from('timesheets')
+        .select(`
+          *,
+          resources (name),
+          profiles:user_id (full_name)
+        `)
+        .eq('status', 'Submitted')
+        .order('updated_at', { ascending: false });
+
+      if (tsError) {
+        console.error('Error fetching timesheets:', tsError);
+      } else if (submittedTimesheets) {
+        submittedTimesheets.forEach(ts => {
+          // Filter based on user role if not admin/PM
+          if (!canSeeAllWorkflows(profileToUse.role) && ts.user_id !== userIdToUse) {
+            return;
+          }
+          
+          allItems.push({
+            id: `ts-${ts.id}`,
+            reference_id: ts.id,
+            reference_type: 'timesheet',
+            category: 'timesheet',
+            title: 'Timesheet Pending Approval',
+            message: `${ts.hours_worked || ts.hours || 0}h on ${new Date(ts.work_date || ts.date).toLocaleDateString('en-GB')}`,
+            entityName: ts.resources?.name || 'Unknown Resource',
+            submitterName: ts.profiles?.full_name || '',
+            created_at: ts.updated_at || ts.created_at,
+            action_url: '/timesheets',
+            action_label: 'Review Timesheet',
+            // Timesheets are always validated by Customer PM
+            assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+            itemDetails: ts
+          });
         });
-
-      } else {
-        // Contributors: Only fetch their own notifications
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', userIdToUse)
-          .eq('notification_type', 'action')
-          .eq('is_actioned', false)
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('Error fetching user notifications:', error);
-          throw error;
-        }
-        
-        allNotifications = data || [];
       }
 
-      console.log('Notifications fetched:', allNotifications.length);
+      // 2. Fetch submitted expenses
+      const { data: submittedExpenses, error: expError } = await supabase
+        .from('expenses')
+        .select(`
+          *,
+          profiles:created_by (full_name)
+        `)
+        .eq('status', 'Submitted')
+        .order('updated_at', { ascending: false });
 
-      // Enhance data with additional context
-      const enhancedItems = await Promise.all(allNotifications.map(async (item) => {
-        let itemDetails = null;
-        let entityName = '';
-        let submitterName = '';
+      if (expError) {
+        console.error('Error fetching expenses:', expError);
+      } else if (submittedExpenses) {
+        submittedExpenses.forEach(exp => {
+          // Filter based on user role if not admin/PM
+          if (!canSeeAllWorkflows(profileToUse.role) && exp.created_by !== userIdToUse) {
+            return;
+          }
+          
+          // Determine who should validate based on chargeable status
+          const isChargeable = exp.chargeable_to_customer !== false;
+          const assignedTo = isChargeable 
+            ? { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' }
+            : { role: 'supplier_pm', label: 'Supplier PM', color: '#0891b2', bg: '#cffafe' };
+          
+          allItems.push({
+            id: `exp-${exp.id}`,
+            reference_id: exp.id,
+            reference_type: 'expense',
+            category: 'expense',
+            title: 'Expense Pending Validation',
+            message: `${exp.category}: £${parseFloat(exp.amount || 0).toFixed(2)} - ${exp.reason || 'No description'}`,
+            entityName: exp.resource_name || 'Unknown Resource',
+            submitterName: exp.profiles?.full_name || '',
+            created_at: exp.updated_at || exp.created_at,
+            action_url: '/expenses',
+            action_label: 'Review Expense',
+            assignedTo,
+            itemDetails: exp,
+            isChargeable
+          });
+        });
+      }
 
-        // Fetch related entity details
-        if (item.reference_type === 'timesheet' && item.reference_id) {
-          const { data: ts } = await supabase
-            .from('timesheets')
-            .select('*, resources(name), profiles:user_id(full_name)')
-            .eq('id', item.reference_id)
-            .single();
-          if (ts) {
-            itemDetails = ts;
-            entityName = ts.resources?.name || 'Unknown Resource';
-            submitterName = ts.profiles?.full_name || '';
-          }
-        } else if (item.reference_type === 'expense' && item.reference_id) {
-          const { data: exp } = await supabase
-            .from('expenses')
-            .select('*, resources(name), profiles:user_id(full_name)')
-            .eq('id', item.reference_id)
-            .single();
-          if (exp) {
-            itemDetails = exp;
-            entityName = exp.resources?.name || 'Unknown Resource';
-            submitterName = exp.profiles?.full_name || '';
-          }
-        } else if (item.reference_type === 'deliverable' && item.reference_id) {
-          const { data: del } = await supabase
-            .from('deliverables')
-            .select('*')
-            .eq('id', item.reference_id)
-            .single();
-          if (del) {
-            itemDetails = del;
-            entityName = `${del.deliverable_ref}: ${del.name}`;
-          }
-        } else if (item.reference_type === 'milestone_certificate' && item.reference_id) {
-          const { data: cert } = await supabase
-            .from('milestone_certificates')
-            .select('*, milestones(milestone_ref, name)')
-            .eq('id', item.reference_id)
-            .single();
-          if (cert) {
-            itemDetails = cert;
-            entityName = `${cert.milestones?.milestone_ref}: ${cert.milestones?.name}`;
-          }
-        } else if (item.reference_type === 'milestone' && item.reference_id) {
-          const { data: ms } = await supabase
-            .from('milestones')
-            .select('*')
-            .eq('id', item.reference_id)
-            .single();
-          if (ms) {
-            itemDetails = ms;
-            entityName = `${ms.milestone_ref}: ${ms.name}`;
-          }
-        }
+      // 3. Fetch submitted deliverables
+      const { data: submittedDeliverables, error: delError } = await supabase
+        .from('deliverables')
+        .select('*')
+        .eq('status', 'Submitted')
+        .order('updated_at', { ascending: false });
 
-        return {
-          ...item,
-          itemDetails,
-          entityName,
-          submitterName
-        };
-      }));
+      if (delError) {
+        console.error('Error fetching deliverables:', delError);
+      } else if (submittedDeliverables) {
+        submittedDeliverables.forEach(del => {
+          allItems.push({
+            id: `del-${del.id}`,
+            reference_id: del.id,
+            reference_type: 'deliverable',
+            category: 'deliverable',
+            title: 'Deliverable Pending Review',
+            message: del.name,
+            entityName: `${del.deliverable_ref}: ${del.name}`,
+            submitterName: '',
+            created_at: del.updated_at || del.created_at,
+            action_url: '/deliverables',
+            action_label: 'Review Deliverable',
+            assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+            itemDetails: del
+          });
+        });
+      }
 
-      setWorkflowItems(enhancedItems);
+      // 4. Fetch submitted milestone certificates
+      const { data: submittedCerts, error: certError } = await supabase
+        .from('milestone_certificates')
+        .select(`
+          *,
+          milestones (milestone_ref, name)
+        `)
+        .eq('status', 'Submitted')
+        .order('updated_at', { ascending: false });
+
+      if (certError) {
+        console.error('Error fetching certificates:', certError);
+      } else if (submittedCerts) {
+        submittedCerts.forEach(cert => {
+          allItems.push({
+            id: `cert-${cert.id}`,
+            reference_id: cert.id,
+            reference_type: 'milestone_certificate',
+            category: 'certificate',
+            title: 'Certificate Pending Approval',
+            message: `${cert.milestones?.milestone_ref}: ${cert.milestones?.name}`,
+            entityName: `${cert.milestones?.milestone_ref}: ${cert.milestones?.name}`,
+            submitterName: '',
+            created_at: cert.updated_at || cert.created_at,
+            action_url: '/milestones',
+            action_label: 'Review Certificate',
+            assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+            itemDetails: cert
+          });
+        });
+      }
+
+      // Sort all items by created_at descending
+      allItems.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      console.log('Workflow items fetched:', allItems.length);
+      setWorkflowItems(allItems);
     } catch (error) {
       console.error('Error fetching workflow items:', error);
     } finally {
@@ -338,7 +370,7 @@ export default function WorkflowSummary() {
           </div>
           <button 
             className="btn btn-secondary" 
-            onClick={() => fetchWorkflowItems(currentUserId, currentUserProfile)}
+            onClick={() => fetchWorkflowItems(currentUserId, currentUserProfile, projectId)}
             disabled={refreshing}
           >
             <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
@@ -469,18 +501,18 @@ export default function WorkflowSummary() {
                   {items.map(item => {
                     const daysPending = getDaysPending(item.created_at);
                     const urgencyStyle = getUrgencyStyle(daysPending);
-                    const targetRole = getTargetRoleForCategory(item.category, item.notification_type, item.title);
-                    
-                    // For rejected items, show the submitter name if available
-                    const assignedToLabel = item.title?.includes('Rejected') && item.submitterName
-                      ? item.submitterName
-                      : targetRole.label;
+                    const assignedTo = item.assignedTo;
                     
                     return (
                       <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '0.75rem' }}>
                           <div style={{ fontWeight: '500' }}>{item.entityName || 'Unknown'}</div>
                           <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{item.message}</div>
+                          {item.submitterName && (
+                            <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.25rem' }}>
+                              Submitted by: {item.submitterName}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '0.75rem' }}>
                           <span style={{
@@ -493,19 +525,28 @@ export default function WorkflowSummary() {
                           }}>
                             {item.action_label || item.title}
                           </span>
+                          {item.category === 'expense' && (
+                            <div style={{ 
+                              fontSize: '0.7rem', 
+                              marginTop: '0.25rem',
+                              color: item.isChargeable ? '#10b981' : '#f59e0b'
+                            }}>
+                              {item.isChargeable ? '✓ Chargeable' : '✗ Non-chargeable'}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '0.75rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <UserCheck size={14} style={{ color: targetRole.color }} />
+                            <UserCheck size={14} style={{ color: assignedTo.color }} />
                             <span style={{
                               padding: '4px 10px',
-                              backgroundColor: targetRole.bg,
-                              color: targetRole.color,
+                              backgroundColor: assignedTo.bg,
+                              color: assignedTo.color,
                               borderRadius: '6px',
                               fontSize: '0.85rem',
                               fontWeight: '500'
                             }}>
-                              {assignedToLabel}
+                              {assignedTo.label}
                             </span>
                           </div>
                         </td>
@@ -564,6 +605,18 @@ export default function WorkflowSummary() {
             <strong>Go:</strong> Navigate to the item to take action
           </div>
         </div>
+        
+        {/* Validation Rules */}
+        <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f0fdf4', borderRadius: '6px', fontSize: '0.85rem', color: '#166534' }}>
+          <strong>Validation Rules:</strong>
+          <ul style={{ margin: '0.5rem 0 0 1rem', paddingLeft: '0.5rem' }}>
+            <li><strong>Timesheets:</strong> Always validated by Customer PM (billable hours)</li>
+            <li><strong>Chargeable Expenses:</strong> Validated by Customer PM</li>
+            <li><strong>Non-Chargeable Expenses:</strong> Validated by Supplier PM</li>
+            <li><strong>Deliverables &amp; Certificates:</strong> Validated by Customer PM</li>
+          </ul>
+        </div>
+        
         {canSeeAllWorkflows(userRole) && (
           <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#dbeafe', borderRadius: '6px', fontSize: '0.85rem', color: '#1e40af' }}>
             <strong>Note:</strong> As {getRoleDisplayName(userRole)}, you can see all pending workflow items across the project.
