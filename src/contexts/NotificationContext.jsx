@@ -13,6 +13,162 @@ export function NotificationProvider({ children }) {
   const [actionCount, setActionCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+
+  // Check if user can see all workflows
+  const canSeeAllWorkflows = (role) => {
+    return ['admin', 'supplier_pm', 'customer_pm'].includes(role);
+  };
+
+  // Fetch pending workflow items count (source of truth)
+  const fetchPendingWorkflowCount = useCallback(async (userId, role) => {
+    try {
+      let totalPending = 0;
+      let pendingItems = [];
+
+      // Only count if user is admin/PM
+      if (!canSeeAllWorkflows(role)) {
+        // For regular users, count only their own submissions
+        const { data: timesheets } = await supabase
+          .from('timesheets')
+          .select('id, hours_worked, hours, work_date, date, resource_id')
+          .eq('status', 'Submitted')
+          .eq('user_id', userId);
+        
+        const { data: expenses } = await supabase
+          .from('expenses')
+          .select('id, amount, category, reason, resource_name')
+          .eq('status', 'Submitted')
+          .eq('created_by', userId);
+
+        if (timesheets) {
+          timesheets.forEach(ts => {
+            pendingItems.push({
+              id: `ts-${ts.id}`,
+              type: 'timesheet',
+              title: 'Timesheet Submitted',
+              message: `Your timesheet for ${ts.hours_worked || ts.hours || 0}h is pending approval`,
+              created_at: new Date().toISOString()
+            });
+          });
+        }
+        if (expenses) {
+          expenses.forEach(exp => {
+            pendingItems.push({
+              id: `exp-${exp.id}`,
+              type: 'expense',
+              title: 'Expense Submitted',
+              message: `Your expense (£${parseFloat(exp.amount || 0).toFixed(2)}) is pending validation`,
+              created_at: new Date().toISOString()
+            });
+          });
+        }
+        
+        totalPending = pendingItems.length;
+      } else {
+        // For PMs/admins, count all submitted items they need to action
+        const { data: timesheets } = await supabase
+          .from('timesheets')
+          .select('id, hours_worked, hours, work_date, date')
+          .eq('status', 'Submitted');
+        
+        const { data: expenses } = await supabase
+          .from('expenses')
+          .select('id, amount, category, reason, resource_name, chargeable_to_customer')
+          .eq('status', 'Submitted');
+
+        const { data: deliverables } = await supabase
+          .from('deliverables')
+          .select('id, name, deliverable_ref')
+          .eq('status', 'Submitted');
+
+        const { data: certificates } = await supabase
+          .from('milestone_certificates')
+          .select('id, milestone_id')
+          .eq('status', 'Submitted');
+
+        // Build notification-like items for display
+        if (timesheets) {
+          timesheets.forEach(ts => {
+            pendingItems.push({
+              id: `ts-${ts.id}`,
+              type: 'timesheet',
+              notification_type: 'action',
+              title: 'Timesheet Submitted',
+              message: `Timesheet (${ts.hours_worked || ts.hours || 0}h) pending approval`,
+              action_url: '/timesheets',
+              created_at: new Date().toISOString(),
+              is_read: false,
+              is_actioned: false
+            });
+          });
+        }
+        
+        if (expenses) {
+          expenses.forEach(exp => {
+            // Check if this expense should be shown based on role
+            const isChargeable = exp.chargeable_to_customer !== false;
+            const validatorRole = isChargeable ? 'customer_pm' : 'supplier_pm';
+            
+            // Show to appropriate role (or admin sees all)
+            if (role === 'admin' || role === validatorRole) {
+              pendingItems.push({
+                id: `exp-${exp.id}`,
+                type: 'expense',
+                notification_type: 'action',
+                title: 'Expense Submitted',
+                message: `${exp.resource_name || 'Unknown'} expense (£${parseFloat(exp.amount || 0).toFixed(2)}) pending validation`,
+                action_url: '/expenses',
+                created_at: new Date().toISOString(),
+                is_read: false,
+                is_actioned: false,
+                isChargeable
+              });
+            }
+          });
+        }
+
+        if (deliverables && (role === 'admin' || role === 'customer_pm')) {
+          deliverables.forEach(del => {
+            pendingItems.push({
+              id: `del-${del.id}`,
+              type: 'deliverable',
+              notification_type: 'action',
+              title: 'Deliverable Submitted',
+              message: `${del.deliverable_ref}: ${del.name} pending review`,
+              action_url: '/deliverables',
+              created_at: new Date().toISOString(),
+              is_read: false,
+              is_actioned: false
+            });
+          });
+        }
+
+        if (certificates && (role === 'admin' || role === 'customer_pm')) {
+          certificates.forEach(cert => {
+            pendingItems.push({
+              id: `cert-${cert.id}`,
+              type: 'certificate',
+              notification_type: 'action',
+              title: 'Certificate Submitted',
+              message: `Milestone certificate pending approval`,
+              action_url: '/milestones',
+              created_at: new Date().toISOString(),
+              is_read: false,
+              is_actioned: false
+            });
+          });
+        }
+
+        totalPending = pendingItems.length;
+      }
+
+      return { count: totalPending, items: pendingItems };
+    } catch (error) {
+      console.error('Error fetching pending workflow count:', error);
+      return { count: 0, items: [] };
+    }
+  }, []);
 
   // Fetch notifications for current user
   const fetchNotifications = useCallback(async () => {
@@ -28,151 +184,84 @@ export function NotificationProvider({ children }) {
 
       setCurrentUserId(user.id);
 
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      // Get user role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        return;
-      }
+      const role = profile?.role || 'viewer';
+      setUserRole(role);
 
-      setNotifications(data || []);
-      setUnreadCount((data || []).filter(n => !n.is_read).length);
-      setActionCount((data || []).filter(n => n.notification_type === 'action' && !n.is_actioned).length);
+      // Get pending workflow count (the real source of truth)
+      const { count: pendingCount, items: pendingItems } = await fetchPendingWorkflowCount(user.id, role);
+
+      // Set notifications to the pending items
+      setNotifications(pendingItems);
+      setUnreadCount(pendingCount);
+      setActionCount(pendingCount);
+
     } catch (error) {
       console.error('Error in fetchNotifications:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchPendingWorkflowCount]);
 
-  // Mark notification as read
+  // Mark notification as read (for bell dropdown - marks item as "seen")
   const markAsRead = useCallback(async (notificationId) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('id', notificationId)
-        .eq('user_id', currentUserId);
-
-      if (error) throw error;
-
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  }, [currentUserId]);
+    // Since we're now using live data, this just updates local state
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  }, []);
 
   // Mark notification as actioned
   const markAsActioned = useCallback(async (notificationId) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ 
-          is_actioned: true, 
-          actioned_at: new Date().toISOString(),
-          is_read: true,
-          read_at: new Date().toISOString()
-        })
-        .eq('id', notificationId)
-        .eq('user_id', currentUserId);
-
-      if (error) throw error;
-
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { 
-          ...n, 
-          is_actioned: true, 
-          actioned_at: new Date().toISOString(),
-          is_read: true,
-          read_at: new Date().toISOString()
-        } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-      setActionCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error marking notification as actioned:', error);
-    }
-  }, [currentUserId]);
+    // This should be called when the actual item is approved/rejected
+    // For now, just update local state
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, is_actioned: true, is_read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    setActionCount(prev => Math.max(0, prev - 1));
+  }, []);
 
   // Mark all as read
   const markAllAsRead = useCallback(async () => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('user_id', currentUserId)
-        .eq('is_read', false);
+    setNotifications(prev => 
+      prev.map(n => ({ ...n, is_read: true }))
+    );
+    setUnreadCount(0);
+  }, []);
 
-      if (error) throw error;
-
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, is_read: true, read_at: n.read_at || new Date().toISOString() }))
-      );
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking all as read:', error);
-    }
-  }, [currentUserId]);
-
-  // Dismiss info notification (only for info type)
+  // Dismiss notification
   const dismissNotification = useCallback(async (notificationId) => {
     const notification = notifications.find(n => n.id === notificationId);
-    if (!notification || notification.notification_type === 'action') {
-      return; // Can't dismiss action notifications
+    if (!notification) return;
+
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    if (!notification.is_read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
     }
-
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId)
-        .eq('user_id', currentUserId);
-
-      if (error) throw error;
-
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      if (!notification.is_read) {
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
-    } catch (error) {
-      console.error('Error dismissing notification:', error);
+    if (notification.notification_type === 'action' && !notification.is_actioned) {
+      setActionCount(prev => Math.max(0, prev - 1));
     }
-  }, [currentUserId, notifications]);
+  }, [notifications]);
 
-  // Set up real-time subscription
+  // Set up polling for updates (since we're not using the notifications table anymore)
   useEffect(() => {
     fetchNotifications();
 
-    // Subscribe to new notifications
-    const channel = supabase
-      .channel('notifications-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${currentUserId}`
-        },
-        (payload) => {
-          console.log('Notification change:', payload);
-          fetchNotifications(); // Refetch on any change
-        }
-      )
-      .subscribe();
+    // Poll every 30 seconds for updates
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchNotifications, currentUserId]);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   // Refresh on auth state change
   useEffect(() => {
@@ -184,6 +273,7 @@ export function NotificationProvider({ children }) {
         setUnreadCount(0);
         setActionCount(0);
         setCurrentUserId(null);
+        setUserRole(null);
       }
     });
 
