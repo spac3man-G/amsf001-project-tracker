@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Handshake } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2 } from 'lucide-react';
 
 export default function Resources() {
   const [resources, setResources] = useState([]);
@@ -224,7 +224,7 @@ export default function Resources() {
 
   const getResourceTypeStyle = (type) => {
     if (type === 'third_party') {
-      return { bg: '#fef3c7', color: '#92400e', icon: Handshake, label: 'Third-Party Partner' };
+      return { bg: '#fef3c7', color: '#92400e', icon: Link2, label: 'Third-Party Partner' };
     }
     return { bg: '#dbeafe', color: '#1e40af', icon: Building2, label: 'Internal Resource' };
   };
@@ -655,7 +655,7 @@ export default function Resources() {
                 borderRadius: '6px',
                 fontSize: '0.85rem'
               }}>
-                <Handshake size={14} />
+                <Link2 size={14} />
                 Third-Party
               </div>
               <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
