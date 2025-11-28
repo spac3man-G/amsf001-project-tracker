@@ -11,6 +11,7 @@ export default function WorkflowSummary() {
   const [workflowItems, setWorkflowItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterAssignee, setFilterAssignee] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -29,6 +30,8 @@ export default function WorkflowSummary() {
         return;
       }
 
+      setCurrentUserId(user.id);
+
       // Get user role
       const { data: profile } = await supabase
         .from('profiles')
@@ -44,17 +47,28 @@ export default function WorkflowSummary() {
       }
 
       setUserRole(profile.role);
-      await fetchWorkflowItems();
+      await fetchWorkflowItems(user.id);
     } catch (error) {
       console.error('Error checking permissions:', error);
       setLoading(false);
     }
   }
 
-  async function fetchWorkflowItems() {
+  async function fetchWorkflowItems(userId) {
     setRefreshing(true);
     try {
-      // Fetch all pending action notifications with related data
+      // Use passed userId or fall back to state
+      const userIdToUse = userId || currentUserId;
+      
+      if (!userIdToUse) {
+        console.error('No user ID available for fetching workflow items');
+        setWorkflowItems([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Fetch pending action notifications for the current user with related data
       const { data, error } = await supabase
         .from('notifications')
         .select(`
@@ -66,6 +80,7 @@ export default function WorkflowSummary() {
             role
           )
         `)
+        .eq('user_id', userIdToUse)  // FIX: Add user_id filter to match RLS policy
         .eq('notification_type', 'action')
         .eq('is_actioned', false)
         .order('created_at', { ascending: false });
@@ -237,7 +252,7 @@ export default function WorkflowSummary() {
         </div>
         <button 
           className="btn btn-secondary" 
-          onClick={fetchWorkflowItems}
+          onClick={() => fetchWorkflowItems(currentUserId)}
           disabled={refreshing}
         >
           <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
