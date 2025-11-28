@@ -5,6 +5,15 @@ import {
   CheckCircle, AlertCircle, User, CalendarDays, Send
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { 
+  canAddTimesheet, 
+  canAddTimesheetForOthers,
+  canApproveTimesheet,
+  canEditTimesheet as canEditTimesheetPerm,
+  canDeleteTimesheet as canDeleteTimesheetPerm,
+  canSubmitTimesheet as canSubmitTimesheetPerm,
+  getAvailableResourcesForEntry
+} from '../utils/permissions';
 
 export default function Timesheets() {
   const [timesheets, setTimesheets] = useState([]);
@@ -375,32 +384,22 @@ export default function Timesheets() {
     }
   }
 
-  function canEditTimesheet(ts) {
-    if (userRole === 'admin') return true;
-    if (ts.user_id === currentUserId && ts.status !== 'Approved') return true;
-    return false;
+  // Permission helper functions using centralised permissions
+  function canEditTimesheetLocal(ts) {
+    return canEditTimesheetPerm(userRole, ts, currentUserId);
   }
 
-  function canDeleteTimesheet(ts) {
-    if (userRole === 'admin') return true;
-    if (ts.user_id === currentUserId && ts.status === 'Draft') return true;
-    return false;
+  function canDeleteTimesheetLocal(ts) {
+    return canDeleteTimesheetPerm(userRole, ts, currentUserId);
   }
 
-  // Can submit (owner of Draft timesheet)
-  function canSubmitTimesheet(ts) {
-    if (ts.status !== 'Draft' && ts.status !== 'Rejected') return false;
-    if (userRole === 'admin') return true;
-    if (ts.user_id === currentUserId) return true;
-    return false;
+  function canSubmitTimesheetLocal(ts) {
+    return canSubmitTimesheetPerm(userRole, ts, currentUserId);
   }
 
-  // Can validate (approve/reject) - ONLY Customer PM can approve timesheets
-  // Timesheets represent billable hours which are always chargeable to the customer
-  function canValidateTimesheet(ts) {
+  function canValidateTimesheetLocal(ts) {
     if (ts.status !== 'Submitted') return false;
-    // Only customer_pm can approve timesheets (they represent chargeable work)
-    return userRole === 'customer_pm';
+    return canApproveTimesheet(userRole);
   }
 
   // Filter timesheets
@@ -428,10 +427,8 @@ export default function Timesheets() {
       .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0)
   })).filter(r => r.hours > 0);
 
-  // Available resources for current user
-  const availableResources = userRole === 'admin' 
-    ? resources 
-    : resources.filter(r => r.user_id === currentUserId);
+  // Available resources for current user - using centralised permissions
+  const availableResources = getAvailableResourcesForEntry(userRole, resources, currentUserId);
 
   if (loading) return <div className="loading">Loading timesheets...</div>;
 
@@ -445,7 +442,8 @@ export default function Timesheets() {
             <p>Track time spent on project activities</p>
           </div>
         </div>
-        {!showAddForm && (
+        {/* Only show Add Timesheet button for allowed roles */}
+        {!showAddForm && canAddTimesheet(userRole) && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Timesheet
           </button>
@@ -498,8 +496,8 @@ export default function Timesheets() {
         </div>
       </div>
 
-      {/* Add Timesheet Form */}
-      {showAddForm && (
+      {/* Add Timesheet Form - only visible if user can add timesheets */}
+      {showAddForm && canAddTimesheet(userRole) && (
         <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add Timesheet Entry</h3>
           
@@ -572,6 +570,11 @@ export default function Timesheets() {
                 <option value="">Select Resource</option>
                 {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
+              {!canAddTimesheetForOthers(userRole) && availableResources.length === 1 && (
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  You can only add timesheets for yourself
+                </span>
+              )}
             </div>
             
             {entryMode === 'daily' ? (
@@ -672,7 +675,7 @@ export default function Timesheets() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <User size={16} style={{ color: '#64748b' }} />
                       {editingId === ts.id ? (
-                        <select className="form-input" value={editForm.resource_id} onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })} disabled={userRole !== 'admin'}>
+                        <select className="form-input" value={editForm.resource_id} onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })} disabled={!canAddTimesheetForOthers(userRole)}>
                           {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                       ) : (
@@ -741,7 +744,7 @@ export default function Timesheets() {
                     ) : (
                       <div className="action-buttons">
                         {/* Submit button for Draft/Rejected timesheets */}
-                        {canSubmitTimesheet(ts) && (
+                        {canSubmitTimesheetLocal(ts) && (
                           <button 
                             className="btn-icon" 
                             onClick={() => handleSubmit(ts.id)} 
@@ -751,8 +754,8 @@ export default function Timesheets() {
                             <Send size={16} />
                           </button>
                         )}
-                        {/* Approve/Reject buttons for Customer PM only */}
-                        {canValidateTimesheet(ts) && (
+                        {/* Approve/Reject buttons for Customer PM and Admin */}
+                        {canValidateTimesheetLocal(ts) && (
                           <>
                             <button 
                               className="btn-icon btn-success" 
@@ -770,8 +773,8 @@ export default function Timesheets() {
                             </button>
                           </>
                         )}
-                        {canEditTimesheet(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
-                        {canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
+                        {canEditTimesheetLocal(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
+                        {canDeleteTimesheetLocal(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
                       </div>
                     )}
                   </td>
@@ -790,8 +793,8 @@ export default function Timesheets() {
           <li><strong>Weekly Entry:</strong> Use when working consistently on the same milestone all week</li>
           <li>Link time to specific milestones when possible for better tracking</li>
           <li><strong>Submit:</strong> Click the send icon (→) to submit for approval</li>
-          {userRole === 'customer_pm' && (
-            <li><strong>As Customer PM:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
+          {canApproveTimesheet(userRole) && (
+            <li><strong>As an approver:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
           )}
         </ul>
       </div>
