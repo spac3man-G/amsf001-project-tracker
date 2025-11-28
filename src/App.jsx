@@ -1,5 +1,5 @@
 // src/App.jsx
-// Updated to include TestUserProvider and WorkflowSummary route
+// Updated to include TestUserProvider, WorkflowSummary, and Margins routes
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -30,6 +30,7 @@ import Users from './pages/Users';
 import Settings from './pages/Settings';
 import AccountSettings from './pages/AccountSettings';
 import WorkflowSummary from './pages/WorkflowSummary';
+import Margins from './pages/Margins';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
@@ -121,6 +122,11 @@ export default function App() {
           
           <Route path="/reports" element={
             <ProtectedRoute><Reports /></ProtectedRoute>
+          } />
+
+          {/* Margins page - for Supplier PM and Admin only */}
+          <Route path="/margins" element={
+            <ProtectedRoute><Margins /></ProtectedRoute>
           } />
           
           <Route path="/users" element={
