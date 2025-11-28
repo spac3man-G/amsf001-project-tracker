@@ -19,7 +19,8 @@ import {
   Award,
   GanttChart,
   GripVertical,
-  ClipboardList
+  ClipboardList,
+  PieChart
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
@@ -30,6 +31,10 @@ function canManageSystem(role) {
 
 function canViewWorkflow(role) {
   return ['supplier_pm', 'customer_pm'].includes(role);
+}
+
+function canViewFinancials(role) {
+  return role === 'admin' || role === 'supplier_pm';
 }
 
 function getRoleConfig(role) {
@@ -111,6 +116,7 @@ export default function Layout({ children }) {
   // Permission checks using centralized permissions
   const hasSystemAccess = canManageSystem(userRole);
   const hasWorkflowAccess = canViewWorkflow(userRole);
+  const hasFinancialAccess = canViewFinancials(userRole);
 
   // Base navigation items (before user ordering)
   const baseNavItems = [
@@ -124,6 +130,10 @@ export default function Layout({ children }) {
     { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
     { path: '/quality-standards', icon: Award, label: 'Quality Standards' },
     { path: '/reports', icon: FileText, label: 'Reports' },
+    // Margins only visible to Supplier PM and Admin
+    ...(hasFinancialAccess ? [
+      { path: '/margins', icon: PieChart, label: 'Margins' }
+    ] : []),
     // Workflow Summary only visible to PMs and admins
     ...(hasWorkflowAccess ? [
       { path: '/workflow-summary', icon: ClipboardList, label: 'Workflow Summary' }
