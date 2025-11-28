@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   ClipboardList, Clock, Receipt, FileText, Award, 
-  ChevronRight, RefreshCw, User, Calendar, AlertCircle,
-  CheckCircle, Filter
+  ChevronRight, RefreshCw, User, AlertCircle,
+  CheckCircle, Filter, Eye, UserCheck
 } from 'lucide-react';
 
 export default function WorkflowSummary() {
@@ -17,19 +17,39 @@ export default function WorkflowSummary() {
   const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
-  // Define which role should action each category
-  const getTargetRoleForCategory = (category) => {
+  // Define which role should action each category for validation workflow
+  const getTargetRoleForCategory = (category, notificationType, title) => {
+    // If this is a rejection notification, it's assigned back to the submitter
+    if (title?.includes('Rejected')) {
+      return { role: 'submitter', label: 'Submitter', color: '#dc2626', bg: '#fef2f2' };
+    }
+    
+    // For validation workflows, Customer PM is the validator
     switch (category) {
       case 'timesheet':
-        return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
       case 'expense':
-        return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
       case 'deliverable':
-        return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
       case 'certificate':
         return { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' };
       default:
         return { role: 'admin', label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' };
+    }
+  };
+
+  // Check if user can see all workflows or just their own
+  const canSeeAllWorkflows = (role) => {
+    return ['admin', 'supplier_pm', 'customer_pm'].includes(role);
+  };
+
+  // Get role display name
+  const getRoleDisplayName = (role) => {
+    switch (role) {
+      case 'admin': return 'Admin';
+      case 'supplier_pm': return 'Supplier PM';
+      case 'customer_pm': return 'Customer PM';
+      case 'contributor': return 'Contributor';
+      case 'viewer': return 'Viewer';
+      default: return role;
     }
   };
 
@@ -55,8 +75,14 @@ export default function WorkflowSummary() {
         .eq('id', user.id)
         .single();
 
-      if (!profile || !['admin', 'supplier_pm', 'customer_pm'].includes(profile.role)) {
-        // Not authorized - redirect to dashboard
+      if (!profile) {
+        alert('Profile not found.');
+        navigate('/');
+        return;
+      }
+
+      // Viewers cannot access workflow summary
+      if (profile.role === 'viewer') {
         alert('You do not have permission to view this page.');
         navigate('/');
         return;
@@ -74,65 +100,93 @@ export default function WorkflowSummary() {
   async function fetchWorkflowItems(userId, profile) {
     setRefreshing(true);
     try {
-      // Use passed userId or fall back to state
       const userIdToUse = userId || currentUserId;
       const profileToUse = profile || currentUserProfile;
       
-      if (!userIdToUse) {
-        console.error('No user ID available for fetching workflow items');
+      if (!userIdToUse || !profileToUse) {
+        console.error('No user ID or profile available');
         setWorkflowItems([]);
         setLoading(false);
         setRefreshing(false);
         return;
       }
 
-      // Query notifications the same way NotificationContext does - simple query, no JOINs
-      // This avoids any RLS complications with JOIN queries
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userIdToUse)
-        .order('created_at', { ascending: false });
+      let allNotifications = [];
 
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        throw error;
+      // Admin, Supplier PM, Customer PM: Fetch ALL action notifications across all users
+      if (canSeeAllWorkflows(profileToUse.role)) {
+        // Query all notifications that are action type and not actioned
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('notification_type', 'action')
+          .eq('is_actioned', false)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching all notifications:', error);
+          throw error;
+        }
+        
+        allNotifications = data || [];
+        
+        // Deduplicate by reference_id + reference_type (same item might have notifications for multiple users)
+        const seen = new Set();
+        allNotifications = allNotifications.filter(n => {
+          const key = `${n.reference_type}-${n.reference_id}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+      } else {
+        // Contributors: Only fetch their own notifications
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userIdToUse)
+          .eq('notification_type', 'action')
+          .eq('is_actioned', false)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching user notifications:', error);
+          throw error;
+        }
+        
+        allNotifications = data || [];
       }
 
-      console.log('Raw notifications fetched:', data?.length || 0);
-
-      // Filter client-side for action notifications that are not actioned (matching NotificationContext logic)
-      const actionNotifications = (data || []).filter(
-        n => n.notification_type === 'action' && !n.is_actioned
-      );
-
-      console.log('Action notifications after filter:', actionNotifications.length);
+      console.log('Notifications fetched:', allNotifications.length);
 
       // Enhance data with additional context
-      const enhancedItems = await Promise.all(actionNotifications.map(async (item) => {
+      const enhancedItems = await Promise.all(allNotifications.map(async (item) => {
         let itemDetails = null;
         let entityName = '';
+        let submitterName = '';
 
         // Fetch related entity details
         if (item.reference_type === 'timesheet' && item.reference_id) {
           const { data: ts } = await supabase
             .from('timesheets')
-            .select('*, resources(name)')
+            .select('*, resources(name), profiles:user_id(full_name)')
             .eq('id', item.reference_id)
             .single();
           if (ts) {
             itemDetails = ts;
             entityName = ts.resources?.name || 'Unknown Resource';
+            submitterName = ts.profiles?.full_name || '';
           }
         } else if (item.reference_type === 'expense' && item.reference_id) {
           const { data: exp } = await supabase
             .from('expenses')
-            .select('*, resources(name)')
+            .select('*, resources(name), profiles:user_id(full_name)')
             .eq('id', item.reference_id)
             .single();
           if (exp) {
             itemDetails = exp;
             entityName = exp.resources?.name || 'Unknown Resource';
+            submitterName = exp.profiles?.full_name || '';
           }
         } else if (item.reference_type === 'deliverable' && item.reference_id) {
           const { data: del } = await supabase
@@ -169,7 +223,8 @@ export default function WorkflowSummary() {
         return {
           ...item,
           itemDetails,
-          entityName
+          entityName,
+          submitterName
         };
       }));
 
@@ -260,17 +315,36 @@ export default function WorkflowSummary() {
           <ClipboardList size={28} />
           <div>
             <h1>Workflow Summary</h1>
-            <p>All pending actions across the project</p>
+            <p>
+              {canSeeAllWorkflows(userRole) 
+                ? 'All pending actions across the project' 
+                : 'Your pending workflow actions'}
+            </p>
           </div>
         </div>
-        <button 
-          className="btn btn-secondary" 
-          onClick={() => fetchWorkflowItems(currentUserId, currentUserProfile)}
-          disabled={refreshing}
-        >
-          <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {/* Role indicator */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            backgroundColor: '#f1f5f9',
+            borderRadius: '8px',
+            fontSize: '0.85rem'
+          }}>
+            {canSeeAllWorkflows(userRole) ? <Eye size={16} /> : <User size={16} />}
+            <span>Viewing as: <strong>{getRoleDisplayName(userRole)}</strong></span>
+          </div>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => fetchWorkflowItems(currentUserId, currentUserProfile)}
+            disabled={refreshing}
+          >
+            <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -326,13 +400,16 @@ export default function WorkflowSummary() {
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <CheckCircle size={48} style={{ color: '#10b981', marginBottom: '1rem' }} />
           <h3 style={{ margin: '0 0 0.5rem' }}>All Clear!</h3>
-          <p style={{ color: '#64748b', margin: 0 }}>No pending workflow actions at this time.</p>
+          <p style={{ color: '#64748b', margin: 0 }}>
+            {canSeeAllWorkflows(userRole) 
+              ? 'No pending workflow actions across the project.' 
+              : 'You have no pending workflow actions.'}
+          </p>
         </div>
       ) : (
         /* Workflow Items by Category */
         Object.entries(groupedByCategory).map(([category, items]) => {
           const colors = getCategoryColor(category);
-          const targetRole = getTargetRoleForCategory(category);
           
           return (
             <div key={category} className="card" style={{ marginBottom: '1.5rem' }}>
@@ -392,6 +469,12 @@ export default function WorkflowSummary() {
                   {items.map(item => {
                     const daysPending = getDaysPending(item.created_at);
                     const urgencyStyle = getUrgencyStyle(daysPending);
+                    const targetRole = getTargetRoleForCategory(item.category, item.notification_type, item.title);
+                    
+                    // For rejected items, show the submitter name if available
+                    const assignedToLabel = item.title?.includes('Rejected') && item.submitterName
+                      ? item.submitterName
+                      : targetRole.label;
                     
                     return (
                       <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -413,7 +496,7 @@ export default function WorkflowSummary() {
                         </td>
                         <td style={{ padding: '0.75rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <User size={14} style={{ color: targetRole.color }} />
+                            <UserCheck size={14} style={{ color: targetRole.color }} />
                             <span style={{
                               padding: '4px 10px',
                               backgroundColor: targetRole.bg,
@@ -422,7 +505,7 @@ export default function WorkflowSummary() {
                               fontSize: '0.85rem',
                               fontWeight: '500'
                             }}>
-                              {targetRole.label}
+                              {assignedToLabel}
                             </span>
                           </div>
                         </td>
@@ -475,12 +558,17 @@ export default function WorkflowSummary() {
             <strong style={{ color: '#dc2626' }}>Urgent (5+ days):</strong> Requires immediate attention
           </div>
           <div>
-            <strong>Assigned To:</strong> The role responsible for this action
+            <strong>Assigned To:</strong> The role/person responsible for this action
           </div>
           <div>
             <strong>Go:</strong> Navigate to the item to take action
           </div>
         </div>
+        {canSeeAllWorkflows(userRole) && (
+          <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#dbeafe', borderRadius: '6px', fontSize: '0.85rem', color: '#1e40af' }}>
+            <strong>Note:</strong> As {getRoleDisplayName(userRole)}, you can see all pending workflow items across the project.
+          </div>
+        )}
       </div>
 
       {/* Spinning animation style */}
