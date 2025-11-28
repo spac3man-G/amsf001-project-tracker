@@ -5,6 +5,15 @@ import {
   Car, Home, Utensils, AlertCircle, FileText, Check, User, Send, CheckCircle
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { 
+  canAddExpense, 
+  canAddExpenseForOthers,
+  canValidateExpense as canValidateExpensePerm,
+  canEditExpense as canEditExpensePerm,
+  canDeleteExpense as canDeleteExpensePerm,
+  canSubmitExpense as canSubmitExpensePerm,
+  getAvailableResourcesForEntry
+} from '../utils/permissions';
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
@@ -384,47 +393,40 @@ export default function Expenses() {
     }
   }
 
-  // Can submit (owner of Draft/Rejected expense, or admin/supplier_pm)
-  function canSubmitExpense(exp) {
-    if (exp.status !== 'Draft' && exp.status !== 'Rejected') return false;
-    if (userRole === 'admin') return true;
-    if (userRole === 'supplier_pm') return true;
-    if (exp.created_by === currentUserId) return true;
-    return false;
+  // Permission helper functions using centralised permissions
+  function canSubmitExpenseLocal(exp) {
+    // Map expense fields to expected format for permission check
+    const expenseForCheck = {
+      ...exp,
+      user_id: exp.created_by, // Map created_by to user_id for permission check
+      chargeable: exp.chargeable_to_customer !== false
+    };
+    return canSubmitExpensePerm(userRole, expenseForCheck, currentUserId);
   }
 
-  // Can validate (approve/reject) - depends on chargeable status
-  // Chargeable expenses: Customer PM validates
-  // Non-chargeable expenses: Supplier PM validates
-  function canValidateExpense(exp) {
-    if (exp.status !== 'Submitted') return false;
-    
-    const isChargeable = exp.chargeable_to_customer !== false;
-    
-    if (isChargeable) {
-      // Chargeable expenses are validated by Customer PM
-      return userRole === 'customer_pm';
-    } else {
-      // Non-chargeable expenses are validated by Supplier PM
-      return userRole === 'supplier_pm';
-    }
+  function canValidateExpenseLocal(exp) {
+    // Map expense fields to expected format for permission check
+    const expenseForCheck = {
+      ...exp,
+      chargeable: exp.chargeable_to_customer !== false
+    };
+    return canValidateExpensePerm(userRole, expenseForCheck);
   }
 
-  // Can edit expense
-  function canEditExpense(exp) {
-    if (userRole === 'admin') return true;
-    if (userRole === 'supplier_pm') return true;
-    if (userRole === 'customer_pm') return true;
-    if (exp.created_by === currentUserId && exp.status === 'Draft') return true;
-    return false;
+  function canEditExpenseLocal(exp) {
+    const expenseForCheck = {
+      ...exp,
+      user_id: exp.created_by
+    };
+    return canEditExpensePerm(userRole, expenseForCheck, currentUserId);
   }
 
-  // Can delete expense
-  function canDeleteExpense(exp) {
-    if (userRole === 'admin') return true;
-    if (userRole === 'supplier_pm') return true;
-    if (exp.created_by === currentUserId && exp.status === 'Draft') return true;
-    return false;
+  function canDeleteExpenseLocal(exp) {
+    const expenseForCheck = {
+      ...exp,
+      user_id: exp.created_by
+    };
+    return canDeleteExpensePerm(userRole, expenseForCheck, currentUserId);
   }
 
   function handleFileSelect(e) {
@@ -536,10 +538,10 @@ export default function Expenses() {
     }
   });
 
-  if (loading) return <div className="loading">Loading expenses...</div>;
+  // Available resources for current user - using centralised permissions
+  const availableResources = getAvailableResourcesForEntry(userRole, resources, currentUserId);
 
-  // Allow admin, supplier_pm, and contributor to add expenses
-  const canAdd = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor';
+  if (loading) return <div className="loading">Loading expenses...</div>;
 
   return (
     <div className="page-container">
@@ -551,7 +553,8 @@ export default function Expenses() {
             <p>Track project expenses against £{BUDGET.toLocaleString()} budget</p>
           </div>
         </div>
-        {canAdd && !showAddForm && (
+        {/* Only show Add Expenses button for allowed roles */}
+        {canAddExpense(userRole) && !showAddForm && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Expenses
           </button>
@@ -681,8 +684,8 @@ export default function Expenses() {
         </div>
       </div>
 
-      {/* Add Multi-Category Form */}
-      {showAddForm && (
+      {/* Add Multi-Category Form - only visible if user can add expenses */}
+      {showAddForm && canAddExpense(userRole) && (
         <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add New Expenses</h3>
           <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>
@@ -691,15 +694,20 @@ export default function Expenses() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
             <div>
-              <label className="form-label">Resource Name *</label>
+              <label className="form-label">Resource Name * ({availableResources.length} available)</label>
               <select 
                 className="form-input" 
                 value={newExpense.resource_id} 
                 onChange={(e) => setNewExpense({ ...newExpense, resource_id: e.target.value })}
               >
                 <option value="">Select Resource</option>
-                {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
+              {!canAddExpenseForOthers(userRole) && availableResources.length === 1 && (
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  You can only add expenses for yourself
+                </span>
+              )}
             </div>
             <div>
               <label className="form-label">Date *</label>
@@ -1027,7 +1035,7 @@ export default function Expenses() {
                       )}
                     </td>
                     <td>
-                      {editingId === exp.id && canValidateExpense(exp) ? (
+                      {editingId === exp.id && canValidateExpenseLocal(exp) ? (
                         <select className="form-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
                           {statuses.map(s => <option key={s} value={s}>{statusDisplayNames[s] || s}</option>)}
                         </select>
@@ -1060,7 +1068,7 @@ export default function Expenses() {
                       ) : (
                         <div className="action-buttons">
                           {/* Submit button for Draft/Rejected expenses */}
-                          {canSubmitExpense(exp) && (
+                          {canSubmitExpenseLocal(exp) && (
                             <button 
                               className="btn-icon" 
                               onClick={() => handleSubmit(exp.id)} 
@@ -1071,7 +1079,7 @@ export default function Expenses() {
                             </button>
                           )}
                           {/* Validate/Reject buttons - shows for appropriate role based on chargeable status */}
-                          {canValidateExpense(exp) && (
+                          {canValidateExpenseLocal(exp) && (
                             <>
                               <button 
                                 className="btn-icon btn-success" 
@@ -1089,10 +1097,10 @@ export default function Expenses() {
                               </button>
                             </>
                           )}
-                          {canEditExpense(exp) && (
+                          {canEditExpenseLocal(exp) && (
                             <button className="btn-icon" onClick={() => handleEdit(exp)} title="Edit"><Edit2 size={16} /></button>
                           )}
-                          {canDeleteExpense(exp) && (
+                          {canDeleteExpenseLocal(exp) && (
                             <button className="btn-icon btn-danger" onClick={() => handleDelete(exp.id)} title="Delete"><Trash2 size={16} /></button>
                           )}
                         </div>
