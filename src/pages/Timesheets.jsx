@@ -308,7 +308,7 @@ export default function Timesheets() {
     }
   }
 
-  // NEW: Submit timesheet for approval
+  // Submit timesheet for approval
   async function handleSubmit(id) {
     if (!confirm('Submit this timesheet for approval?')) return;
 
@@ -328,7 +328,7 @@ export default function Timesheets() {
     }
   }
 
-  // NEW: Approve timesheet (for validators)
+  // Approve timesheet (for Customer PM only - timesheets are always chargeable)
   async function handleApprove(id) {
     try {
       const { error } = await supabase
@@ -346,7 +346,7 @@ export default function Timesheets() {
     }
   }
 
-  // NEW: Reject timesheet (for validators)
+  // Reject timesheet (for Customer PM only)
   async function handleReject(id) {
     const reason = prompt('Please provide a reason for rejection (optional):');
     
@@ -387,7 +387,7 @@ export default function Timesheets() {
     return false;
   }
 
-  // NEW: Can submit (owner of Draft timesheet)
+  // Can submit (owner of Draft timesheet)
   function canSubmitTimesheet(ts) {
     if (ts.status !== 'Draft' && ts.status !== 'Rejected') return false;
     if (userRole === 'admin') return true;
@@ -395,10 +395,12 @@ export default function Timesheets() {
     return false;
   }
 
-  // NEW: Can validate (approve/reject) - for Supplier PM and Customer PM ONLY (not admin)
+  // Can validate (approve/reject) - ONLY Customer PM can approve timesheets
+  // Timesheets represent billable hours which are always chargeable to the customer
   function canValidateTimesheet(ts) {
     if (ts.status !== 'Submitted') return false;
-    return ['supplier_pm', 'customer_pm'].includes(userRole);
+    // Only customer_pm can approve timesheets (they represent chargeable work)
+    return userRole === 'customer_pm';
   }
 
   // Filter timesheets
@@ -749,7 +751,7 @@ export default function Timesheets() {
                             <Send size={16} />
                           </button>
                         )}
-                        {/* Approve/Reject buttons for validators */}
+                        {/* Approve/Reject buttons for Customer PM only */}
                         {canValidateTimesheet(ts) && (
                           <>
                             <button 
@@ -788,8 +790,8 @@ export default function Timesheets() {
           <li><strong>Weekly Entry:</strong> Use when working consistently on the same milestone all week</li>
           <li>Link time to specific milestones when possible for better tracking</li>
           <li><strong>Submit:</strong> Click the send icon (→) to submit for approval</li>
-          {['supplier_pm', 'customer_pm'].includes(userRole) && (
-            <li><strong>As {userRole === 'supplier_pm' ? 'Supplier PM' : 'Customer PM'}:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
+          {userRole === 'customer_pm' && (
+            <li><strong>As Customer PM:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
           )}
         </ul>
       </div>
