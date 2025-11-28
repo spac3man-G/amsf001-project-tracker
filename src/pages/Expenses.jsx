@@ -393,10 +393,21 @@ export default function Expenses() {
     return false;
   }
 
-  // Can validate (approve/reject) - for Admin and Customer PM
+  // Can validate (approve/reject) - depends on chargeable status
+  // Chargeable expenses: Customer PM validates
+  // Non-chargeable expenses: Supplier PM validates
   function canValidateExpense(exp) {
     if (exp.status !== 'Submitted') return false;
-    return ['admin', 'customer_pm'].includes(userRole);
+    
+    const isChargeable = exp.chargeable_to_customer !== false;
+    
+    if (isChargeable) {
+      // Chargeable expenses are validated by Customer PM
+      return userRole === 'customer_pm';
+    } else {
+      // Non-chargeable expenses are validated by Supplier PM
+      return userRole === 'supplier_pm';
+    }
   }
 
   // Can edit expense
@@ -713,7 +724,7 @@ export default function Expenses() {
               <div>
                 <span style={{ fontWeight: '600', color: '#166534' }}>Chargeable to Customer</span>
                 <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  Uncheck if this expense should not be charged to the customer
+                  Uncheck if this expense should not be charged to the customer (validated by Supplier PM instead of Customer PM)
                 </div>
               </div>
             </label>
@@ -889,9 +900,9 @@ export default function Expenses() {
               </div>
               <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
                 {newExpense.chargeable_to_customer ? (
-                  <span style={{ color: '#10b981' }}>✓ Will be charged to customer</span>
+                  <span style={{ color: '#10b981' }}>✓ Chargeable to customer (validated by Customer PM)</span>
                 ) : (
-                  <span style={{ color: '#f59e0b' }}>✗ Not chargeable to customer</span>
+                  <span style={{ color: '#f59e0b' }}>✗ Non-chargeable (validated by Supplier PM)</span>
                 )}
               </div>
             </div>
@@ -1059,7 +1070,7 @@ export default function Expenses() {
                               <Send size={16} />
                             </button>
                           )}
-                          {/* Validate/Reject buttons for validators */}
+                          {/* Validate/Reject buttons - shows for appropriate role based on chargeable status */}
                           {canValidateExpense(exp) && (
                             <>
                               <button 
@@ -1103,10 +1114,13 @@ export default function Expenses() {
           <li>Attach receipts for all expenses over £25</li>
           <li>Submit expenses within 30 days of incurring them</li>
           <li><strong>Submit:</strong> Click the send icon (→) to submit for validation</li>
-          <li><strong>Chargeable:</strong> Expenses that will be invoiced to the customer</li>
-          <li><strong>Non-Chargeable:</strong> Internal expenses not invoiced to customer</li>
-          {['admin', 'customer_pm'].includes(userRole) && (
-            <li><strong>As {userRole === 'admin' ? 'Admin' : 'Customer PM'}:</strong> You can validate (✓) or reject (✗) submitted expenses</li>
+          <li><strong>Chargeable expenses:</strong> Validated by Customer PM</li>
+          <li><strong>Non-chargeable expenses:</strong> Validated by Supplier PM</li>
+          {userRole === 'customer_pm' && (
+            <li><strong>As Customer PM:</strong> You can validate (✓) or reject (✗) chargeable expenses</li>
+          )}
+          {userRole === 'supplier_pm' && (
+            <li><strong>As Supplier PM:</strong> You can validate (✓) or reject (✗) non-chargeable expenses</li>
           )}
         </ul>
       </div>
