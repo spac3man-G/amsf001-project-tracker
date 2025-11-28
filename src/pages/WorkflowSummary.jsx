@@ -16,7 +16,6 @@ export default function WorkflowSummary() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [projectId, setProjectId] = useState(null);
-  const [debugInfo, setDebugInfo] = useState('');
   const navigate = useNavigate();
 
   // Check if user can see all workflows or just their own
@@ -87,25 +86,19 @@ export default function WorkflowSummary() {
       await fetchWorkflowItems(user.id, profile, project?.id);
     } catch (error) {
       console.error('Error checking permissions:', error);
-      setDebugInfo(`Error: ${error.message}`);
       setLoading(false);
     }
   }
 
   async function fetchWorkflowItems(userId, profile, projId) {
     setRefreshing(true);
-    let debug = [];
     
     try {
       const userIdToUse = userId || currentUserId;
       const profileToUse = profile || currentUserProfile;
-      const projectIdToUse = projId || projectId;
-      
-      debug.push(`User: ${userIdToUse}, Role: ${profileToUse?.role}`);
       
       if (!userIdToUse || !profileToUse) {
-        debug.push('ERROR: No user ID or profile available');
-        setDebugInfo(debug.join(' | '));
+        console.error('No user ID or profile available');
         setWorkflowItems([]);
         setLoading(false);
         setRefreshing(false);
@@ -115,215 +108,179 @@ export default function WorkflowSummary() {
       let allItems = [];
 
       // =====================================================
-      // 1. Fetch submitted timesheets - SIMPLE QUERY FIRST
+      // 1. Fetch submitted timesheets
       // =====================================================
-      debug.push('Fetching timesheets...');
-      
       const { data: submittedTimesheets, error: tsError } = await supabase
         .from('timesheets')
         .select('*')
         .eq('status', 'Submitted');
 
       if (tsError) {
-        debug.push(`TS Error: ${tsError.message}`);
         console.error('Error fetching timesheets:', tsError);
-      } else {
-        debug.push(`TS found: ${submittedTimesheets?.length || 0}`);
-        console.log('Submitted timesheets:', submittedTimesheets);
+      } else if (submittedTimesheets && submittedTimesheets.length > 0) {
+        // Fetch resource names separately
+        const resourceIds = [...new Set(submittedTimesheets.map(ts => ts.resource_id).filter(Boolean))];
+        let resourceMap = {};
         
-        if (submittedTimesheets && submittedTimesheets.length > 0) {
-          // Fetch resource names separately
-          const resourceIds = [...new Set(submittedTimesheets.map(ts => ts.resource_id).filter(Boolean))];
-          let resourceMap = {};
+        if (resourceIds.length > 0) {
+          const { data: resources } = await supabase
+            .from('resources')
+            .select('id, name')
+            .in('id', resourceIds);
           
-          if (resourceIds.length > 0) {
-            const { data: resources } = await supabase
-              .from('resources')
-              .select('id, name')
-              .in('id', resourceIds);
-            
-            if (resources) {
-              resources.forEach(r => { resourceMap[r.id] = r.name; });
-            }
+          if (resources) {
+            resources.forEach(r => { resourceMap[r.id] = r.name; });
+          }
+        }
+        
+        submittedTimesheets.forEach(ts => {
+          // Filter based on user role if not admin/PM
+          if (!canSeeAllWorkflows(profileToUse.role) && ts.user_id !== userIdToUse) {
+            return;
           }
           
-          submittedTimesheets.forEach(ts => {
-            // Filter based on user role if not admin/PM
-            if (!canSeeAllWorkflows(profileToUse.role) && ts.user_id !== userIdToUse) {
-              return;
-            }
-            
-            allItems.push({
-              id: `ts-${ts.id}`,
-              reference_id: ts.id,
-              reference_type: 'timesheet',
-              category: 'timesheet',
-              title: 'Timesheet Pending Approval',
-              message: `${ts.hours_worked || ts.hours || 0}h on ${new Date(ts.work_date || ts.date).toLocaleDateString('en-GB')}`,
-              entityName: resourceMap[ts.resource_id] || 'Unknown Resource',
-              submitterName: '',
-              created_at: ts.updated_at || ts.created_at,
-              action_url: '/timesheets',
-              action_label: 'Review Timesheet',
-              assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
-              itemDetails: ts
-            });
+          allItems.push({
+            id: `ts-${ts.id}`,
+            reference_id: ts.id,
+            reference_type: 'timesheet',
+            category: 'timesheet',
+            title: 'Timesheet Pending Approval',
+            message: `${ts.hours_worked || ts.hours || 0}h on ${new Date(ts.work_date || ts.date).toLocaleDateString('en-GB')}`,
+            entityName: resourceMap[ts.resource_id] || 'Unknown Resource',
+            submitterName: '',
+            created_at: ts.updated_at || ts.created_at,
+            action_url: '/timesheets',
+            action_label: 'Review Timesheet',
+            assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+            itemDetails: ts
           });
-        }
+        });
       }
 
       // =====================================================
-      // 2. Fetch submitted expenses - SIMPLE QUERY
+      // 2. Fetch submitted expenses
       // =====================================================
-      debug.push('Fetching expenses...');
-      
       const { data: submittedExpenses, error: expError } = await supabase
         .from('expenses')
         .select('*')
         .eq('status', 'Submitted');
 
       if (expError) {
-        debug.push(`EXP Error: ${expError.message}`);
         console.error('Error fetching expenses:', expError);
-      } else {
-        debug.push(`EXP found: ${submittedExpenses?.length || 0}`);
-        console.log('Submitted expenses:', submittedExpenses);
-        
-        if (submittedExpenses && submittedExpenses.length > 0) {
-          submittedExpenses.forEach(exp => {
-            // Filter based on user role if not admin/PM
-            if (!canSeeAllWorkflows(profileToUse.role) && exp.created_by !== userIdToUse) {
-              return;
-            }
-            
-            // Determine who should validate based on chargeable status
-            const isChargeable = exp.chargeable_to_customer !== false;
-            const assignedTo = isChargeable 
-              ? { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' }
-              : { role: 'supplier_pm', label: 'Supplier PM', color: '#0891b2', bg: '#cffafe' };
-            
-            allItems.push({
-              id: `exp-${exp.id}`,
-              reference_id: exp.id,
-              reference_type: 'expense',
-              category: 'expense',
-              title: 'Expense Pending Validation',
-              message: `${exp.category}: £${parseFloat(exp.amount || 0).toFixed(2)} - ${exp.reason || 'No description'}`,
-              entityName: exp.resource_name || 'Unknown Resource',
-              submitterName: '',
-              created_at: exp.updated_at || exp.created_at,
-              action_url: '/expenses',
-              action_label: 'Review Expense',
-              assignedTo,
-              itemDetails: exp,
-              isChargeable
-            });
+      } else if (submittedExpenses && submittedExpenses.length > 0) {
+        submittedExpenses.forEach(exp => {
+          // Filter based on user role if not admin/PM
+          if (!canSeeAllWorkflows(profileToUse.role) && exp.created_by !== userIdToUse) {
+            return;
+          }
+          
+          // Determine who should validate based on chargeable status
+          const isChargeable = exp.chargeable_to_customer !== false;
+          const assignedTo = isChargeable 
+            ? { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' }
+            : { role: 'supplier_pm', label: 'Supplier PM', color: '#0891b2', bg: '#cffafe' };
+          
+          allItems.push({
+            id: `exp-${exp.id}`,
+            reference_id: exp.id,
+            reference_type: 'expense',
+            category: 'expense',
+            title: 'Expense Pending Validation',
+            message: `${exp.category}: £${parseFloat(exp.amount || 0).toFixed(2)} - ${exp.reason || 'No description'}`,
+            entityName: exp.resource_name || 'Unknown Resource',
+            submitterName: '',
+            created_at: exp.updated_at || exp.created_at,
+            action_url: '/expenses',
+            action_label: 'Review Expense',
+            assignedTo,
+            itemDetails: exp,
+            isChargeable
           });
-        }
+        });
       }
 
       // =====================================================
       // 3. Fetch submitted deliverables
       // =====================================================
-      debug.push('Fetching deliverables...');
-      
       const { data: submittedDeliverables, error: delError } = await supabase
         .from('deliverables')
         .select('*')
         .eq('status', 'Submitted');
 
       if (delError) {
-        debug.push(`DEL Error: ${delError.message}`);
         console.error('Error fetching deliverables:', delError);
-      } else {
-        debug.push(`DEL found: ${submittedDeliverables?.length || 0}`);
-        
-        if (submittedDeliverables && submittedDeliverables.length > 0) {
-          submittedDeliverables.forEach(del => {
-            allItems.push({
-              id: `del-${del.id}`,
-              reference_id: del.id,
-              reference_type: 'deliverable',
-              category: 'deliverable',
-              title: 'Deliverable Pending Review',
-              message: del.name,
-              entityName: `${del.deliverable_ref}: ${del.name}`,
-              submitterName: '',
-              created_at: del.updated_at || del.created_at,
-              action_url: '/deliverables',
-              action_label: 'Review Deliverable',
-              assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
-              itemDetails: del
-            });
+      } else if (submittedDeliverables && submittedDeliverables.length > 0) {
+        submittedDeliverables.forEach(del => {
+          allItems.push({
+            id: `del-${del.id}`,
+            reference_id: del.id,
+            reference_type: 'deliverable',
+            category: 'deliverable',
+            title: 'Deliverable Pending Review',
+            message: del.name,
+            entityName: `${del.deliverable_ref}: ${del.name}`,
+            submitterName: '',
+            created_at: del.updated_at || del.created_at,
+            action_url: '/deliverables',
+            action_label: 'Review Deliverable',
+            assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+            itemDetails: del
           });
-        }
+        });
       }
 
       // =====================================================
       // 4. Fetch submitted milestone certificates
       // =====================================================
-      debug.push('Fetching certificates...');
-      
       const { data: submittedCerts, error: certError } = await supabase
         .from('milestone_certificates')
         .select('*')
         .eq('status', 'Submitted');
 
       if (certError) {
-        debug.push(`CERT Error: ${certError.message}`);
         console.error('Error fetching certificates:', certError);
-      } else {
-        debug.push(`CERT found: ${submittedCerts?.length || 0}`);
+      } else if (submittedCerts && submittedCerts.length > 0) {
+        // Fetch milestone names
+        const milestoneIds = [...new Set(submittedCerts.map(c => c.milestone_id).filter(Boolean))];
+        let milestoneMap = {};
         
-        if (submittedCerts && submittedCerts.length > 0) {
-          // Fetch milestone names
-          const milestoneIds = [...new Set(submittedCerts.map(c => c.milestone_id).filter(Boolean))];
-          let milestoneMap = {};
+        if (milestoneIds.length > 0) {
+          const { data: milestones } = await supabase
+            .from('milestones')
+            .select('id, milestone_ref, name')
+            .in('id', milestoneIds);
           
-          if (milestoneIds.length > 0) {
-            const { data: milestones } = await supabase
-              .from('milestones')
-              .select('id, milestone_ref, name')
-              .in('id', milestoneIds);
-            
-            if (milestones) {
-              milestones.forEach(m => { milestoneMap[m.id] = m; });
-            }
+          if (milestones) {
+            milestones.forEach(m => { milestoneMap[m.id] = m; });
           }
-          
-          submittedCerts.forEach(cert => {
-            const milestone = milestoneMap[cert.milestone_id] || {};
-            allItems.push({
-              id: `cert-${cert.id}`,
-              reference_id: cert.id,
-              reference_type: 'milestone_certificate',
-              category: 'certificate',
-              title: 'Certificate Pending Approval',
-              message: `${milestone.milestone_ref || 'Unknown'}: ${milestone.name || 'Unknown Milestone'}`,
-              entityName: `${milestone.milestone_ref || 'Unknown'}: ${milestone.name || 'Unknown Milestone'}`,
-              submitterName: '',
-              created_at: cert.updated_at || cert.created_at,
-              action_url: '/milestones',
-              action_label: 'Review Certificate',
-              assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
-              itemDetails: cert
-            });
-          });
         }
+        
+        submittedCerts.forEach(cert => {
+          const milestone = milestoneMap[cert.milestone_id] || {};
+          allItems.push({
+            id: `cert-${cert.id}`,
+            reference_id: cert.id,
+            reference_type: 'milestone_certificate',
+            category: 'certificate',
+            title: 'Certificate Pending Approval',
+            message: `${milestone.milestone_ref || 'Unknown'}: ${milestone.name || 'Unknown Milestone'}`,
+            entityName: `${milestone.milestone_ref || 'Unknown'}: ${milestone.name || 'Unknown Milestone'}`,
+            submitterName: '',
+            created_at: cert.updated_at || cert.created_at,
+            action_url: '/milestones',
+            action_label: 'Review Certificate',
+            assignedTo: { role: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+            itemDetails: cert
+          });
+        });
       }
 
       // Sort all items by created_at descending
       allItems.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-      debug.push(`TOTAL items: ${allItems.length}`);
-      console.log('Final workflow items:', allItems);
-      
-      setDebugInfo(debug.join(' | '));
       setWorkflowItems(allItems);
     } catch (error) {
-      debug.push(`CATCH Error: ${error.message}`);
       console.error('Error fetching workflow items:', error);
-      setDebugInfo(debug.join(' | '));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -439,21 +396,6 @@ export default function WorkflowSummary() {
           </button>
         </div>
       </div>
-
-      {/* Debug Info - temporary */}
-      {debugInfo && (
-        <div style={{ 
-          padding: '0.75rem', 
-          backgroundColor: '#fef3c7', 
-          borderRadius: '6px', 
-          marginBottom: '1rem',
-          fontSize: '0.8rem',
-          fontFamily: 'monospace',
-          overflowX: 'auto'
-        }}>
-          <strong>Debug:</strong> {debugInfo}
-        </div>
-      )}
 
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
