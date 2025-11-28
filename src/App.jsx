@@ -1,5 +1,5 @@
 // src/App.jsx
-// Updated to include TestUserProvider, WorkflowSummary, and Margins routes
+// Updated to include TestUserProvider, WorkflowSummary, Margins routes, and SkeletonStyles
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -8,6 +8,9 @@ import { supabase } from './lib/supabase';
 // Import the TestUserProvider and NotificationProvider
 import { TestUserProvider } from './contexts/TestUserContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+
+// Import skeleton styles
+import { SkeletonStyles } from './components/SkeletonLoader';
 
 // Layout and Pages
 import Layout from './components/Layout';
@@ -64,6 +67,9 @@ function ProtectedRoute({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Inject skeleton animation styles */}
+      <SkeletonStyles />
+      
       {/* Wrap entire app with TestUserProvider and NotificationProvider */}
       <TestUserProvider>
         <NotificationProvider>
