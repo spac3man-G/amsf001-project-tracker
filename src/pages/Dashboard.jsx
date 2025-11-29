@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast';
 import { DashboardSkeleton } from '../components/SkeletonLoader';
 import { useAuth, useProject } from '../hooks';
 import { formatCurrency, formatDate } from '../utils/statusHelpers';
+import StatCard, { StatGrid } from '../components/StatCard';
 
 export default function Dashboard() {
   // ============================================
@@ -201,51 +202,40 @@ export default function Dashboard() {
       )}
 
       {/* Main Stats */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#dbeafe' }}><Clock size={24} color="#2563eb" /></div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.totalHours.toFixed(1)}h</div>
-            <div className="stat-label">Total Hours Logged</div>
-            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
-              {stats.approvedHours.toFixed(1)}h approved • {stats.pendingHours.toFixed(1)}h pending
-            </div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#dcfce7' }}><Receipt size={24} color="#16a34a" /></div>
-          <div className="stat-content">
-            <div className="stat-value">{formatCurrency(stats.totalExpenses)}</div>
-            <div className="stat-label">Total Expenses</div>
-            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
-              {formatCurrency(stats.approvedExpenses)} approved
-            </div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#fef3c7' }}><Target size={24} color="#d97706" /></div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.milestonesCompleted}/{stats.milestonesTotal}</div>
-            <div className="stat-label">Milestones Complete</div>
-            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
-              {milestonePercent}% complete • {stats.milestonesInProgress} in progress
-            </div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#f3e8ff' }}><PiggyBank size={24} color="#7c3aed" /></div>
-          <div className="stat-content">
-            <div className="stat-value">{formatCurrency(stats.budgetSpent)}</div>
-            <div className="stat-label">Budget Spent</div>
-            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
-              of {formatCurrency(stats.budgetAllocated)} ({budgetPercent}%)
-            </div>
-          </div>
-        </div>
-      </div>
+      <StatGrid columns={4}>
+        <StatCard
+          icon={<Clock size={24} />}
+          iconBg="#dbeafe"
+          iconColor="#2563eb"
+          value={`${stats.totalHours.toFixed(1)}h`}
+          label="Total Hours Logged"
+          subtext={`${stats.approvedHours.toFixed(1)}h approved • ${stats.pendingHours.toFixed(1)}h pending`}
+        />
+        <StatCard
+          icon={<Receipt size={24} />}
+          iconBg="#dcfce7"
+          iconColor="#16a34a"
+          value={formatCurrency(stats.totalExpenses)}
+          label="Total Expenses"
+          subtext={`${formatCurrency(stats.approvedExpenses)} approved`}
+        />
+        <StatCard
+          icon={<Target size={24} />}
+          iconBg="#fef3c7"
+          iconColor="#d97706"
+          value={`${stats.milestonesCompleted}/${stats.milestonesTotal}`}
+          label="Milestones Complete"
+          subtext={`${milestonePercent}% complete • ${stats.milestonesInProgress} in progress`}
+        />
+        <StatCard
+          icon={<PiggyBank size={24} />}
+          iconBg="#f3e8ff"
+          iconColor="#7c3aed"
+          value={formatCurrency(stats.budgetSpent)}
+          label="Budget Spent"
+          subtext={`of ${formatCurrency(stats.budgetAllocated)} (${budgetPercent}%)`}
+        />
+      </StatGrid>
 
       {/* Two-Column Layout for Recent Items */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', marginTop: '1.5rem' }}>
