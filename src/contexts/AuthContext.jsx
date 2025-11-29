@@ -65,15 +65,17 @@ export function AuthProvider({ children }) {
         
         if (sessionError) {
           console.error('Session error:', sessionError);
-          setError(sessionError);
+          if (mounted) setError(sessionError);
         }
 
         if (mounted) {
           setUser(session?.user ?? null);
+          setIsLoading(false); // Set loading false IMMEDIATELY
+          
+          // Then fetch user data in background (non-blocking)
           if (session?.user) {
-            await fetchUserData(session.user);
+            fetchUserData(session.user); // Don't await
           }
-          setIsLoading(false);
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
@@ -91,13 +93,14 @@ export function AuthProvider({ children }) {
       async (event, session) => {
         if (mounted) {
           setUser(session?.user ?? null);
+          setIsLoading(false);
+          
           if (session?.user) {
-            await fetchUserData(session.user);
+            fetchUserData(session.user); // Don't await
           } else {
             setProfile(null);
             setLinkedResource(null);
           }
-          setIsLoading(false);
         }
       }
     );
