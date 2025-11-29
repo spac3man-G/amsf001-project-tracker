@@ -6,7 +6,7 @@ import {
   ChevronRight, RefreshCw, User, AlertCircle,
   CheckCircle, Filter, Eye, UserCheck
 } from 'lucide-react';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 
 export default function WorkflowSummary() {
   const [workflowItems, setWorkflowItems] = useState([]);

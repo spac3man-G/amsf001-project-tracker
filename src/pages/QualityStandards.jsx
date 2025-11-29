@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 
 export default function QualityStandards() {
   // Use shared contexts instead of local state for auth and project

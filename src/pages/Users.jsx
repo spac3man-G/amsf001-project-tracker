@@ -8,7 +8,7 @@ import {
   Shield, Eye, EyeOff, TestTube, AlertTriangle, Link, Unlink
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 
 export default function Users() {
   const [users, setUsers] = useState([]);

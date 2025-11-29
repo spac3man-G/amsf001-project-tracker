@@ -5,7 +5,7 @@ import {
   ArrowLeft, Award, CheckCircle, AlertCircle, Clock, 
   Save, X, Edit2, Target, FileText, Clipboard
 } from 'lucide-react';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 
 export default function QualityStandardDetail() {
   const { id } = useParams();

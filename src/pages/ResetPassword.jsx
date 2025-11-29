@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 import { KeyRound, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function ResetPassword() {

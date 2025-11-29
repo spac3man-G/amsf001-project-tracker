@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 import { 
   User, Mail, KeyRound, Save, AlertCircle, CheckCircle, 
   Eye, EyeOff, Shield, Clock

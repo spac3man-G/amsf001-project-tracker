@@ -5,7 +5,7 @@ import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X, Fi
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 
 export default function Milestones() {
   // Use shared contexts instead of local state for auth and project

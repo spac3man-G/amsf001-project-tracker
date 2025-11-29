@@ -5,7 +5,7 @@ import { Settings as SettingsIcon, Save, RefreshCw, AlertCircle, CheckCircle, Do
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 
 export default function Settings() {
   const navigate = useNavigate();

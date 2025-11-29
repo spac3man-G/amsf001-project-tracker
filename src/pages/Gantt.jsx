@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 import { 
   Calendar, ChevronLeft, ChevronRight, Info, GripHorizontal,
   Lock, Move, ZoomIn, ZoomOut
