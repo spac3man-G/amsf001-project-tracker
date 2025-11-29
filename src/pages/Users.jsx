@@ -8,21 +8,26 @@ import {
   Shield, Eye, EyeOff, TestTube, AlertTriangle, Link, Unlink
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { useAuth } from '../hooks';
 
 export default function Users() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userId: currentUserId, userRole, loading: authLoading } = useAuth();
+  const { showTestUsers, toggleTestUsers, canToggleTestUsers, testUserIds } = useTestUsers();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [users, setUsers] = useState([]);
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
-  const [currentUserId, setCurrentUserId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [linkingId, setLinkingId] = useState(null);
   const [selectedResourceId, setSelectedResourceId] = useState('');
-  
-  // Test user context
-  const { showTestUsers, toggleTestUsers, canToggleTestUsers, testUserIds } = useTestUsers();
 
   const [newUser, setNewUser] = useState({
     email: '',
@@ -39,31 +44,16 @@ export default function Users() {
     { value: 'viewer', label: 'Viewer', color: '#64748b' }
   ];
 
-  useEffect(() => {
-    fetchUserRole();
-  }, []);
-
-  useEffect(() => {
-    if (canManageUsers) {
-      fetchData();
-    }
-  }, [userRole, showTestUsers]);
-
-  async function fetchUserRole() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setCurrentUserId(user.id);
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
-    }
-  }
-
-  // Supplier PM has same rights as Admin
+  // Permission check
   const canManageUsers = userRole === 'admin' || userRole === 'supplier_pm';
+
+  useEffect(() => {
+    if (!authLoading && canManageUsers) {
+      fetchData();
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [authLoading, userRole, showTestUsers]);
 
   async function fetchData() {
     try {
@@ -260,7 +250,7 @@ export default function Users() {
     );
   }
 
-  if (loading) return <div className="loading">Loading users...</div>;
+  if (authLoading || loading) return <div className="loading">Loading users...</div>;
 
   return (
     <div className="page-container">

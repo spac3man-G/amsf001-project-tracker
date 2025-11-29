@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { FileText, Edit2, Save, X, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useAuth } from '../hooks';
 
 export default function NetworkStandards() {
+  // ============================================
+  // HOOKS
+  // ============================================
+  const { userRole, loading: authLoading } = useAuth();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [standards, setStandards] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [filterCategory, setFilterCategory] = useState('all');
@@ -29,20 +37,7 @@ export default function NetworkStandards() {
 
   useEffect(() => {
     fetchStandards();
-    fetchUserRole();
   }, []);
-
-  async function fetchUserRole() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
-    }
-  }
 
   async function fetchStandards() {
     try {
@@ -163,7 +158,7 @@ export default function NetworkStandards() {
     };
   });
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="loading">Loading network standards...</div>;
   }
 

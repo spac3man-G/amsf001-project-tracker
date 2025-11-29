@@ -6,17 +6,23 @@ import {
   ChevronRight, RefreshCw, User, AlertCircle,
   CheckCircle, Filter, Eye, UserCheck
 } from 'lucide-react';
+import { useAuth, useProject } from '../hooks';
 
 export default function WorkflowSummary() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userId: currentUserId, userRole, profile: currentUserProfile, loading: authLoading } = useAuth();
+  const { projectId, loading: projectLoading } = useProject();
+  const navigate = useNavigate();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [workflowItems, setWorkflowItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [filterCategory, setFilterCategory] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
-  const [projectId, setProjectId] = useState(null);
-  const navigate = useNavigate();
 
   // Check if user can see all workflows or just their own
   const canSeeAllWorkflows = (role) => {
@@ -37,67 +43,25 @@ export default function WorkflowSummary() {
 
   // Check permissions and fetch data
   useEffect(() => {
-    checkPermissionsAndFetch();
-  }, []);
-
-  async function checkPermissionsAndFetch() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-
-      setCurrentUserId(user.id);
-
-      // Get user role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, role, full_name, email')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile) {
-        alert('Profile not found.');
-        navigate('/');
-        return;
-      }
-
+    if (!authLoading && !projectLoading) {
       // Viewers cannot access workflow summary
-      if (profile.role === 'viewer') {
+      if (userRole === 'viewer') {
         alert('You do not have permission to view this page.');
         navigate('/');
         return;
       }
-
-      // Get project ID
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-
-      if (project) {
-        setProjectId(project.id);
+      
+      if (currentUserId && currentUserProfile) {
+        fetchWorkflowItems();
       }
-
-      setUserRole(profile.role);
-      setCurrentUserProfile(profile);
-      await fetchWorkflowItems(user.id, profile, project?.id);
-    } catch (error) {
-      console.error('Error checking permissions:', error);
-      setLoading(false);
     }
-  }
+  }, [authLoading, projectLoading, userRole, currentUserId, currentUserProfile]);
 
-  async function fetchWorkflowItems(userId, profile, projId) {
+  async function fetchWorkflowItems() {
     setRefreshing(true);
     
     try {
-      const userIdToUse = userId || currentUserId;
-      const profileToUse = profile || currentUserProfile;
-      
-      if (!userIdToUse || !profileToUse) {
+      if (!currentUserId || !currentUserProfile) {
         console.error('No user ID or profile available');
         setWorkflowItems([]);
         setLoading(false);
@@ -135,7 +99,7 @@ export default function WorkflowSummary() {
         
         submittedTimesheets.forEach(ts => {
           // Filter based on user role if not admin/PM
-          if (!canSeeAllWorkflows(profileToUse.role) && ts.user_id !== userIdToUse) {
+          if (!canSeeAllWorkflows(currentUserProfile.role) && ts.user_id !== currentUserId) {
             return;
           }
           
@@ -170,7 +134,7 @@ export default function WorkflowSummary() {
       } else if (submittedExpenses && submittedExpenses.length > 0) {
         submittedExpenses.forEach(exp => {
           // Filter based on user role if not admin/PM
-          if (!canSeeAllWorkflows(profileToUse.role) && exp.created_by !== userIdToUse) {
+          if (!canSeeAllWorkflows(currentUserProfile.role) && exp.created_by !== currentUserId) {
             return;
           }
           
@@ -349,7 +313,7 @@ export default function WorkflowSummary() {
     urgent: filteredItems.filter(item => getDaysPending(item.created_at) >= 5).length
   };
 
-  if (loading) {
+  if (authLoading || projectLoading || loading) {
     return (
       <div className="page-container">
         <div className="loading">Loading workflow summary...</div>

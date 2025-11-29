@@ -5,12 +5,20 @@ import {
   Calendar, ChevronLeft, ChevronRight, Info, GripHorizontal,
   Lock, Move, ZoomIn, ZoomOut
 } from 'lucide-react';
+import { useAuth, useProject } from '../hooks';
 
 export default function Gantt() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userRole, loading: authLoading } = useAuth();
+  const { projectId, loading: projectLoading } = useProject();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
-  const [projectId, setProjectId] = useState(null);
   const [viewStart, setViewStart] = useState(null);
   const [viewEnd, setViewEnd] = useState(null);
   const [daysPerPixel, setDaysPerPixel] = useState(0.1); // Zoom level
@@ -22,8 +30,10 @@ export default function Gantt() {
   const canEdit = ['admin', 'supplier_pm', 'customer_pm'].includes(userRole);
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    if (projectId && !authLoading && !projectLoading) {
+      fetchMilestones();
+    }
+  }, [projectId, authLoading, projectLoading]);
 
   useEffect(() => {
     if (milestones.length > 0) {
@@ -31,42 +41,15 @@ export default function Gantt() {
     }
   }, [milestones]);
 
-  async function fetchInitialData() {
+  async function fetchMilestones() {
+    if (!projectId) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
-      }
-
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-
-      if (project) {
-        setProjectId(project.id);
-        await fetchMilestones(project.id);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchMilestones(projId) {
-    const pid = projId || projectId;
-    try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('milestones')
         .select('*')
-        .eq('project_id', pid)
+        .eq('project_id', projectId)
         .order('milestone_ref');
 
       if (error) throw error;
@@ -265,7 +248,7 @@ export default function Gantt() {
     ? (viewEnd - viewStart) / (1000 * 60 * 60 * 24) / daysPerPixel 
     : 1000;
 
-  if (loading) return <div className="loading">Loading Gantt chart...</div>;
+  if (authLoading || projectLoading || loading) return <div className="loading">Loading Gantt chart...</div>;
 
   return (
     <div className="page-container">

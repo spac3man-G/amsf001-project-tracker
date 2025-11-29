@@ -6,20 +6,26 @@ import {
 } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
+import { useAuth, useProject } from '../hooks';
 
 export default function Budgets() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userRole, loading: authLoading } = useAuth();
+  const { projectId, project, loading: projectLoading } = useProject();
+  const toast = useToast();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [budgets, setBudgets] = useState([]);
   const [milestones, setMilestones] = useState([]);
-  const [projectId, setProjectId] = useState(null);
-  const [projectBudget, setProjectBudget] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
-
-  const toast = useToast();
 
   const [newBudget, setNewBudget] = useState({
     milestone_id: '',
@@ -30,58 +36,28 @@ export default function Budgets() {
   });
 
   const categories = ['Labour', 'Materials', 'Equipment', 'Travel', 'Software', 'Training', 'Contingency', 'Other'];
+  
+  // Get project budget from hook
+  const projectBudget = project?.budget || 0;
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) setUserRole(profile.role);
-      }
-
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id, budget')
-        .eq('reference', 'AMSF001')
-        .single();
-      
-      if (project) {
-        setProjectId(project.id);
-        setProjectBudget(project.budget || 0);
-        await fetchData(project.id);
-      } else {
-        console.error('Project AMSF001 not found');
-        toast.error('Project not found');
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Error in fetchInitialData:', error);
-      toast.error('Failed to load data');
-      setLoading(false);
+    if (projectId && !authLoading && !projectLoading) {
+      fetchData();
     }
-  }
+  }, [projectId, authLoading, projectLoading]);
 
-  async function fetchData(projId) {
-    const pid = projId || projectId;
-    if (!pid) return;
+  async function fetchData() {
+    if (!projectId) return;
 
     try {
+      setLoading(true);
       const { data: budgetsData, error: budgetError } = await supabase
         .from('budgets')
         .select(`
           *,
           milestones (id, milestone_ref, name)
         `)
-        .eq('project_id', pid)
+        .eq('project_id', projectId)
         .order('category');
 
       if (budgetError) throw budgetError;
@@ -90,7 +66,7 @@ export default function Budgets() {
       const { data: milestonesData, error: msError } = await supabase
         .from('milestones')
         .select('id, milestone_ref, name')
-        .eq('project_id', pid)
+        .eq('project_id', projectId)
         .order('milestone_ref');
       
       if (msError) throw msError;
@@ -243,7 +219,7 @@ export default function Budgets() {
     };
   }).filter(c => c.allocated > 0);
 
-  if (loading) return <TablePageSkeleton />;
+  if (authLoading || projectLoading || loading) return <TablePageSkeleton />;
 
   return (
     <div className="page-container">

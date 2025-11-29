@@ -14,39 +14,38 @@ import {
   PieChart
 } from 'lucide-react';
 import { canSeeMargins } from '../utils/permissions';
+import { useAuth } from '../hooks';
 
 export default function Margins() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userRole, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [resources, setResources] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [timesheets, setTimesheets] = useState([]);
   const [viewMode, setViewMode] = useState('summary'); // summary, by-resource, by-milestone, by-type
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) {
-          setUserRole(profile.role);
-          
-          // Use centralized permission check
-          if (!canSeeMargins(profile.role)) {
-            setLoading(false);
-            return;
-          }
-        }
+    if (!authLoading) {
+      // Check permission before fetching data
+      if (!canSeeMargins(userRole)) {
+        setLoading(false);
+        return;
       }
+      fetchData();
+    }
+  }, [authLoading, userRole]);
+
+  async function fetchData() {
+    try {
+      setLoading(true);
 
       // Fetch resources
       const { data: resourcesData } = await supabase
@@ -125,7 +124,7 @@ export default function Margins() {
   // Use centralized permission check for access control
   const canAccess = canSeeMargins(userRole);
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="loading">Loading margins data...</div>;
   }
 

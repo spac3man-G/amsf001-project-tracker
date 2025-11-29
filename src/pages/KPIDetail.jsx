@@ -5,32 +5,27 @@ import {
   TrendingUp, ArrowLeft, Edit2, Save, X, Target, 
   FileText, Info, CheckCircle, AlertTriangle
 } from 'lucide-react';
+import { useAuth } from '../hooks';
 
 export default function KPIDetail() {
+  // ============================================
+  // HOOKS
+  // ============================================
   const { id } = useParams();
   const navigate = useNavigate();
+  const { userRole, loading: authLoading } = useAuth();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [kpi, setKpi] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [userRole, setUserRole] = useState('viewer');
   const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     fetchKPI();
-    fetchUserRole();
   }, [id]);
-
-  async function fetchUserRole() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
-    }
-  }
 
   async function fetchKPI() {
     try {
@@ -103,7 +98,7 @@ export default function KPIDetail() {
     return { status: 'Critical', color: '#ef4444', bg: '#fef2f2' };
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="loading">Loading KPI details...</div>;
   }
 

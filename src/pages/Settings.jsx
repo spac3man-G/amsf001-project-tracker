@@ -7,57 +7,44 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
+import { useAuth, useProject } from '../hooks';
 
 export default function Settings() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { user: currentUser, userRole, profile: authProfile, loading: authLoading } = useAuth();
+  const { project, loading: projectLoading } = useProject();
+  const toast = useToast();
+  const { showTestUsers, setShowTestUsers } = useTestUsers();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [userRole, setUserRole] = useState('viewer');
-  const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState({
     full_name: '',
     email: '',
     role: 'viewer'
   });
-  const [project, setProject] = useState(null);
   const [users, setUsers] = useState([]);
   const [activeTab, setActiveTab] = useState('profile');
 
-  const toast = useToast();
-  const { showTestUsers, setShowTestUsers } = useTestUsers();
-
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (!authLoading && authProfile) {
+      setProfile({
+        full_name: authProfile.full_name || '',
+        email: authProfile.email || currentUser?.email || '',
+        role: authProfile.role || 'viewer'
+      });
+      fetchData();
+    }
+  }, [authLoading, authProfile]);
 
   async function fetchData() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUser(user);
-        
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (profileData) {
-          setUserRole(profileData.role);
-          setProfile({
-            full_name: profileData.full_name || '',
-            email: profileData.email || user.email,
-            role: profileData.role
-          });
-        }
-      }
-
-      const { data: projectData } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('reference', 'AMSF001')
-        .single();
-      
-      if (projectData) {
+      setLoading(true);
         setProject(projectData);
       }
 

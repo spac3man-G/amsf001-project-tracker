@@ -5,16 +5,24 @@ import {
   ArrowLeft, Award, CheckCircle, AlertCircle, Clock, 
   Save, X, Edit2, Target, FileText, Clipboard
 } from 'lucide-react';
+import { useAuth } from '../hooks';
 
 export default function QualityStandardDetail() {
+  // ============================================
+  // HOOKS
+  // ============================================
   const { id } = useParams();
   const navigate = useNavigate();
+  const { userRole, loading: authLoading } = useAuth();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [qs, setQS] = useState(null);
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
-  const [userRole, setUserRole] = useState('viewer');
 
   useEffect(() => {
     fetchQualityStandard();
@@ -22,16 +30,6 @@ export default function QualityStandardDetail() {
 
   async function fetchQualityStandard() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
-      }
-
       const { data, error } = await supabase
         .from('quality_standards')
         .select('*')
@@ -107,7 +105,7 @@ export default function QualityStandardDetail() {
 
   const canEdit = userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm';
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (authLoading || loading) return <div className="loading">Loading...</div>;
   if (!qs) return <div className="loading">Quality Standard not found</div>;
 
   const status = getStatusInfo();

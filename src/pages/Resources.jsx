@@ -5,19 +5,26 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
 import { canManageResources } from '../utils/permissions';
+import { useAuth } from '../hooks';
 
 export default function Resources() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userRole, loading: authLoading } = useAuth();
+  const toast = useToast();
+  const { showTestUsers, testUserIds } = useTestUsers();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [resources, setResources] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
-  
-  const toast = useToast();
-  const { showTestUsers, testUserIds } = useTestUsers();
 
   const [newResource, setNewResource] = useState({
     name: '',
@@ -37,27 +44,14 @@ export default function Resources() {
   ];
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (!loading) {
+    if (!authLoading) {
       fetchData();
     }
-  }, [showTestUsers]);
+  }, [authLoading, showTestUsers]);
 
   async function fetchData() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) setUserRole(profile.role);
-      }
+      setLoading(true);
 
       let resourceQuery = supabase
         .from('resources')
@@ -232,7 +226,7 @@ export default function Resources() {
   const unlinkedCount = resources.filter(r => !r.user_id).length;
   const totalDayRate = resources.reduce((sum, r) => sum + parseFloat(r.day_rate || 0), 0);
 
-  if (loading) return <TablePageSkeleton />;
+  if (authLoading || loading) return <TablePageSkeleton />;
 
   return (
     <div className="page-container">

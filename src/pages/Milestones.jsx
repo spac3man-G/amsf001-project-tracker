@@ -6,19 +6,26 @@ import {
 } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
+import { useAuth, useProject } from '../hooks';
 import { canCreateMilestone, canEditMilestone, canDeleteMilestone } from '../utils/permissions';
 
 export default function Milestones() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userRole, loading: authLoading } = useAuth();
+  const { projectId, loading: projectLoading } = useProject();
+  const toast = useToast();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [milestones, setMilestones] = useState([]);
-  const [projectId, setProjectId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
-
-  const toast = useToast();
 
   const [newMilestone, setNewMilestone] = useState({
     milestone_ref: '',
@@ -33,53 +40,25 @@ export default function Milestones() {
 
   const statuses = ['Not Started', 'In Progress', 'On Hold', 'Completed', 'Cancelled'];
 
+  // ============================================
+  // DATA FETCHING
+  // ============================================
+
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) setUserRole(profile.role);
-      }
-
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-      
-      if (project) {
-        setProjectId(project.id);
-        await fetchData(project.id);
-      } else {
-        console.error('Project AMSF001 not found');
-        toast.error('Project not found');
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Error in fetchInitialData:', error);
-      toast.error('Failed to load data');
-      setLoading(false);
+    if (projectId && !authLoading && !projectLoading) {
+      fetchData();
     }
-  }
+  }, [projectId, authLoading, projectLoading]);
 
-  async function fetchData(projId) {
-    const pid = projId || projectId;
-    if (!pid) return;
+  async function fetchData() {
+    if (!projectId) return;
 
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('milestones')
         .select('*')
-        .eq('project_id', pid)
+        .eq('project_id', projectId)
         .order('milestone_ref');
 
       if (error) throw error;
@@ -92,7 +71,10 @@ export default function Milestones() {
     }
   }
 
-  // Use centralized permission functions
+  // ============================================
+  // PERMISSION HELPERS
+  // ============================================
+
   function canAdd() {
     return canCreateMilestone(userRole);
   }
@@ -104,6 +86,10 @@ export default function Milestones() {
   function canDelete() {
     return canDeleteMilestone(userRole);
   }
+
+  // ============================================
+  // CRUD OPERATIONS
+  // ============================================
 
   async function handleAdd() {
     if (!newMilestone.milestone_ref || !newMilestone.name) {
@@ -225,6 +211,10 @@ export default function Milestones() {
     }
   }
 
+  // ============================================
+  // HELPERS
+  // ============================================
+
   function getStatusIcon(status) {
     switch (status) {
       case 'Completed': return <CheckCircle size={16} style={{ color: '#10b981' }} />;
@@ -252,6 +242,10 @@ export default function Milestones() {
     return '#64748b';
   }
 
+  // ============================================
+  // CALCULATIONS
+  // ============================================
+
   const completedCount = milestones.filter(m => m.status === 'Completed').length;
   const inProgressCount = milestones.filter(m => m.status === 'In Progress').length;
   const totalBudget = milestones.reduce((sum, m) => sum + parseFloat(m.budget || 0), 0);
@@ -259,7 +253,15 @@ export default function Milestones() {
     ? Math.round(milestones.reduce((sum, m) => sum + (m.completion_percentage || 0), 0) / milestones.length)
     : 0;
 
-  if (loading) return <TablePageSkeleton />;
+  // ============================================
+  // LOADING STATE
+  // ============================================
+
+  if (authLoading || projectLoading || loading) return <TablePageSkeleton />;
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <div className="page-container">

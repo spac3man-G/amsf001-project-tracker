@@ -9,8 +9,20 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { ReportsSkeleton } from '../components/SkeletonLoader';
+import { useProject } from '../hooks';
 
 export default function Reports() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { project, projectId, loading: projectLoading } = useProject();
+  const toast = useToast();
+  const { showTestUsers, testUserIds } = useTestUsers();
+  const reportRef = useRef(null);
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [activeReport, setActiveReport] = useState('summary');
@@ -18,8 +30,6 @@ export default function Reports() {
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
   });
-  const [projectId, setProjectId] = useState(null);
-  const [project, setProject] = useState(null);
   
   // Data states
   const [timesheets, setTimesheets] = useState([]);
@@ -41,53 +51,22 @@ export default function Reports() {
     budget: true
   });
 
-  const toast = useToast();
-  const { showTestUsers, testUserIds } = useTestUsers();
-  const reportRef = useRef(null);
-
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  useEffect(() => {
-    if (projectId) {
+    if (projectId && !projectLoading) {
       fetchReportData();
     }
-  }, [showTestUsers, dateRange, filterResource, filterStatus, filterMilestone]);
+  }, [projectId, projectLoading, showTestUsers, dateRange, filterResource, filterStatus, filterMilestone]);
 
-  async function fetchInitialData() {
-    try {
-      const { data: projectData } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('reference', 'AMSF001')
-        .single();
-      
-      if (projectData) {
-        setProject(projectData);
-        setProjectId(projectData.id);
-        await fetchReportData(projectData.id);
-      } else {
-        toast.error('Project not found');
-      }
-    } catch (error) {
-      console.error('Error fetching project:', error);
-      toast.error('Failed to load project');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchReportData(projId) {
-    const pid = projId || projectId;
-    if (!pid) return;
+  async function fetchReportData() {
+    if (!projectId) return;
 
     try {
+      setLoading(true);
       // Fetch timesheets
       let timesheetQuery = supabase
         .from('timesheets')
         .select('*, resources(id, name, email), milestones(id, milestone_ref, name)')
-        .eq('project_id', pid)
+        .eq('project_id', projectId)
         .gte('date', dateRange.start)
         .lte('date', dateRange.end)
         .order('date', { ascending: false });
@@ -112,7 +91,7 @@ export default function Reports() {
       let expenseQuery = supabase
         .from('expenses')
         .select('*, resources(id, name, email), milestones(id, milestone_ref, name)')
-        .eq('project_id', pid)
+        .eq('project_id', projectId)
         .gte('expense_date', dateRange.start)
         .lte('expense_date', dateRange.end)
         .order('expense_date', { ascending: false });
@@ -134,7 +113,7 @@ export default function Reports() {
       const { data: msData } = await supabase
         .from('milestones')
         .select('*')
-        .eq('project_id', pid)
+        .eq('project_id', projectId)
         .order('milestone_ref');
       setMilestones(msData || []);
 
@@ -142,7 +121,7 @@ export default function Reports() {
       const { data: budData } = await supabase
         .from('budgets')
         .select('*, milestones(id, milestone_ref, name)')
-        .eq('project_id', pid);
+        .eq('project_id', projectId);
       setBudgets(budData || []);
 
       // Fetch resources
@@ -245,7 +224,7 @@ export default function Reports() {
     }
   }
 
-  if (loading) return <ReportsSkeleton />;
+  if (projectLoading || loading) return <ReportsSkeleton />;
 
   return (
     <div className="page-container">

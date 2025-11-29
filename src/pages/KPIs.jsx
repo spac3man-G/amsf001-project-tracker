@@ -6,13 +6,21 @@ import {
   AlertTriangle, Clock, Edit2, Plus, Trash2, X, Save
 } from 'lucide-react';
 import { canManageKPIs } from '../utils/permissions';
+import { useAuth, useProject } from '../hooks';
 
 export default function KPIs() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userRole, loading: authLoading } = useAuth();
+  const { projectId, loading: projectLoading } = useProject();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [kpis, setKpis] = useState([]);
   const [assessmentCounts, setAssessmentCounts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
-  const [projectId, setProjectId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -33,43 +41,16 @@ export default function KPIs() {
   const frequencies = ['Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Per Deliverable'];
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
-      }
-
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-      
-      if (project) {
-        setProjectId(project.id);
-        await fetchKPIs(project.id);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
+    if (projectId && !authLoading && !projectLoading) {
+      fetchKPIs();
     }
-  }
+  }, [projectId, authLoading, projectLoading]);
 
-  async function fetchKPIs(projId) {
-    const pid = projId || projectId;
-    if (!pid) return;
+  async function fetchKPIs() {
+    if (!projectId) return;
 
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('kpis')
         .select('*')
@@ -303,7 +284,7 @@ export default function KPIs() {
   const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
   const canManage = canManageKPIs(userRole);
 
-  if (loading) return <div className="loading">Loading KPIs...</div>;
+  if (authLoading || projectLoading || loading) return <div className="loading">Loading KPIs...</div>;
 
   return (
     <div className="page-container">

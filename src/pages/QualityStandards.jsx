@@ -5,13 +5,21 @@ import {
   Award, CheckCircle, AlertCircle, Clock, TrendingUp,
   AlertTriangle, Info, Plus, Edit2, Trash2, Save, X
 } from 'lucide-react';
+import { useAuth, useProject } from '../hooks';
 
 export default function QualityStandards() {
+  // ============================================
+  // HOOKS - Replace boilerplate
+  // ============================================
+  const { userRole, loading: authLoading } = useAuth();
+  const { projectId, loading: projectLoading } = useProject();
+
+  // ============================================
+  // LOCAL STATE
+  // ============================================
   const [qualityStandards, setQualityStandards] = useState([]);
   const [assessmentCounts, setAssessmentCounts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
-  const [projectId, setProjectId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -28,47 +36,20 @@ export default function QualityStandards() {
   const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
-      }
-
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-
-      if (project) {
-        setProjectId(project.id);
-        await fetchQualityStandards(project.id);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
+    if (projectId && !authLoading && !projectLoading) {
+      fetchQualityStandards();
     }
-  }
+  }, [projectId, authLoading, projectLoading]);
 
-  async function fetchQualityStandards(projId) {
-    const pid = projId || projectId;
-    if (!pid) return;
+  async function fetchQualityStandards() {
+    if (!projectId) return;
 
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('quality_standards')
         .select('*')
-        .eq('project_id', pid)
+        .eq('project_id', projectId)
         .order('qs_ref');
 
       if (error) throw error;
@@ -247,7 +228,7 @@ export default function QualityStandards() {
     return assessments.total === 0;
   }).length;
 
-  if (loading) return <div className="loading">Loading quality standards...</div>;
+  if (authLoading || projectLoading || loading) return <div className="loading">Loading quality standards...</div>;
 
   return (
     <div className="page-container">
