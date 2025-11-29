@@ -3,13 +3,20 @@ import { supabase } from '../lib/supabase';
 import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canManageResources, canSeeResourceType, canSeeCostPrice } from '../lib/permissions';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function Resources() {
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
   const currentUserId = user?.id || null;
+
+  // Use the permissions hook - clean, pre-bound permission functions
+  const {
+    canManageResources,
+    canSeeResourceType,
+    canSeeCostPrice
+  } = usePermissions();
 
   const [resources, setResources] = useState([]);
   const [timesheetHours, setTimesheetHours] = useState({});
@@ -31,8 +38,6 @@ export default function Resources() {
     resource_type: 'internal'
   });
 
-  // Check if user can see and manage resource types (using centralized permissions)
-  const canManageResourceType = () => canSeeResourceType(userRole);
 
   // Fetch resources when projectId is available
   useEffect(() => {
@@ -269,7 +274,7 @@ export default function Resources() {
         <div className="stat-card">
           <div className="stat-value">{filteredResources.length}</div>
           <div className="stat-label">Team Members</div>
-          {canManageResourceType() && (
+          {canSeeResourceType && (
             <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
               {internalCount} internal, {thirdPartyCount} third-party
             </div>
@@ -295,7 +300,7 @@ export default function Resources() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <h2 className="card-title">Team Resources</h2>
             {/* Filter by type - only visible to admin/supplier_pm */}
-            {canManageResourceType() && (
+            {canSeeResourceType && (
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
@@ -409,7 +414,7 @@ export default function Resources() {
             <thead>
               <tr>
                 <th>Name</th>
-                {canManageResourceType() && <th>Type</th>}
+                {canSeeResourceType && <th>Type</th>}
                 <th>Role</th>
                 <th>SFIA Level</th>
                 <th>Daily Rate</th>
@@ -440,7 +445,7 @@ export default function Resources() {
                             onChange={(e) => setEditForm({...editForm, name: e.target.value})}
                           />
                         </td>
-                        {canManageResourceType() && (
+                        {canSeeResourceType && (
                           <td>
                             <select
                               className="input-field"
@@ -516,10 +521,10 @@ export default function Resources() {
                             </div>
                           </div>
                         </td>
-                        {canManageResourceType() && (
+                        {canSeeResourceType && (
                           <td>
                             <button
-                              onClick={() => canManageResourceType() && handleToggleResourceType(resource)}
+                              onClick={() => canSeeResourceType && handleToggleResourceType(resource)}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -531,10 +536,10 @@ export default function Resources() {
                                 borderRadius: '6px',
                                 fontSize: '0.8rem',
                                 fontWeight: '500',
-                                cursor: canManageResourceType() ? 'pointer' : 'default',
+                                cursor: canSeeResourceType ? 'pointer' : 'default',
                                 transition: 'all 0.15s ease'
                               }}
-                              title={canManageResourceType() ? 'Click to toggle type' : typeStyle.label}
+                              title={canSeeResourceType ? 'Click to toggle type' : typeStyle.label}
                             >
                               <TypeIcon size={14} />
                               {resource.resource_type === 'third_party' ? 'Third-Party' : 'Internal'}
@@ -585,7 +590,7 @@ export default function Resources() {
                         <td>
                           <strong>£{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong>
                         </td>
-                        {canManageResources(userRole) && (
+                        {canManageResources && (
                           <td>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                               <button 
@@ -618,7 +623,7 @@ export default function Resources() {
       </div>
 
       {/* Resource Type Legend - only visible to admin/supplier_pm */}
-      {canManageResourceType() && (
+      {canSeeResourceType && (
         <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc' }}>
           <h4 style={{ marginBottom: '0.75rem' }}>📋 Resource Types</h4>
           <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>

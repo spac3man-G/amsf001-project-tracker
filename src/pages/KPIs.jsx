@@ -7,12 +7,15 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canManageKPIs } from '../lib/permissions';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function KPIs() {
   // Use shared contexts instead of local state for auth and project
   const { role: userRole } = useAuth();
   const { projectId } = useProject();
+
+  // Use the permissions hook - clean, pre-bound permission functions
+  const { canManageKPIs } = usePermissions();
 
   const [kpis, setKpis] = useState([]);
   const [assessmentCounts, setAssessmentCounts] = useState({});
@@ -151,7 +154,7 @@ export default function KPIs() {
   }).length;
 
   // Use centralized permission - Note: Customer PM should NOT edit KPIs per User Manual
-  const canEdit = canManageKPIs(userRole);
+  const canEdit = canManageKPIs;
 
   if (loading && !projectId) return <div className="loading">Loading KPIs...</div>;
 

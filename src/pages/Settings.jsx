@@ -4,12 +4,15 @@ import { supabase } from '../lib/supabase';
 import { Settings as SettingsIcon, Save, RefreshCw, AlertCircle, CheckCircle, DollarSign, Target, Info } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canAccessSettings } from '../lib/permissions';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { user, role: userRole } = useAuth();
   const { projectId, refreshProject } = useProject();
+  
+  // Use the permissions hook - clean, pre-bound permission functions
+  const { canAccessSettings } = usePermissions();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,7 +35,7 @@ export default function Settings() {
   useEffect(() => {
     if (projectId && userRole) {
       // Check permission
-      if (!canAccessSettings(userRole)) {
+      if (!canAccessSettings) {
         navigate('/dashboard');
         return;
       }
@@ -166,7 +169,7 @@ export default function Settings() {
   }
 
   // Permission check (backup - should redirect before this)
-  if (!canAccessSettings(userRole)) {
+  if (!canAccessSettings) {
     return (
       <div className="page-container">
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>

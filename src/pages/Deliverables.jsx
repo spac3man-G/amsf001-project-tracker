@@ -8,7 +8,7 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canCreateDeliverable, canEditDeliverable, canDeleteDeliverable, canReviewDeliverable, canSubmitDeliverable } from '../lib/permissions';
+import { usePermissions } from '../hooks/usePermissions';
 
 const STATUS_OPTIONS = [
   'Not Started',
@@ -144,6 +144,9 @@ export default function Deliverables() {
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
   const currentUserId = user?.id || null;
+
+  // Use the permissions hook - clean, pre-bound permission functions
+  const { canEditDeliverable, canReviewDeliverable } = usePermissions();
 
   // Test user context for filtering
   const { showTestUsers } = useTestUsers();
@@ -296,9 +299,9 @@ export default function Deliverables() {
   const inProgress = deliverables.filter(d => d.status === 'In Progress').length;
   const delivered = deliverables.filter(d => d.status === 'Delivered').length;
 
-  // Use centralized permission functions
-  const canEdit = canEditDeliverable(userRole);
-  const canReview = canReviewDeliverable(userRole);
+  // Use centralized permission functions - now booleans from the hook
+  const canEdit = canEditDeliverable;
+  const canReview = canReviewDeliverable;
 
   if (loading) return <div className="loading">Loading...</div>;
 

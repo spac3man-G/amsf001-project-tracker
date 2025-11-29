@@ -6,7 +6,7 @@ import {
   FileText, Info, CheckCircle, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { canManageKPIs } from '../lib/permissions';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function KPIDetail() {
   const { id } = useParams();
@@ -14,6 +14,9 @@ export default function KPIDetail() {
   
   // Use AuthContext instead of local auth fetching
   const { role: userRole } = useAuth();
+  
+  // Use the permissions hook - clean, pre-bound permission functions
+  const { canManageKPIs } = usePermissions();
   
   const [kpi, setKpi] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -133,7 +136,7 @@ export default function KPIDetail() {
   const statusInfo = getStatusInfo(kpi.current_value, kpi.target);
   
   // Use centralized permission check - Supplier PM and Admin can edit KPIs
-  const canEdit = canManageKPIs(userRole);
+  const canEdit = canManageKPIs;
 
   return (
     <div className="page-container">

@@ -7,13 +7,19 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canManageQualityStandards } from '../lib/permissions';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function QualityStandards() {
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
   const currentUserId = user?.id || null;
+
+  // Use the permissions hook - clean, pre-bound permission functions
+  const { canManageQualityStandards } = usePermissions();
+
+  // Permission check - Note: Customer PM should NOT edit QS per User Manual
+  const canEdit = canManageQualityStandards;
 
   const [qualityStandards, setQualityStandards] = useState([]);
   const [assessmentCounts, setAssessmentCounts] = useState({});
@@ -29,9 +35,6 @@ export default function QualityStandards() {
     target: 100,
     current_value: 0
   });
-
-  // Permission check - Note: Customer PM should NOT edit QS per User Manual
-  const canEdit = canManageQualityStandards(userRole);
 
   // Fetch data when projectId becomes available (from ProjectContext)
   useEffect(() => {
