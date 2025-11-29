@@ -7,15 +7,7 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { 
-  canAddTimesheet,
-  canAddTimesheetForOthers,
-  canApproveTimesheet,
-  canEditTimesheet as canEditTimesheetPerm,
-  canDeleteTimesheet as canDeleteTimesheetPerm,
-  canSubmitTimesheet as canSubmitTimesheetPerm,
-  getAvailableResourcesForEntry
-} from '../lib/permissions';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function Timesheets() {
   // Use shared contexts instead of local state for auth and project
@@ -23,6 +15,17 @@ export default function Timesheets() {
   const { projectId } = useProject();
   const currentUserId = user?.id || null;
   const currentUserResourceId = linkedResource?.id || null;
+
+  // Use the permissions hook - clean, pre-bound permission functions
+  const {
+    canAddTimesheet,
+    canApproveTimesheet,
+    canEditTimesheet,
+    canDeleteTimesheet,
+    canSubmitTimesheet,
+    canValidateTimesheet,
+    getAvailableResources
+  } = usePermissions();
 
   const [timesheets, setTimesheets] = useState([]);
   const [resources, setResources] = useState([]);
@@ -350,24 +353,9 @@ export default function Timesheets() {
     }
   }
 
-  // Permission helper functions using imported permission utilities
-  function canEditTimesheetLocal(ts) {
-    return canEditTimesheetPerm(userRole, ts.status, ts.user_id, currentUserId);
-  }
-
-  function canDeleteTimesheetLocal(ts) {
-    return canDeleteTimesheetPerm(userRole, ts.status, ts.user_id, currentUserId);
-  }
-
-  function canSubmitTimesheetLocal(ts) {
-    return canSubmitTimesheetPerm(userRole, ts.status, ts.user_id, currentUserId);
-  }
-
-  // Can validate (approve/reject) - ONLY Customer PM can approve timesheets
-  function canValidateTimesheet(ts) {
-    if (ts.status !== 'Submitted') return false;
-    return canApproveTimesheet(userRole);
-  }
+  // NOTE: All permission functions now come from usePermissions hook!
+  // No more local wrapper functions needed.
+  // Just call canEditTimesheet(ts), canDeleteTimesheet(ts), etc.
 
   // Filter timesheets
   const filteredTimesheets = timesheets.filter(ts => {
@@ -396,7 +384,7 @@ export default function Timesheets() {
 
   // Available resources for current user (using centralized permission logic)
   // This now correctly allows Supplier PM to add timesheets for any resource
-  const availableResources = getAvailableResourcesForEntry(userRole, resources, currentUserId);
+  const availableResources = getAvailableResources(resources);
 
   if (loading) return <div className="loading">Loading timesheets...</div>;
 
@@ -410,7 +398,7 @@ export default function Timesheets() {
             <p>Track time spent on project activities</p>
           </div>
         </div>
-        {!showAddForm && canAddTimesheet(userRole) && (
+        {!showAddForm && canAddTimesheet && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Timesheet
           </button>
@@ -706,7 +694,7 @@ export default function Timesheets() {
                     ) : (
                       <div className="action-buttons">
                         {/* Submit button for Draft/Rejected timesheets */}
-                        {canSubmitTimesheetLocal(ts) && (
+                        {canSubmitTimesheet(ts) && (
                           <button 
                             className="btn-icon" 
                             onClick={() => handleSubmit(ts.id)} 
@@ -735,8 +723,8 @@ export default function Timesheets() {
                             </button>
                           </>
                         )}
-                        {canEditTimesheetLocal(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
-                        {canDeleteTimesheetLocal(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
+                        {canEditTimesheet(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
+                        {canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
                       </div>
                     )}
                   </td>
