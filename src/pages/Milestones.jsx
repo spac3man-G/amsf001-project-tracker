@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
+import { canCreateMilestone, canEditMilestone, canDeleteMilestone } from '../utils/permissions';
 
 export default function Milestones() {
   const [milestones, setMilestones] = useState([]);
@@ -91,8 +92,17 @@ export default function Milestones() {
     }
   }
 
+  // Use centralized permission functions
+  function canAdd() {
+    return canCreateMilestone(userRole);
+  }
+
   function canEdit() {
-    return userRole === 'admin' || userRole === 'project_manager';
+    return canEditMilestone(userRole);
+  }
+
+  function canDelete() {
+    return canDeleteMilestone(userRole);
   }
 
   async function handleAdd() {
@@ -261,7 +271,7 @@ export default function Milestones() {
             <p>Track project deliverables and progress</p>
           </div>
         </div>
-        {!showAddForm && canEdit() && (
+        {!showAddForm && canAdd() && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Milestone
           </button>
@@ -289,7 +299,7 @@ export default function Milestones() {
       </div>
 
       {/* Add Milestone Form */}
-      {showAddForm && canEdit() && (
+      {showAddForm && canAdd() && (
         <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add Milestone</h3>
           
@@ -482,10 +492,10 @@ export default function Milestones() {
                     </div>
                   )}
                   
-                  {canEdit() && (
+                  {(canEdit() || canDelete()) && (
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
-                      <button className="btn-icon" onClick={() => handleEdit(ms)} title="Edit"><Edit2 size={16} /></button>
-                      <button className="btn-icon btn-danger" onClick={() => handleDelete(ms.id)} title="Delete"><Trash2 size={16} /></button>
+                      {canEdit() && <button className="btn-icon" onClick={() => handleEdit(ms)} title="Edit"><Edit2 size={16} /></button>}
+                      {canDelete() && <button className="btn-icon btn-danger" onClick={() => handleDelete(ms.id)} title="Delete"><Trash2 size={16} /></button>}
                     </div>
                   )}
                 </div>

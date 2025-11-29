@@ -6,6 +6,12 @@ import {
   AlertCircle, Send, ThumbsUp, RotateCcw, Info
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import {
+  canContributeDeliverable,
+  canReviewDeliverable,
+  canDeleteDeliverable,
+  canSubmitDeliverable
+} from '../utils/permissions';
 
 const STATUS_OPTIONS = [
   'Not Started',
@@ -294,8 +300,11 @@ export default function Deliverables() {
   const inProgress = deliverables.filter(d => d.status === 'In Progress').length;
   const delivered = deliverables.filter(d => d.status === 'Delivered').length;
 
-  const canEdit = ['admin', 'supplier_pm', 'contributor', 'customer_pm'].includes(userRole);
-  const canReview = ['admin', 'supplier_pm', 'customer_pm'].includes(userRole);
+  // Use centralized permission functions
+  const canEdit = canContributeDeliverable(userRole);
+  const canReview = canReviewDeliverable(userRole);
+  const canDelete = canDeleteDeliverable(userRole);
+  const canSubmit = canSubmitDeliverable(userRole);
 
   if (loading) return <div className="loading">Loading...</div>;
 
@@ -389,10 +398,10 @@ export default function Deliverables() {
                   <td>
                     <div style={{ display: 'flex', gap: '0.25rem' }}>
                       {canEdit && <button onClick={() => openEditModal(d)} title="Edit" style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}><Edit2 size={16} /></button>}
-                      {canEdit && ['In Progress', 'Returned for More Work'].includes(d.status) && <button onClick={() => handleStatusChange(d, 'Submitted for Review')} title="Submit for Review" style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#d97706' }}><Send size={16} /></button>}
+                      {canSubmit && ['In Progress', 'Returned for More Work'].includes(d.status) && <button onClick={() => handleStatusChange(d, 'Submitted for Review')} title="Submit for Review" style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#d97706' }}><Send size={16} /></button>}
                       {canReview && d.status === 'Submitted for Review' && (<><button onClick={() => handleStatusChange(d, 'Review Complete')} title="Accept" style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#2563eb' }}><ThumbsUp size={16} /></button><button onClick={() => handleStatusChange(d, 'Returned for More Work')} title="Return for More Work" style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#dc2626' }}><RotateCcw size={16} /></button></>)}
                       {canReview && d.status === 'Review Complete' && <button onClick={() => openCompletionModal(d)} title="Mark Delivered" style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#16a34a' }}><CheckCircle size={16} /></button>}
-                      {canEdit && <button onClick={() => handleDelete(d.id)} title="Delete" style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#dc2626' }}><Trash2 size={16} /></button>}
+                      {canDelete && <button onClick={() => handleDelete(d.id)} title="Delete" style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#dc2626' }}><Trash2 size={16} /></button>}
                     </div>
                   </td>
                 </tr>

@@ -13,6 +13,7 @@ import {
   Link2,
   PieChart
 } from 'lucide-react';
+import { canSeeMargins } from '../utils/permissions';
 
 export default function Margins() {
   const navigate = useNavigate();
@@ -39,8 +40,8 @@ export default function Margins() {
         if (profile) {
           setUserRole(profile.role);
           
-          // Only supplier_pm and admin can access this page
-          if (!['admin', 'supplier_pm'].includes(profile.role)) {
+          // Use centralized permission check
+          if (!canSeeMargins(profile.role)) {
             setLoading(false);
             return;
           }
@@ -121,8 +122,8 @@ export default function Margins() {
   const thirdPartyCost = thirdPartyResources.reduce((sum, r) => sum + ((r.cost_price || r.daily_rate || 0) * (r.days_allocated || 0)), 0);
   const thirdPartyMargin = thirdPartySale > 0 ? ((thirdPartySale - thirdPartyCost) / thirdPartySale) * 100 : 0;
 
-  // Access check
-  const canAccess = ['admin', 'supplier_pm'].includes(userRole);
+  // Use centralized permission check for access control
+  const canAccess = canSeeMargins(userRole);
 
   if (loading) {
     return <div className="loading">Loading margins data...</div>;

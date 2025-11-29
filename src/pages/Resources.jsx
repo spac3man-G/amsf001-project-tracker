@@ -4,6 +4,7 @@ import { Users, Plus, Edit2, Save, X, Trash2, Mail, Phone, Briefcase, DollarSign
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
+import { canManageResources } from '../utils/permissions';
 
 export default function Resources() {
   const [resources, setResources] = useState([]);
@@ -101,8 +102,9 @@ export default function Resources() {
     }
   }
 
+  // Use centralized permission function
   function canEdit() {
-    return userRole === 'admin' || userRole === 'project_manager';
+    return canManageResources(userRole);
   }
 
   async function handleAdd() {
