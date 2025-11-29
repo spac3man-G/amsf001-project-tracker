@@ -27,6 +27,25 @@ You have access to my Mac via MCP tools:
 4. **Supabase MCP** - Query/modify database via PostgREST
 5. **GitHub MCP** - Available but we prefer local Git via AppleScript (more reliable)
 
+## ⚠️ IMPORTANT: Read These Documents First
+
+Before doing any work, please read these files from my local repository:
+
+### 1. Development Playbook v5 (project status, architecture, tasks)
+```
+/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v5.md
+```
+Contains: Current project status, completed/remaining tasks, architecture patterns (usePermissions hook, AuthContext, ProjectContext), code examples.
+
+### 2. Configuration Guide (workflow, MCP setup, troubleshooting)
+```
+/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Configuration-Guide.md
+```
+Contains: Why we don't use GitHub API, AppleScript commands for Git operations, Supabase/Vercel setup info.
+
+### 3. Credentials (in Claude Project Knowledge)
+API keys and passwords are stored in the **Claude Project Knowledge** (AMSF001-Configuration-Guide-v2.md), NOT in the Git repository for security.
+
 ## Key File Locations
 
 | Item | Path |
@@ -34,22 +53,7 @@ You have access to my Mac via MCP tools:
 | **Local Repository** | `/Users/glennnickols/Projects/amsf001-project-tracker` |
 | **Source Code** | `/Users/glennnickols/Projects/amsf001-project-tracker/src` |
 | **Development Playbook** | `/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v5.md` |
-| **Configuration Guide** | Project knowledge (AMSF001-Configuration-Guide-v2.md) |
-| **User Manual** | Project knowledge (AMSF001-User-Manual-UPDATED.md) |
-
-## IMPORTANT: Read the Playbook First
-
-Before doing any work, please read the Development Playbook v5:
-```
-/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v5.md
-```
-
-This contains:
-- Current project status and what's completed
-- Architecture patterns (AuthContext, ProjectContext, usePermissions hook)
-- Remaining tasks with priorities
-- Code patterns and examples
-- Deployment procedures
+| **Configuration Guide** | `/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Configuration-Guide.md` |
 
 ## Standard Workflow
 
@@ -93,8 +97,8 @@ This contains:
 ## Tips for Best Results
 
 1. **Be specific** about what you want to accomplish
-2. **Reference the playbook** - it has detailed task breakdowns
-3. **Let Claude read files first** before making changes
+2. **Let Claude read the playbook first** - it has detailed task breakdowns
+3. **Let Claude read source files** before making changes
 4. **Test incrementally** - deploy after each significant change
 5. **Update the playbook** when tasks are completed
 
@@ -102,28 +106,28 @@ This contains:
 
 **For KPI Add/Delete:**
 ```
-I need help developing the AMSF001 Project Tracker application. [PASTE FULL PROMPT ABOVE]
+[PASTE FULL PROMPT ABOVE]
 
-My Request: Let's implement Phase 5.1 - add the "Add KPI" button and delete functionality to the KPIs page. Please read the playbook first to understand the current architecture and patterns.
+My Request: Let's implement Phase 5.1 - add the "Add KPI" button and delete functionality to the KPIs page.
 ```
 
 **For Database Changes:**
 ```
-I need help developing the AMSF001 Project Tracker application. [PASTE FULL PROMPT ABOVE]
+[PASTE FULL PROMPT ABOVE]
 
-My Request: Let's implement Phase 1.1 - add the cost_price column to the resources table. Please check the current database schema first.
+My Request: Let's implement Phase 1.1 - add the cost_price column to the resources table.
 ```
 
 **For Bug Fixes:**
 ```
-I need help developing the AMSF001 Project Tracker application. [PASTE FULL PROMPT ABOVE]
+[PASTE FULL PROMPT ABOVE]
 
 My Request: I'm seeing an error on the Expenses page when I try to [describe issue]. Please investigate and fix it.
 ```
 
 **For Status Check:**
 ```
-I need help developing the AMSF001 Project Tracker application. [PASTE FULL PROMPT ABOVE]
+[PASTE FULL PROMPT ABOVE]
 
 My Request: Please read the playbook and give me a summary of what's completed and what the next priorities are.
 ```
