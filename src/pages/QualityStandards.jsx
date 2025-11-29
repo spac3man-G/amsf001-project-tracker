@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canManageQualityStandards } from '../utils/permissions';
+import { canManageQualityStandards } from '../lib/permissions';
 
 export default function QualityStandards() {
   // Use shared contexts instead of local state for auth and project

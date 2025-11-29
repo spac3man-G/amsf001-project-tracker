@@ -8,7 +8,7 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canCreateDeliverable, canEditDeliverable, canDeleteDeliverable, canReviewDeliverable, canSubmitDeliverable } from '../utils/permissions';
+import { canCreateDeliverable, canEditDeliverable, canDeleteDeliverable, canReviewDeliverable, canSubmitDeliverable } from '../lib/permissions';
 
 const STATUS_OPTIONS = [
   'Not Started',

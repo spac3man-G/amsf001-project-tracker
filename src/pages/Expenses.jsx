@@ -14,7 +14,7 @@ import {
   canEditExpense as canEditExpensePerm,
   canDeleteExpense as canDeleteExpensePerm,
   getAvailableResourcesForEntry
-} from '../utils/permissions';
+} from '../lib/permissions';
 
 export default function Expenses() {
   // Use shared contexts instead of local state for auth and project

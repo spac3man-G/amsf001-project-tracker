@@ -15,7 +15,7 @@ import {
   canDeleteTimesheet as canDeleteTimesheetPerm,
   canSubmitTimesheet as canSubmitTimesheetPerm,
   getAvailableResourcesForEntry
-} from '../utils/permissions';
+} from '../lib/permissions';
 
 export default function Timesheets() {
   // Use shared contexts instead of local state for auth and project

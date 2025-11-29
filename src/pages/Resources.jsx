@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canManageResources, canSeeResourceType, canSeeCostPrice } from '../utils/permissions';
+import { canManageResources, canSeeResourceType, canSeeCostPrice } from '../lib/permissions';
 
 export default function Resources() {
   // Use shared contexts instead of local state for auth and project

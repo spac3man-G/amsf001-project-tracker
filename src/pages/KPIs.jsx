@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canManageKPIs } from '../utils/permissions';
+import { canManageKPIs } from '../lib/permissions';
 
 export default function KPIs() {
   // Use shared contexts instead of local state for auth and project

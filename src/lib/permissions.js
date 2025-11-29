@@ -1,15 +1,18 @@
 /**
  * AMSF001 Project Tracker - Centralized Permission Logic
+ * Location: src/lib/permissions.js
  * Version 4.0 - Phase 0, Task 0.3
  * 
  * This file is the SINGLE SOURCE OF TRUTH for all permission checks.
+ * It lives in lib/ alongside supabase.js as core infrastructure.
+ * 
  * Import these functions in any component to check user permissions.
  * 
  * Role Hierarchy (from most to least privileged):
  *   admin > supplier_pm > customer_pm > contributor > viewer
  * 
  * Usage:
- *   import { canAddTimesheet, canManageKPIs, ROLES } from '../utils/permissions';
+ *   import { canAddTimesheet, canManageKPIs, ROLES } from '../lib/permissions';
  *   if (canAddTimesheet(userRole)) { ... }
  */
 

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X, FileCheck, Award, CheckCircle, PenTool } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canCreateMilestone, canEditMilestone, canDeleteMilestone, canSignAsSupplier as canSignAsSupplierPerm, canSignAsCustomer as canSignAsCustomerPerm } from '../utils/permissions';
+import { canCreateMilestone, canEditMilestone, canDeleteMilestone, canSignAsSupplier as canSignAsSupplierPerm, canSignAsCustomer as canSignAsCustomerPerm } from '../lib/permissions';
 
 export default function Milestones() {
   // Use shared contexts instead of local state for auth and project

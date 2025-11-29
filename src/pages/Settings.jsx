@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Settings as SettingsIcon, Save, RefreshCw, AlertCircle, CheckCircle, DollarSign, Target, Info } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { canAccessSettings } from '../utils/permissions';
+import { canAccessSettings } from '../lib/permissions';
 
 export default function Settings() {
   const navigate = useNavigate();

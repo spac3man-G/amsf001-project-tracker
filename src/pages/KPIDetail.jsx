@@ -6,7 +6,7 @@ import {
   FileText, Info, CheckCircle, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { canManageKPIs } from '../utils/permissions';
+import { canManageKPIs } from '../lib/permissions';
 
 export default function KPIDetail() {
   const { id } = useParams();
