@@ -422,10 +422,10 @@ export default function Milestones() {
     }
   }
 
-  // Use centralized permission functions
-  const canEdit = canEditMilestone(userRole);
-  const canSignSupplier = canSignAsSupplierPerm(userRole);
-  const canSignCustomer = canSignAsCustomerPerm(userRole);
+  // Use centralized permission functions - these are already booleans from usePermissions
+  const canEdit = canEditMilestone;
+  const canSignSupplier = canSignAsSupplier;
+  const canSignCustomer = canSignAsCustomer;
 
   if (loading) return <div className="loading">Loading milestones...</div>;
 
