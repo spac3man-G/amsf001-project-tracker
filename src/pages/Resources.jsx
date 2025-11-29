@@ -122,27 +122,46 @@ export default function Resources() {
 
   async function handleSave(id) {
     try {
-      const updateData = { ...editForm };
-      // Convert cost_price to number or null
-      if (updateData.cost_price === '' || updateData.cost_price === null) {
-        updateData.cost_price = null;
-      } else {
-        updateData.cost_price = parseFloat(updateData.cost_price);
+      // Build update data with proper type conversions
+      const updateData = {
+        name: editForm.name,
+        email: editForm.email,
+        role: editForm.role,
+        sfia_level: editForm.sfia_level,
+        daily_rate: parseFloat(editForm.daily_rate) || 0,
+        discount_percent: parseFloat(editForm.discount_percent) || 0,
+        days_allocated: parseInt(editForm.days_allocated) || 0,
+        days_used: parseFloat(editForm.days_used) || 0,
+        resource_type: editForm.resource_type || 'internal'
+      };
+      
+      // Only include cost_price if the user can see/edit it
+      if (canSeeCostPrice) {
+        if (editForm.cost_price === '' || editForm.cost_price === null || editForm.cost_price === undefined) {
+          updateData.cost_price = null;
+        } else {
+          updateData.cost_price = parseFloat(editForm.cost_price);
+        }
       }
       
-      const { error } = await supabase
+      console.log('Saving resource with data:', updateData);
+      
+      const { data, error } = await supabase
         .from('resources')
         .update(updateData)
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) throw error;
+      
+      console.log('Update result:', data);
       
       await fetchResources();
       setEditingId(null);
       alert('Resource updated successfully!');
     } catch (error) {
       console.error('Error updating resource:', error);
-      alert('Failed to update resource');
+      alert('Failed to update resource: ' + error.message);
     }
   }
 
