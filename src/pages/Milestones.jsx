@@ -2,8 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X, FileCheck, Award, CheckCircle, PenTool } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useProject } from '../contexts/ProjectContext';
+import { canCreateMilestone, canEditMilestone, canDeleteMilestone, canSignAsSupplier as canSignAsSupplierPerm, canSignAsCustomer as canSignAsCustomerPerm } from '../utils/permissions';
 
 export default function Milestones() {
+  // Use shared contexts instead of local state for auth and project
+  const { user, role: userRole, profile } = useAuth();
+  const { projectId } = useProject();
+  const currentUserId = user?.id || null;
+  const currentUserName = profile?.full_name || user?.email || 'Unknown';
+
   const [milestones, setMilestones] = useState([]);
   const [milestoneDeliverables, setMilestoneDeliverables] = useState({});
   const [certificates, setCertificates] = useState({});
@@ -12,10 +21,6 @@ export default function Milestones() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState(null);
-  const [userRole, setUserRole] = useState('viewer');
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [currentUserName, setCurrentUserName] = useState('');
-  const [projectId, setProjectId] = useState(null);
 
   const [newMilestone, setNewMilestone] = useState({
     milestone_ref: '',
@@ -44,9 +49,13 @@ export default function Milestones() {
     budget: ''
   });
 
+  // Fetch data when projectId becomes available (from ProjectContext)
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    if (projectId) {
+      fetchMilestones(projectId);
+      fetchCertificates(projectId);
+    }
+  }, [projectId]);
 
   // Calculate milestone status from its deliverables
   function calculateMilestoneStatus(deliverables) {
@@ -77,40 +86,6 @@ export default function Milestones() {
     
     const totalProgress = deliverables.reduce((sum, d) => sum + (d.progress || 0), 0);
     return Math.round(totalProgress / deliverables.length);
-  }
-
-  async function fetchInitialData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, full_name')
-          .eq('id', user.id)
-          .single();
-        if (profile) {
-          setUserRole(profile.role);
-          setCurrentUserName(profile.full_name || user.email || 'Unknown');
-        }
-      }
-
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-      
-      if (project) {
-        setProjectId(project.id);
-        await fetchMilestones(project.id);
-        await fetchCertificates(project.id);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
   }
 
   async function fetchCertificates(projId) {
@@ -193,7 +168,8 @@ export default function Milestones() {
           forecast_end_date: newMilestone.forecast_end_date || newMilestone.end_date || null,
           budget: parseFloat(newMilestone.budget) || 0,
           progress: 0,
-          status: 'Not Started'
+          status: 'Not Started',
+          created_by: currentUserId
         });
 
       if (error) throw error;
@@ -435,9 +411,10 @@ export default function Milestones() {
     }
   }
 
-  const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
-  const canSignAsSupplier = userRole === 'admin' || userRole === 'supplier_pm';
-  const canSignAsCustomer = userRole === 'customer_pm';
+  // Use centralized permission functions
+  const canEdit = canEditMilestone(userRole);
+  const canSignSupplier = canSignAsSupplierPerm(userRole);
+  const canSignCustomer = canSignAsCustomerPerm(userRole);
 
   if (loading) return <div className="loading">Loading milestones...</div>;
 
@@ -1163,7 +1140,7 @@ export default function Milestones() {
                       </div>
                     </div>
                   ) : (
-                    canSignAsSupplier && selectedCertificate.status !== 'Signed' ? (
+                    canSignSupplier && selectedCertificate.status !== 'Signed' ? (
                       <button
                         onClick={() => signCertificate('supplier')}
                         style={{
@@ -1209,7 +1186,7 @@ export default function Milestones() {
                       </div>
                     </div>
                   ) : (
-                    canSignAsCustomer && selectedCertificate.status !== 'Signed' ? (
+                    canSignCustomer && selectedCertificate.status !== 'Signed' ? (
                       <button
                         onClick={() => signCertificate('customer')}
                         style={{

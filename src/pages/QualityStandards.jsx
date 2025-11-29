@@ -5,13 +5,19 @@ import {
   Award, CheckCircle, AlertCircle, Clock, TrendingUp,
   AlertTriangle, Info, Plus, Edit2, Trash2, Save, X
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useProject } from '../contexts/ProjectContext';
+import { canManageQualityStandards } from '../utils/permissions';
 
 export default function QualityStandards() {
+  // Use shared contexts instead of local state for auth and project
+  const { user, role: userRole } = useAuth();
+  const { projectId } = useProject();
+  const currentUserId = user?.id || null;
+
   const [qualityStandards, setQualityStandards] = useState([]);
   const [assessmentCounts, setAssessmentCounts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
-  const [projectId, setProjectId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -24,41 +30,15 @@ export default function QualityStandards() {
     current_value: 0
   });
 
-  // Permission check
-  const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
+  // Permission check - Note: Customer PM should NOT edit QS per User Manual
+  const canEdit = canManageQualityStandards(userRole);
 
+  // Fetch data when projectId becomes available (from ProjectContext)
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
-      }
-
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-
-      if (project) {
-        setProjectId(project.id);
-        await fetchQualityStandards(project.id);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
+    if (projectId) {
+      fetchQualityStandards(projectId);
     }
-  }
+  }, [projectId]);
 
   async function fetchQualityStandards(projId) {
     const pid = projId || projectId;
@@ -108,7 +88,8 @@ export default function QualityStandards() {
           name: newQS.name,
           description: newQS.description,
           target: parseInt(newQS.target) || 100,
-          current_value: parseInt(newQS.current_value) || 0
+          current_value: parseInt(newQS.current_value) || 0,
+          created_by: currentUserId
         });
 
       if (error) throw error;
@@ -247,7 +228,7 @@ export default function QualityStandards() {
     return assessments.total === 0;
   }).length;
 
-  if (loading) return <div className="loading">Loading quality standards...</div>;
+  if (loading && !projectId) return <div className="loading">Loading quality standards...</div>;
 
   return (
     <div className="page-container">
@@ -562,7 +543,7 @@ export default function QualityStandards() {
               <li><strong>On Track:</strong> Within 80% of target</li>
               <li><strong>At Risk:</strong> 60-80% of target</li>
               <li><strong>Critical:</strong> Below 60% of target (only for assessed standards)</li>
-              {canEdit && <li><strong>Permissions:</strong> Admin, Supplier PM, and Customer PM can add/edit quality standards</li>}
+              {canEdit && <li><strong>Permissions:</strong> Admin and Supplier PM can add/edit quality standards</li>}
             </ul>
           </div>
         </div>

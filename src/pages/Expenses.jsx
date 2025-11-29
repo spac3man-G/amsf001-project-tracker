@@ -5,14 +5,26 @@ import {
   Car, Home, Utensils, AlertCircle, FileText, Check, User, Send, CheckCircle
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useProject } from '../contexts/ProjectContext';
+import {
+  canAddExpense,
+  canAddExpenseForOthers,
+  canValidateExpense as canValidateExpensePerm,
+  canEditExpense as canEditExpensePerm,
+  canDeleteExpense as canDeleteExpensePerm,
+  getAvailableResourcesForEntry
+} from '../utils/permissions';
 
 export default function Expenses() {
+  // Use shared contexts instead of local state for auth and project
+  const { user, role: userRole, linkedResource } = useAuth();
+  const { projectId } = useProject();
+  const currentUserId = user?.id || null;
+
   const [expenses, setExpenses] = useState([]);
   const [resources, setResources] = useState([]);
-  const [projectId, setProjectId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
-  const [currentUserId, setCurrentUserId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -51,9 +63,12 @@ export default function Expenses() {
     'Paid': 'Paid'
   };
 
+  // Fetch data when projectId becomes available (from ProjectContext)
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    if (projectId) {
+      fetchData(projectId);
+    }
+  }, [projectId]);
 
   // Re-fetch when showTestUsers changes
   useEffect(() => {
@@ -61,36 +76,6 @@ export default function Expenses() {
       fetchData(projectId);
     }
   }, [showTestUsers]);
-
-  async function fetchInitialData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
-      }
-
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-      
-      if (project) {
-        setProjectId(project.id);
-        await fetchData(project.id);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function fetchData(projId) {
     const pid = projId || projectId;
@@ -384,8 +369,8 @@ export default function Expenses() {
     }
   }
 
-  // Can submit (owner of Draft/Rejected expense, or admin/supplier_pm)
-  function canSubmitExpense(exp) {
+  // Permission helper functions using centralized permissions.js
+  function canSubmitExpenseLocal(exp) {
     if (exp.status !== 'Draft' && exp.status !== 'Rejected') return false;
     if (userRole === 'admin') return true;
     if (userRole === 'supplier_pm') return true;
@@ -393,38 +378,17 @@ export default function Expenses() {
     return false;
   }
 
-  // Can validate (approve/reject) - depends on chargeable status
-  // Chargeable expenses: Customer PM validates
-  // Non-chargeable expenses: Supplier PM validates
-  function canValidateExpense(exp) {
-    if (exp.status !== 'Submitted') return false;
-    
+  function canValidateExpenseLocal(exp) {
     const isChargeable = exp.chargeable_to_customer !== false;
-    
-    if (isChargeable) {
-      // Chargeable expenses are validated by Customer PM
-      return userRole === 'customer_pm';
-    } else {
-      // Non-chargeable expenses are validated by Supplier PM
-      return userRole === 'supplier_pm';
-    }
+    return canValidateExpensePerm(userRole, exp.status, isChargeable);
   }
 
-  // Can edit expense
-  function canEditExpense(exp) {
-    if (userRole === 'admin') return true;
-    if (userRole === 'supplier_pm') return true;
-    if (userRole === 'customer_pm') return true;
-    if (exp.created_by === currentUserId && exp.status === 'Draft') return true;
-    return false;
+  function canEditExpenseLocal(exp) {
+    return canEditExpensePerm(userRole, exp.status, exp.created_by, currentUserId);
   }
 
-  // Can delete expense
-  function canDeleteExpense(exp) {
-    if (userRole === 'admin') return true;
-    if (userRole === 'supplier_pm') return true;
-    if (exp.created_by === currentUserId && exp.status === 'Draft') return true;
-    return false;
+  function canDeleteExpenseLocal(exp) {
+    return canDeleteExpensePerm(userRole, exp.status, exp.created_by, currentUserId);
   }
 
   function handleFileSelect(e) {
@@ -536,10 +500,10 @@ export default function Expenses() {
     }
   });
 
-  if (loading) return <div className="loading">Loading expenses...</div>;
+  // Get available resources for the current user (using centralized permission logic)
+  const availableResources = getAvailableResourcesForEntry(userRole, resources, currentUserId);
 
-  // Allow admin, supplier_pm, and contributor to add expenses
-  const canAdd = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor';
+  if (loading && !projectId) return <div className="loading">Loading expenses...</div>;
 
   return (
     <div className="page-container">
@@ -551,7 +515,7 @@ export default function Expenses() {
             <p>Track project expenses against £{BUDGET.toLocaleString()} budget</p>
           </div>
         </div>
-        {canAdd && !showAddForm && (
+        {canAddExpense(userRole) && !showAddForm && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Expenses
           </button>
@@ -698,7 +662,7 @@ export default function Expenses() {
                 onChange={(e) => setNewExpense({ ...newExpense, resource_id: e.target.value })}
               >
                 <option value="">Select Resource</option>
-                {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
             <div>
@@ -1060,7 +1024,7 @@ export default function Expenses() {
                       ) : (
                         <div className="action-buttons">
                           {/* Submit button for Draft/Rejected expenses */}
-                          {canSubmitExpense(exp) && (
+                          {canSubmitExpenseLocal(exp) && (
                             <button 
                               className="btn-icon" 
                               onClick={() => handleSubmit(exp.id)} 
@@ -1071,7 +1035,7 @@ export default function Expenses() {
                             </button>
                           )}
                           {/* Validate/Reject buttons - shows for appropriate role based on chargeable status */}
-                          {canValidateExpense(exp) && (
+                          {canValidateExpenseLocal(exp) && (
                             <>
                               <button 
                                 className="btn-icon btn-success" 
@@ -1089,10 +1053,10 @@ export default function Expenses() {
                               </button>
                             </>
                           )}
-                          {canEditExpense(exp) && (
+                          {canEditExpenseLocal(exp) && (
                             <button className="btn-icon" onClick={() => handleEdit(exp)} title="Edit"><Edit2 size={16} /></button>
                           )}
-                          {canDeleteExpense(exp) && (
+                          {canDeleteExpenseLocal(exp) && (
                             <button className="btn-icon btn-danger" onClick={() => handleDelete(exp.id)} title="Delete"><Trash2 size={16} /></button>
                           )}
                         </div>

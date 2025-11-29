@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useProject } from '../contexts/ProjectContext';
+import { canManageResources, canSeeResourceType, canSeeCostPrice } from '../utils/permissions';
 
 export default function Resources() {
+  // Use shared contexts instead of local state for auth and project
+  const { user, role: userRole } = useAuth();
+  const { projectId } = useProject();
+  const currentUserId = user?.id || null;
+
   const [resources, setResources] = useState([]);
   const [timesheetHours, setTimesheetHours] = useState({});
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [showAddForm, setShowAddForm] = useState(false);
@@ -24,27 +31,15 @@ export default function Resources() {
     resource_type: 'internal'
   });
 
-  // Check if user can see and manage resource types
-  const canManageResourceType = () => {
-    return ['admin', 'supplier_pm'].includes(userRole);
-  };
+  // Check if user can see and manage resource types (using centralized permissions)
+  const canManageResourceType = () => canSeeResourceType(userRole);
 
+  // Fetch resources when projectId is available
   useEffect(() => {
-    fetchResources();
-    fetchUserRole();
-  }, []);
-
-  async function fetchUserRole() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
+    if (projectId) {
+      fetchResources();
     }
-  }
+  }, [projectId]);
 
   async function fetchResources() {
     try {
@@ -148,7 +143,8 @@ export default function Resources() {
           user_id: existingProfile.id,
           daily_rate: parseFloat(newResource.daily_rate),
           days_allocated: parseInt(newResource.days_allocated),
-          discount_percent: parseFloat(newResource.discount_percent) || 0
+          discount_percent: parseFloat(newResource.discount_percent) || 0,
+          created_by: currentUserId
         }]);
 
       if (error) throw error;
@@ -589,7 +585,7 @@ export default function Resources() {
                         <td>
                           <strong>£{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong>
                         </td>
-                        {(userRole === 'admin' || userRole === 'supplier_pm') && (
+                        {canManageResources(userRole) && (
                           <td>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                               <button 

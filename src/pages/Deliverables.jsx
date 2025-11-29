@@ -6,6 +6,9 @@ import {
   AlertCircle, Send, ThumbsUp, RotateCcw, Info
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useProject } from '../contexts/ProjectContext';
+import { canCreateDeliverable, canEditDeliverable, canDeleteDeliverable, canReviewDeliverable, canSubmitDeliverable } from '../utils/permissions';
 
 const STATUS_OPTIONS = [
   'Not Started',
@@ -136,9 +139,11 @@ export default function Deliverables() {
   const [filterMilestone, setFilterMilestone] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showAwaitingReview, setShowAwaitingReview] = useState(false);
-  const [userRole, setUserRole] = useState('viewer');
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [projectId, setProjectId] = useState(null);
+
+  // Use shared contexts instead of local state for auth and project
+  const { user, role: userRole } = useAuth();
+  const { projectId } = useProject();
+  const currentUserId = user?.id || null;
 
   // Test user context for filtering
   const { showTestUsers } = useTestUsers();
@@ -146,35 +151,32 @@ export default function Deliverables() {
   const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
   const [editForm, setEditForm] = useState({ id: '', deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
 
-  useEffect(() => { fetchData(); }, []);
+  // Fetch data when projectId becomes available (from ProjectContext)
+  useEffect(() => {
+    if (projectId) {
+      fetchData();
+    }
+  }, [projectId]);
 
   // Re-fetch when showTestUsers changes
   useEffect(() => { if (projectId) fetchData(); }, [showTestUsers]);
 
   async function fetchData() {
+    if (!projectId) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        if (profile) setUserRole(profile.role);
-      }
 
-      const { data: project } = await supabase.from('projects').select('id').eq('reference', 'AMSF001').single();
-      if (!project) { setLoading(false); return; }
-      setProjectId(project.id);
-
-      const { data: milestonesData } = await supabase.from('milestones').select('*').eq('project_id', project.id).order('milestone_ref');
+      const { data: milestonesData } = await supabase.from('milestones').select('*').eq('project_id', projectId).order('milestone_ref');
       setMilestones(milestonesData || []);
 
-      const { data: kpisData } = await supabase.from('kpis').select('*').eq('project_id', project.id).order('kpi_ref');
+      const { data: kpisData } = await supabase.from('kpis').select('*').eq('project_id', projectId).order('kpi_ref');
       setKpis(kpisData || []);
 
-      const { data: qsData } = await supabase.from('quality_standards').select('*').eq('project_id', project.id).order('qs_ref');
+      const { data: qsData } = await supabase.from('quality_standards').select('*').eq('project_id', projectId).order('qs_ref');
       setQualityStandards(qsData || []);
 
       // Build deliverables query with test content filter
-      let deliverableQuery = supabase.from('deliverables').select(`*, milestones(milestone_ref, name), deliverable_kpis(kpi_id, kpis(kpi_ref, name)), deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name))`).eq('project_id', project.id).order('deliverable_ref');
+      let deliverableQuery = supabase.from('deliverables').select(`*, milestones(milestone_ref, name), deliverable_kpis(kpi_id, kpis(kpi_ref, name)), deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name))`).eq('project_id', projectId).order('deliverable_ref');
       
       // Filter out test content unless admin/supplier_pm has enabled it
       if (!showTestUsers) {
@@ -190,7 +192,7 @@ export default function Deliverables() {
   async function handleAdd(e) {
     e.preventDefault();
     try {
-      const { data, error } = await supabase.from('deliverables').insert({ project_id: projectId, deliverable_ref: newDeliverable.deliverable_ref, name: newDeliverable.name, description: newDeliverable.description, milestone_id: newDeliverable.milestone_id || null, status: newDeliverable.status, progress: parseInt(newDeliverable.progress) || 0, assigned_to: newDeliverable.assigned_to, due_date: newDeliverable.due_date || null }).select().single();
+      const { data, error } = await supabase.from('deliverables').insert({ project_id: projectId, deliverable_ref: newDeliverable.deliverable_ref, name: newDeliverable.name, description: newDeliverable.description, milestone_id: newDeliverable.milestone_id || null, status: newDeliverable.status, progress: parseInt(newDeliverable.progress) || 0, assigned_to: newDeliverable.assigned_to, due_date: newDeliverable.due_date || null, created_by: currentUserId }).select().single();
       if (error) throw error;
 
       if (newDeliverable.kpi_ids.length > 0) {
@@ -294,8 +296,9 @@ export default function Deliverables() {
   const inProgress = deliverables.filter(d => d.status === 'In Progress').length;
   const delivered = deliverables.filter(d => d.status === 'Delivered').length;
 
-  const canEdit = ['admin', 'supplier_pm', 'contributor', 'customer_pm'].includes(userRole);
-  const canReview = ['admin', 'supplier_pm', 'customer_pm'].includes(userRole);
+  // Use centralized permission functions
+  const canEdit = canEditDeliverable(userRole);
+  const canReview = canReviewDeliverable(userRole);
 
   if (loading) return <div className="loading">Loading...</div>;
 
