@@ -47,8 +47,6 @@ export default function Settings() {
   async function fetchData() {
     try {
       setLoading(true);
-        setProject(projectData);
-      }
 
       // Fetch all users for admin
       const { data: usersData } = await supabase
