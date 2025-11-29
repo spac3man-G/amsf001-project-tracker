@@ -5,30 +5,32 @@ import {
   TrendingUp, ArrowLeft, Edit2, Save, X, Target, 
   FileText, Info, CheckCircle, AlertTriangle
 } from 'lucide-react';
-import { useAuth } from '../hooks';
-import { useToast } from '../components/Toast';
-import { canEditKPI } from '../utils/permissions';
 
 export default function KPIDetail() {
-  // ============================================
-  // HOOKS
-  // ============================================
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userRole, loading: authLoading } = useAuth();
-  const toast = useToast();
-
-  // ============================================
-  // LOCAL STATE
-  // ============================================
   const [kpi, setKpi] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [userRole, setUserRole] = useState('viewer');
   const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     fetchKPI();
+    fetchUserRole();
   }, [id]);
+
+  async function fetchUserRole() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (data) setUserRole(data.role);
+    }
+  }
 
   async function fetchKPI() {
     try {
@@ -82,10 +84,10 @@ export default function KPIDetail() {
       if (error) throw error;
       await fetchKPI();
       setEditing(false);
-      toast.success('KPI updated successfully');
+      alert('KPI updated successfully!');
     } catch (error) {
       console.error('Error updating KPI:', error);
-      toast.error('Failed to update KPI', error.message);
+      alert('Failed to update KPI: ' + error.message);
     }
   }
 
@@ -101,7 +103,7 @@ export default function KPIDetail() {
     return { status: 'Critical', color: '#ef4444', bg: '#fef2f2' };
   }
 
-  if (authLoading || loading) {
+  if (loading) {
     return <div className="loading">Loading KPI details...</div>;
   }
 
@@ -121,7 +123,7 @@ export default function KPIDetail() {
   }
 
   const statusInfo = getStatusInfo(kpi.current_value, kpi.target);
-  const canEdit = canEditKPI(userRole);
+  const canEdit = userRole === 'admin' || userRole === 'contributor';
 
   return (
     <div className="page-container">

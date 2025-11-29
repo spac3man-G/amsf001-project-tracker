@@ -5,22 +5,12 @@ import {
   Calendar, ChevronLeft, ChevronRight, Info, GripHorizontal,
   Lock, Move, ZoomIn, ZoomOut
 } from 'lucide-react';
-import { useAuth, useProject } from '../hooks';
-import { useToast } from '../components/Toast';
 
 export default function Gantt() {
-  // ============================================
-  // HOOKS - Replace boilerplate
-  // ============================================
-  const { userRole, loading: authLoading } = useAuth();
-  const { projectId, loading: projectLoading } = useProject();
-  const toast = useToast();
-
-  // ============================================
-  // LOCAL STATE
-  // ============================================
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('viewer');
+  const [projectId, setProjectId] = useState(null);
   const [viewStart, setViewStart] = useState(null);
   const [viewEnd, setViewEnd] = useState(null);
   const [daysPerPixel, setDaysPerPixel] = useState(0.1); // Zoom level
@@ -32,10 +22,8 @@ export default function Gantt() {
   const canEdit = ['admin', 'supplier_pm', 'customer_pm'].includes(userRole);
 
   useEffect(() => {
-    if (projectId && !authLoading && !projectLoading) {
-      fetchMilestones();
-    }
-  }, [projectId, authLoading, projectLoading]);
+    fetchInitialData();
+  }, []);
 
   useEffect(() => {
     if (milestones.length > 0) {
@@ -43,15 +31,42 @@ export default function Gantt() {
     }
   }, [milestones]);
 
-  async function fetchMilestones() {
-    if (!projectId) return;
-    
+  async function fetchInitialData() {
     try {
-      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (profile) setUserRole(profile.role);
+      }
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('reference', 'AMSF001')
+        .single();
+
+      if (project) {
+        setProjectId(project.id);
+        await fetchMilestones(project.id);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchMilestones(projId) {
+    const pid = projId || projectId;
+    try {
       const { data, error } = await supabase
         .from('milestones')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('project_id', pid)
         .order('milestone_ref');
 
       if (error) throw error;
@@ -196,7 +211,7 @@ export default function Gantt() {
         if (error) throw error;
       } catch (error) {
         console.error('Error updating milestone:', error);
-        toast.error('Failed to update milestone dates');
+        alert('Failed to update milestone dates');
         await fetchMilestones();
       }
     }
@@ -250,7 +265,7 @@ export default function Gantt() {
     ? (viewEnd - viewStart) / (1000 * 60 * 60 * 24) / daysPerPixel 
     : 1000;
 
-  if (authLoading || projectLoading || loading) return <div className="loading">Loading Gantt chart...</div>;
+  if (loading) return <div className="loading">Loading Gantt chart...</div>;
 
   return (
     <div className="page-container">

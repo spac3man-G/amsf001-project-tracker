@@ -1,291 +1,320 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, RefreshCw, CheckCircle, AlertCircle, AlertTriangle, Clock, Edit2, Plus, Trash2, X, Save } from 'lucide-react';
-import { canManageKPIs } from '../utils/permissions';
-import { useAuth, useProject } from '../hooks';
-import { useToast } from '../components/Toast';
-import StatCard, { StatGrid } from '../components/StatCard';
-import { useConfirmDialog } from '../components/ConfirmDialog';
-import EmptyState from '../components/EmptyState';
-import PageHeader from '../components/PageHeader';
-import FormField from '../components/FormField';
-import FormCard from '../components/FormCard';
+import { 
+  TrendingUp, RefreshCw, CheckCircle, AlertCircle, 
+  AlertTriangle, Clock, Edit2
+} from 'lucide-react';
 
 export default function KPIs() {
-  const { userRole, loading: authLoading } = useAuth();
-  const { projectId, loading: projectLoading } = useProject();
-  const toast = useToast();
-  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
-
   const [kpis, setKpis] = useState([]);
   const [assessmentCounts, setAssessmentCounts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [userRole, setUserRole] = useState('viewer');
+  const [projectId, setProjectId] = useState(null);
 
-  const [newKPI, setNewKPI] = useState({
-    name: '', category: 'Time Performance', description: '', target: 90,
-    measurement_method: '', frequency: 'Monthly', data_source: '', calculation: '', remediation: ''
-  });
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
 
-  const categories = ['Time Performance', 'Quality of Collaboration', 'Delivery Performance'];
-  const frequencies = ['Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Per Deliverable'];
-
-  useEffect(() => { if (projectId && !authLoading && !projectLoading) fetchKPIs(); }, [projectId, authLoading, projectLoading]);
-
-  async function fetchKPIs() {
-    if (!projectId) return;
+  async function fetchInitialData() {
     try {
-      setLoading(true);
-      const { data, error } = await supabase.from('kpis').select('*').order('kpi_ref');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (profile) setUserRole(profile.role);
+      }
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('reference', 'AMSF001')
+        .single();
+      
+      if (project) {
+        setProjectId(project.id);
+        await fetchKPIs(project.id);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchKPIs(projId) {
+    const pid = projId || projectId;
+    if (!pid) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('kpis')
+        .select('*')
+        .eq('project_id', pid)
+        .order('kpi_ref');
+
       if (error) throw error;
       setKpis(data || []);
 
-      const { data: assessments } = await supabase.from('deliverable_kpi_assessments').select('kpi_id, criteria_met');
+      // Fetch assessment counts for each KPI
+      const { data: assessments } = await supabase
+        .from('deliverable_kpi_assessments')
+        .select('kpi_id, criteria_met');
+
+      // Count assessments per KPI
       const counts = {};
       if (assessments) {
         assessments.forEach(a => {
-          if (!counts[a.kpi_id]) counts[a.kpi_id] = { total: 0, met: 0, notMet: 0 };
+          if (!counts[a.kpi_id]) {
+            counts[a.kpi_id] = { total: 0, met: 0, notMet: 0 };
+          }
           counts[a.kpi_id].total++;
           if (a.criteria_met === true) counts[a.kpi_id].met++;
           if (a.criteria_met === false) counts[a.kpi_id].notMet++;
         });
       }
       setAssessmentCounts(counts);
-    } catch (error) { console.error('Error fetching KPIs:', error); }
-    finally { setLoading(false); }
-  }
 
-  function getNextKPIRef() {
-    if (kpis.length === 0) return 'KPI01';
-    const numbers = kpis.map(k => { const match = k.kpi_ref?.match(/KPI(\d+)/); return match ? parseInt(match[1], 10) : 0; }).filter(n => !isNaN(n));
-    const maxNum = Math.max(...numbers, 0);
-    return `KPI${String(maxNum + 1).padStart(2, '0')}`;
-  }
-
-  async function handleAddKPI() {
-    if (!newKPI.name.trim()) { toast.warning('Please enter a KPI name'); return; }
-    if (!newKPI.description.trim()) { toast.warning('Please enter a description'); return; }
-
-    setSaving(true);
-    try {
-      const kpiRef = getNextKPIRef();
-      const { error } = await supabase.from('kpis').insert([{
-        project_id: projectId, kpi_ref: kpiRef, name: newKPI.name.trim(), category: newKPI.category,
-        description: newKPI.description.trim(), target: parseInt(newKPI.target) || 90,
-        measurement_method: newKPI.measurement_method.trim() || null, frequency: newKPI.frequency,
-        data_source: newKPI.data_source.trim() || null, calculation: newKPI.calculation.trim() || null,
-        remediation: newKPI.remediation.trim() || null, current_value: 0, unit: 'percent'
-      }]);
-      if (error) throw error;
-      await fetchKPIs();
-      setShowAddForm(false);
-      setNewKPI({ name: '', category: 'Time Performance', description: '', target: 90, measurement_method: '', frequency: 'Monthly', data_source: '', calculation: '', remediation: '' });
-      toast.success(`KPI ${kpiRef} created successfully`);
     } catch (error) {
-      console.error('Error adding KPI:', error);
-      toast.error('Failed to add KPI', error.message);
-    } finally { setSaving(false); }
-  }
-
-  async function handleDeleteKPI(kpi) {
-    const assessments = assessmentCounts[kpi.id];
-    let message = `Are you sure you want to delete KPI "${kpi.kpi_ref} - ${kpi.name}"?`;
-    if (assessments && assessments.total > 0) {
-      message += `\n\n⚠️ WARNING: This KPI has ${assessments.total} assessment(s) linked to deliverables. Deleting it will also remove these assessments.`;
-    }
-
-    const confirmed = await confirm({
-      title: 'Delete KPI',
-      message: message,
-      confirmText: 'Delete',
-      variant: 'danger'
-    });
-    if (!confirmed) return;
-
-    try {
-      if (assessments && assessments.total > 0) {
-        const { error: assessmentError } = await supabase.from('deliverable_kpi_assessments').delete().eq('kpi_id', kpi.id);
-        if (assessmentError) throw assessmentError;
-      }
-      const { error } = await supabase.from('kpis').delete().eq('id', kpi.id);
-      if (error) throw error;
-      await fetchKPIs();
-      toast.success(`KPI ${kpi.kpi_ref} deleted`);
-    } catch (error) {
-      console.error('Error deleting KPI:', error);
-      toast.error('Failed to delete KPI', error.message);
+      console.error('Error fetching KPIs:', error);
     }
   }
 
   function getKPIStatus(kpi) {
     const assessments = assessmentCounts[kpi.id];
     const target = kpi.target || 90;
-    if (!assessments || assessments.total === 0) return { label: 'Not Started', color: '#64748b', bg: '#f1f5f9', icon: Clock };
-    const percentage = assessments.total > 0 ? Math.round((assessments.met / assessments.total) * 100) : 0;
-    if (percentage >= target) return { label: 'Achieved', color: '#10b981', bg: '#f0fdf4', icon: CheckCircle };
-    if (percentage >= target * 0.8) return { label: 'On Track', color: '#3b82f6', bg: '#eff6ff', icon: TrendingUp };
-    if (percentage >= target * 0.6) return { label: 'At Risk', color: '#f59e0b', bg: '#fffbeb', icon: AlertTriangle };
-    return { label: 'Critical', color: '#ef4444', bg: '#fef2f2', icon: AlertCircle };
+
+    // If no assessments have been made for this KPI, it's "Not Started"
+    if (!assessments || assessments.total === 0) {
+      return {
+        label: 'Not Started',
+        color: '#64748b',
+        bg: '#f1f5f9',
+        icon: Clock
+      };
+    }
+
+    // Calculate percentage based on assessments
+    const percentage = assessments.total > 0 
+      ? Math.round((assessments.met / assessments.total) * 100) 
+      : 0;
+
+    // Determine status based on actual assessment results
+    if (percentage >= target) {
+      return {
+        label: 'Achieved',
+        color: '#10b981',
+        bg: '#f0fdf4',
+        icon: CheckCircle
+      };
+    } else if (percentage >= target * 0.8) {
+      return {
+        label: 'On Track',
+        color: '#3b82f6',
+        bg: '#eff6ff',
+        icon: TrendingUp
+      };
+    } else if (percentage >= target * 0.6) {
+      return {
+        label: 'At Risk',
+        color: '#f59e0b',
+        bg: '#fffbeb',
+        icon: AlertTriangle
+      };
+    } else {
+      return {
+        label: 'Critical',
+        color: '#ef4444',
+        bg: '#fef2f2',
+        icon: AlertCircle
+      };
+    }
   }
 
   function getCategoryColor(category) {
     switch (category) {
-      case 'Time Performance': return { bg: '#dbeafe', color: '#2563eb' };
-      case 'Quality of Collaboration': return { bg: '#f3e8ff', color: '#7c3aed' };
-      case 'Delivery Performance': return { bg: '#dcfce7', color: '#16a34a' };
-      default: return { bg: '#f1f5f9', color: '#64748b' };
+      case 'Time Performance':
+        return { bg: '#dbeafe', color: '#2563eb' };
+      case 'Quality of Collaboration':
+        return { bg: '#f3e8ff', color: '#7c3aed' };
+      case 'Delivery Performance':
+        return { bg: '#dcfce7', color: '#16a34a' };
+      default:
+        return { bg: '#f1f5f9', color: '#64748b' };
     }
   }
 
-  const groupedKPIs = kpis.reduce((acc, kpi) => { const category = kpi.category || 'Other'; if (!acc[category]) acc[category] = []; acc[category].push(kpi); return acc; }, {});
+  // Group KPIs by category
+  const groupedKPIs = kpis.reduce((acc, kpi) => {
+    const category = kpi.category || 'Other';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(kpi);
+    return acc;
+  }, {});
 
+  // Calculate stats
   const totalKPIs = kpis.length;
-  const achievedKPIs = kpis.filter(k => getKPIStatus(k).label === 'Achieved').length;
-  const atRiskKPIs = kpis.filter(k => { const s = getKPIStatus(k); return s.label === 'At Risk' || s.label === 'Critical'; }).length;
-  const notStartedKPIs = kpis.filter(k => getKPIStatus(k).label === 'Not Started').length;
+  const achievedKPIs = kpis.filter(k => {
+    const status = getKPIStatus(k);
+    return status.label === 'Achieved';
+  }).length;
+  const atRiskKPIs = kpis.filter(k => {
+    const status = getKPIStatus(k);
+    return status.label === 'At Risk' || status.label === 'Critical';
+  }).length;
+  const notStartedKPIs = kpis.filter(k => {
+    const status = getKPIStatus(k);
+    return status.label === 'Not Started';
+  }).length;
 
   const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
-  const canManage = canManageKPIs(userRole);
 
-  if (authLoading || projectLoading || loading) return <div className="loading">Loading KPIs...</div>;
+  if (loading) return <div className="loading">Loading KPIs...</div>;
 
   return (
     <div className="page-container">
-      <ConfirmDialogComponent />
-      
-      <PageHeader
-        icon={<TrendingUp size={28} />}
-        title="Key Performance Indicators"
-        subtitle="Track project performance against SOW targets"
-        actions={
-          <>
-            {canManage && !showAddForm && <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add KPI</button>}
-            <button className="btn btn-secondary" onClick={() => fetchKPIs()}><RefreshCw size={18} /> Refresh</button>
-          </>
-        }
-      />
+      <div className="page-header">
+        <div className="page-title">
+          <TrendingUp size={28} />
+          <div>
+            <h1>Key Performance Indicators</h1>
+            <p>Track project performance against SOW targets</p>
+          </div>
+        </div>
+        <button 
+          className="btn btn-primary" 
+          onClick={() => fetchKPIs()}
+        >
+          <RefreshCw size={18} /> Refresh Metrics
+        </button>
+      </div>
 
       {/* Stats */}
-      <StatGrid columns={4}>
-        <StatCard label="Total KPIs" value={totalKPIs} labelFirst />
-        <StatCard label="Achieved" value={achievedKPIs} valueColor="#10b981" labelFirst />
-        <StatCard label="At Risk / Critical" value={atRiskKPIs} valueColor="#ef4444" labelFirst />
-        <StatCard label="Not Started" value={notStartedKPIs} valueColor="#64748b" labelFirst />
-      </StatGrid>
-
-      {/* Add KPI Form */}
-      {showAddForm && canManage && (
-        <FormCard
-          title="Add New KPI"
-          headerBadge={<span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontFamily: 'monospace', fontWeight: '600' }}>{getNextKPIRef()}</span>}
-          onSave={handleAddKPI}
-          onCancel={() => setShowAddForm(false)}
-          saving={saving}
-          saveText="Save KPI"
-          variant="outlined"
-        >
-          <FormCard.Grid columns={2}>
-            <FormField.Input
-              label="KPI Name"
-              required
-              fullWidth
-              placeholder="e.g., First Time Quality of Deliverables"
-              value={newKPI.name}
-              onChange={(e) => setNewKPI({ ...newKPI, name: e.target.value })}
-            />
-            <FormField.Select
-              label="Category"
-              required
-              value={newKPI.category}
-              onChange={(e) => setNewKPI({ ...newKPI, category: e.target.value })}
-              options={categories}
-            />
-            <FormField.Input
-              label="Target (%)"
-              type="number"
-              min={0}
-              max={100}
-              value={newKPI.target}
-              onChange={(e) => setNewKPI({ ...newKPI, target: e.target.value })}
-            />
-          </FormCard.Grid>
-          <FormField.Textarea
-            label="Description"
-            required
-            rows={2}
-            placeholder="Describe what this KPI measures..."
-            value={newKPI.description}
-            onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })}
-          />
-          <FormField.Textarea
-            label="Measurement Method"
-            rows={2}
-            placeholder="How will this KPI be measured?"
-            value={newKPI.measurement_method}
-            onChange={(e) => setNewKPI({ ...newKPI, measurement_method: e.target.value })}
-          />
-          <FormCard.Grid columns={2}>
-            <FormField.Select
-              label="Frequency"
-              value={newKPI.frequency}
-              onChange={(e) => setNewKPI({ ...newKPI, frequency: e.target.value })}
-              options={frequencies}
-            />
-            <FormField.Input
-              label="Data Source"
-              placeholder="e.g., Deliverable Review Records"
-              value={newKPI.data_source}
-              onChange={(e) => setNewKPI({ ...newKPI, data_source: e.target.value })}
-            />
-          </FormCard.Grid>
-          <FormField.Input
-            label="Calculation Formula"
-            fullWidth
-            placeholder="e.g., Number approved at first review ÷ total reviewed"
-            value={newKPI.calculation}
-            onChange={(e) => setNewKPI({ ...newKPI, calculation: e.target.value })}
-          />
-          <FormField.Textarea
-            label="Remediation Plan"
-            rows={2}
-            placeholder="What actions should be taken if target is not met?"
-            value={newKPI.remediation}
-            onChange={(e) => setNewKPI({ ...newKPI, remediation: e.target.value })}
-          />
-        </FormCard>
-      )}
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="stat-card">
+          <div className="stat-label">Total KPIs</div>
+          <div className="stat-value">{totalKPIs}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Achieved</div>
+          <div className="stat-value" style={{ color: '#10b981' }}>{achievedKPIs}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">At Risk / Critical</div>
+          <div className="stat-value" style={{ color: '#ef4444' }}>{atRiskKPIs}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Not Started</div>
+          <div className="stat-value" style={{ color: '#64748b' }}>{notStartedKPIs}</div>
+        </div>
+      </div>
 
       {/* KPIs Table */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginBottom: '1rem' }}>Key Performance Indicators</h3>
         <table>
-          <thead><tr><th>KPI ID</th><th>Name</th><th>Category</th><th>Target</th><th>Current</th><th>Assessments</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th>KPI ID</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Target</th>
+              <th>Current</th>
+              <th>Assessments</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody>
-            {kpis.length === 0 ? (
-              <EmptyState.TableRow colSpan={8} icon="kpis" message={`No KPIs defined yet. ${canManage ? 'Click "Add KPI" to create one.' : ''}`} />
-            ) : kpis.map(kpi => {
+            {kpis.map(kpi => {
               const status = getKPIStatus(kpi);
               const catColor = getCategoryColor(kpi.category);
               const assessments = assessmentCounts[kpi.id];
               const StatusIcon = status.icon;
+
               return (
                 <tr key={kpi.id}>
                   <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{kpi.kpi_ref}</td>
-                  <td><Link to={`/kpis/${kpi.id}`} style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}>{kpi.name}</Link></td>
-                  <td><span style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: catColor.bg, color: catColor.color }}>{kpi.category}</span></td>
-                  <td style={{ textAlign: 'center' }}>{kpi.target}%</td>
-                  <td style={{ textAlign: 'center', fontWeight: '600', color: status.color }}>{assessments ? Math.round((assessments.met / assessments.total) * 100) : 0}%</td>
-                  <td style={{ textAlign: 'center' }}>
-                    {assessments ? <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{assessments.met}/{assessments.total}<span style={{ marginLeft: '0.25rem', color: assessments.notMet > 0 ? '#ef4444' : '#10b981' }}>({assessments.notMet > 0 ? `${assessments.notMet} failed` : 'all passed'})</span></span> : <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>None yet</span>}
-                  </td>
-                  <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem', backgroundColor: status.bg, color: status.color }}><StatusIcon size={14} />{status.label}</span></td>
                   <td>
-                    <div className="action-buttons">
-                      {canEdit && <Link to={`/kpis/${kpi.id}`} className="btn-icon" title="View/Edit"><Edit2 size={16} /></Link>}
-                      {canManage && <button className="btn-icon btn-danger" onClick={() => handleDeleteKPI(kpi)} title="Delete KPI"><Trash2 size={16} /></button>}
-                    </div>
+                    <Link 
+                      to={`/kpis/${kpi.id}`}
+                      style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}
+                    >
+                      {kpi.name}
+                    </Link>
+                  </td>
+                  <td>
+                    <span style={{
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.8rem',
+                      backgroundColor: catColor.bg,
+                      color: catColor.color
+                    }}>
+                      {kpi.category}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>{kpi.target}%</td>
+                  <td style={{ 
+                    textAlign: 'center', 
+                    fontWeight: '600',
+                    color: status.color
+                  }}>
+                    {assessments ? Math.round((assessments.met / assessments.total) * 100) : 0}%
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    {assessments ? (
+                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        {assessments.met}/{assessments.total}
+                        <span style={{ 
+                          marginLeft: '0.25rem',
+                          color: assessments.notMet > 0 ? '#ef4444' : '#10b981'
+                        }}>
+                          ({assessments.notMet > 0 ? `${assessments.notMet} failed` : 'all passed'})
+                        </span>
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>None yet</span>
+                    )}
+                  </td>
+                  <td>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.85rem',
+                      backgroundColor: status.bg,
+                      color: status.color
+                    }}>
+                      <StatusIcon size={14} />
+                      {status.label}
+                    </span>
+                  </td>
+                  <td>
+                    {canEdit && (
+                      <Link 
+                        to={`/kpis/${kpi.id}`}
+                        style={{
+                          padding: '0.5rem',
+                          backgroundColor: '#f1f5f9',
+                          color: '#374151',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                        title="View/Edit"
+                      >
+                        <Edit2 size={16} />
+                      </Link>
+                    )}
                   </td>
                 </tr>
               );
@@ -299,27 +328,118 @@ export default function KPIs() {
         const catColor = getCategoryColor(category);
         return (
           <div key={category} style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}><span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: catColor.color }}></span>{category}</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+            <h3 style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              marginBottom: '1rem'
+            }}>
+              <span style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                backgroundColor: catColor.color
+              }}></span>
+              {category}
+            </h3>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+              gap: '1rem' 
+            }}>
               {categoryKpis.map(kpi => {
                 const status = getKPIStatus(kpi);
                 const assessments = assessmentCounts[kpi.id];
                 const StatusIcon = status.icon;
                 const currentScore = assessments ? Math.round((assessments.met / assessments.total) * 100) : 0;
+                
                 return (
-                  <Link key={kpi.id} to={`/kpis/${kpi.id}`} style={{ textDecoration: 'none' }}>
-                    <div className="card" style={{ cursor: 'pointer', transition: 'all 0.2s', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: '600', color: '#64748b' }}>{kpi.kpi_ref}</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.375rem', borderRadius: '9999px', fontSize: '0.75rem', backgroundColor: status.bg, color: status.color }}><StatusIcon size={12} /></span>
+                  <Link 
+                    key={kpi.id}
+                    to={`/kpis/${kpi.id}`}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <div className="card" style={{ 
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'flex-start',
+                        marginBottom: '0.75rem'
+                      }}>
+                        <span style={{ 
+                          fontFamily: 'monospace', 
+                          fontWeight: '600',
+                          color: '#64748b'
+                        }}>
+                          {kpi.kpi_ref}
+                        </span>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          padding: '0.125rem 0.375rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          backgroundColor: status.bg,
+                          color: status.color
+                        }}>
+                          <StatusIcon size={12} />
+                        </span>
                       </div>
-                      <div style={{ fontSize: '1.75rem', fontWeight: '700', color: status.color, marginBottom: '0.25rem' }}>{currentScore}%</div>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem' }}>Target: {kpi.target}%</div>
-                      <div style={{ width: '100%', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden', marginBottom: '0.75rem' }}>
-                        <div style={{ width: `${Math.min(currentScore / kpi.target * 100, 100)}%`, height: '100%', backgroundColor: status.color, borderRadius: '3px' }}></div>
+                      <div style={{ 
+                        fontSize: '1.75rem', 
+                        fontWeight: '700', 
+                        color: status.color,
+                        marginBottom: '0.25rem'
+                      }}>
+                        {currentScore}%
                       </div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#374151' }}>{kpi.name}</div>
-                      {assessments && assessments.total > 0 ? <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.5rem' }}>{assessments.met} of {assessments.total} assessments passed</div> : <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.5rem' }}>No assessments yet</div>}
+                      <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                        Target: {kpi.target}%
+                      </div>
+                      <div style={{ 
+                        width: '100%', 
+                        height: '6px', 
+                        backgroundColor: '#e2e8f0', 
+                        borderRadius: '3px',
+                        overflow: 'hidden',
+                        marginBottom: '0.75rem'
+                      }}>
+                        <div style={{ 
+                          width: `${Math.min(currentScore / kpi.target * 100, 100)}%`, 
+                          height: '100%', 
+                          backgroundColor: status.color,
+                          borderRadius: '3px'
+                        }}></div>
+                      </div>
+                      <div style={{ 
+                        fontSize: '0.9rem', 
+                        fontWeight: '500',
+                        color: '#374151'
+                      }}>
+                        {kpi.name}
+                      </div>
+                      {assessments && assessments.total > 0 ? (
+                        <div style={{ 
+                          fontSize: '0.8rem', 
+                          color: '#64748b',
+                          marginTop: '0.5rem'
+                        }}>
+                          {assessments.met} of {assessments.total} assessments passed
+                        </div>
+                      ) : (
+                        <div style={{ 
+                          fontSize: '0.8rem', 
+                          color: '#9ca3af',
+                          marginTop: '0.5rem'
+                        }}>
+                          No assessments yet
+                        </div>
+                      )}
                     </div>
                   </Link>
                 );
@@ -338,7 +458,6 @@ export default function KPIs() {
           <li><strong>On Track</strong> - Within 80% of target</li>
           <li><strong>At Risk</strong> - Between 60-80% of target</li>
           <li><strong>Critical</strong> - Below 60% of target (only for KPIs that have been assessed)</li>
-          {canManage && <li><strong>Management:</strong> As Supplier PM or Admin, you can add new KPIs and delete existing ones</li>}
         </ul>
       </div>
     </div>

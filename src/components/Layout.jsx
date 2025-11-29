@@ -19,16 +19,29 @@ import {
   Award,
   GanttChart,
   GripVertical,
-  ClipboardList,
-  PieChart
+  ClipboardList
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
-import {
-  canManageSystem,
-  canViewWorkflow,
-  canViewFinancials,
-  getRoleDisplayConfig
-} from '../utils/permissions';
+
+// Permission checks
+function canManageSystem(role) {
+  return role === 'admin' || role === 'supplier_pm';
+}
+
+function canViewWorkflow(role) {
+  return ['supplier_pm', 'customer_pm'].includes(role);
+}
+
+function getRoleConfig(role) {
+  const configs = {
+    admin: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
+    supplier_pm: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
+    customer_pm: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+    contributor: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
+    viewer: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' }
+  };
+  return configs[role] || configs.viewer;
+}
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -95,10 +108,9 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
-  // Use centralized permission checks
+  // Permission checks using centralized permissions
   const hasSystemAccess = canManageSystem(userRole);
   const hasWorkflowAccess = canViewWorkflow(userRole);
-  const hasFinancialAccess = canViewFinancials(userRole);
 
   // Base navigation items (before user ordering)
   const baseNavItems = [
@@ -112,10 +124,6 @@ export default function Layout({ children }) {
     { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
     { path: '/quality-standards', icon: Award, label: 'Quality Standards' },
     { path: '/reports', icon: FileText, label: 'Reports' },
-    // Margins only visible to Supplier PM and Admin
-    ...(hasFinancialAccess ? [
-      { path: '/margins', icon: PieChart, label: 'Margins' }
-    ] : []),
     // Workflow Summary only visible to PMs and admins
     ...(hasWorkflowAccess ? [
       { path: '/workflow-summary', icon: ClipboardList, label: 'Workflow Summary' }
@@ -223,8 +231,7 @@ export default function Layout({ children }) {
     }
   }
 
-  // Use centralized role display config
-  const roleConfig = getRoleDisplayConfig(userRole);
+  const roleConfig = getRoleConfig(userRole);
 
   const isAccountPage = location.pathname === '/account';
 

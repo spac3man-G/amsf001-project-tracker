@@ -5,51 +5,25 @@ import {
   CheckCircle, AlertCircle, User, CalendarDays, Send
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
-import { useToast } from '../components/Toast';
-import { TablePageSkeleton } from '../components/SkeletonLoader';
-import StatCard, { StatGrid } from '../components/StatCard';
-import { useConfirmDialog } from '../components/ConfirmDialog';
-import PageHeader from '../components/PageHeader';
-import FormField from '../components/FormField';
-import FormCard from '../components/FormCard';
-import { useAuth, useProject, useCurrentResource } from '../hooks';
-import { getStatusColor, getNextSunday } from '../utils/statusHelpers';
-import { 
-  canAddTimesheet, 
-  canAddTimesheetForOthers,
-  canApproveTimesheet,
-  canEditTimesheet as canEditTimesheetPerm,
-  canDeleteTimesheet as canDeleteTimesheetPerm,
-  canSubmitTimesheet as canSubmitTimesheetPerm,
-  getAvailableResourcesForEntry
-} from '../utils/permissions';
 
 export default function Timesheets() {
-  // ============================================
-  // HOOKS
-  // ============================================
-  const { userId, userRole, loading: authLoading } = useAuth();
-  const { projectId, loading: projectLoading } = useProject();
-  const { resourceId: currentUserResourceId, loading: resourceLoading } = useCurrentResource(userId);
-  
-  const toast = useToast();
-  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
-  const { showTestUsers, testUserIds } = useTestUsers();
-
-  // ============================================
-  // LOCAL STATE
-  // ============================================
   const [timesheets, setTimesheets] = useState([]);
   const [resources, setResources] = useState([]);
   const [milestones, setMilestones] = useState([]);
+  const [projectId, setProjectId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('viewer');
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUserResourceId, setCurrentUserResourceId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [filterResource, setFilterResource] = useState('all');
   const [filterWeek, setFilterWeek] = useState('all');
-  const [entryMode, setEntryMode] = useState('daily');
-  const [saving, setSaving] = useState(false);
+  const [entryMode, setEntryMode] = useState('daily'); // 'daily' or 'weekly'
+
+  // Test user context for filtering
+  const { showTestUsers, testUserIds } = useTestUsers();
 
   const [newTimesheet, setNewTimesheet] = useState({
     resource_id: '',
@@ -64,50 +38,122 @@ export default function Timesheets() {
 
   const statuses = ['Draft', 'Submitted', 'Approved', 'Rejected'];
 
-  // ============================================
-  // DATA FETCHING
-  // ============================================
-  
-  useEffect(() => {
-    if (currentUserResourceId) {
-      setNewTimesheet(prev => ({ ...prev, resource_id: currentUserResourceId }));
-    }
-  }, [currentUserResourceId]);
+  function getNextSunday() {
+    const today = new Date();
+    const daysUntilSunday = 7 - today.getDay();
+    const nextSunday = new Date(today);
+    nextSunday.setDate(today.getDate() + (today.getDay() === 0 ? 0 : daysUntilSunday));
+    return nextSunday.toISOString().split('T')[0];
+  }
+
+  function getWeekDates(weekEndingDate) {
+    const end = new Date(weekEndingDate);
+    const start = new Date(end);
+    start.setDate(end.getDate() - 6);
+    return { start, end };
+  }
 
   useEffect(() => {
-    if (projectId && !authLoading && !projectLoading) {
-      fetchData();
-    }
-  }, [projectId, authLoading, projectLoading, showTestUsers]);
+    fetchInitialData();
+  }, []);
 
-  async function fetchData() {
-    if (!projectId) return;
+  // Re-fetch when showTestUsers changes
+  useEffect(() => {
+    if (projectId) {
+      fetchData(projectId);
+    }
+  }, [showTestUsers]);
+
+  async function fetchInitialData() {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+        
+        // Get user role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) setUserRole(profile.role);
+
+        // Find if user is linked to a resource
+        const { data: resource } = await supabase
+          .from('resources')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (resource) {
+          setCurrentUserResourceId(resource.id);
+          setNewTimesheet(prev => ({ ...prev, resource_id: resource.id }));
+        }
+      }
+
+      // Get project ID
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('reference', 'AMSF001')
+        .single();
+      
+      if (project) {
+        setProjectId(project.id);
+        await fetchData(project.id);
+      } else {
+        console.error('Project AMSF001 not found');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error in fetchInitialData:', error);
+      setLoading(false);
+    }
+  }
+
+  async function fetchData(projId) {
+    const pid = projId || projectId;
+    if (!pid) return;
 
     try {
-      setLoading(true);
-      
+      // Build timesheets query with test content filter
       let timesheetQuery = supabase
         .from('timesheets')
-        .select(`*, resources (id, name, email), milestones (id, milestone_ref, name)`)
-        .eq('project_id', projectId)
+        .select(`
+          *,
+          resources (id, name, email),
+          milestones (id, milestone_ref, name)
+        `)
+        .eq('project_id', pid)
         .order('date', { ascending: false });
 
+      // Filter out test content unless admin/supplier_pm has enabled it
       if (!showTestUsers) {
         timesheetQuery = timesheetQuery.or('is_test_content.is.null,is_test_content.eq.false');
       }
 
       const { data: timesheetsData, error: tsError } = await timesheetQuery;
-      if (tsError) console.error('Timesheets error:', tsError);
-      else setTimesheets(timesheetsData || []);
 
-      const { data: resourcesData, error: resError } = await supabase
+      if (tsError) {
+        console.error('Timesheets error:', tsError);
+      } else {
+        setTimesheets(timesheetsData || []);
+      }
+
+      // Fetch resources - filter out resources linked to test users
+      let resourceQuery = supabase
         .from('resources')
         .select('id, name, email, user_id')
         .order('name');
+
+      const { data: resourcesData, error: resError } = await resourceQuery;
       
       if (resError) {
         console.error('Resources error:', resError);
       } else {
+        // Filter out resources linked to test users if not showing test users
         let filteredResources = resourcesData || [];
         if (!showTestUsers && testUserIds && testUserIds.length > 0) {
           filteredResources = filteredResources.filter(r => 
@@ -117,60 +163,63 @@ export default function Timesheets() {
         setResources(filteredResources);
       }
 
+      // Fetch milestones for this project
       const { data: milestonesData, error: msError } = await supabase
         .from('milestones')
         .select('id, milestone_ref, name')
-        .eq('project_id', projectId)
+        .eq('project_id', pid)
         .order('milestone_ref');
       
-      if (msError) console.error('Milestones error:', msError);
-      else setMilestones(milestonesData || []);
+      if (msError) {
+        console.error('Milestones error:', msError);
+      } else {
+        setMilestones(milestonesData || []);
+      }
 
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
   }
 
-  // ============================================
-  // CRUD OPERATIONS
-  // ============================================
-
   async function handleAdd() {
     if (!newTimesheet.resource_id || !newTimesheet.hours_worked) {
-      toast.warning('Please fill in all required fields');
+      alert('Please fill in all required fields');
       return;
     }
 
     if (!projectId) {
-      toast.error('Project not found');
+      alert('Project not found');
       return;
     }
 
-    setSaving(true);
     try {
       const resource = resources.find(r => r.id === newTimesheet.resource_id);
+
+      // Determine which date field to use based on entry mode
       const dateToUse = entryMode === 'daily' ? newTimesheet.work_date : newTimesheet.week_ending;
 
       const insertData = {
         project_id: projectId,
         resource_id: newTimesheet.resource_id,
         milestone_id: newTimesheet.milestone_id || null,
-        user_id: resource?.user_id || userId,
-        date: dateToUse,
+        user_id: resource?.user_id || currentUserId,
+        date: dateToUse,  // Original schema column (NOT NULL)
         work_date: dateToUse,
         week_ending: entryMode === 'weekly' ? newTimesheet.week_ending : null,
         hours_worked: parseFloat(newTimesheet.hours_worked),
-        hours: parseFloat(newTimesheet.hours_worked),
+        hours: parseFloat(newTimesheet.hours_worked),  // Original schema column
         description: newTimesheet.description,
-        comments: newTimesheet.description,
+        comments: newTimesheet.description,  // Original schema column
         status: newTimesheet.status,
         entry_type: entryMode
       };
 
-      const { error } = await supabase.from('timesheets').insert([insertData]);
+      const { error } = await supabase
+        .from('timesheets')
+        .insert([insertData]);
+
       if (error) throw error;
 
       await fetchData();
@@ -185,12 +234,10 @@ export default function Timesheets() {
         status: 'Draft',
         entry_type: entryMode
       });
-      toast.success('Timesheet added successfully!');
+      alert('Timesheet added successfully!');
     } catch (error) {
       console.error('Error adding timesheet:', error);
-      toast.error('Failed to add timesheet', error.message);
-    } finally {
-      setSaving(false);
+      alert('Failed to add timesheet: ' + error.message);
     }
   }
 
@@ -199,29 +246,28 @@ export default function Timesheets() {
     setEditForm({
       resource_id: timesheet.resource_id,
       milestone_id: timesheet.milestone_id || '',
-      work_date: timesheet.work_date || timesheet.date || '',
+      work_date: timesheet.work_date || timesheet.date || '',  // Support both column names
       week_ending: timesheet.week_ending || '',
-      hours_worked: timesheet.hours_worked || timesheet.hours || 0,
-      description: timesheet.description || timesheet.comments || '',
+      hours_worked: timesheet.hours_worked || timesheet.hours || 0,  // Support both
+      description: timesheet.description || timesheet.comments || '',  // Support both
       status: timesheet.status,
       entry_type: timesheet.entry_type || 'daily'
     });
   }
 
   async function handleSave(id) {
-    setSaving(true);
     try {
       const { error } = await supabase
         .from('timesheets')
         .update({
           resource_id: editForm.resource_id,
           milestone_id: editForm.milestone_id || null,
-          date: editForm.work_date,
+          date: editForm.work_date,  // Original schema column
           work_date: editForm.work_date,
           week_ending: editForm.week_ending || null,
-          hours: parseFloat(editForm.hours_worked),
+          hours: parseFloat(editForm.hours_worked),  // Original schema column
           hours_worked: parseFloat(editForm.hours_worked),
-          comments: editForm.description,
+          comments: editForm.description,  // Original schema column
           description: editForm.description,
           status: editForm.status
         })
@@ -231,12 +277,10 @@ export default function Timesheets() {
 
       await fetchData();
       setEditingId(null);
-      toast.success('Timesheet updated!');
+      alert('Timesheet updated!');
     } catch (error) {
       console.error('Error updating timesheet:', error);
-      toast.error('Failed to update', error.message);
-    } finally {
-      setSaving(false);
+      alert('Failed to update: ' + error.message);
     }
   }
 
@@ -246,276 +290,362 @@ export default function Timesheets() {
   }
 
   async function handleDelete(id) {
-    const confirmed = await confirm({
-      title: 'Delete Timesheet',
-      message: 'Are you sure you want to delete this timesheet entry? This action cannot be undone.',
-      confirmText: 'Delete',
-      variant: 'danger'
-    });
-    if (!confirmed) return;
+    if (!confirm('Delete this timesheet entry?')) return;
 
     try {
-      const { error } = await supabase.from('timesheets').delete().eq('id', id);
+      const { error } = await supabase
+        .from('timesheets')
+        .delete()
+        .eq('id', id);
+
       if (error) throw error;
 
       await fetchData();
-      toast.success('Timesheet deleted');
+      alert('Timesheet deleted');
     } catch (error) {
       console.error('Error deleting timesheet:', error);
-      toast.error('Failed to delete', error.message);
+      alert('Failed to delete: ' + error.message);
     }
   }
 
+  // Submit timesheet for approval
   async function handleSubmit(id) {
-    const confirmed = await confirm({
-      title: 'Submit for Approval',
-      message: 'Submit this timesheet for approval? Once submitted, you will not be able to edit it until it is approved or rejected.',
-      confirmText: 'Submit',
-      variant: 'info'
-    });
-    if (!confirmed) return;
+    if (!confirm('Submit this timesheet for approval?')) return;
 
     try {
-      const { error } = await supabase.from('timesheets').update({ status: 'Submitted' }).eq('id', id);
+      const { error } = await supabase
+        .from('timesheets')
+        .update({ status: 'Submitted' })
+        .eq('id', id);
+
       if (error) throw error;
 
       await fetchData();
-      toast.success('Timesheet submitted for approval!');
+      alert('Timesheet submitted for approval!');
     } catch (error) {
       console.error('Error submitting timesheet:', error);
-      toast.error('Failed to submit', error.message);
+      alert('Failed to submit: ' + error.message);
     }
   }
 
+  // Approve timesheet (for Customer PM only - timesheets are always chargeable)
   async function handleApprove(id) {
     try {
-      const { error } = await supabase.from('timesheets').update({ status: 'Approved' }).eq('id', id);
+      const { error } = await supabase
+        .from('timesheets')
+        .update({ status: 'Approved' })
+        .eq('id', id);
+
       if (error) throw error;
 
       await fetchData();
-      toast.success('Timesheet approved!');
+      alert('Timesheet approved!');
     } catch (error) {
       console.error('Error approving timesheet:', error);
-      toast.error('Failed to approve', error.message);
+      alert('Failed to approve: ' + error.message);
     }
   }
 
+  // Reject timesheet (for Customer PM only)
   async function handleReject(id) {
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    
     try {
-      const { error } = await supabase.from('timesheets').update({ status: 'Rejected' }).eq('id', id);
+      const { error } = await supabase
+        .from('timesheets')
+        .update({ status: 'Rejected' })
+        .eq('id', id);
+
       if (error) throw error;
 
       await fetchData();
-      toast.warning('Timesheet rejected');
+      alert('Timesheet rejected.');
     } catch (error) {
       console.error('Error rejecting timesheet:', error);
-      toast.error('Failed to reject', error.message);
+      alert('Failed to reject: ' + error.message);
     }
   }
 
-  // ============================================
-  // PERMISSION HELPERS
-  // ============================================
-
-  function canEditTimesheetLocal(ts) { return canEditTimesheetPerm(userRole, ts, userId); }
-  function canDeleteTimesheetLocal(ts) { return canDeleteTimesheetPerm(userRole, ts, userId); }
-  function canSubmitTimesheetLocal(ts) { return canSubmitTimesheetPerm(userRole, ts, userId); }
-  function canValidateTimesheetLocal(ts) {
-    if (ts.status !== 'Submitted') return false;
-    return canApproveTimesheet(userRole);
+  function getStatusColor(status) {
+    switch (status) {
+      case 'Approved': return 'status-approved';
+      case 'Submitted': return 'status-submitted';
+      case 'Rejected': return 'status-rejected';
+      default: return 'status-draft';
+    }
   }
 
-  // ============================================
-  // FILTERING & CALCULATIONS
-  // ============================================
+  function canEditTimesheet(ts) {
+    if (userRole === 'admin') return true;
+    if (ts.user_id === currentUserId && ts.status !== 'Approved') return true;
+    return false;
+  }
 
+  function canDeleteTimesheet(ts) {
+    if (userRole === 'admin') return true;
+    if (ts.user_id === currentUserId && ts.status === 'Draft') return true;
+    return false;
+  }
+
+  // Can submit (owner of Draft timesheet)
+  function canSubmitTimesheet(ts) {
+    if (ts.status !== 'Draft' && ts.status !== 'Rejected') return false;
+    if (userRole === 'admin') return true;
+    if (ts.user_id === currentUserId) return true;
+    return false;
+  }
+
+  // Can validate (approve/reject) - ONLY Customer PM can approve timesheets
+  // Timesheets represent billable hours which are always chargeable to the customer
+  function canValidateTimesheet(ts) {
+    if (ts.status !== 'Submitted') return false;
+    // Only customer_pm can approve timesheets (they represent chargeable work)
+    return userRole === 'customer_pm';
+  }
+
+  // Filter timesheets
   const filteredTimesheets = timesheets.filter(ts => {
     if (filterResource !== 'all' && ts.resource_id !== filterResource) return false;
-    if (filterWeek !== 'all') {
-      const tsDate = ts.work_date || ts.date;
-      if (!tsDate || !tsDate.startsWith(filterWeek)) return false;
-    }
+    // Note: week filter would need adjustment for daily entries
     return true;
   });
 
-  const availableResources = getAvailableResourcesForEntry(userRole, resources, userId);
+  // Get unique weeks from timesheets
+  const uniqueWeeks = [...new Set(timesheets.map(ts => ts.week_ending).filter(Boolean))].sort().reverse();
 
-  const uniqueWeeks = [...new Set(timesheets.map(ts => {
-    const d = ts.work_date || ts.date;
-    return d ? d.substring(0, 7) : null;
-  }).filter(Boolean))].sort().reverse();
-
+  // Calculate stats (support both old and new column names)
   const totalHours = filteredTimesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
-  const approvedCount = filteredTimesheets.filter(t => t.status === 'Approved').length;
-  const pendingCount = filteredTimesheets.filter(t => t.status === 'Submitted').length;
-  const draftCount = filteredTimesheets.filter(t => t.status === 'Draft').length;
+  const approvedHours = filteredTimesheets
+    .filter(ts => ts.status === 'Approved')
+    .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
+  const pendingCount = filteredTimesheets.filter(ts => ts.status === 'Submitted').length;
 
-  // ============================================
-  // LOADING STATE
-  // ============================================
+  // Calculate hours by resource
+  const hoursByResource = resources.map(r => ({
+    name: r.name,
+    hours: filteredTimesheets
+      .filter(ts => ts.resource_id === r.id)
+      .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0)
+  })).filter(r => r.hours > 0);
 
-  if (authLoading || projectLoading || loading) {
-    return <TablePageSkeleton />;
-  }
+  // Available resources for current user
+  const availableResources = userRole === 'admin' 
+    ? resources 
+    : resources.filter(r => r.user_id === currentUserId);
 
-  // ============================================
-  // RENDER
-  // ============================================
+  if (loading) return <div className="loading">Loading timesheets...</div>;
 
   return (
-    <div>
-      <ConfirmDialogComponent />
-      
-      {/* Header */}
-      <PageHeader
-        icon={<Clock size={28} />}
-        title="Timesheets"
-        subtitle="Track billable hours and work activities"
-        actions={
-          canAddTimesheet(userRole) && (
-            <button className="btn btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
-              <Plus size={20} /> Add Timesheet
-            </button>
-          )
-        }
-      />
+    <div className="page-container">
+      <div className="page-header">
+        <div className="page-title">
+          <Clock size={28} />
+          <div>
+            <h1>Timesheets</h1>
+            <p>Track time spent on project activities</p>
+          </div>
+        </div>
+        {!showAddForm && (
+          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
+            <Plus size={18} /> Add Timesheet
+          </button>
+        )}
+      </div>
 
       {/* Stats */}
-      <StatGrid columns={4}>
-        <StatCard
-          icon={<Clock size={24} />}
-          iconBg="#dbeafe"
-          iconColor="#2563eb"
-          value={`${totalHours.toFixed(1)}h`}
-          label="Total Hours (Filtered)"
-        />
-        <StatCard
-          icon={<CheckCircle size={24} />}
-          iconBg="#dcfce7"
-          iconColor="#16a34a"
-          value={approvedCount}
-          label="Approved"
-        />
-        <StatCard
-          icon={<AlertCircle size={24} />}
-          iconBg="#fef3c7"
-          iconColor="#d97706"
-          value={pendingCount}
-          label="Pending Approval"
-        />
-        <StatCard
-          icon={<CalendarDays size={24} />}
-          iconBg="#f1f5f9"
-          iconColor="#64748b"
-          value={draftCount}
-          label="Draft"
-        />
-      </StatGrid>
-
-      {/* Filters */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div>
-            <label className="form-label">Filter by Resource</label>
-            <select className="form-input" value={filterResource} onChange={(e) => setFilterResource(e.target.value)}>
-              <option value="all">All Resources</option>
-              {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="form-label">Filter by Month</label>
-            <select className="form-input" value={filterWeek} onChange={(e) => setFilterWeek(e.target.value)}>
-              <option value="all">All Time</option>
-              {uniqueWeeks.map(w => <option key={w} value={w}>{w}</option>)}
-            </select>
-          </div>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="stat-card">
+          <div className="stat-label">TOTAL ENTRIES</div>
+          <div className="stat-value">{filteredTimesheets.length}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">TOTAL HOURS</div>
+          <div className="stat-value" style={{ color: '#3b82f6' }}>{totalHours.toFixed(1)}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">APPROVED HOURS</div>
+          <div className="stat-value" style={{ color: '#10b981' }}>{approvedHours.toFixed(1)}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">PENDING APPROVAL</div>
+          <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
         </div>
       </div>
 
-      {/* Add Form */}
+      {/* Hours by Resource Summary */}
+      {hoursByResource.length > 0 && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <h4 style={{ marginBottom: '0.75rem' }}>Hours by Resource</h4>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+            {hoursByResource.map(r => (
+              <div key={r.name} style={{ padding: '0.75rem 1rem', backgroundColor: '#f1f5f9', borderRadius: '8px', minWidth: '120px' }}>
+                <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{r.name}</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#3b82f6' }}>{r.hours.toFixed(1)}h</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: '500' }}>Filter:</span>
+          <select value={filterResource} onChange={(e) => setFilterResource(e.target.value)} style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+            <option value="all">All Resources</option>
+            {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Add Timesheet Form */}
       {showAddForm && (
-        <FormCard
-          title="New Timesheet Entry"
-          onSave={handleAdd}
-          onCancel={() => setShowAddForm(false)}
-          saving={saving}
-          saveText="Save Timesheet"
-        >
+        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
+          <h3 style={{ marginBottom: '1rem' }}>Add Timesheet Entry</h3>
+          
           {/* Entry Mode Toggle */}
-          <FormField label="Entry Mode">
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ fontWeight: '500', marginBottom: '0.5rem', display: 'block' }}>Entry Type</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className={`btn ${entryMode === 'daily' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEntryMode('daily')} type="button">
-                <Calendar size={16} /> Daily
+              <button
+                type="button"
+                onClick={() => setEntryMode('daily')}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: '2px solid',
+                  borderColor: entryMode === 'daily' ? '#10b981' : '#e2e8f0',
+                  backgroundColor: entryMode === 'daily' ? '#f0fdf4' : 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: entryMode === 'daily' ? '600' : '400',
+                  color: entryMode === 'daily' ? '#16a34a' : '#64748b'
+                }}
+              >
+                <Calendar size={18} />
+                Daily Entry
               </button>
-              <button className={`btn ${entryMode === 'weekly' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEntryMode('weekly')} type="button">
-                <CalendarDays size={16} /> Weekly
+              <button
+                type="button"
+                onClick={() => setEntryMode('weekly')}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: '2px solid',
+                  borderColor: entryMode === 'weekly' ? '#10b981' : '#e2e8f0',
+                  backgroundColor: entryMode === 'weekly' ? '#f0fdf4' : 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: entryMode === 'weekly' ? '600' : '400',
+                  color: entryMode === 'weekly' ? '#16a34a' : '#64748b'
+                }}
+              >
+                <CalendarDays size={18} />
+                Weekly Summary
               </button>
             </div>
-          </FormField>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.5rem' }}>
+              {entryMode === 'daily' 
+                ? 'Log hours for a specific day - ideal when working on different milestones each day.' 
+                : 'Log total hours for an entire week - ideal for consistent weekly work on a single milestone.'}
+            </p>
+          </div>
           
-          <FormCard.Grid columns="auto">
-            <FormField label="Resource" required>
-              <select
-                className="form-input"
-                value={newTimesheet.resource_id}
+          {availableResources.length === 0 && (
+            <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '6px', marginBottom: '1rem', color: '#dc2626', fontSize: '0.9rem' }}>
+              ⚠️ Your account is not linked to a resource. Contact an admin to be added.
+            </div>
+          )}
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label className="form-label">Resource * ({availableResources.length} available)</label>
+              <select 
+                className="form-input" 
+                value={newTimesheet.resource_id} 
                 onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}
               >
                 <option value="">Select Resource</option>
                 {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-            </FormField>
+            </div>
             
             {entryMode === 'daily' ? (
-              <FormField.Input
-                label="Work Date"
-                required
-                type="date"
-                value={newTimesheet.work_date}
-                onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })}
-              />
+              <div>
+                <label className="form-label">Date *</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  value={newTimesheet.work_date} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })} 
+                />
+              </div>
             ) : (
-              <FormField.Input
-                label="Week Ending (Sunday)"
-                required
-                type="date"
-                value={newTimesheet.week_ending}
-                onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })}
-              />
+              <div>
+                <label className="form-label">Week Ending (Sunday) *</label>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  value={newTimesheet.week_ending} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} 
+                />
+              </div>
             )}
             
-            <FormField label="Milestone (Optional)">
-              <select
-                className="form-input"
-                value={newTimesheet.milestone_id}
+            <div>
+              <label className="form-label">Milestone ({milestones.length} available)</label>
+              <select 
+                className="form-input" 
+                value={newTimesheet.milestone_id} 
                 onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}
               >
                 <option value="">-- No specific milestone --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
               </select>
-            </FormField>
+            </div>
             
-            <FormField.Input
-              label="Hours Worked"
-              required
-              type="number"
-              step={0.5}
-              min={0.5}
-              max={entryMode === 'daily' ? 12 : 60}
-              placeholder={entryMode === 'daily' ? 'e.g., 8' : 'e.g., 40'}
-              hint={entryMode === 'daily' ? 'Max 12 hours per day' : 'Total hours for the week'}
-              value={newTimesheet.hours_worked}
-              onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })}
-            />
-          </FormCard.Grid>
+            <div>
+              <label className="form-label">Hours Worked *</label>
+              <input 
+                type="number" 
+                step="0.5" 
+                min="0.5" 
+                max={entryMode === 'daily' ? '12' : '60'} 
+                className="form-input" 
+                placeholder={entryMode === 'daily' ? 'e.g., 8' : 'e.g., 40'} 
+                value={newTimesheet.hours_worked} 
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} 
+              />
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                {entryMode === 'daily' ? 'Max 12 hours per day' : 'Total hours for the week'}
+              </span>
+            </div>
+            
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Description</label>
+              <textarea 
+                className="form-input" 
+                rows={2} 
+                placeholder="What did you work on?" 
+                value={newTimesheet.description} 
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} 
+              />
+            </div>
+          </div>
           
-          <FormField.Textarea
-            label="Description"
-            rows={2}
-            placeholder="What did you work on?"
-            value={newTimesheet.description}
-            onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })}
-          />
-        </FormCard>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+            <button className="btn btn-primary" onClick={handleAdd}>
+              <Save size={16} /> Save Timesheet
+            </button>
+            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
+              <X size={16} /> Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Timesheets Table */}
@@ -542,7 +672,7 @@ export default function Timesheets() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <User size={16} style={{ color: '#64748b' }} />
                       {editingId === ts.id ? (
-                        <select className="form-input" value={editForm.resource_id} onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })} disabled={!canAddTimesheetForOthers(userRole)}>
+                        <select className="form-input" value={editForm.resource_id} onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })} disabled={userRole !== 'admin'}>
                           {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                       ) : (
@@ -558,7 +688,11 @@ export default function Timesheets() {
                         <Calendar size={14} style={{ color: '#64748b' }} />
                         <div>
                           {(ts.work_date || ts.date) ? new Date(ts.work_date || ts.date).toLocaleDateString('en-GB') : '-'}
-                          {ts.entry_type === 'weekly' && <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>(Weekly)</span>}
+                          {ts.entry_type === 'weekly' && (
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>
+                              (Weekly)
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
@@ -601,20 +735,43 @@ export default function Timesheets() {
                   <td>
                     {editingId === ts.id ? (
                       <div className="action-buttons">
-                        <button className="btn-icon btn-success" onClick={() => handleSave(ts.id)} title="Save" disabled={saving}><Save size={16} /></button>
+                        <button className="btn-icon btn-success" onClick={() => handleSave(ts.id)} title="Save"><Save size={16} /></button>
                         <button className="btn-icon btn-secondary" onClick={handleCancel} title="Cancel"><X size={16} /></button>
                       </div>
                     ) : (
                       <div className="action-buttons">
-                        {canSubmitTimesheetLocal(ts) && <button className="btn-icon" onClick={() => handleSubmit(ts.id)} title="Submit for Approval" style={{ color: '#3b82f6' }}><Send size={16} /></button>}
-                        {canValidateTimesheetLocal(ts) && (
+                        {/* Submit button for Draft/Rejected timesheets */}
+                        {canSubmitTimesheet(ts) && (
+                          <button 
+                            className="btn-icon" 
+                            onClick={() => handleSubmit(ts.id)} 
+                            title="Submit for Approval"
+                            style={{ color: '#3b82f6' }}
+                          >
+                            <Send size={16} />
+                          </button>
+                        )}
+                        {/* Approve/Reject buttons for Customer PM only */}
+                        {canValidateTimesheet(ts) && (
                           <>
-                            <button className="btn-icon btn-success" onClick={() => handleApprove(ts.id)} title="Approve"><CheckCircle size={16} /></button>
-                            <button className="btn-icon btn-danger" onClick={() => handleReject(ts.id)} title="Reject"><X size={16} /></button>
+                            <button 
+                              className="btn-icon btn-success" 
+                              onClick={() => handleApprove(ts.id)} 
+                              title="Approve"
+                            >
+                              <CheckCircle size={16} />
+                            </button>
+                            <button 
+                              className="btn-icon btn-danger" 
+                              onClick={() => handleReject(ts.id)} 
+                              title="Reject"
+                            >
+                              <X size={16} />
+                            </button>
                           </>
                         )}
-                        {canEditTimesheetLocal(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
-                        {canDeleteTimesheetLocal(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
+                        {canEditTimesheet(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
+                        {canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
                       </div>
                     )}
                   </td>
@@ -633,7 +790,9 @@ export default function Timesheets() {
           <li><strong>Weekly Entry:</strong> Use when working consistently on the same milestone all week</li>
           <li>Link time to specific milestones when possible for better tracking</li>
           <li><strong>Submit:</strong> Click the send icon (→) to submit for approval</li>
-          {canApproveTimesheet(userRole) && <li><strong>As an approver:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>}
+          {userRole === 'customer_pm' && (
+            <li><strong>As Customer PM:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
+          )}
         </ul>
       </div>
     </div>

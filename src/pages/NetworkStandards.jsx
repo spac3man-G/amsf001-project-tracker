@@ -1,22 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { FileText, Edit2, Save, X, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import { useAuth } from '../hooks';
-import { canEditNetworkStandard } from '../utils/permissions';
-import { useToast } from '../components/Toast';
 
 export default function NetworkStandards() {
-  // ============================================
-  // HOOKS
-  // ============================================
-  const { userRole, loading: authLoading } = useAuth();
-  const toast = useToast();
-
-  // ============================================
-  // LOCAL STATE
-  // ============================================
   const [standards, setStandards] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('viewer');
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [filterCategory, setFilterCategory] = useState('all');
@@ -40,7 +29,20 @@ export default function NetworkStandards() {
 
   useEffect(() => {
     fetchStandards();
+    fetchUserRole();
   }, []);
+
+  async function fetchUserRole() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (data) setUserRole(data.role);
+    }
+  }
 
   async function fetchStandards() {
     try {
@@ -83,10 +85,10 @@ export default function NetworkStandards() {
       
       await fetchStandards();
       setEditingId(null);
-      toast.success('Standard updated successfully');
+      alert('Standard updated successfully!');
     } catch (error) {
       console.error('Error updating standard:', error);
-      toast.error('Failed to update standard');
+      alert('Failed to update standard');
     }
   }
 
@@ -161,7 +163,7 @@ export default function NetworkStandards() {
     };
   });
 
-  if (authLoading || loading) {
+  if (loading) {
     return <div className="loading">Loading network standards...</div>;
   }
 
@@ -282,7 +284,7 @@ export default function NetworkStandards() {
                 <th>Progress</th>
                 <th>Assigned To</th>
                 <th>Target</th>
-                {canEditNetworkStandard(userRole) && <th>Actions</th>}
+                {(userRole === 'admin' || userRole === 'contributor') && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -376,7 +378,7 @@ export default function NetworkStandards() {
                   <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
                     {standard.target_milestone}
                   </td>
-                  {canEditNetworkStandard(userRole) && (
+                  {(userRole === 'admin' || userRole === 'contributor') && (
                     <td>
                       {editingId === standard.id ? (
                         <div className="action-buttons">

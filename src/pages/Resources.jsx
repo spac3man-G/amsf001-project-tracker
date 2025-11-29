@@ -1,342 +1,762 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Plus, Edit2, Save, X, Trash2, Mail, Phone, Briefcase, DollarSign, Link2, UserCheck } from 'lucide-react';
-import { useTestUsers } from '../contexts/TestUserContext';
-import { useToast } from '../components/Toast';
-import { TablePageSkeleton } from '../components/SkeletonLoader';
-import StatCard, { StatGrid } from '../components/StatCard';
-import { useConfirmDialog } from '../components/ConfirmDialog';
-import EmptyState from '../components/EmptyState';
-import PageHeader from '../components/PageHeader';
-import FormField from '../components/FormField';
-import FormCard from '../components/FormCard';
-import { canManageResources } from '../utils/permissions';
-import { formatCurrency } from '../utils/statusHelpers';
-import { useAuth } from '../hooks';
+import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2 } from 'lucide-react';
 
 export default function Resources() {
-  const { userRole, loading: authLoading } = useAuth();
-  const toast = useToast();
-  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
-  const { showTestUsers, testUserIds } = useTestUsers();
-
   const [resources, setResources] = useState([]);
-  const [profiles, setProfiles] = useState([]);
+  const [timesheetHours, setTimesheetHours] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [userRole, setUserRole] = useState('viewer');
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [saving, setSaving] = useState(false);
-
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [filterType, setFilterType] = useState('all');
   const [newResource, setNewResource] = useState({
-    name: '', email: '', phone: '', role: 'team_member', day_rate: '', user_id: ''
+    resource_ref: '',
+    name: '',
+    email: '',
+    role: '',
+    sfia_level: 'L4',
+    daily_rate: '',
+    discount_percent: 0,
+    days_allocated: '',
+    days_used: 0,
+    resource_type: 'internal'
   });
 
-  const roleOptions = [
-    { value: 'project_manager', label: 'Project Manager' },
-    { value: 'team_lead', label: 'Team Lead' },
-    { value: 'team_member', label: 'Team Member' },
-    { value: 'consultant', label: 'Consultant' },
-    { value: 'contractor', label: 'Contractor' }
-  ];
+  // Check if user can see and manage resource types
+  const canManageResourceType = () => {
+    return ['admin', 'supplier_pm'].includes(userRole);
+  };
 
-  useEffect(() => { if (!authLoading) fetchData(); }, [authLoading, showTestUsers]);
+  useEffect(() => {
+    fetchResources();
+    fetchUserRole();
+  }, []);
 
-  async function fetchData() {
+  async function fetchUserRole() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (data) setUserRole(data.role);
+    }
+  }
+
+  async function fetchResources() {
     try {
-      setLoading(true);
-      const { data: resourcesData, error: resError } = await supabase.from('resources').select('*').order('name');
-      if (resError) { console.error('Resources error:', resError); toast.error('Failed to load resources'); }
-      else {
-        let filteredResources = resourcesData || [];
-        if (!showTestUsers && testUserIds?.length > 0) {
-          filteredResources = filteredResources.filter(r => !r.user_id || !testUserIds.includes(r.user_id));
-        }
-        setResources(filteredResources);
-      }
+      const { data, error } = await supabase
+        .from('resources')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setResources(data || []);
 
-      const { data: profilesData, error: profError } = await supabase.from('profiles').select('id, email, full_name, role').order('email');
-      if (profError) console.error('Profiles error:', profError);
-      else {
-        let filteredProfiles = profilesData || [];
-        if (!showTestUsers && testUserIds?.length > 0) {
-          filteredProfiles = filteredProfiles.filter(p => !testUserIds.includes(p.id));
-        }
-        setProfiles(filteredProfiles);
+      // Fetch timesheets to calculate actual hours worked per resource
+      const { data: timesheets } = await supabase
+        .from('timesheets')
+        .select('resource_id, hours_worked, hours, status, was_rejected');
+
+      // Calculate total hours per resource (only counting valid timesheets)
+      const hoursByResource = {};
+      if (timesheets) {
+        timesheets.forEach(ts => {
+          const countsTowardsCost = ts.status === 'Approved' || 
+            (ts.status === 'Submitted' && !ts.was_rejected);
+          
+          if (!countsTowardsCost) return;
+          
+          const hours = parseFloat(ts.hours_worked || ts.hours || 0);
+          hoursByResource[ts.resource_id] = (hoursByResource[ts.resource_id] || 0) + hours;
+        });
       }
+      setTimesheetHours(hoursByResource);
+
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
+      console.error('Error fetching resources:', error);
     } finally {
       setLoading(false);
     }
   }
 
-  function canEdit() { return canManageResources(userRole); }
-
-  async function handleAdd() {
-    if (!newResource.name || !newResource.email) { toast.warning('Please fill in name and email'); return; }
-    setSaving(true);
-    try {
-      const { error } = await supabase.from('resources').insert([{
-        name: newResource.name, email: newResource.email, phone: newResource.phone || null,
-        role: newResource.role, day_rate: newResource.day_rate ? parseFloat(newResource.day_rate) : null,
-        user_id: newResource.user_id || null
-      }]);
-      if (error) throw error;
-      await fetchData();
-      setShowAddForm(false);
-      setNewResource({ name: '', email: '', phone: '', role: 'team_member', day_rate: '', user_id: '' });
-      toast.success('Resource added successfully!');
-    } catch (error) {
-      console.error('Error adding resource:', error);
-      toast.error('Failed to add resource', error.message);
-    } finally { setSaving(false); }
-  }
-
   async function handleEdit(resource) {
     setEditingId(resource.id);
     setEditForm({
-      name: resource.name || '', email: resource.email || '', phone: resource.phone || '',
-      role: resource.role || 'team_member', day_rate: resource.day_rate || '', user_id: resource.user_id || ''
+      name: resource.name,
+      email: resource.email,
+      role: resource.role,
+      sfia_level: resource.sfia_level,
+      daily_rate: resource.daily_rate,
+      discount_percent: resource.discount_percent,
+      days_allocated: resource.days_allocated,
+      days_used: resource.days_used,
+      resource_type: resource.resource_type || 'internal'
     });
   }
 
   async function handleSave(id) {
-    setSaving(true);
     try {
-      const { error } = await supabase.from('resources').update({
-        name: editForm.name, email: editForm.email, phone: editForm.phone || null,
-        role: editForm.role, day_rate: editForm.day_rate ? parseFloat(editForm.day_rate) : null,
-        user_id: editForm.user_id || null
-      }).eq('id', id);
+      const { error } = await supabase
+        .from('resources')
+        .update(editForm)
+        .eq('id', id);
+
       if (error) throw error;
-      await fetchData();
+      
+      await fetchResources();
       setEditingId(null);
-      toast.success('Resource updated!');
+      alert('Resource updated successfully!');
     } catch (error) {
       console.error('Error updating resource:', error);
-      toast.error('Failed to update', error.message);
-    } finally { setSaving(false); }
+      alert('Failed to update resource');
+    }
   }
 
-  function handleCancel() { setEditingId(null); setEditForm({}); }
+  async function handleAdd() {
+    try {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', newResource.email)
+        .single();
+
+      if (!existingProfile) {
+        alert('This email is not registered in the system. They need to sign up first.');
+        return;
+      }
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('reference', 'AMSF001')
+        .single();
+
+      if (!project) {
+        alert('Project not found');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('resources')
+        .insert([{
+          ...newResource,
+          project_id: project.id,
+          user_id: existingProfile.id,
+          daily_rate: parseFloat(newResource.daily_rate),
+          days_allocated: parseInt(newResource.days_allocated),
+          discount_percent: parseFloat(newResource.discount_percent) || 0
+        }]);
+
+      if (error) throw error;
+      
+      await fetchResources();
+      setShowAddForm(false);
+      setNewResource({
+        resource_ref: '',
+        name: '',
+        email: '',
+        role: '',
+        sfia_level: 'L4',
+        daily_rate: '',
+        discount_percent: 0,
+        days_allocated: '',
+        days_used: 0,
+        resource_type: 'internal'
+      });
+      alert('Resource added successfully!');
+    } catch (error) {
+      console.error('Error adding resource:', error);
+      alert('Failed to add resource: ' + error.message);
+    }
+  }
 
   async function handleDelete(id) {
-    const confirmed = await confirm({
-      title: 'Delete Resource',
-      message: 'Delete this resource? This may affect linked timesheets and expenses.',
-      confirmText: 'Delete',
-      variant: 'danger'
-    });
-    if (!confirmed) return;
-
+    if (!confirm('Are you sure you want to delete this resource?')) return;
+    
     try {
-      const { error } = await supabase.from('resources').delete().eq('id', id);
+      const { error } = await supabase
+        .from('resources')
+        .delete()
+        .eq('id', id);
+
       if (error) throw error;
-      await fetchData();
-      toast.success('Resource deleted');
+      
+      await fetchResources();
+      alert('Resource deleted successfully!');
     } catch (error) {
       console.error('Error deleting resource:', error);
-      toast.error('Failed to delete', error.message);
+      alert('Failed to delete resource');
     }
   }
 
-  function getRoleLabel(role) { return roleOptions.find(r => r.value === role)?.label || role; }
-  function getRoleColor(role) {
-    switch (role) {
-      case 'project_manager': return '#8b5cf6';
-      case 'team_lead': return '#3b82f6';
-      case 'consultant': return '#f59e0b';
-      case 'contractor': return '#10b981';
-      default: return '#64748b';
+  // Quick toggle resource type
+  async function handleToggleResourceType(resource) {
+    const newType = resource.resource_type === 'third_party' ? 'internal' : 'third_party';
+    
+    try {
+      const { error } = await supabase
+        .from('resources')
+        .update({ resource_type: newType })
+        .eq('id', resource.id);
+
+      if (error) throw error;
+      
+      await fetchResources();
+    } catch (error) {
+      console.error('Error updating resource type:', error);
+      alert('Failed to update resource type');
     }
   }
 
-  const linkedCount = resources.filter(r => r.user_id).length;
-  const unlinkedCount = resources.filter(r => !r.user_id).length;
-  const totalDayRate = resources.reduce((sum, r) => sum + parseFloat(r.day_rate || 0), 0);
+  const getSfiaColor = (level) => {
+    switch(level) {
+      case 'L6': return 'badge-warning';
+      case 'L5': return 'badge-success';
+      case 'L4': return 'badge-primary';
+      case 'L3': return 'badge-secondary';
+      default: return 'badge-secondary';
+    }
+  };
 
-  if (authLoading || loading) return <TablePageSkeleton />;
+  const getResourceTypeStyle = (type) => {
+    if (type === 'third_party') {
+      return { bg: '#fef3c7', color: '#92400e', icon: Link2, label: 'Third-Party Partner' };
+    }
+    return { bg: '#dbeafe', color: '#1e40af', icon: Building2, label: 'Internal Resource' };
+  };
+
+  // Filter resources
+  const filteredResources = resources.filter(r => {
+    if (filterType === 'all') return true;
+    return (r.resource_type || 'internal') === filterType;
+  });
+
+  // Calculate totals (from filtered resources)
+  const totalBudget = filteredResources.reduce((sum, r) => {
+    return sum + ((r.daily_rate || 0) * (r.days_allocated || 0));
+  }, 0);
+
+  const totalDaysAllocated = filteredResources.reduce((sum, r) => sum + (r.days_allocated || 0), 0);
+  
+  // Calculate days used from actual timesheets
+  const totalHoursWorked = filteredResources.reduce((sum, r) => sum + (timesheetHours[r.id] || 0), 0);
+  const totalDaysUsed = totalHoursWorked / 8;
+  
+  const overallUtilization = totalDaysAllocated > 0 ? Math.round((totalDaysUsed / totalDaysAllocated) * 100) : 0;
+
+  // Count by type
+  const internalCount = resources.filter(r => (r.resource_type || 'internal') === 'internal').length;
+  const thirdPartyCount = resources.filter(r => r.resource_type === 'third_party').length;
+
+  if (loading) {
+    return (
+      <div>
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Team Resources</h2>
+          </div>
+          <div style={{ padding: '2rem' }}>
+            <p>Loading resources...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="page-container">
-      <ConfirmDialogComponent />
-      
-      <PageHeader
-        icon={<Users size={28} />}
-        title="Resources"
-        subtitle="Manage team members and their rates"
-        actions={
-          !showAddForm && canEdit() && (
-            <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add Resource</button>
-          )
-        }
-      />
+    <div>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="stat-card">
+          <div className="stat-value">{filteredResources.length}</div>
+          <div className="stat-label">Team Members</div>
+          {canManageResourceType() && (
+            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+              {internalCount} internal, {thirdPartyCount} third-party
+            </div>
+          )}
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">£{totalBudget.toLocaleString()}</div>
+          <div className="stat-label">Resource Budget</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{totalDaysAllocated}</div>
+          <div className="stat-label">Days Allocated</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: overallUtilization > 0 ? '#10b981' : '#64748b' }}>{overallUtilization}%</div>
+          <div className="stat-label">Utilization</div>
+          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{totalDaysUsed.toFixed(1)} days used</div>
+        </div>
+      </div>
 
-      {/* Stats */}
-      <StatGrid columns={4}>
-        <StatCard label="TOTAL RESOURCES" value={resources.length} labelFirst />
-        <StatCard label="LINKED TO USERS" value={linkedCount} valueColor="#10b981" labelFirst />
-        <StatCard label="NOT LINKED" value={unlinkedCount} valueColor="#f59e0b" labelFirst />
-        <StatCard label="TOTAL DAY RATES" value={formatCurrency(totalDayRate)} valueColor="#3b82f6" labelFirst />
-      </StatGrid>
-
-      {/* Add Resource Form */}
-      {showAddForm && canEdit() && (
-        <FormCard
-          title="Add Resource"
-          onSave={handleAdd}
-          onCancel={() => setShowAddForm(false)}
-          saving={saving}
-          saveText="Save Resource"
-          variant="outlined"
-        >
-          <FormCard.Grid columns={2}>
-            <FormField.Input
-              label="Name"
-              required
-              placeholder="Full name"
-              value={newResource.name}
-              onChange={(e) => setNewResource({ ...newResource, name: e.target.value })}
-            />
-            <FormField.Input
-              label="Email"
-              required
-              type="email"
-              placeholder="email@example.com"
-              value={newResource.email}
-              onChange={(e) => setNewResource({ ...newResource, email: e.target.value })}
-            />
-            <FormField.Input
-              label="Phone"
-              type="tel"
-              placeholder="+44..."
-              value={newResource.phone}
-              onChange={(e) => setNewResource({ ...newResource, phone: e.target.value })}
-            />
-            <FormField.Select
-              label="Role"
-              value={newResource.role}
-              onChange={(e) => setNewResource({ ...newResource, role: e.target.value })}
-              options={roleOptions}
-            />
-            <FormField.Input
-              label="Day Rate (£)"
-              type="number"
-              step={0.01}
-              min={0}
-              placeholder="0.00"
-              value={newResource.day_rate}
-              onChange={(e) => setNewResource({ ...newResource, day_rate: e.target.value })}
-            />
-            <FormField
-              label="Link to User Account"
-              hint="Linking allows the user to submit timesheets/expenses as this resource"
-            >
+      <div className="card">
+        <div className="card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <h2 className="card-title">Team Resources</h2>
+            {/* Filter by type - only visible to admin/supplier_pm */}
+            {canManageResourceType() && (
               <select
-                className="form-input"
-                value={newResource.user_id}
-                onChange={(e) => setNewResource({ ...newResource, user_id: e.target.value })}
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                style={{ 
+                  padding: '0.5rem', 
+                  borderRadius: '6px', 
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.875rem'
+                }}
               >
-                <option value="">-- Not linked --</option>
-                {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name || p.email} ({p.role})</option>)}
+                <option value="all">All Resources ({resources.length})</option>
+                <option value="internal">Internal Only ({internalCount})</option>
+                <option value="third_party">Third-Party Only ({thirdPartyCount})</option>
               </select>
-            </FormField>
-          </FormCard.Grid>
-        </FormCard>
+            )}
+          </div>
+          {userRole === 'admin' && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowAddForm(true)}
+            >
+              <Plus size={20} />
+              Add Resource
+            </button>
+          )}
+        </div>
+
+        {showAddForm && (
+          <div style={{ padding: '1rem', borderBottom: '2px solid var(--border)' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Add New Resource</h3>
+            <div className="form-grid">
+              <input
+                className="input-field"
+                placeholder="Reference (e.g., R01)"
+                value={newResource.resource_ref}
+                onChange={(e) => setNewResource({...newResource, resource_ref: e.target.value})}
+              />
+              <input
+                className="input-field"
+                placeholder="Full Name"
+                value={newResource.name}
+                onChange={(e) => setNewResource({...newResource, name: e.target.value})}
+              />
+              <input
+                className="input-field"
+                placeholder="Email"
+                type="email"
+                value={newResource.email}
+                onChange={(e) => setNewResource({...newResource, email: e.target.value})}
+              />
+              <input
+                className="input-field"
+                placeholder="Role"
+                value={newResource.role}
+                onChange={(e) => setNewResource({...newResource, role: e.target.value})}
+              />
+              <select
+                className="input-field"
+                value={newResource.sfia_level}
+                onChange={(e) => setNewResource({...newResource, sfia_level: e.target.value})}
+              >
+                <option value="L3">SFIA Level 3</option>
+                <option value="L4">SFIA Level 4</option>
+                <option value="L5">SFIA Level 5</option>
+                <option value="L6">SFIA Level 6</option>
+              </select>
+              <input
+                className="input-field"
+                placeholder="Daily Rate (£)"
+                type="number"
+                value={newResource.daily_rate}
+                onChange={(e) => setNewResource({...newResource, daily_rate: e.target.value})}
+              />
+              <input
+                className="input-field"
+                placeholder="Discount %"
+                type="number"
+                value={newResource.discount_percent}
+                onChange={(e) => setNewResource({...newResource, discount_percent: e.target.value})}
+              />
+              <input
+                className="input-field"
+                placeholder="Days Allocated"
+                type="number"
+                value={newResource.days_allocated}
+                onChange={(e) => setNewResource({...newResource, days_allocated: e.target.value})}
+              />
+              {/* Resource Type selector */}
+              <select
+                className="input-field"
+                value={newResource.resource_type}
+                onChange={(e) => setNewResource({...newResource, resource_type: e.target.value})}
+              >
+                <option value="internal">Internal Supplier Resource</option>
+                <option value="third_party">Third-Party Partner</option>
+              </select>
+            </div>
+            <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-primary" onClick={handleAdd}>
+                <Save size={16} /> Save
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
+                <X size={16} /> Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                {canManageResourceType() && <th>Type</th>}
+                <th>Role</th>
+                <th>SFIA Level</th>
+                <th>Daily Rate</th>
+                <th>Days</th>
+                <th>Utilization</th>
+                <th>Total Cost</th>
+                {(userRole === 'admin' || userRole === 'supplier_pm') && <th>Actions</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredResources.map(resource => {
+                const hoursWorked = timesheetHours[resource.id] || 0;
+                const daysUsed = hoursWorked / 8;
+                const daysAllocated = resource.days_allocated || 0;
+                const remaining = Math.max(0, daysAllocated - daysUsed);
+                const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
+                const typeStyle = getResourceTypeStyle(resource.resource_type);
+                const TypeIcon = typeStyle.icon;
+                
+                return (
+                  <tr key={resource.id}>
+                    {editingId === resource.id ? (
+                      <>
+                        <td>
+                          <input
+                            className="input-field"
+                            value={editForm.name}
+                            onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                          />
+                        </td>
+                        {canManageResourceType() && (
+                          <td>
+                            <select
+                              className="input-field"
+                              value={editForm.resource_type || 'internal'}
+                              onChange={(e) => setEditForm({...editForm, resource_type: e.target.value})}
+                            >
+                              <option value="internal">Internal</option>
+                              <option value="third_party">Third-Party</option>
+                            </select>
+                          </td>
+                        )}
+                        <td>
+                          <input
+                            className="input-field"
+                            value={editForm.role}
+                            onChange={(e) => setEditForm({...editForm, role: e.target.value})}
+                          />
+                        </td>
+                        <td>
+                          <select
+                            className="input-field"
+                            value={editForm.sfia_level}
+                            onChange={(e) => setEditForm({...editForm, sfia_level: e.target.value})}
+                          >
+                            <option value="L3">L3</option>
+                            <option value="L4">L4</option>
+                            <option value="L5">L5</option>
+                            <option value="L6">L6</option>
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            className="input-field"
+                            type="number"
+                            value={editForm.daily_rate}
+                            onChange={(e) => setEditForm({...editForm, daily_rate: e.target.value})}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="input-field"
+                            type="number"
+                            value={editForm.days_allocated}
+                            onChange={(e) => setEditForm({...editForm, days_allocated: e.target.value})}
+                          />
+                        </td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleSave(resource.id)}
+                            >
+                              <Save size={16} />
+                            </button>
+                            <button 
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => setEditingId(null)}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td>
+                          <div>
+                            <strong>{resource.name}</strong>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                              {resource.email}
+                            </div>
+                          </div>
+                        </td>
+                        {canManageResourceType() && (
+                          <td>
+                            <button
+                              onClick={() => canManageResourceType() && handleToggleResourceType(resource)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.35rem 0.65rem',
+                                backgroundColor: typeStyle.bg,
+                                color: typeStyle.color,
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '0.8rem',
+                                fontWeight: '500',
+                                cursor: canManageResourceType() ? 'pointer' : 'default',
+                                transition: 'all 0.15s ease'
+                              }}
+                              title={canManageResourceType() ? 'Click to toggle type' : typeStyle.label}
+                            >
+                              <TypeIcon size={14} />
+                              {resource.resource_type === 'third_party' ? 'Third-Party' : 'Internal'}
+                            </button>
+                          </td>
+                        )}
+                        <td>{resource.role}</td>
+                        <td>
+                          <span className={`badge ${getSfiaColor(resource.sfia_level)}`}>
+                            <Award size={14} style={{ marginRight: '0.25rem' }} />
+                            {resource.sfia_level}
+                          </span>
+                        </td>
+                        <td>£{resource.daily_rate}</td>
+                        <td>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span style={{ fontWeight: '500' }}>{daysUsed.toFixed(1)}</span>
+                              <span style={{ color: 'var(--text-light)' }}>/</span>
+                              <span>{daysAllocated}</span>
+                            </div>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                              {remaining.toFixed(1)} remaining
+                            </div>
+                            {hoursWorked > 0 && (
+                              <div style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <Clock size={12} /> {hoursWorked.toFixed(1)}h logged
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div>
+                            <div className="progress-bar">
+                              <div 
+                                className="progress-bar-fill"
+                                style={{ 
+                                  width: `${Math.min(utilization, 100)}%`,
+                                  background: utilization > 100 ? 'var(--danger)' : utilization > 0 ? 'var(--primary)' : '#e2e8f0'
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontSize: '0.875rem', color: utilization > 0 ? 'inherit' : '#9ca3af' }}>
+                              {Math.round(utilization)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <strong>£{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong>
+                        </td>
+                        {(userRole === 'admin' || userRole === 'supplier_pm') && (
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button 
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => handleEdit(resource)}
+                                title="Edit resource"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              {userRole === 'admin' && (
+                                <button 
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() => handleDelete(resource.id)}
+                                  title="Delete resource"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Resource Type Legend - only visible to admin/supplier_pm */}
+      {canManageResourceType() && (
+        <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc' }}>
+          <h4 style={{ marginBottom: '0.75rem' }}>📋 Resource Types</h4>
+          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.35rem',
+                padding: '0.35rem 0.65rem',
+                backgroundColor: '#dbeafe',
+                color: '#1e40af',
+                borderRadius: '6px',
+                fontSize: '0.85rem'
+              }}>
+                <Building2 size={14} />
+                Internal
+              </div>
+              <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                Internal JT/Supplier staff allocated to the project
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.35rem',
+                padding: '0.35rem 0.65rem',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                borderRadius: '6px',
+                fontSize: '0.85rem'
+              }}>
+                <Link2 size={14} />
+                Third-Party
+              </div>
+              <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                External partners/contractors engaged for the project
+              </span>
+            </div>
+          </div>
+          <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#64748b' }}>
+            <strong>Note:</strong> Resource type is only visible to Admin and Supplier PM. Click on the type badge to toggle between Internal and Third-Party.
+          </p>
+        </div>
       )}
 
-      {/* Resources Table */}
-      <div className="card">
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Contact</th><th>Role</th><th style={{ textAlign: 'right' }}>Day Rate</th><th>Linked User</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            {resources.length === 0 ? (
-              <EmptyState.TableRow colSpan={6} icon="resources" message="No resources found. Add your first resource to get started." />
-            ) : resources.map(res => (
-              <tr key={res.id}>
-                <td>
-                  {editingId === res.id ? (
-                    <input type="text" className="form-input" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: getRoleColor(res.role), display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '600', fontSize: '0.9rem' }}>
-                        {res.name?.charAt(0) || '?'}
-                      </div>
-                      <span style={{ fontWeight: '500' }}>{res.name}</span>
-                    </div>
-                  )}
-                </td>
-                <td>
-                  {editingId === res.id ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <input type="email" className="form-input" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="Email" />
-                      <input type="tel" className="form-input" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="Phone" />
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Mail size={14} style={{ color: '#64748b' }} />{res.email}</div>
-                      {res.phone && <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}><Phone size={12} />{res.phone}</div>}
-                    </div>
-                  )}
-                </td>
-                <td>
-                  {editingId === res.id ? (
-                    <select className="form-input" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
-                      {roleOptions.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                    </select>
-                  ) : (
-                    <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', backgroundColor: `${getRoleColor(res.role)}15`, color: getRoleColor(res.role), fontSize: '0.85rem', fontWeight: '500' }}>
-                      {getRoleLabel(res.role)}
-                    </span>
-                  )}
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  {editingId === res.id ? (
-                    <input type="number" step="0.01" className="form-input" value={editForm.day_rate} onChange={(e) => setEditForm({ ...editForm, day_rate: e.target.value })} style={{ width: '100px', textAlign: 'right' }} />
-                  ) : res.day_rate ? <span style={{ fontWeight: '600' }}>{formatCurrency(res.day_rate)}</span> : <span style={{ color: '#9ca3af' }}>-</span>}
-                </td>
-                <td>
-                  {editingId === res.id ? (
-                    <select className="form-input" value={editForm.user_id} onChange={(e) => setEditForm({ ...editForm, user_id: e.target.value })}>
-                      <option value="">-- Not linked --</option>
-                      {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
-                    </select>
-                  ) : res.user_id ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><UserCheck size={16} style={{ color: '#10b981' }} /><span style={{ fontSize: '0.85rem', color: '#10b981' }}>Linked</span></div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Link2 size={16} style={{ color: '#9ca3af' }} /><span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>Not linked</span></div>
-                  )}
-                </td>
-                <td>
-                  {!canEdit() ? <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>View only</span> : editingId === res.id ? (
-                    <div className="action-buttons">
-                      <button className="btn-icon btn-success" onClick={() => handleSave(res.id)} title="Save" disabled={saving}><Save size={16} /></button>
-                      <button className="btn-icon btn-secondary" onClick={handleCancel} title="Cancel"><X size={16} /></button>
-                    </div>
-                  ) : (
-                    <div className="action-buttons">
-                      <button className="btn-icon" onClick={() => handleEdit(res)} title="Edit"><Edit2 size={16} /></button>
-                      <button className="btn-icon btn-danger" onClick={() => handleDelete(res.id)} title="Delete"><Trash2 size={16} /></button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Info */}
-      <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#eff6ff', borderLeft: '4px solid #3b82f6' }}>
-        <h4 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>ℹ️ About Resource Linking</h4>
-        <p style={{ color: '#1e40af', fontSize: '0.9rem', margin: 0 }}>
-          Linking a resource to a user account allows that user to submit timesheets and expenses under their name. Unlinked resources can still be used by admins and project managers to log time on their behalf.
-        </p>
-      </div>
+      <style jsx>{`
+        .form-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 1rem;
+        }
+        
+        .input-field {
+          width: 100%;
+          padding: 0.5rem;
+          border: 1px solid var(--border);
+          border-radius: 4px;
+        }
+        
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.875rem;
+        }
+        
+        .badge-success {
+          background: #dcfce7;
+          color: #166534;
+        }
+        
+        .badge-primary {
+          background: #dbeafe;
+          color: #1e40af;
+        }
+        
+        .badge-secondary {
+          background: #f1f5f9;
+          color: #475569;
+        }
+        
+        .badge-warning {
+          background: #fef3c7;
+          color: #92400e;
+        }
+        
+        .progress-bar {
+          width: 60px;
+          height: 6px;
+          background: #e2e8f0;
+          border-radius: 3px;
+          overflow: hidden;
+          margin-bottom: 0.25rem;
+        }
+        
+        .progress-bar-fill {
+          height: 100%;
+          border-radius: 3px;
+        }
+        
+        .btn-danger {
+          background: #fee2e2;
+          color: #dc2626;
+          border: none;
+          cursor: pointer;
+          padding: 0.5rem;
+          border-radius: 4px;
+        }
+        
+        .btn-danger:hover {
+          background: #fecaca;
+        }
+        
+        .btn-secondary {
+          background: #f1f5f9;
+          color: #475569;
+          border: none;
+          cursor: pointer;
+          padding: 0.5rem;
+          border-radius: 4px;
+        }
+        
+        .btn-primary {
+          background: var(--primary);
+          color: white;
+        }
+        
+        .btn-sm {
+          padding: 0.25rem 0.5rem;
+          font-size: 0.875rem;
+        }
+      `}</style>
     </div>
   );
 }
