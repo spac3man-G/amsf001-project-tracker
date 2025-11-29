@@ -1,6 +1,6 @@
 /**
  * AMSF001 Project Tracker - Permission Utilities
- * Version 3.0
+ * Version 3.1
  * 
  * Centralised permission logic for consistent role-based access control.
  * Import these functions in any component to check user permissions.
@@ -53,6 +53,34 @@ export const hasMinRole = (userRole, minRole) => {
  */
 export const isOneOf = (userRole, allowedRoles) => {
   return allowedRoles.includes(userRole);
+};
+
+// ============================================
+// LAYOUT / NAVIGATION PERMISSIONS
+// ============================================
+
+/**
+ * Can the user access system management features (Users, Settings)?
+ * Used by Layout.jsx for navigation visibility
+ */
+export const canManageSystem = (userRole) => {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user view the workflow summary page?
+ * Used by Layout.jsx for navigation visibility
+ */
+export const canViewWorkflow = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user view financial information (Margins page)?
+ * Used by Layout.jsx for navigation visibility
+ */
+export const canViewFinancials = (userRole) => {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
 };
 
 // ============================================
@@ -246,17 +274,41 @@ export const canCreateDeliverable = (userRole) => {
 
 /**
  * Can the user edit deliverables?
+ * PMs and Admin can edit deliverables
  */
 export const canEditDeliverable = (userRole) => {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
 };
 
 /**
+ * Can the user contribute to deliverables (edit/add)?
+ * Includes Contributors in addition to PMs
+ */
+export const canContributeDeliverable = (userRole) => {
+  return isOneOf(userRole, [ROLES.CONTRIBUTOR, ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user submit deliverables for review?
+ * Contributors and above can submit
+ */
+export const canSubmitDeliverable = (userRole) => {
+  return isOneOf(userRole, [ROLES.CONTRIBUTOR, ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
  * Can the user review/approve deliverables?
- * Only Customer PM reviews deliverables
+ * Only Customer PM and Admin review deliverables
  */
 export const canReviewDeliverable = (userRole) => {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user delete deliverables?
+ */
+export const canDeleteDeliverable = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
 };
 
 // ============================================
@@ -390,6 +442,35 @@ export const canAccessWorkflowSummary = (userRole) => {
 };
 
 // ============================================
+// BUDGET PERMISSIONS
+// ============================================
+
+/**
+ * Can the user manage budgets (add/edit/delete)?
+ */
+export const canManageBudgets = (userRole) => {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user view budget information?
+ */
+export const canViewBudgets = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+// ============================================
+// REPORT PERMISSIONS
+// ============================================
+
+/**
+ * Can the user export reports?
+ */
+export const canExportReports = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+// ============================================
 // RESOURCE FILTERING FOR DROPDOWNS
 // ============================================
 
@@ -417,4 +498,24 @@ export const getAvailableResourcesForEntry = (userRole, resources, currentUserId
  */
 export const getCurrentUserResource = (resources, currentUserId) => {
   return resources.find(r => r.user_id === currentUserId) || null;
+};
+
+// ============================================
+// ROLE DISPLAY HELPERS
+// ============================================
+
+/**
+ * Get display configuration for a role (label, colors)
+ * @param {string} role - User role
+ * @returns {object} { label, color, bg }
+ */
+export const getRoleDisplayConfig = (role) => {
+  const configs = {
+    [ROLES.ADMIN]: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
+    [ROLES.SUPPLIER_PM]: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
+    [ROLES.CUSTOMER_PM]: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+    [ROLES.CONTRIBUTOR]: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
+    [ROLES.VIEWER]: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' }
+  };
+  return configs[role] || configs[ROLES.VIEWER];
 };
