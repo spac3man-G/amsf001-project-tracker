@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
 
 export default function QualityStandards() {
   const { userRole, loading: authLoading } = useAuth();
@@ -130,13 +131,16 @@ export default function QualityStandards() {
     <div className="page-container">
       <ConfirmDialogComponent />
       
-      <div className="page-header">
-        <div className="page-title">
-          <Award size={28} />
-          <div><h1>Quality Standards</h1><p>Track quality compliance across deliverables</p></div>
-        </div>
-        {canEdit && !showAddForm && <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add Quality Standard</button>}
-      </div>
+      <PageHeader
+        icon={<Award size={28} />}
+        title="Quality Standards"
+        subtitle="Track quality compliance across deliverables"
+        actions={
+          canEdit && !showAddForm && (
+            <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add Quality Standard</button>
+          )
+        }
+      />
 
       {/* Stats Cards */}
       <StatGrid columns={4}>

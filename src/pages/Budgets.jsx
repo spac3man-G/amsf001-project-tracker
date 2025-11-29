@@ -9,6 +9,7 @@ import { TablePageSkeleton } from '../components/SkeletonLoader';
 import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
 import { useAuth, useProject } from '../hooks';
 import { formatCurrency } from '../utils/statusHelpers';
 import { canEditBudget } from '../utils/permissions';
@@ -193,20 +194,18 @@ export default function Budgets() {
     <div className="page-container">
       <ConfirmDialogComponent />
       
-      <div className="page-header">
-        <div className="page-title">
-          <PiggyBank size={28} />
-          <div>
-            <h1>Budgets</h1>
-            <p>Manage project budget allocation and tracking</p>
-          </div>
-        </div>
-        {!showAddForm && canEdit() && (
-          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-            <Plus size={18} /> Add Budget Item
-          </button>
-        )}
-      </div>
+      <PageHeader
+        icon={<PiggyBank size={28} />}
+        title="Budgets"
+        subtitle="Manage project budget allocation and tracking"
+        actions={
+          !showAddForm && canEdit() && (
+            <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
+              <Plus size={18} /> Add Budget Item
+            </button>
+          )
+        }
+      />
 
       {/* Overall Stats */}
       <StatGrid columns={4}>

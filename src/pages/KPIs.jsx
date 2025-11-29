@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
 
 export default function KPIs() {
   const { userRole, loading: authLoading } = useAuth();
@@ -152,16 +153,17 @@ export default function KPIs() {
     <div className="page-container">
       <ConfirmDialogComponent />
       
-      <div className="page-header">
-        <div className="page-title">
-          <TrendingUp size={28} />
-          <div><h1>Key Performance Indicators</h1><p>Track project performance against SOW targets</p></div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {canManage && !showAddForm && <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add KPI</button>}
-          <button className="btn btn-secondary" onClick={() => fetchKPIs()}><RefreshCw size={18} /> Refresh</button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<TrendingUp size={28} />}
+        title="Key Performance Indicators"
+        subtitle="Track project performance against SOW targets"
+        actions={
+          <>
+            {canManage && !showAddForm && <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add KPI</button>}
+            <button className="btn btn-secondary" onClick={() => fetchKPIs()}><RefreshCw size={18} /> Refresh</button>
+          </>
+        }
+      />
 
       {/* Stats */}
       <StatGrid columns={4}>

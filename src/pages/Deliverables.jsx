@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast';
 import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
 import { useAuth, useProject } from '../hooks';
 import { canContributeDeliverable, canReviewDeliverable, canDeleteDeliverable } from '../utils/permissions';
 
@@ -214,13 +215,16 @@ export default function Deliverables() {
     <div>
       <ConfirmDialogComponent />
       
-      <div className="page-header">
-        <div>
-          <h1><Package size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> Deliverables</h1>
-          <p className="subtitle">Track project deliverables and their progress</p>
-        </div>
-        {canContributeDeliverable(userRole) && <button className="btn-primary" onClick={() => setShowAddForm(!showAddForm)}><Plus size={18} /> Add Deliverable</button>}
-      </div>
+      <PageHeader
+        icon={<Package size={28} />}
+        title="Deliverables"
+        subtitle="Track project deliverables and their progress"
+        actions={
+          canContributeDeliverable(userRole) && (
+            <button className="btn-primary" onClick={() => setShowAddForm(!showAddForm)}><Plus size={18} /> Add Deliverable</button>
+          )
+        }
+      />
 
       {/* Stats */}
       <StatGrid columns={4}>

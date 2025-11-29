@@ -6,6 +6,7 @@ import { TablePageSkeleton } from '../components/SkeletonLoader';
 import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
 import { useAuth, useProject } from '../hooks';
 import { canCreateMilestone, canEditMilestone, canDeleteMilestone } from '../utils/permissions';
 import { formatCurrency } from '../utils/statusHelpers';
@@ -159,15 +160,16 @@ export default function Milestones() {
     <div className="page-container">
       <ConfirmDialogComponent />
       
-      <div className="page-header">
-        <div className="page-title">
-          <Target size={28} />
-          <div><h1>Milestones</h1><p>Track project deliverables and progress</p></div>
-        </div>
-        {!showAddForm && canAdd() && (
-          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add Milestone</button>
-        )}
-      </div>
+      <PageHeader
+        icon={<Target size={28} />}
+        title="Milestones"
+        subtitle="Track project deliverables and progress"
+        actions={
+          !showAddForm && canAdd() && (
+            <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add Milestone</button>
+          )
+        }
+      />
 
       {/* Stats */}
       <StatGrid columns={4}>

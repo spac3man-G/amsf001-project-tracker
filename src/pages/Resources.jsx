@@ -7,6 +7,7 @@ import { TablePageSkeleton } from '../components/SkeletonLoader';
 import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
 import { canManageResources } from '../utils/permissions';
 import { formatCurrency } from '../utils/statusHelpers';
 import { useAuth } from '../hooks';
@@ -160,15 +161,16 @@ export default function Resources() {
     <div className="page-container">
       <ConfirmDialogComponent />
       
-      <div className="page-header">
-        <div className="page-title">
-          <Users size={28} />
-          <div><h1>Resources</h1><p>Manage team members and their rates</p></div>
-        </div>
-        {!showAddForm && canEdit() && (
-          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add Resource</button>
-        )}
-      </div>
+      <PageHeader
+        icon={<Users size={28} />}
+        title="Resources"
+        subtitle="Manage team members and their rates"
+        actions={
+          !showAddForm && canEdit() && (
+            <button className="btn btn-primary" onClick={() => setShowAddForm(true)}><Plus size={18} /> Add Resource</button>
+          )
+        }
+      />
 
       {/* Stats */}
       <StatGrid columns={4}>

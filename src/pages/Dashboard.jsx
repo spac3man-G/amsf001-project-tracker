@@ -10,6 +10,7 @@ import { DashboardSkeleton } from '../components/SkeletonLoader';
 import { useAuth, useProject } from '../hooks';
 import { formatCurrency, formatDate } from '../utils/statusHelpers';
 import StatCard, { StatGrid } from '../components/StatCard';
+import PageHeader from '../components/PageHeader';
 
 export default function Dashboard() {
   // ============================================
@@ -169,12 +170,11 @@ export default function Dashboard() {
   return (
     <div>
       {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1><LayoutDashboard size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> Dashboard</h1>
-          <p className="subtitle">Welcome back, {userName}! Here's your project overview.</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<LayoutDashboard size={28} />}
+        title="Dashboard"
+        subtitle={`Welcome back, ${userName}! Here's your project overview.`}
+      />
 
       {/* Project Info Card */}
       {project && (

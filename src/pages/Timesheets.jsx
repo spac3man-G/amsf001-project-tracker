@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
 import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
+import PageHeader from '../components/PageHeader';
 import { useAuth, useProject, useCurrentResource } from '../hooks';
 import { getStatusColor, getNextSunday } from '../utils/statusHelpers';
 import { 
@@ -364,17 +365,18 @@ export default function Timesheets() {
       <ConfirmDialogComponent />
       
       {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1><Clock size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> Timesheets</h1>
-          <p className="subtitle">Track billable hours and work activities</p>
-        </div>
-        {canAddTimesheet(userRole) && (
-          <button className="btn btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
-            <Plus size={20} /> Add Timesheet
-          </button>
-        )}
-      </div>
+      <PageHeader
+        icon={<Clock size={28} />}
+        title="Timesheets"
+        subtitle="Track billable hours and work activities"
+        actions={
+          canAddTimesheet(userRole) && (
+            <button className="btn btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
+              <Plus size={20} /> Add Timesheet
+            </button>
+          )
+        }
+      />
 
       {/* Stats */}
       <StatGrid columns={4}>
