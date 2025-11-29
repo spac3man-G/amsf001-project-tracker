@@ -5,7 +5,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-// Import the TestUserProvider and NotificationProvider
+// Import context providers
+import { AuthProvider } from './contexts/AuthContext';
 import { TestUserProvider } from './contexts/TestUserContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 
@@ -63,9 +64,10 @@ function ProtectedRoute({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-      {/* Wrap entire app with TestUserProvider and NotificationProvider */}
-      <TestUserProvider>
-        <NotificationProvider>
+      {/* Wrap entire app with providers - AuthProvider is outermost */}
+      <AuthProvider>
+        <TestUserProvider>
+          <NotificationProvider>
           <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
@@ -143,8 +145,9 @@ export default function App() {
           {/* Catch all - redirect to dashboard */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-        </NotificationProvider>
-      </TestUserProvider>
+          </NotificationProvider>
+        </TestUserProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
