@@ -6,6 +6,7 @@ import {
   ChevronRight, RefreshCw, User, AlertCircle,
   CheckCircle, Filter, Eye, UserCheck
 } from 'lucide-react';
+import { LoadingSpinner } from '../components/common';
 
 export default function WorkflowSummary() {
   const [workflowItems, setWorkflowItems] = useState([]);
@@ -350,11 +351,7 @@ export default function WorkflowSummary() {
   };
 
   if (loading) {
-    return (
-      <div className="page-container">
-        <div className="loading">Loading workflow summary...</div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading workflow summary..." size="large" fullPage />;
   }
 
   return (

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingSpinner } from '../components/common';
 
 export default function KPIDetail() {
   const { id } = useParams();
@@ -111,11 +112,7 @@ export default function KPIDetail() {
   }
 
   if (loading) {
-    return (
-      <div className="page-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <RefreshCw size={32} className="spin" style={{ color: 'var(--primary)' }} />
-      </div>
-    );
+    return <LoadingSpinner message="Loading KPI details..." size="large" fullPage />;
   }
 
   if (!kpi) {

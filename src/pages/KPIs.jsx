@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingSpinner } from '../components/common';
 
 export default function KPIs() {
   // Use shared contexts instead of local state for auth and project
@@ -321,7 +322,7 @@ export default function KPIs() {
   // Use centralized permission - Note: Customer PM should NOT edit KPIs per User Manual
   const canEdit = canManageKPIs;
 
-  if (loading && !projectId) return <div className="loading">Loading KPIs...</div>;
+  if (loading && !projectId) return <LoadingSpinner message="Loading KPIs..." size="large" fullPage />;
 
   return (
     <div className="page-container">

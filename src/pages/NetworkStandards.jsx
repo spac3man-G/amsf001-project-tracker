@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { LoadingSpinner } from '../components/common';
 import { FileText, Edit2, Save, X, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 export default function NetworkStandards() {
@@ -164,7 +165,7 @@ export default function NetworkStandards() {
   });
 
   if (loading) {
-    return <div className="loading">Loading network standards...</div>;
+    return <LoadingSpinner message="Loading network standards..." size="large" fullPage />;
   }
 
   return (

@@ -8,6 +8,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingSpinner } from '../components/common';
 
 export default function Timesheets() {
   // Use shared contexts instead of local state for auth and project
@@ -386,7 +387,7 @@ export default function Timesheets() {
   // This now correctly allows Supplier PM to add timesheets for any resource
   const availableResources = getAvailableResources(resources);
 
-  if (loading) return <div className="loading">Loading timesheets...</div>;
+  if (loading) return <LoadingSpinner message="Loading timesheets..." size="large" fullPage />;
 
   return (
     <div className="page-container">

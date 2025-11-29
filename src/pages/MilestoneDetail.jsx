@@ -5,6 +5,7 @@ import {
   Target, ArrowLeft, Package, CheckCircle, Clock, 
   AlertCircle, Calendar, DollarSign, Info, TrendingUp, User
 } from 'lucide-react';
+import { LoadingSpinner } from '../components/common';
 
 export default function MilestoneDetail() {
   const { id } = useParams();
@@ -114,7 +115,7 @@ export default function MilestoneDetail() {
   }
 
   if (loading) {
-    return <div className="loading">Loading milestone...</div>;
+    return <LoadingSpinner message="Loading milestone..." size="large" fullPage />;
   }
 
   if (!milestone) {

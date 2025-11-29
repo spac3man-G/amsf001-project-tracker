@@ -5,6 +5,7 @@ import {
   ArrowLeft, Award, CheckCircle, AlertCircle, Clock, 
   Save, X, Edit2, Target, FileText, Clipboard
 } from 'lucide-react';
+import { LoadingSpinner } from '../components/common';
 
 export default function QualityStandardDetail() {
   const { id } = useParams();
@@ -107,7 +108,7 @@ export default function QualityStandardDetail() {
 
   const canEdit = userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm';
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <LoadingSpinner message="Loading quality standard..." size="large" fullPage />;
   if (!qs) return <div className="loading">Quality Standard not found</div>;
 
   const status = getStatusInfo();

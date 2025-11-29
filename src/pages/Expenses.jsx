@@ -8,6 +8,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingSpinner } from '../components/common';
 
 export default function Expenses() {
   // Use shared contexts
@@ -489,7 +490,7 @@ export default function Expenses() {
   // Get available resources for the current user (using hook)
   const availableResources = getAvailableResources(resources);
 
-  if (loading && !projectId) return <div className="loading">Loading expenses...</div>;
+  if (loading && !projectId) return <LoadingSpinner message="Loading expenses..." size="large" fullPage />;
 
   return (
     <div className="page-container">

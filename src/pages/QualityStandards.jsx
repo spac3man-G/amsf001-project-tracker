@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingSpinner } from '../components/common';
 
 export default function QualityStandards() {
   // Use shared contexts instead of local state for auth and project
@@ -231,7 +232,7 @@ export default function QualityStandards() {
     return assessments.total === 0;
   }).length;
 
-  if (loading && !projectId) return <div className="loading">Loading quality standards...</div>;
+  if (loading && !projectId) return <LoadingSpinner message="Loading quality standards..." size="large" fullPage />;
 
   return (
     <div className="page-container">

@@ -5,6 +5,7 @@ import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X, Fi
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingSpinner } from '../components/common';
 
 export default function Milestones() {
   // Use shared contexts instead of local state for auth and project
@@ -427,7 +428,7 @@ export default function Milestones() {
   const canSignSupplier = canSignAsSupplier;
   const canSignCustomer = canSignAsCustomer;
 
-  if (loading) return <div className="loading">Loading milestones...</div>;
+  if (loading) return <LoadingSpinner message="Loading milestones..." size="large" fullPage />;
 
   // Calculate stats using computed status
   const totalBudget = milestones.reduce((sum, m) => sum + (m.budget || 0), 0);

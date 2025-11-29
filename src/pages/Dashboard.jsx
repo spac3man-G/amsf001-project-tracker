@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling, Briefcase, FileCheck } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useProject } from '../contexts/ProjectContext';
+import { LoadingSpinner } from '../components/common';
 
 // Helper function to check if a role is PMO
 function isPMORole(role) {
@@ -220,7 +221,7 @@ export default function Dashboard() {
     }
   }
 
-  if (loading) return <div className="loading">Loading dashboard...</div>;
+  if (loading) return <LoadingSpinner message="Loading dashboard..." size="large" fullPage />;
 
   return (
     <div className="page-container">

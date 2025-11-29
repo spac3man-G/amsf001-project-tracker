@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { LoadingSpinner } from '../components/common';
 import { BookOpen, CheckCircle, Clock, FileText } from 'lucide-react';
 
 export default function Standards() {
@@ -36,7 +37,7 @@ export default function Standards() {
   }
 
   if (loading) {
-    return <div className="loading">Loading standards...</div>;
+    return <LoadingSpinner message="Loading standards..." size="large" fullPage />;
   }
 
   const completed = standards.filter(s => s.status === 'Completed').length;

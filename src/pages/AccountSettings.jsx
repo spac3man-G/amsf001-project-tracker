@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { LoadingSpinner } from '../components/common';
 import { 
   User, Mail, KeyRound, Save, AlertCircle, CheckCircle, 
   Eye, EyeOff, Shield, Clock
@@ -129,7 +130,7 @@ export default function AccountSettings() {
   }
 
   if (loading) {
-    return <div className="loading">Loading account settings...</div>;
+    return <LoadingSpinner message="Loading account settings..." size="large" fullPage />;
   }
 
   return (

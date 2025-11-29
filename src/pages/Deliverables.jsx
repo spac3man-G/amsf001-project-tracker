@@ -9,6 +9,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingSpinner } from '../components/common';
 
 const STATUS_OPTIONS = [
   'Not Started',
@@ -303,7 +304,7 @@ export default function Deliverables() {
   const canEdit = canEditDeliverable;
   const canReview = canReviewDeliverable;
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <LoadingSpinner message="Loading deliverables..." size="large" fullPage />;
 
   return (
     <div className="page-container">

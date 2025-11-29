@@ -8,6 +8,7 @@ import {
   Shield, Eye, EyeOff, TestTube, AlertTriangle, Link, Unlink
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { LoadingSpinner } from '../components/common';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -260,7 +261,7 @@ export default function Users() {
     );
   }
 
-  if (loading) return <div className="loading">Loading users...</div>;
+  if (loading) return <LoadingSpinner message="Loading users..." size="large" fullPage />;
 
   return (
     <div className="page-container">

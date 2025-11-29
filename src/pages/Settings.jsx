@@ -5,6 +5,7 @@ import { Settings as SettingsIcon, Save, RefreshCw, AlertCircle, CheckCircle, Do
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingSpinner } from '../components/common';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -160,12 +161,7 @@ export default function Settings() {
 
   // Loading state
   if (loading) {
-    return (
-      <div className="page-container" style={{ textAlign: 'center', padding: '3rem' }}>
-        <RefreshCw size={32} className="spin" style={{ color: 'var(--primary)' }} />
-        <p style={{ marginTop: '1rem', color: '#64748b' }}>Loading settings...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading settings..." size="large" fullPage />;
   }
 
   // Permission check (backup - should redirect before this)

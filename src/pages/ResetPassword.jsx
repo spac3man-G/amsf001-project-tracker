@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { LoadingSpinner } from '../components/common';
 import { KeyRound, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function ResetPassword() {
@@ -85,7 +86,7 @@ export default function ResetPassword() {
       <div className="auth-container">
         <div className="auth-box">
           <div style={{ textAlign: 'center', padding: '2rem' }}>
-            <div className="loading">Verifying reset link...</div>
+            <LoadingSpinner message="Verifying reset link..." size="medium" />
           </div>
         </div>
       </div>

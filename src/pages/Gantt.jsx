@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { LoadingSpinner } from '../components/common';
 import { 
   Calendar, ChevronLeft, ChevronRight, Info, GripHorizontal,
   Lock, Move, ZoomIn, ZoomOut
@@ -265,7 +266,7 @@ export default function Gantt() {
     ? (viewEnd - viewStart) / (1000 * 60 * 60 * 24) / daysPerPixel 
     : 1000;
 
-  if (loading) return <div className="loading">Loading Gantt chart...</div>;
+  if (loading) return <LoadingSpinner message="Loading Gantt chart..." size="large" fullPage />;
 
   return (
     <div className="page-container">
