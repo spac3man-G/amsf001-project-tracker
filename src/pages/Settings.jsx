@@ -85,16 +85,26 @@ export default function Settings() {
     setSaveStatus(null);
 
     try {
-      const { error } = await supabase
+      console.log('Saving settings:', { projectId, settings });
+      
+      const { data, error } = await supabase
         .from('projects')
         .update({
           name: settings.name,
           total_budget: parseFloat(settings.total_budget) || 0,
           pmo_threshold: parseInt(settings.pmo_threshold) || 15
         })
-        .eq('id', projectId);
+        .eq('id', projectId)
+        .select();
+
+      console.log('Save result:', { data, error });
 
       if (error) throw error;
+      
+      // Check if update actually happened (RLS might silently fail)
+      if (!data || data.length === 0) {
+        throw new Error('Update failed - no rows returned. This may be a permissions issue.');
+      }
 
       setOriginalSettings({ ...settings });
       setSaveStatus('success');
