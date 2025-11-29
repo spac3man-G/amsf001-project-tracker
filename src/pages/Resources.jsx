@@ -160,7 +160,12 @@ export default function Resources() {
         }
       }
       
-      console.log('Saving resource with data:', updateData);
+      console.log('=== RESOURCE UPDATE DEBUG ===');
+      console.log('Resource ID:', id);
+      console.log('User role:', userRole);
+      console.log('canSeeCostPrice:', canSeeCostPrice);
+      console.log('editForm:', editForm);
+      console.log('updateData being sent:', JSON.stringify(updateData, null, 2));
       
       const { data, error } = await supabase
         .from('resources')
@@ -168,9 +173,16 @@ export default function Resources() {
         .eq('id', id)
         .select();
 
+      console.log('Supabase response - error:', error);
+      console.log('Supabase response - data:', data);
+      console.log('=== END DEBUG ===');
+
       if (error) throw error;
       
-      console.log('Update result:', data);
+      // Check if RLS blocked the update (no rows returned means update was silently blocked)
+      if (!data || data.length === 0) {
+        throw new Error('Update was blocked by database security policy. You may not have permission to update this resource.');
+      }
       
       await fetchResources();
       setEditingId(null);
