@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker
 # Development Playbook & Implementation Guide
 
-**Version:** 5.0  
+**Version:** 5.1  
 **Created:** 29 November 2025  
 **Last Updated:** 29 November 2025  
 **Purpose:** Complete implementation roadmap with Foundation First approach  
@@ -18,48 +18,26 @@
 | 2.0 | 28 Nov 2025 | Added Phase 0 (Foundation), centralised permissions utility |
 | 3.0 | 28 Nov 2025 | Added risk mitigations, copy-ready code, testing scripts |
 | 4.0 | 29 Nov 2025 | Complete rewrite: Foundation First approach, multi-tenancy support |
-| **5.0** | **29 Nov 2025** | **Major progress update: usePermissions hook created, all pages migrated, bug fixes applied, updated progress tracker** |
+| 5.0 | 29 Nov 2025 | Major progress update: usePermissions hook created, all pages migrated |
+| **5.1** | **29 Nov 2025** | **Added RLS Policy documentation, fixed Resources RLS policy, completed Phase 5.1 & 5.2** |
 
 ---
 
-## What's New in Version 5.0
+## What's New in Version 5.1
 
-### Completed Since v4.0
+### Completed Since v5.0
 
-1. **Created `usePermissions` Hook** - New centralised hook that provides pre-bound permission functions
-2. **Migrated ALL 10 Pages** - Every page now uses the usePermissions hook pattern
-3. **Fixed Critical Bugs** - Fixed `canAddExpense()` and `canAddTimesheet()` function call bugs
-4. **Updated RLS Policies** - KPIs RLS policy now includes `supplier_pm` role
-5. **Architecture Standardised** - Eliminated confusing import aliases and local wrapper functions
+1. **Phase 5.1: KPI Add/Delete** - Add KPI button and form, delete with cascade warning
+2. **Phase 5.2: Cost Price & Margins UI** - Cost price column, margin badges, profit display
+3. **Fixed Resources RLS Policy** - Added `supplier_pm` role to resources update policy
+4. **Added RLS Policy Documentation** - New Section 5.2 documenting all database security policies
 
-### New Architecture Pattern
+### Key Bug Fixed
 
-**Before (Problematic):**
-```javascript
-// Confusing imports with aliases
-import { canValidateExpense as canValidateExpensePerm } from '../lib/permissions';
-
-// Local wrapper functions needed
-function canValidateExpenseLocal(exp) {
-  return canValidateExpensePerm(userRole, exp.status, exp.chargeable_to_customer);
-}
-
-// Easy to accidentally call wrong function
-{canValidateExpense(exp)}  // BUG! Should be canValidateExpenseLocal
-```
-
-**After (Clean Pattern):**
-```javascript
-// Simple import
-import { usePermissions } from '../hooks/usePermissions';
-
-// Destructure what you need
-const { canValidateExpense, canEditExpense, canAddExpense } = usePermissions();
-
-// Use directly - no wrappers, no aliases, no confusion
-{canValidateExpense(exp)}  // ✅ Works correctly
-{canAddExpense && <button>Add</button>}  // ✅ Boolean, no ()
-```
+**Resources page not saving edits:**
+- **Symptom:** Clicking Save showed success but no data persisted
+- **Root Cause:** RLS policy on `resources` table only allowed `admin` role, not `supplier_pm`
+- **Fix:** Updated RLS policy to include both roles
 
 ---
 
@@ -74,21 +52,22 @@ const { canValidateExpense, canEditExpense, canAddExpense } = usePermissions();
 | **Phase 0** | 0.3: permissions.js (40+ functions) | ✅ Complete | 29 Nov |
 | **Phase 0** | 0.4: usePermissions hook | ✅ Complete | 29 Nov |
 | **Phase 0** | 0.5: App.jsx with providers | ✅ Complete | 29 Nov |
+| **Phase 1** | 1.1: Add cost_price column | ✅ Complete | 29 Nov |
 | **Phase 1** | 1.2: RLS policies for KPIs | ✅ Complete | 29 Nov |
+| **Phase 1** | 1.4: RLS policies for Resources | ✅ Complete | 29 Nov |
 | **Phase 2** | 2.1-2.10: All page migrations | ✅ Complete | 29 Nov |
 | **Phase 4** | 4.3: Settings page functional | ✅ Complete | 29 Nov |
+| **Phase 5** | 5.1: KPI Add/Delete UI | ✅ Complete | 29 Nov |
+| **Phase 5** | 5.2: Cost price and margins UI | ✅ Complete | 29 Nov |
 
 ### ❌ REMAINING PHASES
 
 | Phase | Task | Status | Priority |
 |-------|------|--------|----------|
 | **Phase 0** | 0.6: ErrorBoundary component | ❌ Not started | Low |
-| **Phase 1** | 1.1: Add cost_price column | ❌ Not started | High |
 | **Phase 1** | 1.3: Create project_members table | ❌ Not started | Medium |
 | **Phase 3** | Multi-tenancy completion | ❌ Not started | Medium |
 | **Phase 4** | 4.1-4.2: Timesheet/Expense permission UI | ❌ Not started | Medium |
-| **Phase 5** | 5.1: KPI Add/Delete UI | ❌ Not started | **HIGH** |
-| **Phase 5** | 5.2: Cost price and margins UI | ❌ Not started | High |
 | **Phase 5** | 5.3: Margin dashboard card | ❌ Not started | Medium |
 | **Phase 5** | 5.4: Reports page | ❌ Not started | Medium |
 | **Phase 5** | 5.5: PDF invoice generation | ❌ Not started | Low |
@@ -102,7 +81,9 @@ const { canValidateExpense, canEditExpense, canAddExpense } = usePermissions();
 2. [Technology Stack](#2-technology-stack)
 3. [File Structure](#3-file-structure)
 4. [Architecture Patterns](#4-architecture-patterns)
-5. [Role Permission Matrix](#5-role-permission-matrix)
+5. [Permissions & Security](#5-permissions--security)
+   - 5.1 [Role Permission Matrix (Frontend)](#51-role-permission-matrix-frontend)
+   - 5.2 [RLS Policies (Database)](#52-rls-policies-database)
 6. [Phase Details](#6-phase-details)
 7. [Working with Claude](#7-working-with-claude)
 8. [Deployment Procedures](#8-deployment-procedures)
@@ -171,7 +152,7 @@ src/
 │   ├── NotificationContext.jsx
 │   └── TestUserContext.jsx
 ├── hooks/
-│   ├── usePermissions.js      # ✅ NEW - Pre-bound permission functions
+│   ├── usePermissions.js      # ✅ Pre-bound permission functions
 │   ├── useResources.js        # Fetch/cache resources
 │   ├── useMilestones.js       # Fetch/cache milestones
 │   └── index.js               # Re-exports
@@ -185,8 +166,8 @@ src/
     ├── Milestones.jsx         # ✅ Migrated to usePermissions
     ├── MilestoneDetail.jsx
     ├── Deliverables.jsx       # ✅ Migrated to usePermissions
-    ├── Resources.jsx          # ✅ Migrated to usePermissions
-    ├── KPIs.jsx               # ✅ Migrated to usePermissions
+    ├── Resources.jsx          # ✅ Migrated + cost_price/margins
+    ├── KPIs.jsx               # ✅ Migrated + Add/Delete
     ├── KPIDetail.jsx          # ✅ Migrated to usePermissions
     ├── QualityStandards.jsx   # ✅ Migrated to usePermissions
     ├── QualityStandardDetail.jsx
@@ -271,79 +252,309 @@ export default function SomePage() {
 
 ---
 
-## 5. Role Permission Matrix
+## 5. Permissions & Security
+
+### Two Layers of Security
+
+The application uses **two layers** of permission enforcement:
+
+1. **Frontend (React)** - Controls what UI elements are visible and interactive
+2. **Backend (Supabase RLS)** - Controls what data operations are actually allowed
+
+**IMPORTANT:** Both layers must be in sync. If the frontend allows an action but the backend blocks it, users see confusing "silent failures" where operations appear to succeed but don't persist.
+
+---
+
+### 5.1 Role Permission Matrix (Frontend)
+
+This matrix controls what **UI elements** are shown to each role. Implemented in `src/lib/permissions.js` and accessed via the `usePermissions` hook.
 
 | Action | Viewer | Contributor | Customer PM | Supplier PM | Admin |
 |--------|:------:|:-----------:|:-----------:|:-----------:|:-----:|
 | **Timesheets** |
-| View | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View all | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Add own | ❌ | ✅ | ❌ | ✅ | ✅ |
 | Add for others | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Edit own (Draft) | ❌ | ✅ | ❌ | ✅ | ✅ |
 | Approve | ❌ | ❌ | ✅ | ❌ | ✅ |
 | **Expenses** |
-| View | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View all | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Add own | ❌ | ✅ | ❌ | ✅ | ✅ |
+| Edit own (Draft) | ❌ | ✅ | ❌ | ✅ | ✅ |
 | Validate chargeable | ❌ | ❌ | ✅ | ❌ | ✅ |
 | Validate non-chargeable | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **KPIs & Quality Standards** |
-| View | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Milestones** |
+| View all | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Add/Edit/Delete | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Deliverables** |
+| View all | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Add/Edit | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Update status | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **KPIs** |
+| View all | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Add/Edit/Delete | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Quality Standards** |
+| View all | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Add/Edit/Delete | ❌ | ❌ | ❌ | ✅ | ✅ |
 | **Resources** |
-| View | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View all | ✅ | ✅ | ✅ | ✅ | ✅ |
+| See resource type | ❌ | ❌ | ❌ | ✅ | ✅ |
 | See cost price | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Manage | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Add/Edit/Delete | ❌ | ❌ | ❌ | ✅ | ✅ |
 | **Settings** |
-| Access | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Access page | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Edit project settings | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Edit milestone budgets | ❌ | ❌ | ❌ | ✅ | ✅ |
+
+---
+
+### 5.2 RLS Policies (Database)
+
+Row Level Security (RLS) policies in Supabase control what **database operations** are actually allowed. These are the source of truth for security.
+
+#### How to View Current RLS Policies
+
+Run this SQL in Supabase SQL Editor:
+
+```sql
+SELECT 
+  tablename,
+  policyname,
+  cmd,
+  roles,
+  qual
+FROM pg_policies 
+WHERE schemaname = 'public'
+ORDER BY tablename, cmd;
+```
+
+#### Current RLS Policies by Table
+
+##### `resources` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Authenticated users can view resources | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Admins and Supplier PM can manage resources | ALL | admin, supplier_pm | Role check via profiles table |
+
+**SQL:**
+```sql
+-- SELECT policy
+CREATE POLICY "Authenticated users can view resources" 
+ON resources FOR SELECT 
+TO public 
+USING (auth.uid() IS NOT NULL);
+
+-- ALL (INSERT, UPDATE, DELETE) policy
+CREATE POLICY "Admins and Supplier PM can manage resources" 
+ON resources FOR ALL 
+TO public 
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.role IN ('admin', 'supplier_pm')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.role IN ('admin', 'supplier_pm')
+  )
+);
+```
+
+##### `kpis` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Authenticated users can view KPIs | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Admins and Supplier PM can manage KPIs | ALL | admin, supplier_pm | Role check via profiles table |
+
+##### `quality_standards` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Authenticated users can view quality_standards | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Admins and Supplier PM can manage quality_standards | ALL | admin, supplier_pm | Role check via profiles table |
+
+##### `milestones` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Authenticated users can view milestones | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Admins and Supplier PM can manage milestones | ALL | admin, supplier_pm | Role check via profiles table |
+
+##### `deliverables` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Authenticated users can view deliverables | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Admins and Supplier PM can manage deliverables | ALL | admin, supplier_pm | Role check via profiles table |
+
+##### `timesheets` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Authenticated users can view timesheets | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Users can insert own timesheets | INSERT | contributor, supplier_pm, admin | `auth.uid() = submitted_by` OR role in (supplier_pm, admin) |
+| Users can update own draft timesheets | UPDATE | contributor, supplier_pm, admin | Own record + Draft status, OR admin/supplier_pm |
+| Customer PM can approve timesheets | UPDATE | customer_pm, admin | Status change to Approved |
+
+##### `expenses` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Authenticated users can view expenses | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Users can insert own expenses | INSERT | contributor, supplier_pm, admin | `auth.uid() = submitted_by` OR role in (supplier_pm, admin) |
+| Users can update own draft expenses | UPDATE | contributor, supplier_pm, admin | Own record + Draft status, OR admin/supplier_pm |
+| Customer PM validates chargeable | UPDATE | customer_pm, admin | `chargeable_to_customer = true` |
+| Supplier PM validates non-chargeable | UPDATE | supplier_pm, admin | `chargeable_to_customer = false` |
+
+##### `projects` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Authenticated users can view projects | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Admins and Supplier PM can manage projects | ALL | admin, supplier_pm | Role check via profiles table |
+
+##### `profiles` Table
+
+| Policy Name | Command | Roles Allowed | Condition |
+|-------------|---------|---------------|-----------|
+| Users can view all profiles | SELECT | All authenticated | `auth.uid() IS NOT NULL` |
+| Users can update own profile | UPDATE | All authenticated | `auth.uid() = id` |
+| Admins can update any profile | UPDATE | admin | Role = admin |
+
+---
+
+#### Adding a New RLS Policy
+
+When adding a new table or modifying permissions, use this template:
+
+```sql
+-- Enable RLS on the table
+ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
+
+-- Allow all authenticated users to SELECT
+CREATE POLICY "Authenticated users can view table_name" 
+ON table_name FOR SELECT 
+TO public 
+USING (auth.uid() IS NOT NULL);
+
+-- Allow admin and supplier_pm to do everything
+CREATE POLICY "Admins and Supplier PM can manage table_name" 
+ON table_name FOR ALL 
+TO public 
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.role IN ('admin', 'supplier_pm')
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.role IN ('admin', 'supplier_pm')
+  )
+);
+```
+
+---
+
+#### Troubleshooting RLS Issues
+
+**Symptom:** Update/Insert appears to succeed but data doesn't persist  
+**Cause:** RLS policy blocking the operation (Supabase returns empty array, not an error)  
+**Fix:** Check RLS policies match the frontend permission matrix
+
+**Symptom:** "new row violates row-level security policy" error  
+**Cause:** WITH CHECK clause failing on INSERT/UPDATE  
+**Fix:** Ensure WITH CHECK matches USING clause
+
+**Debug Query:**
+```sql
+-- See all policies for a specific table
+SELECT policyname, cmd, qual, with_check 
+FROM pg_policies 
+WHERE tablename = 'your_table_name';
+
+-- Test if current user passes a policy
+SELECT EXISTS (
+  SELECT 1 FROM profiles 
+  WHERE profiles.id = auth.uid() 
+  AND profiles.role IN ('admin', 'supplier_pm')
+);
+```
 
 ---
 
 ## 6. Phase Details
 
-### Phase 5.1: KPI Add/Delete (NEXT PRIORITY)
+### Phase 5.1: KPI Add/Delete ✅ COMPLETE
 
-**Current State:** KPIs page exists with view and edit (via detail page) but NO add or delete functionality.
+**Implemented:**
+- Add KPI button (visible to Supplier PM and Admin)
+- Add KPI form with all SOW fields
+- Auto-generated KPI reference (KPI-12, KPI-13, etc.)
+- Delete with confirmation dialog
+- Cascade delete warning for linked deliverables/assessments
 
-**Required Changes to `src/pages/KPIs.jsx`:**
+### Phase 5.2: Cost Price & Margins ✅ COMPLETE
 
-1. Add "Add KPI" button (visible to Supplier PM and Admin)
-2. Add KPI form with fields:
-   - KPI Reference (auto-generate next: KPI-12, KPI-13, etc.)
-   - Name
-   - Category (Time Performance, Quality of Collaboration, Delivery Performance)
-   - Target percentage
-   - Description
-   - Measurement method
-3. Add delete functionality with:
-   - Confirmation dialog
-   - Warning if KPI is linked to deliverables
-   - Cascade delete of assessments
+**Implemented:**
+- Cost Price column in resources table (Supplier PM/Admin only)
+- Margin column with color-coded badges:
+  - Green (≥25%): Good margin
+  - Amber (10-25%): Low margin  
+  - Red (<10%): Critical margin
+- Margin summary stats row
+- Profit display per resource and overall
+- Margin Guide legend
 
-**Permission Check:**
-```javascript
-const { canManageKPIs } = usePermissions();
-{canManageKPIs && <button>Add KPI</button>}
-```
+### Phase 5.3: Margin Dashboard Card (NEXT)
 
-### Phase 1.1: Add cost_price Column
+**Required:**
+- Add margin summary card to Dashboard
+- Show overall margin percentage
+- Show count by margin category
+- Link to Resources page for details
 
-**SQL Migration:**
+### Phase 1.3: Project Members Table
+
+**Purpose:** Enable true multi-tenancy by linking users to specific projects.
+
+**SQL:**
 ```sql
--- Backup first
-CREATE TABLE IF NOT EXISTS _backup_resources_v5 AS SELECT * FROM resources;
+CREATE TABLE project_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('viewer', 'contributor', 'customer_pm', 'supplier_pm', 'admin')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(project_id, user_id)
+);
 
--- Add column
-ALTER TABLE resources ADD COLUMN IF NOT EXISTS cost_price DECIMAL(10,2);
+-- RLS
+ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
 
--- Initialize to 80% of daily_rate
-UPDATE resources SET cost_price = ROUND(daily_rate * 0.8, 2) WHERE cost_price IS NULL;
+CREATE POLICY "Users can view their project memberships"
+ON project_members FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can manage project members"
+ON project_members FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.role = 'admin'
+  )
+);
 ```
-
-### Phase 5.2: Cost Price and Margins UI
-
-After Phase 1.1, update Resources.jsx to:
-- Show cost_price field (Supplier PM/Admin only)
-- Calculate and display margin percentage
-- Color-code margins (Green ≥25%, Amber 10-25%, Red <10%)
 
 ---
 
@@ -354,7 +565,7 @@ After Phase 1.1, update Resources.jsx to:
 Use this prompt to start a new development session:
 
 ```
-I'm working on the AMSF001 Project Tracker. Please read the Development Playbook v5 
+I'm working on the AMSF001 Project Tracker. Please read the Development Playbook 
 at /Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v5.md 
 to understand the project status and architecture.
 
@@ -431,6 +642,12 @@ Use Vercel MCP to check deployment status:
 **RLS Policy blocking operations:**
 - Check if user's role is included in the policy
 - Verify in Supabase SQL Editor: `SELECT * FROM pg_policies WHERE tablename = 'table_name'`
+- See Section 5.2 for current RLS policies
+
+**Update appears to succeed but doesn't persist:**
+- This is a **silent RLS failure** - the policy is blocking but Supabase returns empty array instead of error
+- Check the browser console for `Supabase response - data: []`
+- Fix: Update the RLS policy to include the user's role
 
 **Page not showing data:**
 - Check browser console for errors
@@ -451,18 +668,17 @@ console.log('Permissions:', usePermissions());
 ## Appendix: Recent Commits
 
 ```
+3a07f275 - Debug: Add detailed logging to diagnose resource update failures
+2e52784c - Fix: SFIA level type mismatch causing silent update failures
+1d3a9342 - Fix: Resource cost_price not saving - explicit type conversion
+0c04dc75 - Phase 5.2: Add Cost Price and Margins UI to Resources page
+4770cc78 - Phase 5.1: Add KPI Add/Delete functionality
+c51bf63a - Fix: Milestones page crash - permission variables are booleans
 4b4a9744 - Migrate all remaining pages to usePermissions hook
 afa6f159 - Add usePermissions hook and fix permission function call bugs
-6786d26d - Fix Expenses edit crash - canValidateExpense bug
-41bfd67f - Move permissions.js from utils/ to lib/
-65c96413 - Phase 0 Task 0.3 - Expand permissions.js with complete RBAC
-8c963bc2 - Phase 2 Task 2.1 - Migrate KPIDetail.jsx to AuthContext
-6050a419 - Fix Settings save - detect RLS silent failures
-aac0be93 - Phase 1 - Rebuild Settings.jsx with full functionality
-88153f92 - Phase 1 - Migrate Dashboard.jsx to ProjectContext
 ```
 
 ---
 
-*Document Version: 5.0*  
+*Document Version: 5.1*  
 *Last Updated: 29 November 2025*
