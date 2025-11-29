@@ -1,33 +1,37 @@
-// src/utils/permissions.js
-// Centralised permission logic for AMSF001 Project Tracker
-// Version 4.0 - Phase 0, Task 0.3
-//
-// This file contains all role-based permission functions.
-// Import these in any component to check what the current user can do.
-//
-// Usage:
-//   import { canAddTimesheet, canSeeCostPrice, ROLES } from '../utils/permissions';
-//   if (canAddTimesheet(userRole)) { /* show button */ }
+/**
+ * AMSF001 Project Tracker - Centralized Permission Logic
+ * Version 4.0 - Phase 0, Task 0.3
+ * 
+ * This file is the SINGLE SOURCE OF TRUTH for all permission checks.
+ * Import these functions in any component to check user permissions.
+ * 
+ * Role Hierarchy (from most to least privileged):
+ *   admin > supplier_pm > customer_pm > contributor > viewer
+ * 
+ * Usage:
+ *   import { canAddTimesheet, canManageKPIs, ROLES } from '../utils/permissions';
+ *   if (canAddTimesheet(userRole)) { ... }
+ */
 
 // ============================================
 // ROLE CONSTANTS
 // ============================================
 
 export const ROLES = {
-  VIEWER: 'viewer',
-  CONTRIBUTOR: 'contributor',
-  CUSTOMER_PM: 'customer_pm',
+  ADMIN: 'admin',
   SUPPLIER_PM: 'supplier_pm',
-  ADMIN: 'admin'
+  CUSTOMER_PM: 'customer_pm',
+  CONTRIBUTOR: 'contributor',
+  VIEWER: 'viewer'
 };
 
 // Role hierarchy levels (higher number = more access)
 const ROLE_LEVELS = {
-  [ROLES.VIEWER]: 1,
-  [ROLES.CONTRIBUTOR]: 2,
-  [ROLES.CUSTOMER_PM]: 3,
+  [ROLES.ADMIN]: 5,
   [ROLES.SUPPLIER_PM]: 4,
-  [ROLES.ADMIN]: 5
+  [ROLES.CUSTOMER_PM]: 3,
+  [ROLES.CONTRIBUTOR]: 2,
+  [ROLES.VIEWER]: 1
 };
 
 // ============================================
@@ -36,156 +40,259 @@ const ROLE_LEVELS = {
 
 /**
  * Check if user has at least the specified role level
- * @param {string} userRole - Current user's role
- * @param {string} minRole - Minimum required role
- * @returns {boolean}
  */
-export const hasMinRole = (userRole, minRole) => {
+export function hasMinRole(userRole, minRole) {
   return (ROLE_LEVELS[userRole] || 0) >= (ROLE_LEVELS[minRole] || 0);
-};
+}
 
 /**
  * Check if user role is one of the specified roles
- * @param {string} userRole - Current user's role
- * @param {string[]} allowedRoles - Array of allowed roles
- * @returns {boolean}
  */
-export const isOneOf = (userRole, allowedRoles) => {
+export function isOneOf(userRole, allowedRoles) {
   return allowedRoles.includes(userRole);
-};
+}
+
+/**
+ * Check if user is admin or supplier PM (full management access)
+ */
+export function isFullAdmin(userRole) {
+  return isOneOf(userRole, [ROLES.ADMIN, ROLES.SUPPLIER_PM]);
+}
 
 // ============================================
 // TIMESHEET PERMISSIONS
 // ============================================
 
 /**
- * Can the user add timesheets?
- * Allowed: Contributor (own only), Supplier PM (all), Admin (all)
- * Not allowed: Viewer, Customer PM
+ * Can the user add timesheets (their own)?
+ * Allowed: Contributor, Supplier PM, Admin
+ * NOT allowed: Viewer, Customer PM
  */
-export const canAddTimesheet = (userRole) => {
+export function canAddTimesheet(userRole) {
   return isOneOf(userRole, [ROLES.CONTRIBUTOR, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user add timesheets for ANY resource (not just themselves)?
  * Allowed: Supplier PM, Admin
  */
-export const canAddTimesheetForOthers = (userRole) => {
+export function canAddTimesheetForOthers(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user approve/reject timesheets?
- * Only Customer PM approves (billable hours to GoJ) + Admin
+ * Only Customer PM can approve (they represent billable hours to GoJ)
+ * Admin can also approve
  */
-export const canApproveTimesheet = (userRole) => {
+export function canApproveTimesheets(userRole) {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.ADMIN]);
-};
+}
+
+// Alias for backward compatibility
+export const canApproveTimesheet = canApproveTimesheets;
 
 /**
  * Can the user edit this specific timesheet?
- * @param {string} userRole - Current user's role
- * @param {string} timesheetStatus - Status of the timesheet
- * @param {string} timesheetUserId - User ID who created the timesheet
- * @param {string} currentUserId - Current user's ID
+ * - Admin/Supplier PM: can edit any
+ * - Owner: can edit if Draft or Rejected
+ * 
+ * Supports two call signatures for backward compatibility:
+ * 1. canEditTimesheet(userRole, timesheet, currentUserId) - object version
+ * 2. canEditTimesheet(userRole, status, createdBy, currentUserId) - individual params
  */
-export const canEditTimesheet = (userRole, timesheetStatus, timesheetUserId, currentUserId) => {
-  if (userRole === ROLES.ADMIN) return true;
-  if (userRole === ROLES.SUPPLIER_PM) return true;
-  // Owner can edit if not yet approved
-  if (timesheetUserId === currentUserId && timesheetStatus !== 'Approved') {
-    return true;
+export function canEditTimesheet(userRole, timesheetOrStatus, createdByOrCurrentUserId, currentUserId) {
+  if (isOneOf(userRole, [ROLES.ADMIN, ROLES.SUPPLIER_PM])) return true;
+  
+  // Determine if called with object or individual params
+  let status, createdBy, userId;
+  if (typeof timesheetOrStatus === 'object' && timesheetOrStatus !== null) {
+    // Object version: canEditTimesheet(userRole, timesheet, currentUserId)
+    status = timesheetOrStatus.status;
+    createdBy = timesheetOrStatus.created_by || timesheetOrStatus.resource?.user_id;
+    userId = createdByOrCurrentUserId;
+  } else {
+    // Individual params: canEditTimesheet(userRole, status, createdBy, currentUserId)
+    status = timesheetOrStatus;
+    createdBy = createdByOrCurrentUserId;
+    userId = currentUserId;
   }
-  return false;
-};
+  
+  // Owner can edit if not yet approved
+  const isOwner = createdBy === userId;
+  const isEditable = status === 'Draft' || status === 'Rejected';
+  
+  return isOwner && isEditable;
+}
 
 /**
  * Can the user delete this specific timesheet?
+ * - Admin: can delete any
+ * - Owner: can delete if Draft only
  */
-export const canDeleteTimesheet = (userRole, timesheetStatus, timesheetUserId, currentUserId) => {
+export function canDeleteTimesheet(userRole, timesheetOrStatus, createdByOrCurrentUserId, currentUserId) {
   if (userRole === ROLES.ADMIN) return true;
-  // Owner can delete if still Draft
-  if (timesheetUserId === currentUserId && timesheetStatus === 'Draft') {
-    return true;
+  
+  // Determine if called with object or individual params
+  let status, createdBy, userId;
+  if (typeof timesheetOrStatus === 'object' && timesheetOrStatus !== null) {
+    status = timesheetOrStatus.status;
+    createdBy = timesheetOrStatus.created_by || timesheetOrStatus.resource?.user_id;
+    userId = createdByOrCurrentUserId;
+  } else {
+    status = timesheetOrStatus;
+    createdBy = createdByOrCurrentUserId;
+    userId = currentUserId;
   }
-  return false;
-};
+  
+  const isOwner = createdBy === userId;
+  return isOwner && status === 'Draft';
+}
 
 /**
  * Can the user submit this timesheet for approval?
  */
-export const canSubmitTimesheet = (userRole, timesheetStatus, timesheetUserId, currentUserId) => {
+export function canSubmitTimesheet(userRole, timesheetOrStatus, createdByOrCurrentUserId, currentUserId) {
+  // Determine if called with object or individual params
+  let status, createdBy, userId;
+  if (typeof timesheetOrStatus === 'object' && timesheetOrStatus !== null) {
+    status = timesheetOrStatus.status;
+    createdBy = timesheetOrStatus.created_by || timesheetOrStatus.resource?.user_id;
+    userId = createdByOrCurrentUserId;
+  } else {
+    status = timesheetOrStatus;
+    createdBy = createdByOrCurrentUserId;
+    userId = currentUserId;
+  }
+  
   // Can only submit Draft or Rejected timesheets
-  if (timesheetStatus !== 'Draft' && timesheetStatus !== 'Rejected') return false;
-  if (userRole === ROLES.ADMIN) return true;
-  if (userRole === ROLES.SUPPLIER_PM) return true;
+  if (status !== 'Draft' && status !== 'Rejected') return false;
+  
+  if (isOneOf(userRole, [ROLES.ADMIN, ROLES.SUPPLIER_PM])) return true;
+  
   // Owner can submit their own
-  if (timesheetUserId === currentUserId) return true;
-  return false;
-};
+  const isOwner = createdBy === userId;
+  return isOwner && canAddTimesheet(userRole);
+}
+
+// Legacy alias for backward compatibility
+export function canSubmitTimesheets(userRole) {
+  return canAddTimesheet(userRole);
+}
+
+// Legacy alias
+export function canSubmitTimesheetsForAnyone(userRole) {
+  return canAddTimesheetForOthers(userRole);
+}
 
 // ============================================
 // EXPENSE PERMISSIONS
 // ============================================
 
 /**
- * Can the user add expenses?
+ * Can the user add expenses (their own)?
  * Same rules as timesheets
  */
-export const canAddExpense = (userRole) => {
+export function canAddExpense(userRole) {
   return isOneOf(userRole, [ROLES.CONTRIBUTOR, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user add expenses for ANY resource?
  */
-export const canAddExpenseForOthers = (userRole) => {
+export function canAddExpenseForOthers(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user validate (approve/reject) this expense?
- * Chargeable expenses → Customer PM approves
- * Non-chargeable expenses → Supplier PM approves
- * @param {string} userRole - Current user's role
- * @param {string} expenseStatus - Status of the expense
- * @param {boolean} isChargeable - Whether expense is chargeable to customer
+ * - Chargeable expenses → Customer PM approves
+ * - Non-chargeable expenses → Supplier PM approves
+ * - Admin can approve any
+ * 
+ * Supports two call signatures:
+ * 1. canValidateExpense(userRole, expense) - object version
+ * 2. canValidateExpense(userRole, status, isChargeable) - individual params
  */
-export const canValidateExpense = (userRole, expenseStatus, isChargeable) => {
-  if (expenseStatus !== 'Submitted') return false;
+export function canValidateExpense(userRole, expenseOrStatus, isChargeable) {
+  let status, chargeable;
+  
+  if (typeof expenseOrStatus === 'object' && expenseOrStatus !== null) {
+    status = expenseOrStatus.status;
+    chargeable = expenseOrStatus.chargeable || expenseOrStatus.chargeable_to_customer;
+  } else {
+    status = expenseOrStatus;
+    chargeable = isChargeable;
+  }
+  
+  if (status !== 'Submitted') return false;
   if (userRole === ROLES.ADMIN) return true;
-  if (isChargeable) {
+  
+  if (chargeable) {
     return userRole === ROLES.CUSTOMER_PM;
   } else {
     return userRole === ROLES.SUPPLIER_PM;
   }
-};
+}
+
+/**
+ * Can the user validate chargeable expenses specifically?
+ */
+export function canValidateChargeableExpenses(userRole) {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.ADMIN]);
+}
+
+/**
+ * Can the user validate non-chargeable expenses specifically?
+ */
+export function canValidateNonChargeableExpenses(userRole) {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
 
 /**
  * Can the user edit this expense?
  */
-export const canEditExpense = (userRole, expenseStatus, expenseUserId, currentUserId) => {
-  if (userRole === ROLES.ADMIN) return true;
-  if (userRole === ROLES.SUPPLIER_PM) return true;
-  // Owner can edit if Draft or Rejected
-  if (expenseUserId === currentUserId && (expenseStatus === 'Draft' || expenseStatus === 'Rejected')) {
-    return true;
+export function canEditExpense(userRole, expenseOrStatus, createdByOrCurrentUserId, currentUserId) {
+  if (isOneOf(userRole, [ROLES.ADMIN, ROLES.SUPPLIER_PM])) return true;
+  
+  let status, createdBy, userId;
+  if (typeof expenseOrStatus === 'object' && expenseOrStatus !== null) {
+    status = expenseOrStatus.status;
+    createdBy = expenseOrStatus.created_by;
+    userId = createdByOrCurrentUserId;
+  } else {
+    status = expenseOrStatus;
+    createdBy = createdByOrCurrentUserId;
+    userId = currentUserId;
   }
-  return false;
-};
+  
+  // Owner can edit if Draft or Rejected
+  const isOwner = createdBy === userId;
+  const isEditable = status === 'Draft' || status === 'Rejected';
+  return isOwner && isEditable;
+}
 
 /**
  * Can the user delete this expense?
  */
-export const canDeleteExpense = (userRole, expenseStatus, expenseUserId, currentUserId) => {
+export function canDeleteExpense(userRole, expenseOrStatus, createdByOrCurrentUserId, currentUserId) {
   if (userRole === ROLES.ADMIN) return true;
-  // Owner can delete if still Draft
-  if (expenseUserId === currentUserId && expenseStatus === 'Draft') {
-    return true;
+  
+  let status, createdBy, userId;
+  if (typeof expenseOrStatus === 'object' && expenseOrStatus !== null) {
+    status = expenseOrStatus.status;
+    createdBy = expenseOrStatus.created_by;
+    userId = createdByOrCurrentUserId;
+  } else {
+    status = expenseOrStatus;
+    createdBy = createdByOrCurrentUserId;
+    userId = currentUserId;
   }
-  return false;
-};
+  
+  // Owner can delete if still Draft
+  const isOwner = createdBy === userId;
+  return isOwner && status === 'Draft';
+}
 
 // ============================================
 // MILESTONE PERMISSIONS
@@ -195,30 +302,34 @@ export const canDeleteExpense = (userRole, expenseStatus, expenseUserId, current
  * Can the user create milestones?
  * Only Supplier PM and Admin
  */
-export const canCreateMilestone = (userRole) => {
+export function canCreateMilestone(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user edit milestones?
  */
-export const canEditMilestone = (userRole) => {
+export function canEditMilestone(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user delete milestones?
+ * Only Admin (destructive action)
  */
-export const canDeleteMilestone = (userRole) => {
-  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+export function canDeleteMilestone(userRole) {
+  return userRole === ROLES.ADMIN;
+}
 
 /**
  * Can the user use the Gantt chart to adjust dates?
  */
-export const canUseGanttChart = (userRole) => {
+export function canUseGantt(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
+
+// Alias
+export const canUseGanttChart = canUseGantt;
 
 // ============================================
 // DELIVERABLE PERMISSIONS
@@ -228,39 +339,66 @@ export const canUseGanttChart = (userRole) => {
  * Can the user create deliverables?
  * Customer PM, Supplier PM, and Admin
  */
-export const canCreateDeliverable = (userRole) => {
+export function canCreateDeliverable(userRole) {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user edit deliverables?
  */
-export const canEditDeliverable = (userRole) => {
+export function canEditDeliverable(userRole) {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user delete deliverables?
  */
-export const canDeleteDeliverable = (userRole) => {
+export function canDeleteDeliverable(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
+
+/**
+ * Can the user update deliverable status (if assigned)?
+ * Contributors can update status on deliverables assigned to them
+ */
+export function canUpdateDeliverableStatus(userRole, deliverable, currentUserId) {
+  if (isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN])) return true;
+  
+  // Contributors can update if assigned to them
+  if (userRole === ROLES.CONTRIBUTOR) {
+    return deliverable?.assigned_to === currentUserId || 
+           deliverable?.resource?.user_id === currentUserId;
+  }
+  
+  return false;
+}
 
 /**
  * Can the user review/approve deliverables?
- * Only Customer PM reviews deliverables (+ Admin)
+ * Only Customer PM reviews deliverables (they represent the client)
  */
-export const canReviewDeliverable = (userRole) => {
+export function canReviewDeliverable(userRole) {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.ADMIN]);
-};
+}
+
+/**
+ * Can the user mark deliverables as delivered?
+ */
+export function canMarkDeliverableDelivered(userRole) {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.ADMIN]);
+}
 
 /**
  * Can the user submit a deliverable for review?
- * Contributors can submit their assigned deliverables
  */
-export const canSubmitDeliverable = (userRole) => {
+export function canSubmitDeliverable(userRole) {
   return isOneOf(userRole, [ROLES.CONTRIBUTOR, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
+
+// Legacy alias
+export function canAddDeliverables(userRole) {
+  return canCreateDeliverable(userRole) || userRole === ROLES.CONTRIBUTOR;
+}
 
 // ============================================
 // KPI PERMISSIONS
@@ -269,16 +407,30 @@ export const canSubmitDeliverable = (userRole) => {
 /**
  * Can the user add/edit/delete KPIs?
  */
-export const canManageKPIs = (userRole) => {
+export function canManageKPIs(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
- * Alias for clarity in UI code
+ * Can the user add a new KPI?
  */
-export const canAddKPI = canManageKPIs;
-export const canEditKPI = canManageKPIs;
-export const canDeleteKPI = canManageKPIs;
+export function canAddKPI(userRole) {
+  return canManageKPIs(userRole);
+}
+
+/**
+ * Can the user edit an existing KPI?
+ */
+export function canEditKPI(userRole) {
+  return canManageKPIs(userRole);
+}
+
+/**
+ * Can the user delete a KPI?
+ */
+export function canDeleteKPI(userRole) {
+  return canManageKPIs(userRole);
+}
 
 // ============================================
 // QUALITY STANDARDS PERMISSIONS
@@ -287,95 +439,85 @@ export const canDeleteKPI = canManageKPIs;
 /**
  * Can the user add/edit/delete Quality Standards?
  */
-export const canManageQualityStandards = (userRole) => {
+export function canManageQualityStandards(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
- * Aliases for clarity
+ * Can the user add a new Quality Standard?
  */
-export const canAddQualityStandard = canManageQualityStandards;
-export const canEditQualityStandard = canManageQualityStandards;
-export const canDeleteQualityStandard = canManageQualityStandards;
+export function canAddQualityStandard(userRole) {
+  return canManageQualityStandards(userRole);
+}
+
+/**
+ * Can the user edit an existing Quality Standard?
+ */
+export function canEditQualityStandard(userRole) {
+  return canManageQualityStandards(userRole);
+}
+
+/**
+ * Can the user delete a Quality Standard?
+ */
+export function canDeleteQualityStandard(userRole) {
+  return canManageQualityStandards(userRole);
+}
 
 // ============================================
 // RESOURCE PERMISSIONS
 // ============================================
 
 /**
- * Can the user manage resources (add/edit/delete)?
+ * Can the user manage resources (add/edit)?
  */
-export const canManageResources = (userRole) => {
+export function canManageResources(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
- * Aliases for clarity
+ * Can the user add a new resource?
  */
-export const canAddResource = canManageResources;
-export const canEditResource = canManageResources;
-export const canDeleteResource = canManageResources;
+export function canAddResource(userRole) {
+  return canManageResources(userRole);
+}
+
+/**
+ * Can the user edit a resource?
+ */
+export function canEditResource(userRole) {
+  return canManageResources(userRole);
+}
+
+/**
+ * Can the user delete a resource?
+ * Only Admin (destructive action)
+ */
+export function canDeleteResource(userRole) {
+  return userRole === ROLES.ADMIN;
+}
 
 /**
  * Can the user see cost price (internal cost)?
  * This is confidential supplier information
  */
-export const canSeeCostPrice = (userRole) => {
+export function canSeeCostPrice(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user see resource type (Internal vs Third-Party)?
  */
-export const canSeeResourceType = (userRole) => {
+export function canSeeResourceType(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
- * Can the user see margin information?
- * This is confidential profitability data
+ * Can the user see margin/profit information?
  */
-export const canSeeMargins = (userRole) => {
+export function canSeeMargins(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
-
-// ============================================
-// PROJECT SETTINGS PERMISSIONS
-// ============================================
-
-/**
- * Can the user access project settings page?
- */
-export const canAccessSettings = (userRole) => {
-  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
-
-/**
- * Can the user edit project settings (budget, name, etc.)?
- */
-export const canEditSettings = (userRole) => {
-  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
-
-// ============================================
-// USER MANAGEMENT PERMISSIONS
-// ============================================
-
-/**
- * Can the user manage user accounts?
- * Only Admin (not even Supplier PM)
- */
-export const canManageUsers = (userRole) => {
-  return userRole === ROLES.ADMIN;
-};
-
-/**
- * Can the user view the Users page?
- * Supplier PM can view but not edit
- */
-export const canViewUsers = (userRole) => {
-  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 // ============================================
 // CERTIFICATE PERMISSIONS
@@ -384,106 +526,259 @@ export const canViewUsers = (userRole) => {
 /**
  * Can the user sign certificates as supplier representative?
  */
-export const canSignAsSupplier = (userRole) => {
+export function canSignAsSupplier(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user sign certificates as customer representative?
  */
-export const canSignAsCustomer = (userRole) => {
+export function canSignAsCustomer(userRole) {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user create/generate certificates?
  */
-export const canCreateCertificate = (userRole) => {
+export function canCreateCertificate(userRole) {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 // ============================================
-// INVOICE/REPORT PERMISSIONS
+// SETTINGS & ADMIN PERMISSIONS
+// ============================================
+
+/**
+ * Can the user access project settings page?
+ */
+export function canAccessSettings(userRole) {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
+
+/**
+ * Can the user edit project settings?
+ */
+export function canEditSettings(userRole) {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
+
+/**
+ * Can the user manage user accounts?
+ * Only Admin
+ */
+export function canManageUsers(userRole) {
+  return userRole === ROLES.ADMIN;
+}
+
+/**
+ * Can the user view the Users page?
+ */
+export function canViewUsers(userRole) {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
+
+/**
+ * Can the user view the workflow summary page?
+ */
+export function canViewWorkflowSummary(userRole) {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
+
+// Legacy alias
+export function canManageSystem(userRole) {
+  return canAccessSettings(userRole);
+}
+
+// Legacy alias
+export function canManageProjectItems(userRole) {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
+
+// Legacy alias
+export function canValidate(userRole) {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
+
+// ============================================
+// INVOICE PERMISSIONS
 // ============================================
 
 /**
  * Can the user generate customer invoices?
  */
-export const canGenerateCustomerInvoice = (userRole) => {
+export function canGenerateCustomerInvoice(userRole) {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 /**
  * Can the user generate third-party partner invoices?
  * Only supplier-side roles (confidential)
  */
-export const canGenerateThirdPartyInvoice = (userRole) => {
+export function canGenerateThirdPartyInvoice(userRole) {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
+
+/**
+ * Can the user view margin reports?
+ */
+export function canViewMarginReports(userRole) {
+  return canSeeMargins(userRole);
+}
 
 /**
  * Can the user access reports?
  */
-export const canAccessReports = (userRole) => {
+export function canAccessReports(userRole) {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
+}
 
 // ============================================
-// WORKFLOW PERMISSIONS
-// ============================================
-
-/**
- * Can the user view the Workflow Summary page?
- */
-export const canViewWorkflowSummary = (userRole) => {
-  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
-};
-
-// ============================================
-// RESOURCE FILTERING HELPERS
+// RESOURCE FILTERING FOR DROPDOWNS
 // ============================================
 
 /**
  * Get available resources for timesheet/expense entry dropdown
- * Returns all resources for Admin/Supplier PM, or just user's own resource for Contributors
+ * Returns all resources for Admin/Supplier PM, or just user's own resource for others
+ * 
  * @param {string} userRole - Current user's role
- * @param {array} allResources - All resources from database
+ * @param {array} resources - All resources from database
  * @param {string} currentUserId - Current user's auth ID
  * @returns {array} Filtered resources for dropdown
  */
-export const getAvailableResourcesForEntry = (userRole, allResources, currentUserId) => {
+export function getAvailableResourcesForEntry(userRole, resources, currentUserId) {
+  if (!resources || !Array.isArray(resources)) return [];
+  
   if (canAddTimesheetForOthers(userRole)) {
-    return allResources;
+    return resources;
   }
+  
   // Contributors can only select themselves
-  return allResources.filter(r => r.user_id === currentUserId);
-};
+  return resources.filter(r => r.user_id === currentUserId);
+}
 
 /**
  * Get the current user's linked resource (if any)
- * @param {array} allResources - All resources
- * @param {string} currentUserId - Current user's auth ID
- * @returns {object|null} The user's resource or null
  */
-export const getCurrentUserResource = (allResources, currentUserId) => {
-  return allResources.find(r => r.user_id === currentUserId) || null;
-};
+export function getCurrentUserResource(resources, currentUserId) {
+  if (!resources || !Array.isArray(resources)) return null;
+  return resources.find(r => r.user_id === currentUserId) || null;
+}
+
+/**
+ * Get the default resource for a new entry
+ * Returns user's own resource if they have one, otherwise first available
+ */
+export function getDefaultResourceForEntry(userRole, resources, currentUserId) {
+  const availableResources = getAvailableResourcesForEntry(userRole, resources, currentUserId);
+  if (availableResources.length === 0) return null;
+  
+  // Prefer user's own resource
+  const ownResource = availableResources.find(r => r.user_id === currentUserId);
+  return ownResource || availableResources[0];
+}
 
 /**
  * Get default resource ID for new timesheet/expense form
- * @param {string} userRole - Current user's role
- * @param {array} allResources - All resources
- * @param {string} currentUserId - Current user's auth ID
- * @returns {string|null} Resource ID to pre-select, or null
  */
-export const getDefaultResourceId = (userRole, allResources, currentUserId) => {
-  const userResource = getCurrentUserResource(allResources, currentUserId);
-  if (userResource) return userResource.id;
-  
-  // For admins/supplier PMs with no linked resource, return first resource or null
-  if (canAddTimesheetForOthers(userRole) && allResources.length > 0) {
-    return allResources[0].id;
-  }
-  
-  return null;
-};
+export function getDefaultResourceId(userRole, resources, currentUserId) {
+  const resource = getDefaultResourceForEntry(userRole, resources, currentUserId);
+  return resource?.id || null;
+}
+
+// ============================================
+// ROLE DISPLAY HELPERS
+// ============================================
+
+/**
+ * Get role display configuration (label, colors)
+ */
+export function getRoleConfig(role) {
+  const configs = {
+    admin: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
+    supplier_pm: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
+    customer_pm: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+    contributor: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
+    viewer: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' }
+  };
+  return configs[role] || configs.viewer;
+}
+
+/**
+ * Get role label for display
+ */
+export function getRoleLabel(role) {
+  return getRoleConfig(role).label;
+}
+
+/**
+ * All available roles for dropdowns
+ */
+export const ROLE_OPTIONS = [
+  { value: 'viewer', label: 'Viewer', color: '#64748b', bg: '#f1f5f9' },
+  { value: 'contributor', label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
+  { value: 'customer_pm', label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+  { value: 'supplier_pm', label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
+  { value: 'admin', label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' }
+];
+
+// ============================================
+// PERMISSION SUMMARY (for debugging/testing)
+// ============================================
+
+/**
+ * Get a summary of all permissions for a given role
+ * Useful for debugging and testing
+ */
+export function getPermissionSummary(userRole) {
+  return {
+    role: userRole,
+    roleLabel: getRoleLabel(userRole),
+    timesheets: {
+      canAdd: canAddTimesheet(userRole),
+      canAddForOthers: canAddTimesheetForOthers(userRole),
+      canApprove: canApproveTimesheets(userRole)
+    },
+    expenses: {
+      canAdd: canAddExpense(userRole),
+      canAddForOthers: canAddExpenseForOthers(userRole),
+      canValidateChargeable: canValidateChargeableExpenses(userRole),
+      canValidateNonChargeable: canValidateNonChargeableExpenses(userRole)
+    },
+    milestones: {
+      canCreate: canCreateMilestone(userRole),
+      canEdit: canEditMilestone(userRole),
+      canDelete: canDeleteMilestone(userRole),
+      canUseGantt: canUseGantt(userRole)
+    },
+    deliverables: {
+      canCreate: canCreateDeliverable(userRole),
+      canEdit: canEditDeliverable(userRole),
+      canReview: canReviewDeliverable(userRole)
+    },
+    kpis: {
+      canManage: canManageKPIs(userRole)
+    },
+    qualityStandards: {
+      canManage: canManageQualityStandards(userRole)
+    },
+    resources: {
+      canManage: canManageResources(userRole),
+      canDelete: canDeleteResource(userRole),
+      canSeeCostPrice: canSeeCostPrice(userRole),
+      canSeeMargins: canSeeMargins(userRole)
+    },
+    certificates: {
+      canSignAsSupplier: canSignAsSupplier(userRole),
+      canSignAsCustomer: canSignAsCustomer(userRole)
+    },
+    admin: {
+      canAccessSettings: canAccessSettings(userRole),
+      canManageUsers: canManageUsers(userRole),
+      canViewWorkflowSummary: canViewWorkflowSummary(userRole)
+    },
+    invoicing: {
+      canGenerateCustomerInvoice: canGenerateCustomerInvoice(userRole),
+      canGenerateThirdPartyInvoice: canGenerateThirdPartyInvoice(userRole)
+    }
+  };
+}
