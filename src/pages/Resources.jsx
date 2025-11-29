@@ -83,6 +83,22 @@ export default function Resources() {
     }
   }
 
+  // Helper functions to convert SFIA level between display format (L4) and database format (4)
+  function sfiaToDisplay(level) {
+    if (!level) return 'L4';
+    if (typeof level === 'string' && level.startsWith('L')) return level;
+    return `L${level}`;
+  }
+  
+  function sfiaToDatabase(level) {
+    if (!level) return 4;
+    if (typeof level === 'number') return level;
+    if (typeof level === 'string' && level.startsWith('L')) {
+      return parseInt(level.substring(1)) || 4;
+    }
+    return parseInt(level) || 4;
+  }
+
   // Calculate margin percentage
   function calculateMargin(dailyRate, costPrice) {
     if (!dailyRate || dailyRate === 0) return null;
@@ -110,7 +126,7 @@ export default function Resources() {
       name: resource.name,
       email: resource.email,
       role: resource.role,
-      sfia_level: resource.sfia_level,
+      sfia_level: sfiaToDisplay(resource.sfia_level),
       daily_rate: resource.daily_rate,
       cost_price: resource.cost_price || '',
       discount_percent: resource.discount_percent,
@@ -127,7 +143,7 @@ export default function Resources() {
         name: editForm.name,
         email: editForm.email,
         role: editForm.role,
-        sfia_level: editForm.sfia_level,
+        sfia_level: sfiaToDatabase(editForm.sfia_level),
         daily_rate: parseFloat(editForm.daily_rate) || 0,
         discount_percent: parseFloat(editForm.discount_percent) || 0,
         days_allocated: parseInt(editForm.days_allocated) || 0,
@@ -193,6 +209,7 @@ export default function Resources() {
         ...newResource,
         project_id: project.id,
         user_id: existingProfile.id,
+        sfia_level: sfiaToDatabase(newResource.sfia_level),
         daily_rate: parseFloat(newResource.daily_rate),
         cost_price: newResource.cost_price ? parseFloat(newResource.cost_price) : null,
         days_allocated: parseInt(newResource.days_allocated),
@@ -267,7 +284,8 @@ export default function Resources() {
   }
 
   const getSfiaColor = (level) => {
-    switch(level) {
+    const displayLevel = sfiaToDisplay(level);
+    switch(displayLevel) {
       case 'L6': return 'badge-warning';
       case 'L5': return 'badge-success';
       case 'L4': return 'badge-primary';
@@ -686,7 +704,7 @@ export default function Resources() {
                         <td>
                           <span className={`badge ${getSfiaColor(resource.sfia_level)}`}>
                             <Award size={14} style={{ marginRight: '0.25rem' }} />
-                            {resource.sfia_level}
+                            {sfiaToDisplay(resource.sfia_level)}
                           </span>
                         </td>
                         <td>£{resource.daily_rate}</td>
