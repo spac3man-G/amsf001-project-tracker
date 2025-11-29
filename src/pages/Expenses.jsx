@@ -11,6 +11,8 @@ import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
+import FormField from '../components/FormField';
+import FormCard from '../components/FormCard';
 import { useAuth, useProject, useCurrentResource } from '../hooks';
 import { getStatusColor, formatCurrency } from '../utils/statusHelpers';
 import {
@@ -440,63 +442,79 @@ export default function Expenses() {
 
       {/* Add Form */}
       {showAddForm && (
-        <div className="card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #3b82f6' }}>
-          <h3 style={{ marginBottom: '1rem' }}>New Expense Entry</h3>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-            <div>
-              <label className="form-label">Resource *</label>
-              <select className="form-input" value={newExpense.resource_id} onChange={(e) => setNewExpense({ ...newExpense, resource_id: e.target.value })}>
+        <FormCard
+          title="New Expense Entry"
+          onSave={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+          saving={saving}
+          saveText="Save Expense"
+        >
+          <FormCard.Grid columns="auto">
+            <FormField
+              label="Resource"
+              required
+            >
+              <select
+                className="form-input"
+                value={newExpense.resource_id}
+                onChange={(e) => setNewExpense({ ...newExpense, resource_id: e.target.value })}
+              >
                 <option value="">Select Resource</option>
                 {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-            </div>
-            
-            <div>
-              <label className="form-label">Date *</label>
-              <input type="date" className="form-input" value={newExpense.expense_date} onChange={(e) => setNewExpense({ ...newExpense, expense_date: e.target.value })} />
-            </div>
-            
-            <div>
-              <label className="form-label">Category *</label>
-              <select className="form-input" value={newExpense.category} onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}>
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-            </div>
-            
-            <div>
-              <label className="form-label">Amount (£) *</label>
-              <input type="number" step="0.01" min="0" className="form-input" placeholder="e.g., 150.00" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} />
-            </div>
-            
-            <div>
-              <label className="form-label">Milestone (Optional)</label>
-              <select className="form-input" value={newExpense.milestone_id} onChange={(e) => setNewExpense({ ...newExpense, milestone_id: e.target.value })}>
+            </FormField>
+            <FormField.Input
+              label="Date"
+              required
+              type="date"
+              value={newExpense.expense_date}
+              onChange={(e) => setNewExpense({ ...newExpense, expense_date: e.target.value })}
+            />
+            <FormField.Select
+              label="Category"
+              required
+              value={newExpense.category}
+              onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+              options={categories}
+            />
+            <FormField.Input
+              label="Amount (£)"
+              required
+              type="number"
+              step={0.01}
+              min={0}
+              placeholder="e.g., 150.00"
+              value={newExpense.amount}
+              onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+            />
+            <FormField
+              label="Milestone (Optional)"
+            >
+              <select
+                className="form-input"
+                value={newExpense.milestone_id}
+                onChange={(e) => setNewExpense({ ...newExpense, milestone_id: e.target.value })}
+              >
                 <option value="">-- No specific milestone --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
               </select>
-            </div>
-            
-            <div>
-              <label className="form-label">Receipt URL (Optional)</label>
-              <input type="text" className="form-input" placeholder="Link to receipt" value={newExpense.receipt_url} onChange={(e) => setNewExpense({ ...newExpense, receipt_url: e.target.value })} />
-            </div>
-            
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="form-label">Description *</label>
-              <textarea className="form-input" rows={2} placeholder="Describe the expense..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} />
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}>
-              <Save size={16} /> {saving ? 'Saving...' : 'Save Expense'}
-            </button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
-              <X size={16} /> Cancel
-            </button>
-          </div>
-        </div>
+            </FormField>
+            <FormField.Input
+              label="Receipt URL (Optional)"
+              placeholder="Link to receipt"
+              value={newExpense.receipt_url}
+              onChange={(e) => setNewExpense({ ...newExpense, receipt_url: e.target.value })}
+            />
+          </FormCard.Grid>
+          <FormField.Textarea
+            label="Description"
+            required
+            rows={2}
+            placeholder="Describe the expense..."
+            value={newExpense.description}
+            onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+          />
+        </FormCard>
       )}
 
       {/* Expenses Table */}

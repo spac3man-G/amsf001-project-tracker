@@ -10,6 +10,8 @@ import { TablePageSkeleton } from '../components/SkeletonLoader';
 import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import PageHeader from '../components/PageHeader';
+import FormField from '../components/FormField';
+import FormCard from '../components/FormCard';
 import { useAuth, useProject, useCurrentResource } from '../hooks';
 import { getStatusColor, getNextSunday } from '../utils/statusHelpers';
 import { 
@@ -432,71 +434,88 @@ export default function Timesheets() {
 
       {/* Add Form */}
       {showAddForm && (
-        <div className="card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #3b82f6' }}>
-          <h3 style={{ marginBottom: '1rem' }}>New Timesheet Entry</h3>
-          
-          <div style={{ marginBottom: '1rem' }}>
-            <label className="form-label">Entry Mode</label>
+        <FormCard
+          title="New Timesheet Entry"
+          onSave={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+          saving={saving}
+          saveText="Save Timesheet"
+        >
+          {/* Entry Mode Toggle */}
+          <FormField label="Entry Mode">
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className={`btn ${entryMode === 'daily' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEntryMode('daily')}>
+              <button className={`btn ${entryMode === 'daily' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEntryMode('daily')} type="button">
                 <Calendar size={16} /> Daily
               </button>
-              <button className={`btn ${entryMode === 'weekly' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEntryMode('weekly')}>
+              <button className={`btn ${entryMode === 'weekly' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEntryMode('weekly')} type="button">
                 <CalendarDays size={16} /> Weekly
               </button>
             </div>
-          </div>
+          </FormField>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-            <div>
-              <label className="form-label">Resource *</label>
-              <select className="form-input" value={newTimesheet.resource_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}>
+          <FormCard.Grid columns="auto">
+            <FormField label="Resource" required>
+              <select
+                className="form-input"
+                value={newTimesheet.resource_id}
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}
+              >
                 <option value="">Select Resource</option>
                 {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-            </div>
+            </FormField>
             
             {entryMode === 'daily' ? (
-              <div>
-                <label className="form-label">Work Date *</label>
-                <input type="date" className="form-input" value={newTimesheet.work_date} onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })} />
-              </div>
+              <FormField.Input
+                label="Work Date"
+                required
+                type="date"
+                value={newTimesheet.work_date}
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })}
+              />
             ) : (
-              <div>
-                <label className="form-label">Week Ending (Sunday) *</label>
-                <input type="date" className="form-input" value={newTimesheet.week_ending} onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} />
-              </div>
+              <FormField.Input
+                label="Week Ending (Sunday)"
+                required
+                type="date"
+                value={newTimesheet.week_ending}
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })}
+              />
             )}
             
-            <div>
-              <label className="form-label">Milestone (Optional)</label>
-              <select className="form-input" value={newTimesheet.milestone_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}>
+            <FormField label="Milestone (Optional)">
+              <select
+                className="form-input"
+                value={newTimesheet.milestone_id}
+                onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}
+              >
                 <option value="">-- No specific milestone --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
               </select>
-            </div>
+            </FormField>
             
-            <div>
-              <label className="form-label">Hours Worked *</label>
-              <input type="number" step="0.5" min="0.5" max={entryMode === 'daily' ? '12' : '60'} className="form-input" placeholder={entryMode === 'daily' ? 'e.g., 8' : 'e.g., 40'} value={newTimesheet.hours_worked} onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} />
-              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{entryMode === 'daily' ? 'Max 12 hours per day' : 'Total hours for the week'}</span>
-            </div>
-            
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="form-label">Description</label>
-              <textarea className="form-input" rows={2} placeholder="What did you work on?" value={newTimesheet.description} onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} />
-            </div>
-          </div>
+            <FormField.Input
+              label="Hours Worked"
+              required
+              type="number"
+              step={0.5}
+              min={0.5}
+              max={entryMode === 'daily' ? 12 : 60}
+              placeholder={entryMode === 'daily' ? 'e.g., 8' : 'e.g., 40'}
+              hint={entryMode === 'daily' ? 'Max 12 hours per day' : 'Total hours for the week'}
+              value={newTimesheet.hours_worked}
+              onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })}
+            />
+          </FormCard.Grid>
           
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}>
-              <Save size={16} /> {saving ? 'Saving...' : 'Save Timesheet'}
-            </button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
-              <X size={16} /> Cancel
-            </button>
-          </div>
-        </div>
+          <FormField.Textarea
+            label="Description"
+            rows={2}
+            placeholder="What did you work on?"
+            value={newTimesheet.description}
+            onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })}
+          />
+        </FormCard>
       )}
 
       {/* Timesheets Table */}

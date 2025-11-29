@@ -8,6 +8,8 @@ import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
+import FormField from '../components/FormField';
+import FormCard from '../components/FormCard';
 import { canManageResources } from '../utils/permissions';
 import { formatCurrency } from '../utils/statusHelpers';
 import { useAuth } from '../hooks';
@@ -182,45 +184,67 @@ export default function Resources() {
 
       {/* Add Resource Form */}
       {showAddForm && canEdit() && (
-        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Add Resource</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label className="form-label">Name *</label>
-              <input type="text" className="form-input" placeholder="Full name" value={newResource.name} onChange={(e) => setNewResource({ ...newResource, name: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Email *</label>
-              <input type="email" className="form-input" placeholder="email@example.com" value={newResource.email} onChange={(e) => setNewResource({ ...newResource, email: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Phone</label>
-              <input type="tel" className="form-input" placeholder="+44..." value={newResource.phone} onChange={(e) => setNewResource({ ...newResource, phone: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Role</label>
-              <select className="form-input" value={newResource.role} onChange={(e) => setNewResource({ ...newResource, role: e.target.value })}>
-                {roleOptions.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Day Rate (£)</label>
-              <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00" value={newResource.day_rate} onChange={(e) => setNewResource({ ...newResource, day_rate: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Link to User Account</label>
-              <select className="form-input" value={newResource.user_id} onChange={(e) => setNewResource({ ...newResource, user_id: e.target.value })}>
+        <FormCard
+          title="Add Resource"
+          onSave={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+          saving={saving}
+          saveText="Save Resource"
+          variant="outlined"
+        >
+          <FormCard.Grid columns={2}>
+            <FormField.Input
+              label="Name"
+              required
+              placeholder="Full name"
+              value={newResource.name}
+              onChange={(e) => setNewResource({ ...newResource, name: e.target.value })}
+            />
+            <FormField.Input
+              label="Email"
+              required
+              type="email"
+              placeholder="email@example.com"
+              value={newResource.email}
+              onChange={(e) => setNewResource({ ...newResource, email: e.target.value })}
+            />
+            <FormField.Input
+              label="Phone"
+              type="tel"
+              placeholder="+44..."
+              value={newResource.phone}
+              onChange={(e) => setNewResource({ ...newResource, phone: e.target.value })}
+            />
+            <FormField.Select
+              label="Role"
+              value={newResource.role}
+              onChange={(e) => setNewResource({ ...newResource, role: e.target.value })}
+              options={roleOptions}
+            />
+            <FormField.Input
+              label="Day Rate (£)"
+              type="number"
+              step={0.01}
+              min={0}
+              placeholder="0.00"
+              value={newResource.day_rate}
+              onChange={(e) => setNewResource({ ...newResource, day_rate: e.target.value })}
+            />
+            <FormField
+              label="Link to User Account"
+              hint="Linking allows the user to submit timesheets/expenses as this resource"
+            >
+              <select
+                className="form-input"
+                value={newResource.user_id}
+                onChange={(e) => setNewResource({ ...newResource, user_id: e.target.value })}
+              >
                 <option value="">-- Not linked --</option>
                 {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name || p.email} ({p.role})</option>)}
               </select>
-              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Linking allows the user to submit timesheets/expenses as this resource</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save Resource'}</button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
-          </div>
-        </div>
+            </FormField>
+          </FormCard.Grid>
+        </FormCard>
       )}
 
       {/* Resources Table */}

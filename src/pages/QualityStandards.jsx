@@ -9,6 +9,8 @@ import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
+import FormField from '../components/FormField';
+import FormCard from '../components/FormCard';
 
 export default function QualityStandards() {
   const { userRole, loading: authLoading } = useAuth();
@@ -152,24 +154,55 @@ export default function QualityStandards() {
 
       {/* Add Form */}
       {showAddForm && canEdit && (
-        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Add New Quality Standard</h3>
-          <form onSubmit={handleAdd}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-              <div><label className="form-label">Reference *</label><input type="text" className="form-input" placeholder="e.g., QS08" value={newQS.qs_ref} onChange={(e) => setNewQS({ ...newQS, qs_ref: e.target.value })} required /></div>
-              <div><label className="form-label">Name *</label><input type="text" className="form-input" placeholder="e.g., Documentation Quality" value={newQS.name} onChange={(e) => setNewQS({ ...newQS, name: e.target.value })} required /></div>
-            </div>
-            <div style={{ marginTop: '1rem' }}><label className="form-label">Description</label><textarea className="form-input" rows={3} placeholder="Describe what this quality standard measures..." value={newQS.description} onChange={(e) => setNewQS({ ...newQS, description: e.target.value })} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-              <div><label className="form-label">Target (%)</label><input type="number" className="form-input" min="0" max="100" value={newQS.target} onChange={(e) => setNewQS({ ...newQS, target: e.target.value })} /></div>
-              <div><label className="form-label">Current Value (%)</label><input type="number" className="form-input" min="0" max="100" value={newQS.current_value} onChange={(e) => setNewQS({ ...newQS, current_value: e.target.value })} /></div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-              <button type="submit" className="btn btn-primary"><Save size={16} /> Save Quality Standard</button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
-            </div>
-          </form>
-        </div>
+        <FormCard
+          title="Add New Quality Standard"
+          onSave={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+          saveText="Save Quality Standard"
+          variant="outlined"
+        >
+          <FormCard.Grid columns={2}>
+            <FormField.Input
+              label="Reference"
+              required
+              placeholder="e.g., QS08"
+              value={newQS.qs_ref}
+              onChange={(e) => setNewQS({ ...newQS, qs_ref: e.target.value })}
+            />
+            <FormField.Input
+              label="Name"
+              required
+              placeholder="e.g., Documentation Quality"
+              value={newQS.name}
+              onChange={(e) => setNewQS({ ...newQS, name: e.target.value })}
+            />
+          </FormCard.Grid>
+          <FormField.Textarea
+            label="Description"
+            rows={3}
+            placeholder="Describe what this quality standard measures..."
+            value={newQS.description}
+            onChange={(e) => setNewQS({ ...newQS, description: e.target.value })}
+          />
+          <FormCard.Grid columns={2}>
+            <FormField.Input
+              label="Target (%)"
+              type="number"
+              min={0}
+              max={100}
+              value={newQS.target}
+              onChange={(e) => setNewQS({ ...newQS, target: e.target.value })}
+            />
+            <FormField.Input
+              label="Current Value (%)"
+              type="number"
+              min={0}
+              max={100}
+              value={newQS.current_value}
+              onChange={(e) => setNewQS({ ...newQS, current_value: e.target.value })}
+            />
+          </FormCard.Grid>
+        </FormCard>
       )}
 
       {/* Quality Standards Table */}

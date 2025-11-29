@@ -9,6 +9,8 @@ import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
+import FormField from '../components/FormField';
+import FormCard from '../components/FormCard';
 
 export default function KPIs() {
   const { userRole, loading: authLoading } = useAuth();
@@ -175,27 +177,84 @@ export default function KPIs() {
 
       {/* Add KPI Form */}
       {showAddForm && canManage && (
-        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ margin: 0 }}>Add New KPI</h3>
-            <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontFamily: 'monospace', fontWeight: '600' }}>{getNextKPIRef()}</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div style={{ gridColumn: '1 / -1' }}><label className="form-label">KPI Name *</label><input type="text" className="form-input" placeholder="e.g., First Time Quality of Deliverables" value={newKPI.name} onChange={(e) => setNewKPI({ ...newKPI, name: e.target.value })} /></div>
-            <div><label className="form-label">Category *</label><select className="form-input" value={newKPI.category} onChange={(e) => setNewKPI({ ...newKPI, category: e.target.value })}>{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
-            <div><label className="form-label">Target (%)</label><input type="number" min="0" max="100" className="form-input" value={newKPI.target} onChange={(e) => setNewKPI({ ...newKPI, target: e.target.value })} /></div>
-            <div style={{ gridColumn: '1 / -1' }}><label className="form-label">Description *</label><textarea className="form-input" rows={2} placeholder="Describe what this KPI measures..." value={newKPI.description} onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })} /></div>
-            <div style={{ gridColumn: '1 / -1' }}><label className="form-label">Measurement Method</label><textarea className="form-input" rows={2} placeholder="How will this KPI be measured?" value={newKPI.measurement_method} onChange={(e) => setNewKPI({ ...newKPI, measurement_method: e.target.value })} /></div>
-            <div><label className="form-label">Frequency</label><select className="form-input" value={newKPI.frequency} onChange={(e) => setNewKPI({ ...newKPI, frequency: e.target.value })}>{frequencies.map(freq => <option key={freq} value={freq}>{freq}</option>)}</select></div>
-            <div><label className="form-label">Data Source</label><input type="text" className="form-input" placeholder="e.g., Deliverable Review Records" value={newKPI.data_source} onChange={(e) => setNewKPI({ ...newKPI, data_source: e.target.value })} /></div>
-            <div style={{ gridColumn: '1 / -1' }}><label className="form-label">Calculation Formula</label><input type="text" className="form-input" placeholder="e.g., Number approved at first review ÷ total reviewed" value={newKPI.calculation} onChange={(e) => setNewKPI({ ...newKPI, calculation: e.target.value })} /></div>
-            <div style={{ gridColumn: '1 / -1' }}><label className="form-label">Remediation Plan</label><textarea className="form-input" rows={2} placeholder="What actions should be taken if target is not met?" value={newKPI.remediation} onChange={(e) => setNewKPI({ ...newKPI, remediation: e.target.value })} /></div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-primary" onClick={handleAddKPI} disabled={saving}>{saving ? <><RefreshCw size={16} className="spinning" /> Saving...</> : <><Save size={16} /> Save KPI</>}</button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)} disabled={saving}><X size={16} /> Cancel</button>
-          </div>
-        </div>
+        <FormCard
+          title="Add New KPI"
+          headerBadge={<span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontFamily: 'monospace', fontWeight: '600' }}>{getNextKPIRef()}</span>}
+          onSave={handleAddKPI}
+          onCancel={() => setShowAddForm(false)}
+          saving={saving}
+          saveText="Save KPI"
+          variant="outlined"
+        >
+          <FormCard.Grid columns={2}>
+            <FormField.Input
+              label="KPI Name"
+              required
+              fullWidth
+              placeholder="e.g., First Time Quality of Deliverables"
+              value={newKPI.name}
+              onChange={(e) => setNewKPI({ ...newKPI, name: e.target.value })}
+            />
+            <FormField.Select
+              label="Category"
+              required
+              value={newKPI.category}
+              onChange={(e) => setNewKPI({ ...newKPI, category: e.target.value })}
+              options={categories}
+            />
+            <FormField.Input
+              label="Target (%)"
+              type="number"
+              min={0}
+              max={100}
+              value={newKPI.target}
+              onChange={(e) => setNewKPI({ ...newKPI, target: e.target.value })}
+            />
+          </FormCard.Grid>
+          <FormField.Textarea
+            label="Description"
+            required
+            rows={2}
+            placeholder="Describe what this KPI measures..."
+            value={newKPI.description}
+            onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })}
+          />
+          <FormField.Textarea
+            label="Measurement Method"
+            rows={2}
+            placeholder="How will this KPI be measured?"
+            value={newKPI.measurement_method}
+            onChange={(e) => setNewKPI({ ...newKPI, measurement_method: e.target.value })}
+          />
+          <FormCard.Grid columns={2}>
+            <FormField.Select
+              label="Frequency"
+              value={newKPI.frequency}
+              onChange={(e) => setNewKPI({ ...newKPI, frequency: e.target.value })}
+              options={frequencies}
+            />
+            <FormField.Input
+              label="Data Source"
+              placeholder="e.g., Deliverable Review Records"
+              value={newKPI.data_source}
+              onChange={(e) => setNewKPI({ ...newKPI, data_source: e.target.value })}
+            />
+          </FormCard.Grid>
+          <FormField.Input
+            label="Calculation Formula"
+            fullWidth
+            placeholder="e.g., Number approved at first review ÷ total reviewed"
+            value={newKPI.calculation}
+            onChange={(e) => setNewKPI({ ...newKPI, calculation: e.target.value })}
+          />
+          <FormField.Textarea
+            label="Remediation Plan"
+            rows={2}
+            placeholder="What actions should be taken if target is not met?"
+            value={newKPI.remediation}
+            onChange={(e) => setNewKPI({ ...newKPI, remediation: e.target.value })}
+          />
+        </FormCard>
       )}
 
       {/* KPIs Table */}

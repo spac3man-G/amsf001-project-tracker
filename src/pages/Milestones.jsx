@@ -7,6 +7,8 @@ import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
+import FormField from '../components/FormField';
+import FormCard from '../components/FormCard';
 import { useAuth, useProject } from '../hooks';
 import { canCreateMilestone, canEditMilestone, canDeleteMilestone } from '../utils/permissions';
 import { formatCurrency } from '../utils/statusHelpers';
@@ -181,45 +183,65 @@ export default function Milestones() {
 
       {/* Add Milestone Form */}
       {showAddForm && canAdd() && (
-        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Add Milestone</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label className="form-label">Reference *</label>
-              <input type="text" className="form-input" placeholder="e.g., M001" value={newMilestone.milestone_ref} onChange={(e) => setNewMilestone({ ...newMilestone, milestone_ref: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Name *</label>
-              <input type="text" className="form-input" placeholder="Milestone name" value={newMilestone.name} onChange={(e) => setNewMilestone({ ...newMilestone, name: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Start Date</label>
-              <input type="date" className="form-input" value={newMilestone.start_date} onChange={(e) => setNewMilestone({ ...newMilestone, start_date: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Due Date</label>
-              <input type="date" className="form-input" value={newMilestone.due_date} onChange={(e) => setNewMilestone({ ...newMilestone, due_date: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Status</label>
-              <select className="form-input" value={newMilestone.status} onChange={(e) => setNewMilestone({ ...newMilestone, status: e.target.value })}>
-                {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Budget (£)</label>
-              <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00" value={newMilestone.budget} onChange={(e) => setNewMilestone({ ...newMilestone, budget: e.target.value })} />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="form-label">Description</label>
-              <textarea className="form-input" rows={2} placeholder="Milestone description" value={newMilestone.description} onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save Milestone'}</button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
-          </div>
-        </div>
+        <FormCard
+          title="Add Milestone"
+          onSave={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+          saving={saving}
+          saveText="Save Milestone"
+          variant="outlined"
+        >
+          <FormCard.Grid columns={2}>
+            <FormField.Input
+              label="Reference"
+              required
+              placeholder="e.g., M001"
+              value={newMilestone.milestone_ref}
+              onChange={(e) => setNewMilestone({ ...newMilestone, milestone_ref: e.target.value })}
+            />
+            <FormField.Input
+              label="Name"
+              required
+              placeholder="Milestone name"
+              value={newMilestone.name}
+              onChange={(e) => setNewMilestone({ ...newMilestone, name: e.target.value })}
+            />
+            <FormField.Input
+              label="Start Date"
+              type="date"
+              value={newMilestone.start_date}
+              onChange={(e) => setNewMilestone({ ...newMilestone, start_date: e.target.value })}
+            />
+            <FormField.Input
+              label="Due Date"
+              type="date"
+              value={newMilestone.due_date}
+              onChange={(e) => setNewMilestone({ ...newMilestone, due_date: e.target.value })}
+            />
+            <FormField.Select
+              label="Status"
+              value={newMilestone.status}
+              onChange={(e) => setNewMilestone({ ...newMilestone, status: e.target.value })}
+              options={statuses}
+            />
+            <FormField.Input
+              label="Budget (£)"
+              type="number"
+              step={0.01}
+              min={0}
+              placeholder="0.00"
+              value={newMilestone.budget}
+              onChange={(e) => setNewMilestone({ ...newMilestone, budget: e.target.value })}
+            />
+          </FormCard.Grid>
+          <FormField.Textarea
+            label="Description"
+            rows={2}
+            placeholder="Milestone description"
+            value={newMilestone.description}
+            onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
+          />
+        </FormCard>
       )}
 
       {/* Milestones Cards */}

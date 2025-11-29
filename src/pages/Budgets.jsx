@@ -10,6 +10,8 @@ import StatCard, { StatGrid } from '../components/StatCard';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
+import FormField from '../components/FormField';
+import FormCard from '../components/FormCard';
 import { useAuth, useProject } from '../hooks';
 import { formatCurrency } from '../utils/statusHelpers';
 import { canEditBudget } from '../utils/permissions';
@@ -255,40 +257,62 @@ export default function Budgets() {
 
       {/* Add Budget Form */}
       {showAddForm && canEdit() && (
-        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Add Budget Item</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label className="form-label">Category *</label>
-              <select className="form-input" value={newBudget.category} onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Milestone (Optional)</label>
-              <select className="form-input" value={newBudget.milestone_id} onChange={(e) => setNewBudget({ ...newBudget, milestone_id: e.target.value })}>
+        <FormCard
+          title="Add Budget Item"
+          onSave={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+          saving={saving}
+          saveText="Save Budget Item"
+          variant="outlined"
+        >
+          <FormCard.Grid columns={2}>
+            <FormField.Select
+              label="Category"
+              required
+              value={newBudget.category}
+              onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}
+              options={categories}
+            />
+            <FormField
+              label="Milestone (Optional)"
+            >
+              <select
+                className="form-input"
+                value={newBudget.milestone_id}
+                onChange={(e) => setNewBudget({ ...newBudget, milestone_id: e.target.value })}
+              >
                 <option value="">-- Project-wide --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="form-label">Allocated Amount (£) *</label>
-              <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00" value={newBudget.allocated_amount} onChange={(e) => setNewBudget({ ...newBudget, allocated_amount: e.target.value })} />
-            </div>
-            <div>
-              <label className="form-label">Already Spent (£)</label>
-              <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00" value={newBudget.spent_amount} onChange={(e) => setNewBudget({ ...newBudget, spent_amount: e.target.value })} />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="form-label">Notes</label>
-              <textarea className="form-input" rows={2} placeholder="Additional notes" value={newBudget.notes} onChange={(e) => setNewBudget({ ...newBudget, notes: e.target.value })} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save Budget Item'}</button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
-          </div>
-        </div>
+            </FormField>
+            <FormField.Input
+              label="Allocated Amount (£)"
+              required
+              type="number"
+              step={0.01}
+              min={0}
+              placeholder="0.00"
+              value={newBudget.allocated_amount}
+              onChange={(e) => setNewBudget({ ...newBudget, allocated_amount: e.target.value })}
+            />
+            <FormField.Input
+              label="Already Spent (£)"
+              type="number"
+              step={0.01}
+              min={0}
+              placeholder="0.00"
+              value={newBudget.spent_amount}
+              onChange={(e) => setNewBudget({ ...newBudget, spent_amount: e.target.value })}
+            />
+          </FormCard.Grid>
+          <FormField.Textarea
+            label="Notes"
+            rows={2}
+            placeholder="Additional notes"
+            value={newBudget.notes}
+            onChange={(e) => setNewBudget({ ...newBudget, notes: e.target.value })}
+          />
+        </FormCard>
       )}
 
       {/* Budget Items Table */}
