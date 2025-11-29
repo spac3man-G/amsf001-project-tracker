@@ -143,6 +143,8 @@ export default function Milestones() {
       }
     } catch (error) {
       console.error('Error fetching milestones:', error);
+    } finally {
+      setLoading(false);
     }
   }
 
