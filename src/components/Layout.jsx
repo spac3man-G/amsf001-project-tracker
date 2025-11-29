@@ -23,11 +23,11 @@ import {
   PieChart
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
-import { 
-  canManageSystem, 
-  canViewWorkflow, 
+import {
+  canManageSystem,
+  canViewWorkflow,
   canViewFinancials,
-  getRoleDisplayConfig 
+  getRoleDisplayConfig
 } from '../utils/permissions';
 
 export default function Layout({ children }) {
@@ -95,7 +95,7 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
-  // Permission checks using centralized permissions utility
+  // Use centralized permission checks
   const hasSystemAccess = canManageSystem(userRole);
   const hasWorkflowAccess = canViewWorkflow(userRole);
   const hasFinancialAccess = canViewFinancials(userRole);
