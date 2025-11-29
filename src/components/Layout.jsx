@@ -23,30 +23,12 @@ import {
   PieChart
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
-
-// Permission checks
-function canManageSystem(role) {
-  return role === 'admin' || role === 'supplier_pm';
-}
-
-function canViewWorkflow(role) {
-  return ['supplier_pm', 'customer_pm'].includes(role);
-}
-
-function canViewFinancials(role) {
-  return role === 'admin' || role === 'supplier_pm';
-}
-
-function getRoleConfig(role) {
-  const configs = {
-    admin: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
-    supplier_pm: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
-    customer_pm: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
-    contributor: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
-    viewer: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' }
-  };
-  return configs[role] || configs.viewer;
-}
+import { 
+  canManageSystem, 
+  canViewWorkflow, 
+  canViewFinancials,
+  getRoleDisplayConfig 
+} from '../utils/permissions';
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -113,7 +95,7 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
-  // Permission checks using centralized permissions
+  // Permission checks using centralized permissions utility
   const hasSystemAccess = canManageSystem(userRole);
   const hasWorkflowAccess = canViewWorkflow(userRole);
   const hasFinancialAccess = canViewFinancials(userRole);
@@ -241,7 +223,8 @@ export default function Layout({ children }) {
     }
   }
 
-  const roleConfig = getRoleConfig(userRole);
+  // Use centralized role display config
+  const roleConfig = getRoleDisplayConfig(userRole);
 
   const isAccountPage = location.pathname === '/account';
 
