@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2 } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -32,12 +32,12 @@ export default function Resources() {
     role: '',
     sfia_level: 'L4',
     daily_rate: '',
+    cost_price: '',
     discount_percent: 0,
     days_allocated: '',
     days_used: 0,
     resource_type: 'internal'
   });
-
 
   // Fetch resources when projectId is available
   useEffect(() => {
@@ -83,6 +83,27 @@ export default function Resources() {
     }
   }
 
+  // Calculate margin percentage
+  function calculateMargin(dailyRate, costPrice) {
+    if (!dailyRate || dailyRate === 0) return null;
+    if (!costPrice) return null;
+    return ((dailyRate - costPrice) / dailyRate) * 100;
+  }
+
+  // Get margin color based on percentage
+  function getMarginStyle(marginPercent) {
+    if (marginPercent === null) {
+      return { color: '#9ca3af', bg: '#f1f5f9', label: 'N/A', icon: Minus };
+    }
+    if (marginPercent >= 25) {
+      return { color: '#16a34a', bg: '#dcfce7', label: 'Good', icon: TrendingUp };
+    }
+    if (marginPercent >= 10) {
+      return { color: '#d97706', bg: '#fef3c7', label: 'Low', icon: Minus };
+    }
+    return { color: '#dc2626', bg: '#fee2e2', label: 'Critical', icon: TrendingDown };
+  }
+
   async function handleEdit(resource) {
     setEditingId(resource.id);
     setEditForm({
@@ -91,6 +112,7 @@ export default function Resources() {
       role: resource.role,
       sfia_level: resource.sfia_level,
       daily_rate: resource.daily_rate,
+      cost_price: resource.cost_price || '',
       discount_percent: resource.discount_percent,
       days_allocated: resource.days_allocated,
       days_used: resource.days_used,
@@ -100,9 +122,17 @@ export default function Resources() {
 
   async function handleSave(id) {
     try {
+      const updateData = { ...editForm };
+      // Convert cost_price to number or null
+      if (updateData.cost_price === '' || updateData.cost_price === null) {
+        updateData.cost_price = null;
+      } else {
+        updateData.cost_price = parseFloat(updateData.cost_price);
+      }
+      
       const { error } = await supabase
         .from('resources')
-        .update(editForm)
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
@@ -140,17 +170,20 @@ export default function Resources() {
         return;
       }
 
+      const insertData = {
+        ...newResource,
+        project_id: project.id,
+        user_id: existingProfile.id,
+        daily_rate: parseFloat(newResource.daily_rate),
+        cost_price: newResource.cost_price ? parseFloat(newResource.cost_price) : null,
+        days_allocated: parseInt(newResource.days_allocated),
+        discount_percent: parseFloat(newResource.discount_percent) || 0,
+        created_by: currentUserId
+      };
+
       const { error } = await supabase
         .from('resources')
-        .insert([{
-          ...newResource,
-          project_id: project.id,
-          user_id: existingProfile.id,
-          daily_rate: parseFloat(newResource.daily_rate),
-          days_allocated: parseInt(newResource.days_allocated),
-          discount_percent: parseFloat(newResource.discount_percent) || 0,
-          created_by: currentUserId
-        }]);
+        .insert([insertData]);
 
       if (error) throw error;
       
@@ -163,6 +196,7 @@ export default function Resources() {
         role: '',
         sfia_level: 'L4',
         daily_rate: '',
+        cost_price: '',
         discount_percent: 0,
         days_allocated: '',
         days_used: 0,
@@ -253,6 +287,23 @@ export default function Resources() {
   const internalCount = resources.filter(r => (r.resource_type || 'internal') === 'internal').length;
   const thirdPartyCount = resources.filter(r => r.resource_type === 'third_party').length;
 
+  // Calculate margin stats (only for resources with cost_price set)
+  const resourcesWithCostPrice = filteredResources.filter(r => r.cost_price && r.daily_rate);
+  const totalRevenue = resourcesWithCostPrice.reduce((sum, r) => sum + ((r.daily_rate || 0) * (r.days_allocated || 0)), 0);
+  const totalCost = resourcesWithCostPrice.reduce((sum, r) => sum + ((r.cost_price || 0) * (r.days_allocated || 0)), 0);
+  const overallMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : null;
+  const overallMarginStyle = getMarginStyle(overallMargin);
+
+  // Count margins by category
+  const marginCounts = { good: 0, low: 0, critical: 0, unknown: 0 };
+  filteredResources.forEach(r => {
+    const margin = calculateMargin(r.daily_rate, r.cost_price);
+    if (margin === null) marginCounts.unknown++;
+    else if (margin >= 25) marginCounts.good++;
+    else if (margin >= 10) marginCounts.low++;
+    else marginCounts.critical++;
+  });
+
   if (loading) {
     return (
       <div>
@@ -270,7 +321,8 @@ export default function Resources() {
 
   return (
     <div>
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+      {/* Stats Row 1 - General */}
+      <div className="stats-grid" style={{ marginBottom: '1rem' }}>
         <div className="stat-card">
           <div className="stat-value">{filteredResources.length}</div>
           <div className="stat-label">Team Members</div>
@@ -294,6 +346,42 @@ export default function Resources() {
           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{totalDaysUsed.toFixed(1)} days used</div>
         </div>
       </div>
+
+      {/* Stats Row 2 - Margin Stats (only visible to Supplier PM/Admin) */}
+      {canSeeCostPrice && (
+        <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+          <div className="stat-card" style={{ borderLeft: `4px solid ${overallMarginStyle.color}` }}>
+            <div className="stat-value" style={{ color: overallMarginStyle.color }}>
+              {overallMargin !== null ? `${overallMargin.toFixed(1)}%` : 'N/A'}
+            </div>
+            <div className="stat-label">Overall Margin</div>
+            {totalRevenue > 0 && (
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                £{(totalRevenue - totalCost).toLocaleString()} profit
+              </div>
+            )}
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#16a34a' }}>{marginCounts.good}</div>
+            <div className="stat-label">Good Margin (≥25%)</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#d97706' }}>{marginCounts.low}</div>
+            <div className="stat-label">Low Margin (10-25%)</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: marginCounts.critical > 0 ? '#dc2626' : '#64748b' }}>
+              {marginCounts.critical}
+            </div>
+            <div className="stat-label">Critical (&lt;10%)</div>
+            {marginCounts.unknown > 0 && (
+              <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                {marginCounts.unknown} not set
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header">
@@ -369,11 +457,20 @@ export default function Resources() {
               </select>
               <input
                 className="input-field"
-                placeholder="Daily Rate (£)"
+                placeholder="Daily Rate (£) - Customer"
                 type="number"
                 value={newResource.daily_rate}
                 onChange={(e) => setNewResource({...newResource, daily_rate: e.target.value})}
               />
+              {canSeeCostPrice && (
+                <input
+                  className="input-field"
+                  placeholder="Cost Price (£) - Internal"
+                  type="number"
+                  value={newResource.cost_price}
+                  onChange={(e) => setNewResource({...newResource, cost_price: e.target.value})}
+                />
+              )}
               <input
                 className="input-field"
                 placeholder="Discount %"
@@ -418,10 +515,12 @@ export default function Resources() {
                 <th>Role</th>
                 <th>SFIA Level</th>
                 <th>Daily Rate</th>
+                {canSeeCostPrice && <th>Cost Price</th>}
+                {canSeeCostPrice && <th>Margin</th>}
                 <th>Days</th>
                 <th>Utilization</th>
-                <th>Total Cost</th>
-                {(userRole === 'admin' || userRole === 'supplier_pm') && <th>Actions</th>}
+                <th>Total Value</th>
+                {canManageResources && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -433,6 +532,9 @@ export default function Resources() {
                 const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
                 const typeStyle = getResourceTypeStyle(resource.resource_type);
                 const TypeIcon = typeStyle.icon;
+                const margin = calculateMargin(resource.daily_rate, resource.cost_price);
+                const marginStyle = getMarginStyle(margin);
+                const MarginIcon = marginStyle.icon;
                 
                 return (
                   <tr key={resource.id}>
@@ -482,14 +584,29 @@ export default function Resources() {
                             type="number"
                             value={editForm.daily_rate}
                             onChange={(e) => setEditForm({...editForm, daily_rate: e.target.value})}
+                            style={{ width: '80px' }}
                           />
                         </td>
+                        {canSeeCostPrice && (
+                          <td>
+                            <input
+                              className="input-field"
+                              type="number"
+                              value={editForm.cost_price}
+                              onChange={(e) => setEditForm({...editForm, cost_price: e.target.value})}
+                              placeholder="Cost"
+                              style={{ width: '80px' }}
+                            />
+                          </td>
+                        )}
+                        {canSeeCostPrice && <td>-</td>}
                         <td>
                           <input
                             className="input-field"
                             type="number"
                             value={editForm.days_allocated}
                             onChange={(e) => setEditForm({...editForm, days_allocated: e.target.value})}
+                            style={{ width: '60px' }}
                           />
                         </td>
                         <td>-</td>
@@ -542,7 +659,7 @@ export default function Resources() {
                               title={canSeeResourceType ? 'Click to toggle type' : typeStyle.label}
                             >
                               <TypeIcon size={14} />
-                              {resource.resource_type === 'third_party' ? 'Third-Party' : 'Internal'}
+                              {resource.resource_type === 'third_party' ? '3rd Party' : 'Internal'}
                             </button>
                           </td>
                         )}
@@ -554,6 +671,36 @@ export default function Resources() {
                           </span>
                         </td>
                         <td>£{resource.daily_rate}</td>
+                        {canSeeCostPrice && (
+                          <td>
+                            {resource.cost_price ? (
+                              <span style={{ fontFamily: 'monospace' }}>£{resource.cost_price}</span>
+                            ) : (
+                              <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>Not set</span>
+                            )}
+                          </td>
+                        )}
+                        {canSeeCostPrice && (
+                          <td>
+                            <div
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                padding: '0.25rem 0.5rem',
+                                backgroundColor: marginStyle.bg,
+                                color: marginStyle.color,
+                                borderRadius: '4px',
+                                fontSize: '0.85rem',
+                                fontWeight: '600'
+                              }}
+                              title={margin !== null ? `${marginStyle.label} margin` : 'Cost price not set'}
+                            >
+                              <MarginIcon size={14} />
+                              {margin !== null ? `${margin.toFixed(0)}%` : 'N/A'}
+                            </div>
+                          </td>
+                        )}
                         <td>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -589,6 +736,11 @@ export default function Resources() {
                         </td>
                         <td>
                           <strong>£{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong>
+                          {canSeeCostPrice && resource.cost_price && (
+                            <div style={{ fontSize: '0.75rem', color: marginStyle.color }}>
+                              £{(((resource.daily_rate || 0) - (resource.cost_price || 0)) * (resource.days_allocated || 0)).toLocaleString()} profit
+                            </div>
+                          )}
                         </td>
                         {canManageResources && (
                           <td>
@@ -622,9 +774,79 @@ export default function Resources() {
         </div>
       </div>
 
+      {/* Margin Legend - only visible to admin/supplier_pm */}
+      {canSeeCostPrice && (
+        <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc' }}>
+          <h4 style={{ marginBottom: '0.75rem' }}>📊 Margin Guide</h4>
+          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.25rem',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: '#dcfce7',
+                color: '#16a34a',
+                borderRadius: '4px',
+                fontSize: '0.85rem',
+                fontWeight: '600'
+              }}>
+                <TrendingUp size={14} />
+                ≥25%
+              </div>
+              <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                Good margin - healthy profitability
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.25rem',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: '#fef3c7',
+                color: '#d97706',
+                borderRadius: '4px',
+                fontSize: '0.85rem',
+                fontWeight: '600'
+              }}>
+                <Minus size={14} />
+                10-25%
+              </div>
+              <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                Low margin - review pricing
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.25rem',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                borderRadius: '4px',
+                fontSize: '0.85rem',
+                fontWeight: '600'
+              }}>
+                <TrendingDown size={14} />
+                &lt;10%
+              </div>
+              <span style={{ color: '#64748b', fontSize: '0.875rem' }}>
+                Critical - action required
+              </span>
+            </div>
+          </div>
+          <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+            <strong>Margin</strong> = (Daily Rate - Cost Price) ÷ Daily Rate × 100. 
+            Cost price and margin data is only visible to Admin and Supplier PM.
+          </p>
+        </div>
+      )}
+
       {/* Resource Type Legend - only visible to admin/supplier_pm */}
       {canSeeResourceType && (
-        <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc' }}>
+        <div className="card" style={{ marginTop: '1rem', backgroundColor: '#f8fafc' }}>
           <h4 style={{ marginBottom: '0.75rem' }}>📋 Resource Types</h4>
           <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
