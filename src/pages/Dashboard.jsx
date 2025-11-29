@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling, Briefcase, FileCheck } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useProject } from '../contexts/ProjectContext';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard, StatusBadge } from '../components/common';
 
 // Helper function to check if a role is PMO
 function isPMORole(role) {
@@ -204,14 +204,6 @@ export default function Dashboard() {
     finally { setLoading(false); }
   }
 
-  function getStatusColor(status) {
-    switch (status) {
-      case 'Completed': return { bg: '#dcfce7', color: '#16a34a' };
-      case 'In Progress': return { bg: '#dbeafe', color: '#2563eb' };
-      default: return { bg: '#f1f5f9', color: '#64748b' };
-    }
-  }
-
   function getCategoryColor(category) {
     switch (category) {
       case 'Time Performance': return '#3b82f6';
@@ -225,15 +217,11 @@ export default function Dashboard() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <Target size={28} />
-          <div>
-            <h1>AMSF001 Dashboard</h1>
-            <p>Network Standards & Design Architectural Services</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader 
+        icon={Target}
+        title="AMSF001 Dashboard"
+        subtitle="Network Standards & Design Architectural Services"
+      />
 
       {/* Project Progress Hero */}
       <div className="card" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', color: 'white' }}>
@@ -411,26 +399,34 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label"><Clock size={20} style={{ color: '#3b82f6' }} /> Milestones</div>
-          <div className="stat-value">{stats.completedMilestones} / {stats.totalMilestones}</div>
-          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{stats.totalMilestones > 0 ? Math.round((stats.completedMilestones / stats.totalMilestones) * 100) : 0}% Complete</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label"><Package size={20} style={{ color: '#10b981' }} /> Deliverables</div>
-          <div className="stat-value">{stats.deliveredCount} / {stats.totalDeliverables}</div>
-          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{stats.totalDeliverables > 0 ? Math.round((stats.deliveredCount / stats.totalDeliverables) * 100) : 0}% Delivered</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label"><TrendingUp size={20} style={{ color: '#3b82f6' }} /> KPIs</div>
-          <div className="stat-value">{stats.achievedKPIs} / {stats.totalKPIs}</div>
-          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{stats.totalKPIs > 0 ? Math.round((stats.achievedKPIs / stats.totalKPIs) * 100) : 0}% Achieved</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label"><Award size={20} style={{ color: '#8b5cf6' }} /> Quality Standards</div>
-          <div className="stat-value">{stats.achievedQS} / {stats.totalQS}</div>
-          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{stats.totalQS > 0 ? Math.round((stats.achievedQS / stats.totalQS) * 100) : 0}% Achieved</div>
-        </div>
+        <StatCard
+          icon={Clock}
+          label="Milestones"
+          value={`${stats.completedMilestones} / ${stats.totalMilestones}`}
+          subtext={`${stats.totalMilestones > 0 ? Math.round((stats.completedMilestones / stats.totalMilestones) * 100) : 0}% Complete`}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={Package}
+          label="Deliverables"
+          value={`${stats.deliveredCount} / ${stats.totalDeliverables}`}
+          subtext={`${stats.totalDeliverables > 0 ? Math.round((stats.deliveredCount / stats.totalDeliverables) * 100) : 0}% Delivered`}
+          color="#10b981"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="KPIs"
+          value={`${stats.achievedKPIs} / ${stats.totalKPIs}`}
+          subtext={`${stats.totalKPIs > 0 ? Math.round((stats.achievedKPIs / stats.totalKPIs) * 100) : 0}% Achieved`}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={Award}
+          label="Quality Standards"
+          value={`${stats.achievedQS} / ${stats.totalQS}`}
+          subtext={`${stats.totalQS > 0 ? Math.round((stats.achievedQS / stats.totalQS) * 100) : 0}% Achieved`}
+          color="#8b5cf6"
+        />
       </div>
 
       {/* Milestone Certificates Meter */}
@@ -638,7 +634,6 @@ export default function Dashboard() {
             {milestones.length === 0 ? (
               <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No milestones found</td></tr>
             ) : milestones.map(milestone => {
-              const statusColors = getStatusColor(milestone.status);
               const spend = milestoneSpend[milestone.id] || 0;
               const spendPercent = milestone.budget > 0 ? Math.round((spend / milestone.budget) * 100) : 0;
               return (
@@ -668,7 +663,7 @@ export default function Dashboard() {
                       <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '35px' }}>{milestone.progress || 0}%</span>
                     </div>
                   </td>
-                  <td><span style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem', backgroundColor: statusColors.bg, color: statusColors.color, fontWeight: '500' }}>{milestone.status || 'Not Started'}</span></td>
+                  <td><StatusBadge status={milestone.status || 'Not Started'} /></td>
                 </tr>
               );
             })}
