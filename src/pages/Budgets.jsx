@@ -7,6 +7,8 @@ import {
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
 import { useAuth, useProject } from '../hooks';
+import { formatCurrency } from '../utils/statusHelpers';
+import { canEditBudget } from '../utils/permissions';
 
 export default function Budgets() {
   // ============================================
@@ -81,7 +83,7 @@ export default function Budgets() {
   }
 
   function canEdit() {
-    return userRole === 'admin' || userRole === 'project_manager';
+    return canEditBudget(userRole);
   }
 
   async function handleAdd() {
@@ -242,22 +244,22 @@ export default function Budgets() {
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card">
           <div className="stat-label">PROJECT BUDGET</div>
-          <div className="stat-value">£{projectBudget.toLocaleString('en-GB')}</div>
+          <div className="stat-value">{formatCurrency(projectBudget)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">TOTAL ALLOCATED</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>£{totalAllocated.toLocaleString('en-GB')}</div>
+          <div className="stat-value" style={{ color: '#3b82f6' }}>{formatCurrency(totalAllocated)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">TOTAL SPENT</div>
           <div className="stat-value" style={{ color: totalSpent > totalAllocated ? '#ef4444' : '#10b981' }}>
-            £{totalSpent.toLocaleString('en-GB')}
+            {formatCurrency(totalSpent)}
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-label">REMAINING</div>
           <div className="stat-value" style={{ color: totalRemaining < 0 ? '#ef4444' : '#10b981' }}>
-            £{totalRemaining.toLocaleString('en-GB')}
+            {formatCurrency(totalRemaining)}
           </div>
         </div>
       </div>
@@ -279,8 +281,8 @@ export default function Budgets() {
           }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
-          <span>£{totalSpent.toLocaleString('en-GB')} spent</span>
-          <span>£{totalAllocated.toLocaleString('en-GB')} allocated</span>
+          <span>{formatCurrency(totalSpent)} spent</span>
+          <span>{formatCurrency(totalAllocated)} allocated</span>
         </div>
       </div>
 
@@ -296,7 +298,7 @@ export default function Budgets() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                     <span style={{ fontWeight: '500' }}>{cat.category}</span>
                     <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                      £{cat.spent.toLocaleString('en-GB')} / £{cat.allocated.toLocaleString('en-GB')}
+                      {formatCurrency(cat.spent)} / {formatCurrency(cat.allocated)}
                     </span>
                   </div>
                   <div style={{ height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
@@ -440,18 +442,18 @@ export default function Budgets() {
                       {editingId === budget.id ? (
                         <input type="number" step="0.01" className="form-input" value={editForm.allocated_amount} onChange={(e) => setEditForm({ ...editForm, allocated_amount: e.target.value })} style={{ width: '100px', textAlign: 'right' }} />
                       ) : (
-                        `£${parseFloat(budget.allocated_amount || 0).toLocaleString('en-GB')}`
+                        formatCurrency(budget.allocated_amount)
                       )}
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       {editingId === budget.id ? (
                         <input type="number" step="0.01" className="form-input" value={editForm.spent_amount} onChange={(e) => setEditForm({ ...editForm, spent_amount: e.target.value })} style={{ width: '100px', textAlign: 'right' }} />
                       ) : (
-                        `£${parseFloat(budget.spent_amount || 0).toLocaleString('en-GB')}`
+                        formatCurrency(budget.spent_amount)
                       )}
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: '600', color: remaining < 0 ? '#ef4444' : '#10b981' }}>
-                      £{remaining.toLocaleString('en-GB')}
+                      {formatCurrency(remaining)}
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -510,8 +512,8 @@ export default function Budgets() {
             <strong>Budget Warning</strong>
           </div>
           <p style={{ color: '#dc2626', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>
-            Spending (£{totalSpent.toLocaleString('en-GB')}) has exceeded the allocated budget (£{totalAllocated.toLocaleString('en-GB')}) 
-            by £{(totalSpent - totalAllocated).toLocaleString('en-GB')}.
+            Spending ({formatCurrency(totalSpent)}) has exceeded the allocated budget ({formatCurrency(totalAllocated)}) 
+            by {formatCurrency(totalSpent - totalAllocated)}.
           </p>
         </div>
       )}

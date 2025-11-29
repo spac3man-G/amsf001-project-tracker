@@ -6,6 +6,8 @@ import {
   FileText, Info, CheckCircle, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../hooks';
+import { useToast } from '../components/Toast';
+import { canEditKPI } from '../utils/permissions';
 
 export default function KPIDetail() {
   // ============================================
@@ -14,6 +16,7 @@ export default function KPIDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { userRole, loading: authLoading } = useAuth();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -79,10 +82,10 @@ export default function KPIDetail() {
       if (error) throw error;
       await fetchKPI();
       setEditing(false);
-      alert('KPI updated successfully!');
+      toast.success('KPI updated successfully');
     } catch (error) {
       console.error('Error updating KPI:', error);
-      alert('Failed to update KPI: ' + error.message);
+      toast.error('Failed to update KPI', error.message);
     }
   }
 
@@ -118,7 +121,7 @@ export default function KPIDetail() {
   }
 
   const statusInfo = getStatusInfo(kpi.current_value, kpi.target);
-  const canEdit = userRole === 'admin' || userRole === 'contributor';
+  const canEdit = canEditKPI(userRole);
 
   return (
     <div className="page-container">

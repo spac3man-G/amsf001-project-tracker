@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { FileText, Edit2, Save, X, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../hooks';
+import { canEditNetworkStandard } from '../utils/permissions';
+import { useToast } from '../components/Toast';
 
 export default function NetworkStandards() {
   // ============================================
   // HOOKS
   // ============================================
   const { userRole, loading: authLoading } = useAuth();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -80,10 +83,10 @@ export default function NetworkStandards() {
       
       await fetchStandards();
       setEditingId(null);
-      alert('Standard updated successfully!');
+      toast.success('Standard updated successfully');
     } catch (error) {
       console.error('Error updating standard:', error);
-      alert('Failed to update standard');
+      toast.error('Failed to update standard');
     }
   }
 
@@ -279,7 +282,7 @@ export default function NetworkStandards() {
                 <th>Progress</th>
                 <th>Assigned To</th>
                 <th>Target</th>
-                {(userRole === 'admin' || userRole === 'contributor') && <th>Actions</th>}
+                {canEditNetworkStandard(userRole) && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -373,7 +376,7 @@ export default function NetworkStandards() {
                   <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
                     {standard.target_milestone}
                   </td>
-                  {(userRole === 'admin' || userRole === 'contributor') && (
+                  {canEditNetworkStandard(userRole) && (
                     <td>
                       {editingId === standard.id ? (
                         <div className="action-buttons">

@@ -7,6 +7,7 @@ import {
   CheckCircle, Filter, Eye, UserCheck
 } from 'lucide-react';
 import { useAuth, useProject } from '../hooks';
+import { useToast } from '../components/Toast';
 
 export default function WorkflowSummary() {
   // ============================================
@@ -15,6 +16,7 @@ export default function WorkflowSummary() {
   const { userId: currentUserId, userRole, profile: currentUserProfile, loading: authLoading } = useAuth();
   const { projectId, loading: projectLoading } = useProject();
   const navigate = useNavigate();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -46,7 +48,7 @@ export default function WorkflowSummary() {
     if (!authLoading && !projectLoading) {
       // Viewers cannot access workflow summary
       if (userRole === 'viewer') {
-        alert('You do not have permission to view this page.');
+        toast.warning('You do not have permission to view this page');
         navigate('/');
         return;
       }

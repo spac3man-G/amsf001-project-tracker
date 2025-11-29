@@ -10,6 +10,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { ReportsSkeleton } from '../components/SkeletonLoader';
 import { useProject } from '../hooks';
+import { formatCurrency } from '../utils/statusHelpers';
 
 export default function Reports() {
   // ============================================
@@ -327,19 +328,19 @@ export default function Reports() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div className="stat-label">TOTAL EXPENSES</div>
-              <div className="stat-value">£{totalExpenses.toLocaleString('en-GB')}</div>
+              <div className="stat-value">{formatCurrency(totalExpenses)}</div>
             </div>
             <Receipt size={24} style={{ color: '#8b5cf6' }} />
           </div>
           <div style={{ fontSize: '0.85rem', color: '#10b981', marginTop: '0.5rem' }}>
-            £{approvedExpenses.toLocaleString('en-GB')} approved
+            {formatCurrency(approvedExpenses)} approved
           </div>
         </div>
         <div className="stat-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div className="stat-label">EST. LABOUR COST</div>
-              <div className="stat-value">£{labourCost.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+              <div className="stat-value">{formatCurrency(labourCost)}</div>
             </div>
             <Users size={24} style={{ color: '#f59e0b' }} />
           </div>
@@ -394,9 +395,9 @@ export default function Reports() {
                       <tr key={r.name}>
                         <td style={{ fontWeight: '500' }}>{r.name}</td>
                         <td style={{ textAlign: 'right' }}>{r.hours.toFixed(1)}</td>
-                        <td style={{ textAlign: 'right' }}>£{r.dayRate.toLocaleString('en-GB')}</td>
+                        <td style={{ textAlign: 'right' }}>{formatCurrency(r.dayRate)}</td>
                         <td style={{ textAlign: 'right', fontWeight: '600' }}>
-                          £{(r.hours * (r.dayRate / 8)).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          {formatCurrency(r.hours * (r.dayRate / 8))}
                         </td>
                       </tr>
                     ))}
@@ -404,7 +405,7 @@ export default function Reports() {
                       <td>TOTAL</td>
                       <td style={{ textAlign: 'right' }}>{totalHours.toFixed(1)}</td>
                       <td></td>
-                      <td style={{ textAlign: 'right' }}>£{labourCost.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                      <td style={{ textAlign: 'right' }}>{formatCurrency(labourCost)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -435,7 +436,7 @@ export default function Reports() {
                     <div key={c.category} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', textAlign: 'center' }}>
                       <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{c.category}</div>
                       <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#3b82f6' }}>
-                        £{c.amount.toLocaleString('en-GB')}
+                        {formatCurrency(c.amount)}
                       </div>
                     </div>
                   ))}
@@ -514,19 +515,19 @@ export default function Reports() {
                 <div style={{ padding: '1rem', backgroundColor: '#eff6ff', borderRadius: '8px', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.85rem', color: '#3b82f6' }}>Allocated</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e40af' }}>
-                    £{budgetAllocated.toLocaleString('en-GB')}
+                    {formatCurrency(budgetAllocated)}
                   </div>
                 </div>
                 <div style={{ padding: '1rem', backgroundColor: budgetSpent > budgetAllocated ? '#fef2f2' : '#f0fdf4', borderRadius: '8px', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.85rem', color: budgetSpent > budgetAllocated ? '#dc2626' : '#10b981' }}>Spent</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: '700', color: budgetSpent > budgetAllocated ? '#dc2626' : '#166534' }}>
-                    £{budgetSpent.toLocaleString('en-GB')}
+                    {formatCurrency(budgetSpent)}
                   </div>
                 </div>
                 <div style={{ padding: '1rem', backgroundColor: '#fefce8', borderRadius: '8px', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.85rem', color: '#f59e0b' }}>Remaining</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#92400e' }}>
-                    £{(budgetAllocated - budgetSpent).toLocaleString('en-GB')}
+                    {formatCurrency(budgetAllocated - budgetSpent)}
                   </div>
                 </div>
               </div>

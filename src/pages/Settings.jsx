@@ -8,6 +8,8 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
 import { useAuth, useProject } from '../hooks';
+import { formatCurrency } from '../utils/statusHelpers';
+import { canManageSystem } from '../utils/permissions';
 
 export default function Settings() {
   // ============================================
@@ -178,7 +180,7 @@ export default function Settings() {
         >
           <Bell size={18} /> Preferences
         </button>
-        {userRole === 'admin' && (
+        {canManageSystem(userRole) && (
           <>
             <button 
               onClick={() => setActiveTab('users')}
@@ -333,7 +335,7 @@ export default function Settings() {
       )}
 
       {/* User Management Tab (Admin Only) */}
-      {activeTab === 'users' && userRole === 'admin' && (
+      {activeTab === 'users' && canManageSystem(userRole) && (
         <div className="card">
           <h3 style={{ marginBottom: '1.5rem' }}>User Management</h3>
           
@@ -409,7 +411,7 @@ export default function Settings() {
       )}
 
       {/* Data Management Tab (Admin Only) */}
-      {activeTab === 'data' && userRole === 'admin' && (
+      {activeTab === 'data' && canManageSystem(userRole) && (
         <div className="card">
           <h3 style={{ marginBottom: '1.5rem' }}>Data Management</h3>
           
@@ -435,7 +437,7 @@ export default function Settings() {
                 </div>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Budget</div>
-                  <div style={{ fontWeight: '600' }}>£{(project.budget || 0).toLocaleString('en-GB')}</div>
+                  <div style={{ fontWeight: '600' }}>{formatCurrency(project?.budget)}</div>
                 </div>
               </div>
             </div>
@@ -480,7 +482,7 @@ export default function Settings() {
       <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e' }}>
         <h4 style={{ marginBottom: '0.5rem', color: '#166534' }}>Your Permissions</h4>
         <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#166534', fontSize: '0.9rem' }}>
-          {userRole === 'admin' && (
+          {canManageSystem(userRole) && (
             <>
               <li>Full access to all features and data</li>
               <li>Can manage user roles and permissions</li>

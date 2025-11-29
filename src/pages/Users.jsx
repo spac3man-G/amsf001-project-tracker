@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../hooks';
+import { canManageUsers } from '../utils/permissions';
+import { useToast } from '../components/Toast';
 
 export default function Users() {
   // ============================================
@@ -16,6 +18,7 @@ export default function Users() {
   // ============================================
   const { userId: currentUserId, userRole, loading: authLoading } = useAuth();
   const { showTestUsers, toggleTestUsers, canToggleTestUsers, testUserIds } = useTestUsers();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -45,10 +48,10 @@ export default function Users() {
   ];
 
   // Permission check
-  const canManageUsers = userRole === 'admin' || userRole === 'supplier_pm';
+  // Using canManageUsers from utils/permissions
 
   useEffect(() => {
-    if (!authLoading && canManageUsers) {
+    if (!authLoading && canManageUsers(userRole)) {
       fetchData();
     } else if (!authLoading) {
       setLoading(false);
@@ -91,7 +94,7 @@ export default function Users() {
 
   async function handleCreateUser() {
     if (!newUser.email || !newUser.password) {
-      alert('Email and password are required');
+      toast.warning('Email and password are required');
       return;
     }
 
@@ -121,10 +124,10 @@ export default function Users() {
       await fetchData();
       setShowCreateForm(false);
       setNewUser({ email: '', password: '', full_name: '', role: 'viewer' });
-      alert('User created successfully!');
+      toast.success('User created successfully');
     } catch (error) {
       console.error('Error creating user:', error);
-      alert('Failed to create user: ' + error.message);
+      toast.error('Failed to create user', error.message);
     }
   }
 
@@ -140,21 +143,21 @@ export default function Users() {
       setEditingId(null);
     } catch (error) {
       console.error('Error updating role:', error);
-      alert('Failed to update role');
+      toast.error('Failed to update role');
     }
   }
 
   async function handleDeleteUser(userId) {
     // Prevent deleting yourself
     if (userId === currentUserId) {
-      alert('You cannot delete your own account');
+      toast.warning('You cannot delete your own account');
       return;
     }
 
     // Prevent deleting test users when not in test mode
     const user = users.find(u => u.id === userId);
     if (user?.is_test_user && !showTestUsers) {
-      alert('Cannot delete test users');
+      toast.warning('Cannot delete test users');
       return;
     }
 
@@ -171,17 +174,17 @@ export default function Users() {
 
       // Note: Deleting from auth.users may require admin API
       await fetchData();
-      alert('User deleted');
+      toast.success('User deleted');
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Failed to delete user');
+      toast.error('Failed to delete user');
     }
   }
 
   // Link user to resource
   async function handleLinkResource(userId) {
     if (!selectedResourceId) {
-      alert('Please select a resource');
+      toast.warning('Please select a resource');
       return;
     }
 
@@ -196,10 +199,10 @@ export default function Users() {
       await fetchData();
       setLinkingId(null);
       setSelectedResourceId('');
-      alert('Resource linked successfully!');
+      toast.success('Resource linked successfully');
     } catch (error) {
       console.error('Error linking resource:', error);
-      alert('Failed to link resource');
+      toast.error('Failed to link resource');
     }
   }
 
@@ -216,10 +219,10 @@ export default function Users() {
       if (error) throw error;
       
       await fetchData();
-      alert('Resource unlinked');
+      toast.success('Resource unlinked');
     } catch (error) {
       console.error('Error unlinking resource:', error);
-      alert('Failed to unlink resource');
+      toast.error('Failed to unlink resource');
     }
   }
 
@@ -238,7 +241,7 @@ export default function Users() {
   // Count test users for the badge
   const testUserCount = users.filter(u => u.is_test_user).length;
 
-  if (!canManageUsers) {
+  if (!canManageUsers(userRole)) {
     return (
       <div className="page-container">
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
@@ -333,7 +336,7 @@ export default function Users() {
       </div>
 
       {/* Create User Form - Available to Admin and Supplier PM */}
-      {canManageUsers && (
+      {canManageUsers(userRole) && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           {!showCreateForm ? (
             <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
@@ -410,13 +413,13 @@ export default function Users() {
               <th>Role</th>
               <th>Created</th>
               {showTestUsers && <th>Type</th>}
-              {canManageUsers && <th>Actions</th>}
+              {canManageUsers(userRole) && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan={canManageUsers ? 7 : 6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                <td colSpan={canManageUsers(userRole) ? 7 : 6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                   No users found
                 </td>
               </tr>
@@ -503,7 +506,7 @@ export default function Users() {
                           <span style={{ color: '#10b981', fontWeight: '500' }}>
                             {linkedResource.name}
                           </span>
-                          {canManageUsers && (
+                          {canManageUsers(userRole) && (
                             <button
                               className="btn-icon"
                               onClick={() => handleUnlinkResource(linkedResource.id)}
@@ -517,7 +520,7 @@ export default function Users() {
                       ) : (
                         <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>
                           Not linked
-                          {canManageUsers && (
+                          {canManageUsers(userRole) && (
                             <button
                               onClick={() => setLinkingId(user.id)}
                               style={{
@@ -586,7 +589,7 @@ export default function Users() {
                         )}
                       </td>
                     )}
-                    {canManageUsers && (
+                    {canManageUsers(userRole) && (
                       <td>
                         {editingId === user.id ? (
                           <div style={{ display: 'flex', gap: '0.25rem' }}>

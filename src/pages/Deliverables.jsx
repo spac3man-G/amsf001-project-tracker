@@ -6,6 +6,7 @@ import {
   AlertCircle, Send, ThumbsUp, RotateCcw, Info
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { useToast } from '../components/Toast';
 import { useAuth, useProject } from '../hooks';
 import {
   canContributeDeliverable,
@@ -135,6 +136,7 @@ export default function Deliverables() {
   const { userId, userRole, loading: authLoading } = useAuth();
   const { projectId, loading: projectLoading } = useProject();
   const { showTestUsers } = useTestUsers();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -216,7 +218,7 @@ export default function Deliverables() {
       setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
       setShowAddForm(false);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { toast.error('Operation failed', error.message); }
   }
 
   function openEditModal(deliverable) {
@@ -241,7 +243,7 @@ export default function Deliverables() {
 
       setShowEditModal(false);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { toast.error('Operation failed', error.message); }
   }
 
   async function handleStatusChange(deliverable, newStatus) {
@@ -253,7 +255,7 @@ export default function Deliverables() {
 
       await supabase.from('deliverables').update({ status: newStatus, progress: newProgress }).eq('id', deliverable.id);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { toast.error('Operation failed', error.message); }
   }
 
   function openCompletionModal(deliverable) {
@@ -269,10 +271,10 @@ export default function Deliverables() {
     const linkedQS = completingDeliverable.deliverable_quality_standards || [];
 
     if (linkedKPIs.length > 0 && !linkedKPIs.every(dk => kpiAssessments[dk.kpi_id] !== undefined)) {
-      alert('Please assess all linked KPIs.'); return;
+      toast.warning('Please assess all linked KPIs'); return;
     }
     if (linkedQS.length > 0 && !linkedQS.every(dqs => qsAssessments[dqs.quality_standard_id] !== undefined)) {
-      alert('Please assess all linked Quality Standards.'); return;
+      toast.warning('Please assess all linked Quality Standards'); return;
     }
 
     try {
@@ -288,7 +290,7 @@ export default function Deliverables() {
       setShowCompletionModal(false);
       setCompletingDeliverable(null);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { toast.error('Operation failed', error.message); }
   }
 
   async function handleDelete(id) {
@@ -296,7 +298,7 @@ export default function Deliverables() {
     try {
       await supabase.from('deliverables').delete().eq('id', id);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { toast.error('Operation failed', error.message); }
   }
 
   // ============================================

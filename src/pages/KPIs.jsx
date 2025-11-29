@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { canManageKPIs } from '../utils/permissions';
 import { useAuth, useProject } from '../hooks';
+import { useToast } from '../components/Toast';
 
 export default function KPIs() {
   // ============================================
@@ -14,6 +15,7 @@ export default function KPIs() {
   // ============================================
   const { userRole, loading: authLoading } = useAuth();
   const { projectId, loading: projectLoading } = useProject();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -100,12 +102,12 @@ export default function KPIs() {
 
   async function handleAddKPI() {
     if (!newKPI.name.trim()) {
-      alert('Please enter a KPI name');
+      toast.warning('Please enter a KPI name');
       return;
     }
 
     if (!newKPI.description.trim()) {
-      alert('Please enter a description');
+      toast.warning('Please enter a description');
       return;
     }
 
@@ -146,10 +148,10 @@ export default function KPIs() {
         calculation: '',
         remediation: ''
       });
-      alert(`KPI ${kpiRef} created successfully!`);
+      toast.success(`KPI ${kpiRef} created successfully`);
     } catch (error) {
       console.error('Error adding KPI:', error);
-      alert('Failed to add KPI: ' + error.message);
+      toast.error('Failed to add KPI', error.message);
     } finally {
       setSaving(false);
     }
@@ -187,10 +189,10 @@ export default function KPIs() {
       if (error) throw error;
 
       await fetchKPIs();
-      alert(`KPI ${kpi.kpi_ref} deleted successfully`);
+      toast.success(`KPI ${kpi.kpi_ref} deleted`);
     } catch (error) {
       console.error('Error deleting KPI:', error);
-      alert('Failed to delete KPI: ' + error.message);
+      toast.error('Failed to delete KPI', error.message);
     }
   }
 

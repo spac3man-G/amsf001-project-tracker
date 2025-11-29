@@ -5,6 +5,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
 import { canManageResources } from '../utils/permissions';
+import { formatCurrency } from '../utils/statusHelpers';
 import { useAuth } from '../hooks';
 
 export default function Resources() {
@@ -261,7 +262,7 @@ export default function Resources() {
         </div>
         <div className="stat-card">
           <div className="stat-label">TOTAL DAY RATES</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>£{totalDayRate.toLocaleString('en-GB')}</div>
+          <div className="stat-value" style={{ color: '#3b82f6' }}>{formatCurrency(totalDayRate)}</div>
         </div>
       </div>
 
@@ -434,7 +435,7 @@ export default function Resources() {
                       <input type="number" step="0.01" className="form-input" value={editForm.day_rate} onChange={(e) => setEditForm({ ...editForm, day_rate: e.target.value })} style={{ width: '100px', textAlign: 'right' }} />
                     ) : (
                       res.day_rate ? (
-                        <span style={{ fontWeight: '600' }}>£{parseFloat(res.day_rate).toLocaleString('en-GB')}</span>
+                        <span style={{ fontWeight: '600' }}>{formatCurrency(res.day_rate)}</span>
                       ) : (
                         <span style={{ color: '#9ca3af' }}>-</span>
                       )

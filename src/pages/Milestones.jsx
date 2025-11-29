@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
 import { useAuth, useProject } from '../hooks';
 import { canCreateMilestone, canEditMilestone, canDeleteMilestone } from '../utils/permissions';
+import { formatCurrency } from '../utils/statusHelpers';
 
 export default function Milestones() {
   // ============================================
@@ -490,7 +491,7 @@ export default function Milestones() {
                   
                   {ms.budget && (
                     <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#3b82f6' }}>
-                      Budget: £{parseFloat(ms.budget).toLocaleString('en-GB')}
+                      Budget: {formatCurrency(ms.budget)}
                     </div>
                   )}
                   

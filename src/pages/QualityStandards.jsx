@@ -6,6 +6,8 @@ import {
   AlertTriangle, Info, Plus, Edit2, Trash2, Save, X
 } from 'lucide-react';
 import { useAuth, useProject } from '../hooks';
+import { canManageQualityStandards } from '../utils/permissions';
+import { useToast } from '../components/Toast';
 
 export default function QualityStandards() {
   // ============================================
@@ -13,6 +15,7 @@ export default function QualityStandards() {
   // ============================================
   const { userRole, loading: authLoading } = useAuth();
   const { projectId, loading: projectLoading } = useProject();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -33,7 +36,7 @@ export default function QualityStandards() {
   });
 
   // Permission check
-  const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'customer_pm';
+  const canEdit = canManageQualityStandards(userRole);
 
   useEffect(() => {
     if (projectId && !authLoading && !projectLoading) {
@@ -76,7 +79,7 @@ export default function QualityStandards() {
   async function handleAdd(e) {
     e.preventDefault();
     if (!newQS.qs_ref || !newQS.name) {
-      alert('Please fill in Reference and Name');
+      toast.warning('Please fill in Reference and Name');
       return;
     }
 
@@ -97,10 +100,10 @@ export default function QualityStandards() {
       await fetchQualityStandards();
       setShowAddForm(false);
       setNewQS({ qs_ref: '', name: '', description: '', target: 100, current_value: 0 });
-      alert('Quality Standard added successfully!');
+      toast.success('Quality Standard added successfully');
     } catch (error) {
       console.error('Error adding quality standard:', error);
-      alert('Failed to add: ' + error.message);
+      toast.error('Failed to add', error.message);
     }
   }
 
@@ -132,10 +135,10 @@ export default function QualityStandards() {
 
       await fetchQualityStandards();
       setEditingId(null);
-      alert('Quality Standard updated!');
+      toast.success('Quality Standard updated');
     } catch (error) {
       console.error('Error updating:', error);
-      alert('Failed to update: ' + error.message);
+      toast.error('Failed to update', error.message);
     }
   }
 
@@ -158,10 +161,10 @@ export default function QualityStandards() {
       if (error) throw error;
 
       await fetchQualityStandards();
-      alert('Quality Standard deleted');
+      toast.success('Quality Standard deleted');
     } catch (error) {
       console.error('Error deleting:', error);
-      alert('Failed to delete: ' + error.message);
+      toast.error('Failed to delete', error.message);
     }
   }
 

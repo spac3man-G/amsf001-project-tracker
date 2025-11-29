@@ -6,6 +6,8 @@ import {
   Save, X, Edit2, Target, FileText, Clipboard
 } from 'lucide-react';
 import { useAuth } from '../hooks';
+import { canEditQualityStandard } from '../utils/permissions';
+import { useToast } from '../components/Toast';
 
 export default function QualityStandardDetail() {
   // ============================================
@@ -14,6 +16,7 @@ export default function QualityStandardDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { userRole, loading: authLoading } = useAuth();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -77,7 +80,7 @@ export default function QualityStandardDetail() {
       setEditing(false);
     } catch (error) {
       console.error('Error saving:', error);
-      alert('Failed to save changes');
+      toast.error('Failed to save changes');
     }
   }
 
@@ -103,7 +106,7 @@ export default function QualityStandardDetail() {
     }
   }
 
-  const canEdit = userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm';
+  const canEdit = canEditQualityStandard(userRole);
 
   if (authLoading || loading) return <div className="loading">Loading...</div>;
   if (!qs) return <div className="loading">Quality Standard not found</div>;

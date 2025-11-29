@@ -6,6 +6,7 @@ import {
   Lock, Move, ZoomIn, ZoomOut
 } from 'lucide-react';
 import { useAuth, useProject } from '../hooks';
+import { useToast } from '../components/Toast';
 
 export default function Gantt() {
   // ============================================
@@ -13,6 +14,7 @@ export default function Gantt() {
   // ============================================
   const { userRole, loading: authLoading } = useAuth();
   const { projectId, loading: projectLoading } = useProject();
+  const toast = useToast();
 
   // ============================================
   // LOCAL STATE
@@ -194,7 +196,7 @@ export default function Gantt() {
         if (error) throw error;
       } catch (error) {
         console.error('Error updating milestone:', error);
-        alert('Failed to update milestone dates');
+        toast.error('Failed to update milestone dates');
         await fetchMilestones();
       }
     }
