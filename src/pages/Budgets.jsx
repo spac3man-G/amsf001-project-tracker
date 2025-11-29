@@ -6,21 +6,19 @@ import {
 } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
+import StatCard, { StatGrid } from '../components/StatCard';
+import { useConfirmDialog } from '../components/ConfirmDialog';
+import EmptyState from '../components/EmptyState';
 import { useAuth, useProject } from '../hooks';
 import { formatCurrency } from '../utils/statusHelpers';
 import { canEditBudget } from '../utils/permissions';
 
 export default function Budgets() {
-  // ============================================
-  // HOOKS - Replace boilerplate
-  // ============================================
   const { userRole, loading: authLoading } = useAuth();
   const { projectId, project, loading: projectLoading } = useProject();
   const toast = useToast();
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
 
-  // ============================================
-  // LOCAL STATE
-  // ============================================
   const [budgets, setBudgets] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,8 +36,6 @@ export default function Budgets() {
   });
 
   const categories = ['Labour', 'Materials', 'Equipment', 'Travel', 'Software', 'Training', 'Contingency', 'Other'];
-  
-  // Get project budget from hook
   const projectBudget = project?.budget || 0;
 
   useEffect(() => {
@@ -50,18 +46,13 @@ export default function Budgets() {
 
   async function fetchData() {
     if (!projectId) return;
-
     try {
       setLoading(true);
       const { data: budgetsData, error: budgetError } = await supabase
         .from('budgets')
-        .select(`
-          *,
-          milestones (id, milestone_ref, name)
-        `)
+        .select(`*, milestones (id, milestone_ref, name)`)
         .eq('project_id', projectId)
         .order('category');
-
       if (budgetError) throw budgetError;
       setBudgets(budgetsData || []);
 
@@ -70,10 +61,8 @@ export default function Budgets() {
         .select('id, milestone_ref, name')
         .eq('project_id', projectId)
         .order('milestone_ref');
-      
       if (msError) throw msError;
       setMilestones(milestonesData || []);
-
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -82,47 +71,30 @@ export default function Budgets() {
     }
   }
 
-  function canEdit() {
-    return canEditBudget(userRole);
-  }
+  function canEdit() { return canEditBudget(userRole); }
 
   async function handleAdd() {
     if (!newBudget.category || !newBudget.allocated_amount) {
       toast.warning('Please fill in category and allocated amount');
       return;
     }
-
-    if (!projectId) {
-      toast.error('Project not found');
-      return;
-    }
+    if (!projectId) { toast.error('Project not found'); return; }
 
     setSaving(true);
     try {
-      const insertData = {
+      const { error } = await supabase.from('budgets').insert([{
         project_id: projectId,
         milestone_id: newBudget.milestone_id || null,
         category: newBudget.category,
         allocated_amount: parseFloat(newBudget.allocated_amount),
         spent_amount: parseFloat(newBudget.spent_amount) || 0,
         notes: newBudget.notes || null
-      };
-
-      const { error } = await supabase
-        .from('budgets')
-        .insert([insertData]);
-
+      }]);
       if (error) throw error;
 
       await fetchData();
       setShowAddForm(false);
-      setNewBudget({
-        milestone_id: '',
-        category: 'Labour',
-        allocated_amount: '',
-        spent_amount: 0,
-        notes: ''
-      });
+      setNewBudget({ milestone_id: '', category: 'Labour', allocated_amount: '', spent_amount: 0, notes: '' });
       toast.success('Budget item added!');
     } catch (error) {
       console.error('Error adding budget:', error);
@@ -146,17 +118,13 @@ export default function Budgets() {
   async function handleSave(id) {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('budgets')
-        .update({
-          milestone_id: editForm.milestone_id || null,
-          category: editForm.category,
-          allocated_amount: parseFloat(editForm.allocated_amount),
-          spent_amount: parseFloat(editForm.spent_amount) || 0,
-          notes: editForm.notes || null
-        })
-        .eq('id', id);
-
+      const { error } = await supabase.from('budgets').update({
+        milestone_id: editForm.milestone_id || null,
+        category: editForm.category,
+        allocated_amount: parseFloat(editForm.allocated_amount),
+        spent_amount: parseFloat(editForm.spent_amount) || 0,
+        notes: editForm.notes || null
+      }).eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -170,22 +138,20 @@ export default function Budgets() {
     }
   }
 
-  function handleCancel() {
-    setEditingId(null);
-    setEditForm({});
-  }
+  function handleCancel() { setEditingId(null); setEditForm({}); }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this budget item?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Budget Item',
+      message: 'Are you sure you want to delete this budget item? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
 
     try {
-      const { error } = await supabase
-        .from('budgets')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('budgets').delete().eq('id', id);
       if (error) throw error;
-
       await fetchData();
       toast.success('Budget item deleted');
     } catch (error) {
@@ -225,6 +191,8 @@ export default function Budgets() {
 
   return (
     <div className="page-container">
+      <ConfirmDialogComponent />
+      
       <div className="page-header">
         <div className="page-title">
           <PiggyBank size={28} />
@@ -241,44 +209,21 @@ export default function Budgets() {
       </div>
 
       {/* Overall Stats */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">PROJECT BUDGET</div>
-          <div className="stat-value">{formatCurrency(projectBudget)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">TOTAL ALLOCATED</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>{formatCurrency(totalAllocated)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">TOTAL SPENT</div>
-          <div className="stat-value" style={{ color: totalSpent > totalAllocated ? '#ef4444' : '#10b981' }}>
-            {formatCurrency(totalSpent)}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">REMAINING</div>
-          <div className="stat-value" style={{ color: totalRemaining < 0 ? '#ef4444' : '#10b981' }}>
-            {formatCurrency(totalRemaining)}
-          </div>
-        </div>
-      </div>
+      <StatGrid columns={4}>
+        <StatCard label="PROJECT BUDGET" value={formatCurrency(projectBudget)} labelFirst />
+        <StatCard label="TOTAL ALLOCATED" value={formatCurrency(totalAllocated)} valueColor="#3b82f6" labelFirst />
+        <StatCard label="TOTAL SPENT" value={formatCurrency(totalSpent)} valueColor={totalSpent > totalAllocated ? '#ef4444' : '#10b981'} labelFirst />
+        <StatCard label="REMAINING" value={formatCurrency(totalRemaining)} valueColor={totalRemaining < 0 ? '#ef4444' : '#10b981'} labelFirst />
+      </StatGrid>
 
       {/* Overall Progress */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
           <h4 style={{ margin: 0 }}>Overall Budget Utilization</h4>
-          <span style={{ fontWeight: '600', color: getUtilizationColor(overallUtilization) }}>
-            {overallUtilization.toFixed(1)}%
-          </span>
+          <span style={{ fontWeight: '600', color: getUtilizationColor(overallUtilization) }}>{overallUtilization.toFixed(1)}%</span>
         </div>
         <div style={{ height: '12px', backgroundColor: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
-          <div style={{ 
-            width: `${Math.min(overallUtilization, 100)}%`, 
-            height: '100%', 
-            backgroundColor: getUtilizationColor(overallUtilization),
-            transition: 'width 0.3s ease'
-          }} />
+          <div style={{ width: `${Math.min(overallUtilization, 100)}%`, height: '100%', backgroundColor: getUtilizationColor(overallUtilization), transition: 'width 0.3s ease' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
           <span>{formatCurrency(totalSpent)} spent</span>
@@ -297,17 +242,10 @@ export default function Budgets() {
                 <div key={cat.category}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                     <span style={{ fontWeight: '500' }}>{cat.category}</span>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                      {formatCurrency(cat.spent)} / {formatCurrency(cat.allocated)}
-                    </span>
+                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{formatCurrency(cat.spent)} / {formatCurrency(cat.allocated)}</span>
                   </div>
                   <div style={{ height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ 
-                      width: `${Math.min(utilization, 100)}%`, 
-                      height: '100%', 
-                      backgroundColor: getUtilizationColor(utilization),
-                      transition: 'width 0.3s ease'
-                    }} />
+                    <div style={{ width: `${Math.min(utilization, 100)}%`, height: '100%', backgroundColor: getUtilizationColor(utilization), transition: 'width 0.3s ease' }} />
                   </div>
                 </div>
               );
@@ -320,76 +258,36 @@ export default function Budgets() {
       {showAddForm && canEdit() && (
         <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add Budget Item</h3>
-          
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label className="form-label">Category *</label>
-              <select 
-                className="form-input" 
-                value={newBudget.category} 
-                onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}
-              >
+              <select className="form-input" value={newBudget.category} onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}>
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            
             <div>
               <label className="form-label">Milestone (Optional)</label>
-              <select 
-                className="form-input" 
-                value={newBudget.milestone_id} 
-                onChange={(e) => setNewBudget({ ...newBudget, milestone_id: e.target.value })}
-              >
+              <select className="form-input" value={newBudget.milestone_id} onChange={(e) => setNewBudget({ ...newBudget, milestone_id: e.target.value })}>
                 <option value="">-- Project-wide --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
               </select>
             </div>
-            
             <div>
               <label className="form-label">Allocated Amount (£) *</label>
-              <input 
-                type="number" 
-                step="0.01" 
-                min="0" 
-                className="form-input" 
-                placeholder="0.00"
-                value={newBudget.allocated_amount} 
-                onChange={(e) => setNewBudget({ ...newBudget, allocated_amount: e.target.value })} 
-              />
+              <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00" value={newBudget.allocated_amount} onChange={(e) => setNewBudget({ ...newBudget, allocated_amount: e.target.value })} />
             </div>
-            
             <div>
               <label className="form-label">Already Spent (£)</label>
-              <input 
-                type="number" 
-                step="0.01" 
-                min="0" 
-                className="form-input" 
-                placeholder="0.00"
-                value={newBudget.spent_amount} 
-                onChange={(e) => setNewBudget({ ...newBudget, spent_amount: e.target.value })} 
-              />
+              <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00" value={newBudget.spent_amount} onChange={(e) => setNewBudget({ ...newBudget, spent_amount: e.target.value })} />
             </div>
-            
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="form-label">Notes</label>
-              <textarea 
-                className="form-input" 
-                rows={2} 
-                placeholder="Additional notes"
-                value={newBudget.notes} 
-                onChange={(e) => setNewBudget({ ...newBudget, notes: e.target.value })} 
-              />
+              <textarea className="form-input" rows={2} placeholder="Additional notes" value={newBudget.notes} onChange={(e) => setNewBudget({ ...newBudget, notes: e.target.value })} />
             </div>
           </div>
-          
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}>
-              <Save size={16} /> {saving ? 'Saving...' : 'Save Budget Item'}
-            </button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
-              <X size={16} /> Cancel
-            </button>
+            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save Budget Item'}</button>
+            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
           </div>
         </div>
       )}
@@ -411,80 +309,47 @@ export default function Budgets() {
           </thead>
           <tbody>
             {budgets.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No budget items found.</td></tr>
+              <EmptyState.TableRow colSpan={8} icon="budgets" message="No budget items found. Add your first budget item to get started." />
             ) : (
               budgets.map(budget => {
                 const remaining = (budget.allocated_amount || 0) - (budget.spent_amount || 0);
                 const utilization = budget.allocated_amount > 0 ? (budget.spent_amount / budget.allocated_amount) * 100 : 0;
-                
                 return (
                   <tr key={budget.id}>
-                    <td>
-                      {editingId === budget.id ? (
-                        <select className="form-input" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}>
-                          {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      ) : (
-                        <span style={{ fontWeight: '500' }}>{budget.category}</span>
-                      )}
-                    </td>
-                    <td>
-                      {editingId === budget.id ? (
-                        <select className="form-input" value={editForm.milestone_id} onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}>
-                          <option value="">Project-wide</option>
-                          {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}
-                        </select>
-                      ) : (
-                        budget.milestones?.milestone_ref || 'Project-wide'
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {editingId === budget.id ? (
-                        <input type="number" step="0.01" className="form-input" value={editForm.allocated_amount} onChange={(e) => setEditForm({ ...editForm, allocated_amount: e.target.value })} style={{ width: '100px', textAlign: 'right' }} />
-                      ) : (
-                        formatCurrency(budget.allocated_amount)
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {editingId === budget.id ? (
-                        <input type="number" step="0.01" className="form-input" value={editForm.spent_amount} onChange={(e) => setEditForm({ ...editForm, spent_amount: e.target.value })} style={{ width: '100px', textAlign: 'right' }} />
-                      ) : (
-                        formatCurrency(budget.spent_amount)
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: '600', color: remaining < 0 ? '#ef4444' : '#10b981' }}>
-                      {formatCurrency(remaining)}
-                    </td>
+                    <td>{editingId === budget.id ? (
+                      <select className="form-input" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}>
+                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    ) : <span style={{ fontWeight: '500' }}>{budget.category}</span>}</td>
+                    <td>{editingId === budget.id ? (
+                      <select className="form-input" value={editForm.milestone_id} onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}>
+                        <option value="">Project-wide</option>
+                        {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}
+                      </select>
+                    ) : budget.milestones?.milestone_ref || 'Project-wide'}</td>
+                    <td style={{ textAlign: 'right' }}>{editingId === budget.id ? (
+                      <input type="number" step="0.01" className="form-input" value={editForm.allocated_amount} onChange={(e) => setEditForm({ ...editForm, allocated_amount: e.target.value })} style={{ width: '100px', textAlign: 'right' }} />
+                    ) : formatCurrency(budget.allocated_amount)}</td>
+                    <td style={{ textAlign: 'right' }}>{editingId === budget.id ? (
+                      <input type="number" step="0.01" className="form-input" value={editForm.spent_amount} onChange={(e) => setEditForm({ ...editForm, spent_amount: e.target.value })} style={{ width: '100px', textAlign: 'right' }} />
+                    ) : formatCurrency(budget.spent_amount)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: '600', color: remaining < 0 ? '#ef4444' : '#10b981' }}>{formatCurrency(remaining)}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         {getUtilizationIcon(utilization)}
                         <div style={{ flex: 1, maxWidth: '80px' }}>
                           <div style={{ height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ 
-                              width: `${Math.min(utilization, 100)}%`, 
-                              height: '100%', 
-                              backgroundColor: getUtilizationColor(utilization)
-                            }} />
+                            <div style={{ width: `${Math.min(utilization, 100)}%`, height: '100%', backgroundColor: getUtilizationColor(utilization) }} />
                           </div>
                         </div>
-                        <span style={{ fontSize: '0.8rem', color: getUtilizationColor(utilization), fontWeight: '500' }}>
-                          {utilization.toFixed(0)}%
-                        </span>
+                        <span style={{ fontSize: '0.8rem', color: getUtilizationColor(utilization), fontWeight: '500' }}>{utilization.toFixed(0)}%</span>
                       </div>
                     </td>
-                    <td style={{ maxWidth: '150px' }}>
-                      {editingId === budget.id ? (
-                        <input type="text" className="form-input" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
-                      ) : (
-                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: budget.notes ? 'inherit' : '#9ca3af' }}>
-                          {budget.notes || '-'}
-                        </div>
-                      )}
-                    </td>
+                    <td style={{ maxWidth: '150px' }}>{editingId === budget.id ? (
+                      <input type="text" className="form-input" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+                    ) : <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: budget.notes ? 'inherit' : '#9ca3af' }}>{budget.notes || '-'}</div>}</td>
                     <td>
-                      {!canEdit() ? (
-                        <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>View only</span>
-                      ) : editingId === budget.id ? (
+                      {!canEdit() ? <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>View only</span> : editingId === budget.id ? (
                         <div className="action-buttons">
                           <button className="btn-icon btn-success" onClick={() => handleSave(budget.id)} title="Save" disabled={saving}><Save size={16} /></button>
                           <button className="btn-icon btn-secondary" onClick={handleCancel} title="Cancel"><X size={16} /></button>
@@ -512,8 +377,7 @@ export default function Budgets() {
             <strong>Budget Warning</strong>
           </div>
           <p style={{ color: '#dc2626', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>
-            Spending ({formatCurrency(totalSpent)}) has exceeded the allocated budget ({formatCurrency(totalAllocated)}) 
-            by {formatCurrency(totalSpent - totalAllocated)}.
+            Spending ({formatCurrency(totalSpent)}) has exceeded the allocated budget ({formatCurrency(totalAllocated)}) by {formatCurrency(totalSpent - totalAllocated)}.
           </p>
         </div>
       )}

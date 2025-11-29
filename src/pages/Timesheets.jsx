@@ -7,8 +7,10 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
-import { useAuth, useProject, useCurrentResource, useResources, useMilestones } from '../hooks';
-import { getStatusColor, getNextSunday, getWeekDates } from '../utils/statusHelpers';
+import StatCard, { StatGrid } from '../components/StatCard';
+import { useConfirmDialog } from '../components/ConfirmDialog';
+import { useAuth, useProject, useCurrentResource } from '../hooks';
+import { getStatusColor, getNextSunday } from '../utils/statusHelpers';
 import { 
   canAddTimesheet, 
   canAddTimesheetForOthers,
@@ -21,13 +23,14 @@ import {
 
 export default function Timesheets() {
   // ============================================
-  // HOOKS - Replace ~50 lines of boilerplate
+  // HOOKS
   // ============================================
   const { userId, userRole, loading: authLoading } = useAuth();
   const { projectId, loading: projectLoading } = useProject();
   const { resourceId: currentUserResourceId, loading: resourceLoading } = useCurrentResource(userId);
   
   const toast = useToast();
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
   const { showTestUsers, testUserIds } = useTestUsers();
 
   // ============================================
@@ -62,14 +65,12 @@ export default function Timesheets() {
   // DATA FETCHING
   // ============================================
   
-  // Set default resource when user's resource is loaded
   useEffect(() => {
     if (currentUserResourceId) {
       setNewTimesheet(prev => ({ ...prev, resource_id: currentUserResourceId }));
     }
   }, [currentUserResourceId]);
 
-  // Fetch data when project is ready
   useEffect(() => {
     if (projectId && !authLoading && !projectLoading) {
       fetchData();
@@ -82,14 +83,9 @@ export default function Timesheets() {
     try {
       setLoading(true);
       
-      // Fetch timesheets
       let timesheetQuery = supabase
         .from('timesheets')
-        .select(`
-          *,
-          resources (id, name, email),
-          milestones (id, milestone_ref, name)
-        `)
+        .select(`*, resources (id, name, email), milestones (id, milestone_ref, name)`)
         .eq('project_id', projectId)
         .order('date', { ascending: false });
 
@@ -101,7 +97,6 @@ export default function Timesheets() {
       if (tsError) console.error('Timesheets error:', tsError);
       else setTimesheets(timesheetsData || []);
 
-      // Fetch resources
       const { data: resourcesData, error: resError } = await supabase
         .from('resources')
         .select('id, name, email, user_id')
@@ -119,7 +114,6 @@ export default function Timesheets() {
         setResources(filteredResources);
       }
 
-      // Fetch milestones
       const { data: milestonesData, error: msError } = await supabase
         .from('milestones')
         .select('id, milestone_ref, name')
@@ -173,10 +167,7 @@ export default function Timesheets() {
         entry_type: entryMode
       };
 
-      const { error } = await supabase
-        .from('timesheets')
-        .insert([insertData]);
-
+      const { error } = await supabase.from('timesheets').insert([insertData]);
       if (error) throw error;
 
       await fetchData();
@@ -252,14 +243,16 @@ export default function Timesheets() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this timesheet entry?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Timesheet',
+      message: 'Are you sure you want to delete this timesheet entry? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
 
     try {
-      const { error } = await supabase
-        .from('timesheets')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('timesheets').delete().eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -271,14 +264,16 @@ export default function Timesheets() {
   }
 
   async function handleSubmit(id) {
-    if (!confirm('Submit this timesheet for approval?')) return;
+    const confirmed = await confirm({
+      title: 'Submit for Approval',
+      message: 'Submit this timesheet for approval? Once submitted, you will not be able to edit it until it is approved or rejected.',
+      confirmText: 'Submit',
+      variant: 'info'
+    });
+    if (!confirmed) return;
 
     try {
-      const { error } = await supabase
-        .from('timesheets')
-        .update({ status: 'Submitted' })
-        .eq('id', id);
-
+      const { error } = await supabase.from('timesheets').update({ status: 'Submitted' }).eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -291,11 +286,7 @@ export default function Timesheets() {
 
   async function handleApprove(id) {
     try {
-      const { error } = await supabase
-        .from('timesheets')
-        .update({ status: 'Approved' })
-        .eq('id', id);
-
+      const { error } = await supabase.from('timesheets').update({ status: 'Approved' }).eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -307,14 +298,8 @@ export default function Timesheets() {
   }
 
   async function handleReject(id) {
-    const reason = prompt('Please provide a reason for rejection (optional):');
-    
     try {
-      const { error } = await supabase
-        .from('timesheets')
-        .update({ status: 'Rejected' })
-        .eq('id', id);
-
+      const { error } = await supabase.from('timesheets').update({ status: 'Rejected' }).eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -329,25 +314,16 @@ export default function Timesheets() {
   // PERMISSION HELPERS
   // ============================================
 
-  function canEditTimesheetLocal(ts) {
-    return canEditTimesheetPerm(userRole, ts, userId);
-  }
-
-  function canDeleteTimesheetLocal(ts) {
-    return canDeleteTimesheetPerm(userRole, ts, userId);
-  }
-
-  function canSubmitTimesheetLocal(ts) {
-    return canSubmitTimesheetPerm(userRole, ts, userId);
-  }
-
+  function canEditTimesheetLocal(ts) { return canEditTimesheetPerm(userRole, ts, userId); }
+  function canDeleteTimesheetLocal(ts) { return canDeleteTimesheetPerm(userRole, ts, userId); }
+  function canSubmitTimesheetLocal(ts) { return canSubmitTimesheetPerm(userRole, ts, userId); }
   function canValidateTimesheetLocal(ts) {
     if (ts.status !== 'Submitted') return false;
     return canApproveTimesheet(userRole);
   }
 
   // ============================================
-  // FILTERING
+  // FILTERING & CALCULATIONS
   // ============================================
 
   const filteredTimesheets = timesheets.filter(ts => {
@@ -367,6 +343,9 @@ export default function Timesheets() {
   }).filter(Boolean))].sort().reverse();
 
   const totalHours = filteredTimesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
+  const approvedCount = filteredTimesheets.filter(t => t.status === 'Approved').length;
+  const pendingCount = filteredTimesheets.filter(t => t.status === 'Submitted').length;
+  const draftCount = filteredTimesheets.filter(t => t.status === 'Draft').length;
 
   // ============================================
   // LOADING STATE
@@ -382,6 +361,8 @@ export default function Timesheets() {
 
   return (
     <div>
+      <ConfirmDialogComponent />
+      
       {/* Header */}
       <div className="page-header">
         <div>
@@ -396,24 +377,36 @@ export default function Timesheets() {
       </div>
 
       {/* Stats */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#dbeafe' }}><Clock size={24} color="#2563eb" /></div>
-          <div className="stat-content"><div className="stat-value">{totalHours.toFixed(1)}h</div><div className="stat-label">Total Hours (Filtered)</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#dcfce7' }}><CheckCircle size={24} color="#16a34a" /></div>
-          <div className="stat-content"><div className="stat-value">{filteredTimesheets.filter(t => t.status === 'Approved').length}</div><div className="stat-label">Approved</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#fef3c7' }}><AlertCircle size={24} color="#d97706" /></div>
-          <div className="stat-content"><div className="stat-value">{filteredTimesheets.filter(t => t.status === 'Submitted').length}</div><div className="stat-label">Pending Approval</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#f1f5f9' }}><CalendarDays size={24} color="#64748b" /></div>
-          <div className="stat-content"><div className="stat-value">{filteredTimesheets.filter(t => t.status === 'Draft').length}</div><div className="stat-label">Draft</div></div>
-        </div>
-      </div>
+      <StatGrid columns={4}>
+        <StatCard
+          icon={<Clock size={24} />}
+          iconBg="#dbeafe"
+          iconColor="#2563eb"
+          value={`${totalHours.toFixed(1)}h`}
+          label="Total Hours (Filtered)"
+        />
+        <StatCard
+          icon={<CheckCircle size={24} />}
+          iconBg="#dcfce7"
+          iconColor="#16a34a"
+          value={approvedCount}
+          label="Approved"
+        />
+        <StatCard
+          icon={<AlertCircle size={24} />}
+          iconBg="#fef3c7"
+          iconColor="#d97706"
+          value={pendingCount}
+          label="Pending Approval"
+        />
+        <StatCard
+          icon={<CalendarDays size={24} />}
+          iconBg="#f1f5f9"
+          iconColor="#64748b"
+          value={draftCount}
+          label="Draft"
+        />
+      </StatGrid>
 
       {/* Filters */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -440,20 +433,13 @@ export default function Timesheets() {
         <div className="card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #3b82f6' }}>
           <h3 style={{ marginBottom: '1rem' }}>New Timesheet Entry</h3>
           
-          {/* Entry Mode Toggle */}
           <div style={{ marginBottom: '1rem' }}>
             <label className="form-label">Entry Mode</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button 
-                className={`btn ${entryMode === 'daily' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setEntryMode('daily')}
-              >
+              <button className={`btn ${entryMode === 'daily' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEntryMode('daily')}>
                 <Calendar size={16} /> Daily
               </button>
-              <button 
-                className={`btn ${entryMode === 'weekly' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setEntryMode('weekly')}
-              >
+              <button className={`btn ${entryMode === 'weekly' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEntryMode('weekly')}>
                 <CalendarDays size={16} /> Weekly
               </button>
             </div>
@@ -462,11 +448,7 @@ export default function Timesheets() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             <div>
               <label className="form-label">Resource *</label>
-              <select 
-                className="form-input" 
-                value={newTimesheet.resource_id} 
-                onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}
-              >
+              <select className="form-input" value={newTimesheet.resource_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}>
                 <option value="">Select Resource</option>
                 {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
@@ -475,32 +457,18 @@ export default function Timesheets() {
             {entryMode === 'daily' ? (
               <div>
                 <label className="form-label">Work Date *</label>
-                <input 
-                  type="date" 
-                  className="form-input" 
-                  value={newTimesheet.work_date} 
-                  onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })} 
-                />
+                <input type="date" className="form-input" value={newTimesheet.work_date} onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })} />
               </div>
             ) : (
               <div>
                 <label className="form-label">Week Ending (Sunday) *</label>
-                <input 
-                  type="date" 
-                  className="form-input" 
-                  value={newTimesheet.week_ending} 
-                  onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} 
-                />
+                <input type="date" className="form-input" value={newTimesheet.week_ending} onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} />
               </div>
             )}
             
             <div>
               <label className="form-label">Milestone (Optional)</label>
-              <select 
-                className="form-input" 
-                value={newTimesheet.milestone_id} 
-                onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}
-              >
+              <select className="form-input" value={newTimesheet.milestone_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}>
                 <option value="">-- No specific milestone --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
               </select>
@@ -508,30 +476,13 @@ export default function Timesheets() {
             
             <div>
               <label className="form-label">Hours Worked *</label>
-              <input 
-                type="number" 
-                step="0.5" 
-                min="0.5" 
-                max={entryMode === 'daily' ? '12' : '60'} 
-                className="form-input" 
-                placeholder={entryMode === 'daily' ? 'e.g., 8' : 'e.g., 40'} 
-                value={newTimesheet.hours_worked} 
-                onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} 
-              />
-              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                {entryMode === 'daily' ? 'Max 12 hours per day' : 'Total hours for the week'}
-              </span>
+              <input type="number" step="0.5" min="0.5" max={entryMode === 'daily' ? '12' : '60'} className="form-input" placeholder={entryMode === 'daily' ? 'e.g., 8' : 'e.g., 40'} value={newTimesheet.hours_worked} onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} />
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{entryMode === 'daily' ? 'Max 12 hours per day' : 'Total hours for the week'}</span>
             </div>
             
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="form-label">Description</label>
-              <textarea 
-                className="form-input" 
-                rows={2} 
-                placeholder="What did you work on?" 
-                value={newTimesheet.description} 
-                onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} 
-              />
+              <textarea className="form-input" rows={2} placeholder="What did you work on?" value={newTimesheet.description} onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} />
             </div>
           </div>
           
@@ -586,11 +537,7 @@ export default function Timesheets() {
                         <Calendar size={14} style={{ color: '#64748b' }} />
                         <div>
                           {(ts.work_date || ts.date) ? new Date(ts.work_date || ts.date).toLocaleDateString('en-GB') : '-'}
-                          {ts.entry_type === 'weekly' && (
-                            <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>
-                              (Weekly)
-                            </span>
-                          )}
+                          {ts.entry_type === 'weekly' && <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>(Weekly)</span>}
                         </div>
                       </div>
                     )}
@@ -638,32 +585,11 @@ export default function Timesheets() {
                       </div>
                     ) : (
                       <div className="action-buttons">
-                        {canSubmitTimesheetLocal(ts) && (
-                          <button 
-                            className="btn-icon" 
-                            onClick={() => handleSubmit(ts.id)} 
-                            title="Submit for Approval"
-                            style={{ color: '#3b82f6' }}
-                          >
-                            <Send size={16} />
-                          </button>
-                        )}
+                        {canSubmitTimesheetLocal(ts) && <button className="btn-icon" onClick={() => handleSubmit(ts.id)} title="Submit for Approval" style={{ color: '#3b82f6' }}><Send size={16} /></button>}
                         {canValidateTimesheetLocal(ts) && (
                           <>
-                            <button 
-                              className="btn-icon btn-success" 
-                              onClick={() => handleApprove(ts.id)} 
-                              title="Approve"
-                            >
-                              <CheckCircle size={16} />
-                            </button>
-                            <button 
-                              className="btn-icon btn-danger" 
-                              onClick={() => handleReject(ts.id)} 
-                              title="Reject"
-                            >
-                              <X size={16} />
-                            </button>
+                            <button className="btn-icon btn-success" onClick={() => handleApprove(ts.id)} title="Approve"><CheckCircle size={16} /></button>
+                            <button className="btn-icon btn-danger" onClick={() => handleReject(ts.id)} title="Reject"><X size={16} /></button>
                           </>
                         )}
                         {canEditTimesheetLocal(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
@@ -686,9 +612,7 @@ export default function Timesheets() {
           <li><strong>Weekly Entry:</strong> Use when working consistently on the same milestone all week</li>
           <li>Link time to specific milestones when possible for better tracking</li>
           <li><strong>Submit:</strong> Click the send icon (→) to submit for approval</li>
-          {canApproveTimesheet(userRole) && (
-            <li><strong>As an approver:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
-          )}
+          {canApproveTimesheet(userRole) && <li><strong>As an approver:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>}
         </ul>
       </div>
     </div>

@@ -7,6 +7,9 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../components/Toast';
 import { TablePageSkeleton } from '../components/SkeletonLoader';
+import StatCard, { StatGrid } from '../components/StatCard';
+import { useConfirmDialog } from '../components/ConfirmDialog';
+import EmptyState from '../components/EmptyState';
 import { useAuth, useProject, useCurrentResource } from '../hooks';
 import { getStatusColor, formatCurrency } from '../utils/statusHelpers';
 import {
@@ -21,13 +24,14 @@ import {
 
 export default function Expenses() {
   // ============================================
-  // HOOKS - Replace ~50 lines of boilerplate
+  // HOOKS
   // ============================================
   const { userId, userRole, loading: authLoading } = useAuth();
   const { projectId, loading: projectLoading } = useProject();
-  const { resourceId: currentUserResourceId, loading: resourceLoading } = useCurrentResource(userId);
+  const { resourceId: currentUserResourceId } = useCurrentResource(userId);
   
   const toast = useToast();
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
   const { showTestUsers, testUserIds } = useTestUsers();
 
   // ============================================
@@ -62,14 +66,12 @@ export default function Expenses() {
   // DATA FETCHING
   // ============================================
 
-  // Set default resource when user's resource is loaded
   useEffect(() => {
     if (currentUserResourceId) {
       setNewExpense(prev => ({ ...prev, resource_id: currentUserResourceId }));
     }
   }, [currentUserResourceId]);
 
-  // Fetch data when project is ready
   useEffect(() => {
     if (projectId && !authLoading && !projectLoading) {
       fetchData();
@@ -82,14 +84,9 @@ export default function Expenses() {
     try {
       setLoading(true);
 
-      // Fetch expenses
       let expenseQuery = supabase
         .from('expenses')
-        .select(`
-          *,
-          resources (id, name, email),
-          milestones (id, milestone_ref, name)
-        `)
+        .select(`*, resources (id, name, email), milestones (id, milestone_ref, name)`)
         .eq('project_id', projectId)
         .order('expense_date', { ascending: false });
 
@@ -101,7 +98,6 @@ export default function Expenses() {
       if (expError) console.error('Expenses error:', expError);
       else setExpenses(expensesData || []);
 
-      // Fetch resources
       const { data: resourcesData, error: resError } = await supabase
         .from('resources')
         .select('id, name, email, user_id')
@@ -119,7 +115,6 @@ export default function Expenses() {
         setResources(filteredResources);
       }
 
-      // Fetch milestones
       const { data: milestonesData, error: msError } = await supabase
         .from('milestones')
         .select('id, milestone_ref, name')
@@ -169,10 +164,7 @@ export default function Expenses() {
         status: newExpense.status
       };
 
-      const { error } = await supabase
-        .from('expenses')
-        .insert([insertData]);
-
+      const { error } = await supabase.from('expenses').insert([insertData]);
       if (error) throw error;
 
       await fetchData();
@@ -246,14 +238,16 @@ export default function Expenses() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this expense entry?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Expense',
+      message: 'Are you sure you want to delete this expense entry? This action cannot be undone.',
+      confirmText: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
 
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -265,14 +259,16 @@ export default function Expenses() {
   }
 
   async function handleSubmit(id) {
-    if (!confirm('Submit this expense for approval?')) return;
+    const confirmed = await confirm({
+      title: 'Submit for Approval',
+      message: 'Submit this expense for approval? Once submitted, you will not be able to edit it until it is approved or rejected.',
+      confirmText: 'Submit',
+      variant: 'info'
+    });
+    if (!confirmed) return;
 
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .update({ status: 'Submitted' })
-        .eq('id', id);
-
+      const { error } = await supabase.from('expenses').update({ status: 'Submitted' }).eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -285,11 +281,7 @@ export default function Expenses() {
 
   async function handleApprove(id) {
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .update({ status: 'Approved' })
-        .eq('id', id);
-
+      const { error } = await supabase.from('expenses').update({ status: 'Approved' }).eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -301,14 +293,8 @@ export default function Expenses() {
   }
 
   async function handleReject(id) {
-    const reason = prompt('Please provide a reason for rejection (optional):');
-    
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .update({ status: 'Rejected' })
-        .eq('id', id);
-
+      const { error } = await supabase.from('expenses').update({ status: 'Rejected' }).eq('id', id);
       if (error) throw error;
 
       await fetchData();
@@ -323,18 +309,9 @@ export default function Expenses() {
   // PERMISSION HELPERS
   // ============================================
 
-  function canEditExpenseLocal(expense) {
-    return canEditExpensePerm(userRole, expense, userId);
-  }
-
-  function canDeleteExpenseLocal(expense) {
-    return canDeleteExpensePerm(userRole, expense, userId);
-  }
-
-  function canSubmitExpenseLocal(expense) {
-    return canSubmitExpensePerm(userRole, expense, userId);
-  }
-
+  function canEditExpenseLocal(expense) { return canEditExpensePerm(userRole, expense, userId); }
+  function canDeleteExpenseLocal(expense) { return canDeleteExpensePerm(userRole, expense, userId); }
+  function canSubmitExpenseLocal(expense) { return canSubmitExpensePerm(userRole, expense, userId); }
   function canValidateExpenseLocal(expense) {
     if (expense.status !== 'Submitted') return false;
     return canApproveExpense(userRole);
@@ -358,9 +335,7 @@ export default function Expenses() {
 
   const expensesByCategory = categories.map(cat => ({
     category: cat,
-    amount: filteredExpenses
-      .filter(exp => exp.category === cat)
-      .reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0)
+    amount: filteredExpenses.filter(exp => exp.category === cat).reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0)
   })).filter(c => c.amount > 0);
 
   const availableResources = getAvailableResourcesForEntry(userRole, resources, userId);
@@ -379,6 +354,8 @@ export default function Expenses() {
 
   return (
     <div>
+      <ConfirmDialogComponent />
+      
       {/* Header */}
       <div className="page-header">
         <div>
@@ -393,24 +370,36 @@ export default function Expenses() {
       </div>
 
       {/* Stats */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#dbeafe' }}><DollarSign size={24} color="#2563eb" /></div>
-          <div className="stat-content"><div className="stat-value">{formatCurrency(totalAmount)}</div><div className="stat-label">Total Expenses (Filtered)</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#dcfce7' }}><CheckCircle size={24} color="#16a34a" /></div>
-          <div className="stat-content"><div className="stat-value">{formatCurrency(approvedAmount)}</div><div className="stat-label">Approved/Paid</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#fef3c7' }}><Send size={24} color="#d97706" /></div>
-          <div className="stat-content"><div className="stat-value">{pendingCount}</div><div className="stat-label">Pending Approval</div></div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#f1f5f9' }}><FileText size={24} color="#64748b" /></div>
-          <div className="stat-content"><div className="stat-value">{filteredExpenses.length}</div><div className="stat-label">Total Entries</div></div>
-        </div>
-      </div>
+      <StatGrid columns={4}>
+        <StatCard
+          icon={<DollarSign size={24} />}
+          iconBg="#dbeafe"
+          iconColor="#2563eb"
+          value={formatCurrency(totalAmount)}
+          label="Total Expenses (Filtered)"
+        />
+        <StatCard
+          icon={<CheckCircle size={24} />}
+          iconBg="#dcfce7"
+          iconColor="#16a34a"
+          value={formatCurrency(approvedAmount)}
+          label="Approved/Paid"
+        />
+        <StatCard
+          icon={<Send size={24} />}
+          iconBg="#fef3c7"
+          iconColor="#d97706"
+          value={pendingCount}
+          label="Pending Approval"
+        />
+        <StatCard
+          icon={<FileText size={24} />}
+          iconBg="#f1f5f9"
+          iconColor="#64748b"
+          value={filteredExpenses.length}
+          label="Total Entries"
+        />
+      </StatGrid>
 
       {/* Filters */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -438,12 +427,7 @@ export default function Expenses() {
           <h3 style={{ marginBottom: '1rem' }}>Expenses by Category</h3>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             {expensesByCategory.map(c => (
-              <div key={c.category} style={{ 
-                padding: '0.75rem 1rem', 
-                backgroundColor: '#f8fafc', 
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0'
-              }}>
+              <div key={c.category} style={{ padding: '0.75rem 1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{c.category}</div>
                 <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{formatCurrency(c.amount)}</div>
               </div>
@@ -460,11 +444,7 @@ export default function Expenses() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             <div>
               <label className="form-label">Resource *</label>
-              <select 
-                className="form-input" 
-                value={newExpense.resource_id} 
-                onChange={(e) => setNewExpense({ ...newExpense, resource_id: e.target.value })}
-              >
+              <select className="form-input" value={newExpense.resource_id} onChange={(e) => setNewExpense({ ...newExpense, resource_id: e.target.value })}>
                 <option value="">Select Resource</option>
                 {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
@@ -472,45 +452,24 @@ export default function Expenses() {
             
             <div>
               <label className="form-label">Date *</label>
-              <input 
-                type="date" 
-                className="form-input" 
-                value={newExpense.expense_date} 
-                onChange={(e) => setNewExpense({ ...newExpense, expense_date: e.target.value })} 
-              />
+              <input type="date" className="form-input" value={newExpense.expense_date} onChange={(e) => setNewExpense({ ...newExpense, expense_date: e.target.value })} />
             </div>
             
             <div>
               <label className="form-label">Category *</label>
-              <select 
-                className="form-input" 
-                value={newExpense.category} 
-                onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-              >
+              <select className="form-input" value={newExpense.category} onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}>
                 {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
             
             <div>
               <label className="form-label">Amount (£) *</label>
-              <input 
-                type="number" 
-                step="0.01" 
-                min="0" 
-                className="form-input" 
-                placeholder="e.g., 150.00" 
-                value={newExpense.amount} 
-                onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} 
-              />
+              <input type="number" step="0.01" min="0" className="form-input" placeholder="e.g., 150.00" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} />
             </div>
             
             <div>
               <label className="form-label">Milestone (Optional)</label>
-              <select 
-                className="form-input" 
-                value={newExpense.milestone_id} 
-                onChange={(e) => setNewExpense({ ...newExpense, milestone_id: e.target.value })}
-              >
+              <select className="form-input" value={newExpense.milestone_id} onChange={(e) => setNewExpense({ ...newExpense, milestone_id: e.target.value })}>
                 <option value="">-- No specific milestone --</option>
                 {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
               </select>
@@ -518,24 +477,12 @@ export default function Expenses() {
             
             <div>
               <label className="form-label">Receipt URL (Optional)</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="Link to receipt" 
-                value={newExpense.receipt_url} 
-                onChange={(e) => setNewExpense({ ...newExpense, receipt_url: e.target.value })} 
-              />
+              <input type="text" className="form-input" placeholder="Link to receipt" value={newExpense.receipt_url} onChange={(e) => setNewExpense({ ...newExpense, receipt_url: e.target.value })} />
             </div>
             
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="form-label">Description *</label>
-              <textarea 
-                className="form-input" 
-                rows={2} 
-                placeholder="Describe the expense..." 
-                value={newExpense.description} 
-                onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} 
-              />
+              <textarea className="form-input" rows={2} placeholder="Describe the expense..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} />
             </div>
           </div>
           
@@ -566,7 +513,7 @@ export default function Expenses() {
           </thead>
           <tbody>
             {filteredExpenses.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No expenses found.</td></tr>
+              <EmptyState.TableRow colSpan={7} icon="expenses" message="No expenses found. Add your first expense to get started." />
             ) : (
               filteredExpenses.map(exp => (
                 <tr key={exp.id} style={{ backgroundColor: exp.is_test_content ? '#fffbeb' : 'transparent' }}>
@@ -637,32 +584,11 @@ export default function Expenses() {
                       </div>
                     ) : (
                       <div className="action-buttons">
-                        {canSubmitExpenseLocal(exp) && (
-                          <button 
-                            className="btn-icon" 
-                            onClick={() => handleSubmit(exp.id)} 
-                            title="Submit for Approval"
-                            style={{ color: '#3b82f6' }}
-                          >
-                            <Send size={16} />
-                          </button>
-                        )}
+                        {canSubmitExpenseLocal(exp) && <button className="btn-icon" onClick={() => handleSubmit(exp.id)} title="Submit for Approval" style={{ color: '#3b82f6' }}><Send size={16} /></button>}
                         {canValidateExpenseLocal(exp) && (
                           <>
-                            <button 
-                              className="btn-icon btn-success" 
-                              onClick={() => handleApprove(exp.id)} 
-                              title="Approve"
-                            >
-                              <CheckCircle size={16} />
-                            </button>
-                            <button 
-                              className="btn-icon btn-danger" 
-                              onClick={() => handleReject(exp.id)} 
-                              title="Reject"
-                            >
-                              <X size={16} />
-                            </button>
+                            <button className="btn-icon btn-success" onClick={() => handleApprove(exp.id)} title="Approve"><CheckCircle size={16} /></button>
+                            <button className="btn-icon btn-danger" onClick={() => handleReject(exp.id)} title="Reject"><X size={16} /></button>
                           </>
                         )}
                         {canEditExpenseLocal(exp) && <button className="btn-icon" onClick={() => handleEdit(exp)} title="Edit"><Edit2 size={16} /></button>}
@@ -685,9 +611,7 @@ export default function Expenses() {
           <li>Link expenses to milestones for better cost tracking</li>
           <li>Upload receipt URLs when available for audit purposes</li>
           <li><strong>Submit:</strong> Click the send icon (→) to submit for approval</li>
-          {canApproveExpense(userRole) && (
-            <li><strong>As an approver:</strong> You can approve (✓) or reject (✗) submitted expenses</li>
-          )}
+          {canApproveExpense(userRole) && <li><strong>As an approver:</strong> You can approve (✓) or reject (✗) submitted expenses</li>}
         </ul>
       </div>
     </div>
