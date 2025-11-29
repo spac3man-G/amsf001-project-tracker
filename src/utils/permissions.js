@@ -1,6 +1,6 @@
 /**
  * AMSF001 Project Tracker - Permission Utilities
- * Version 3.1
+ * Version 3.2
  * 
  * Centralised permission logic for consistent role-based access control.
  * Import these functions in any component to check user permissions.
@@ -8,6 +8,11 @@
  * Usage:
  *   import { canAddTimesheet, ROLES } from '../utils/permissions';
  *   if (canAddTimesheet(userRole)) { ... }
+ * 
+ * CHANGELOG v3.2:
+ * - Added canEditKPI, canEditQualityStandard, canManageNetworkStandards
+ * - Added canEditBudget for inline budget editing
+ * - Ensured all pages can use centralised permission functions
  */
 
 // ============================================
@@ -312,21 +317,78 @@ export const canDeleteDeliverable = (userRole) => {
 };
 
 // ============================================
-// KPI & QUALITY STANDARDS PERMISSIONS
+// KPI PERMISSIONS
 // ============================================
 
 /**
- * Can the user add/edit/delete KPIs?
+ * Can the user add/delete KPIs?
+ * Only Supplier PM and Admin can manage the KPI list
  */
 export const canManageKPIs = (userRole) => {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
 };
 
 /**
- * Can the user add/edit/delete Quality Standards?
+ * Can the user edit/view KPI details?
+ * Customer PM can view and provide input, Supplier PM and Admin have full access
+ * This is used for the KPI detail page and inline editing
+ */
+export const canEditKPI = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user assess KPIs against deliverables?
+ * Allows assessing KPI criteria during deliverable review
+ */
+export const canAssessKPI = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+// ============================================
+// QUALITY STANDARDS PERMISSIONS
+// ============================================
+
+/**
+ * Can the user add/delete Quality Standards?
+ * Only Supplier PM and Admin can manage the QS list
  */
 export const canManageQualityStandards = (userRole) => {
   return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user edit Quality Standard details?
+ * Contributors can contribute, PMs and Admin have full access
+ */
+export const canEditQualityStandard = (userRole) => {
+  return isOneOf(userRole, [ROLES.CONTRIBUTOR, ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user assess Quality Standards against deliverables?
+ */
+export const canAssessQualityStandard = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+// ============================================
+// NETWORK STANDARDS PERMISSIONS
+// ============================================
+
+/**
+ * Can the user manage network standards (add/edit/delete)?
+ * Contributors and Admin can manage network standards
+ */
+export const canManageNetworkStandards = (userRole) => {
+  return isOneOf(userRole, [ROLES.CONTRIBUTOR, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user edit network standard details?
+ */
+export const canEditNetworkStandard = (userRole) => {
+  return isOneOf(userRole, [ROLES.CONTRIBUTOR, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
 };
 
 // ============================================
@@ -376,10 +438,18 @@ export const canAccessSettings = (userRole) => {
 
 /**
  * Can the user manage user accounts?
- * Only Admin
+ * Only Admin can create/delete users
  */
 export const canManageUsers = (userRole) => {
   return userRole === ROLES.ADMIN;
+};
+
+/**
+ * Can the user manage user roles/assignments?
+ * Supplier PM can assign users, Admin has full control
+ */
+export const canAssignUsers = (userRole) => {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
 };
 
 // ============================================
@@ -453,6 +523,14 @@ export const canManageBudgets = (userRole) => {
 };
 
 /**
+ * Can the user edit budget line items?
+ * Same as manage budgets for now
+ */
+export const canEditBudget = (userRole) => {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
  * Can the user view budget information?
  */
 export const canViewBudgets = (userRole) => {
@@ -467,6 +545,13 @@ export const canViewBudgets = (userRole) => {
  * Can the user export reports?
  */
 export const canExportReports = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user view all reports?
+ */
+export const canViewReports = (userRole) => {
   return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
 };
 
@@ -518,4 +603,18 @@ export const getRoleDisplayConfig = (role) => {
     [ROLES.VIEWER]: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' }
   };
   return configs[role] || configs[ROLES.VIEWER];
+};
+
+/**
+ * Get all available roles for dropdowns
+ * @returns {array} Array of { value, label } objects
+ */
+export const getAllRoles = () => {
+  return [
+    { value: ROLES.VIEWER, label: 'Viewer' },
+    { value: ROLES.CONTRIBUTOR, label: 'Contributor' },
+    { value: ROLES.CUSTOMER_PM, label: 'Customer PM' },
+    { value: ROLES.SUPPLIER_PM, label: 'Supplier PM' },
+    { value: ROLES.ADMIN, label: 'Administrator' }
+  ];
 };
