@@ -3,37 +3,31 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   TrendingUp, ArrowLeft, Edit2, Save, X, Target, 
-  FileText, Info, CheckCircle, AlertTriangle
+  FileText, Info, CheckCircle, AlertTriangle, RefreshCw
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { canManageKPIs } from '../utils/permissions';
 
 export default function KPIDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  // Use AuthContext instead of local auth fetching
+  const { role: userRole } = useAuth();
+  
   const [kpi, setKpi] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [userRole, setUserRole] = useState('viewer');
   const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     fetchKPI();
-    fetchUserRole();
   }, [id]);
-
-  async function fetchUserRole() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
-    }
-  }
 
   async function fetchKPI() {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('kpis')
         .select('*')
@@ -63,8 +57,9 @@ export default function KPIDetail() {
   }
 
   async function handleSave() {
+    setSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('kpis')
         .update({
           name: editForm.name,
@@ -79,15 +74,24 @@ export default function KPIDetail() {
           remediation: editForm.remediation,
           notes: editForm.notes
         })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) throw error;
+      
+      // Check if update actually happened (RLS check)
+      if (!data || data.length === 0) {
+        throw new Error('Update failed - you may not have permission to edit this KPI.');
+      }
+      
       await fetchKPI();
       setEditing(false);
       alert('KPI updated successfully!');
     } catch (error) {
       console.error('Error updating KPI:', error);
       alert('Failed to update KPI: ' + error.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -96,7 +100,7 @@ export default function KPIDetail() {
     const tgt = parseFloat(target) || 100;
     const percentage = (curr / tgt) * 100;
     
-    if (curr === 0) return { status: 'Not Started', color: '#ef4444', bg: '#fef2f2' };
+    if (curr === 0) return { status: 'Not Started', color: '#64748b', bg: '#f1f5f9' };
     if (percentage >= 100) return { status: 'Achieved', color: '#10b981', bg: '#f0fdf4' };
     if (percentage >= 80) return { status: 'On Track', color: '#3b82f6', bg: '#eff6ff' };
     if (percentage >= 60) return { status: 'At Risk', color: '#f59e0b', bg: '#fffbeb' };
@@ -104,7 +108,11 @@ export default function KPIDetail() {
   }
 
   if (loading) {
-    return <div className="loading">Loading KPI details...</div>;
+    return (
+      <div className="page-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <RefreshCw size={32} className="spin" style={{ color: 'var(--primary)' }} />
+      </div>
+    );
   }
 
   if (!kpi) {
@@ -123,7 +131,9 @@ export default function KPIDetail() {
   }
 
   const statusInfo = getStatusInfo(kpi.current_value, kpi.target);
-  const canEdit = userRole === 'admin' || userRole === 'contributor';
+  
+  // Use centralized permission check - Supplier PM and Admin can edit KPIs
+  const canEdit = canManageKPIs(userRole);
 
   return (
     <div className="page-container">
@@ -161,10 +171,35 @@ export default function KPIDetail() {
         )}
         {editing && (
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="btn btn-primary" onClick={handleSave}>
-              <Save size={18} /> Save Changes
+            <button 
+              className="btn btn-primary" 
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
-            <button className="btn btn-secondary" onClick={() => setEditing(false)}>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => {
+                setEditing(false);
+                // Reset form to original values
+                setEditForm({
+                  name: kpi.name || '',
+                  category: kpi.category || '',
+                  target: kpi.target || '',
+                  current_value: kpi.current_value || '',
+                  description: kpi.description || '',
+                  measurement_method: kpi.measurement_method || '',
+                  frequency: kpi.frequency || '',
+                  data_source: kpi.data_source || '',
+                  calculation: kpi.calculation || '',
+                  remediation: kpi.remediation || '',
+                  notes: kpi.notes || ''
+                });
+              }}
+              disabled={saving}
+            >
               <X size={18} /> Cancel
             </button>
           </div>
@@ -294,6 +329,28 @@ export default function KPIDetail() {
             
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>
+                Category
+              </label>
+              {editing ? (
+                <select
+                  className="form-input"
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                >
+                  <option value="">Select category</option>
+                  <option value="Time Performance">Time Performance</option>
+                  <option value="Quality of Collaboration">Quality of Collaboration</option>
+                  <option value="Delivery Performance">Delivery Performance</option>
+                </select>
+              ) : (
+                <div style={{ fontWeight: '500' }}>
+                  {kpi.category || 'Not specified'}
+                </div>
+              )}
+            </div>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>
                 Frequency
               </label>
               {editing ? (
@@ -306,6 +363,7 @@ export default function KPIDetail() {
                   <option value="Weekly">Weekly</option>
                   <option value="Monthly">Monthly</option>
                   <option value="Quarterly">Quarterly</option>
+                  <option value="Per Deliverable">Per Deliverable</option>
                   <option value="Annually">Annually</option>
                 </select>
               ) : (
@@ -345,6 +403,8 @@ export default function KPIDetail() {
                   value={editForm.target}
                   onChange={(e) => setEditForm({ ...editForm, target: e.target.value })}
                   placeholder="Target %"
+                  min="0"
+                  max="100"
                 />
               ) : (
                 <div style={{ fontWeight: '500' }}>{kpi.target || '-'}%</div>
@@ -362,6 +422,8 @@ export default function KPIDetail() {
                   value={editForm.current_value}
                   onChange={(e) => setEditForm({ ...editForm, current_value: e.target.value })}
                   placeholder="Current %"
+                  min="0"
+                  max="100"
                 />
               ) : (
                 <div style={{ fontWeight: '500', color: statusInfo.color }}>{kpi.current_value || '0'}%</div>
@@ -386,6 +448,16 @@ export default function KPIDetail() {
               </p>
             )}
           </div>
+
+          {/* Permission Info */}
+          {!canEdit && (
+            <div className="card" style={{ marginTop: '1rem', backgroundColor: '#f1f5f9', borderLeft: '4px solid #64748b' }}>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                <Info size={14} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                Only Supplier PM and Admin can edit KPIs.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
