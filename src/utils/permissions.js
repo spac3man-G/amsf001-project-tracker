@@ -146,7 +146,17 @@ export const canAddExpenseForOthers = (userRole) => {
 };
 
 /**
- * Can the user validate (approve/reject) this expense?
+ * Can the user approve expenses? (role-based check only)
+ * Customer PM approves chargeable expenses
+ * Supplier PM approves non-chargeable expenses
+ * Admin can approve all
+ */
+export const canApproveExpense = (userRole) => {
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+};
+
+/**
+ * Can the user validate (approve/reject) this specific expense?
  * Chargeable → Customer PM approves
  * Non-chargeable → Supplier PM approves
  * @param {string} userRole - Current user's role
