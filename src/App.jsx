@@ -7,6 +7,7 @@ import { supabase } from './lib/supabase';
 
 // Import context providers
 import { AuthProvider } from './contexts/AuthContext';
+import { ProjectProvider } from './contexts/ProjectContext';
 import { TestUserProvider } from './contexts/TestUserContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 
@@ -66,8 +67,9 @@ export default function App() {
     <BrowserRouter>
       {/* Wrap entire app with providers - AuthProvider is outermost */}
       <AuthProvider>
-        <TestUserProvider>
-          <NotificationProvider>
+        <ProjectProvider>
+          <TestUserProvider>
+            <NotificationProvider>
           <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
@@ -145,8 +147,9 @@ export default function App() {
           {/* Catch all - redirect to dashboard */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-          </NotificationProvider>
-        </TestUserProvider>
+            </NotificationProvider>
+          </TestUserProvider>
+        </ProjectProvider>
       </AuthProvider>
     </BrowserRouter>
   );
