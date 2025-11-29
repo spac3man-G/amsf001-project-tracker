@@ -5,16 +5,29 @@ import {
   CheckCircle, AlertCircle, User, CalendarDays, Send
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useProject } from '../contexts/ProjectContext';
+import { 
+  canAddTimesheet,
+  canAddTimesheetForOthers,
+  canApproveTimesheet,
+  canEditTimesheet as canEditTimesheetPerm,
+  canDeleteTimesheet as canDeleteTimesheetPerm,
+  canSubmitTimesheet as canSubmitTimesheetPerm,
+  getAvailableResourcesForEntry
+} from '../utils/permissions';
 
 export default function Timesheets() {
+  // Use shared contexts instead of local state for auth and project
+  const { user, role: userRole, linkedResource } = useAuth();
+  const { projectId } = useProject();
+  const currentUserId = user?.id || null;
+  const currentUserResourceId = linkedResource?.id || null;
+
   const [timesheets, setTimesheets] = useState([]);
   const [resources, setResources] = useState([]);
   const [milestones, setMilestones] = useState([]);
-  const [projectId, setProjectId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [currentUserResourceId, setCurrentUserResourceId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -53,9 +66,12 @@ export default function Timesheets() {
     return { start, end };
   }
 
+  // Fetch data when projectId becomes available (from ProjectContext)
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    if (projectId) {
+      fetchData(projectId);
+    }
+  }, [projectId]);
 
   // Re-fetch when showTestUsers changes
   useEffect(() => {
@@ -64,54 +80,12 @@ export default function Timesheets() {
     }
   }, [showTestUsers]);
 
-  async function fetchInitialData() {
-    try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-        
-        // Get user role
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) setUserRole(profile.role);
-
-        // Find if user is linked to a resource
-        const { data: resource } = await supabase
-          .from('resources')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (resource) {
-          setCurrentUserResourceId(resource.id);
-          setNewTimesheet(prev => ({ ...prev, resource_id: resource.id }));
-        }
-      }
-
-      // Get project ID
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-      
-      if (project) {
-        setProjectId(project.id);
-        await fetchData(project.id);
-      } else {
-        console.error('Project AMSF001 not found');
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Error in fetchInitialData:', error);
-      setLoading(false);
+  // Set default resource when linkedResource becomes available
+  useEffect(() => {
+    if (currentUserResourceId) {
+      setNewTimesheet(prev => ({ ...prev, resource_id: currentUserResourceId }));
     }
-  }
+  }, [currentUserResourceId]);
 
   async function fetchData(projId) {
     const pid = projId || projectId;
@@ -375,32 +349,23 @@ export default function Timesheets() {
     }
   }
 
-  function canEditTimesheet(ts) {
-    if (userRole === 'admin') return true;
-    if (ts.user_id === currentUserId && ts.status !== 'Approved') return true;
-    return false;
+  // Permission helper functions using imported permission utilities
+  function canEditTimesheetLocal(ts) {
+    return canEditTimesheetPerm(userRole, ts.status, ts.user_id, currentUserId);
   }
 
-  function canDeleteTimesheet(ts) {
-    if (userRole === 'admin') return true;
-    if (ts.user_id === currentUserId && ts.status === 'Draft') return true;
-    return false;
+  function canDeleteTimesheetLocal(ts) {
+    return canDeleteTimesheetPerm(userRole, ts.status, ts.user_id, currentUserId);
   }
 
-  // Can submit (owner of Draft timesheet)
-  function canSubmitTimesheet(ts) {
-    if (ts.status !== 'Draft' && ts.status !== 'Rejected') return false;
-    if (userRole === 'admin') return true;
-    if (ts.user_id === currentUserId) return true;
-    return false;
+  function canSubmitTimesheetLocal(ts) {
+    return canSubmitTimesheetPerm(userRole, ts.status, ts.user_id, currentUserId);
   }
 
   // Can validate (approve/reject) - ONLY Customer PM can approve timesheets
-  // Timesheets represent billable hours which are always chargeable to the customer
   function canValidateTimesheet(ts) {
     if (ts.status !== 'Submitted') return false;
-    // Only customer_pm can approve timesheets (they represent chargeable work)
-    return userRole === 'customer_pm';
+    return canApproveTimesheet(userRole);
   }
 
   // Filter timesheets
@@ -428,10 +393,9 @@ export default function Timesheets() {
       .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0)
   })).filter(r => r.hours > 0);
 
-  // Available resources for current user
-  const availableResources = userRole === 'admin' 
-    ? resources 
-    : resources.filter(r => r.user_id === currentUserId);
+  // Available resources for current user (using centralized permission logic)
+  // This now correctly allows Supplier PM to add timesheets for any resource
+  const availableResources = getAvailableResourcesForEntry(userRole, resources, currentUserId);
 
   if (loading) return <div className="loading">Loading timesheets...</div>;
 
@@ -445,7 +409,7 @@ export default function Timesheets() {
             <p>Track time spent on project activities</p>
           </div>
         </div>
-        {!showAddForm && (
+        {!showAddForm && canAddTimesheet(userRole) && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Timesheet
           </button>
@@ -741,7 +705,7 @@ export default function Timesheets() {
                     ) : (
                       <div className="action-buttons">
                         {/* Submit button for Draft/Rejected timesheets */}
-                        {canSubmitTimesheet(ts) && (
+                        {canSubmitTimesheetLocal(ts) && (
                           <button 
                             className="btn-icon" 
                             onClick={() => handleSubmit(ts.id)} 
@@ -770,8 +734,8 @@ export default function Timesheets() {
                             </button>
                           </>
                         )}
-                        {canEditTimesheet(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
-                        {canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
+                        {canEditTimesheetLocal(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
+                        {canDeleteTimesheetLocal(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
                       </div>
                     )}
                   </td>
