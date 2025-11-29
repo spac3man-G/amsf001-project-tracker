@@ -1,12 +1,10 @@
 // src/App.jsx
-// Updated to include TestUserProvider and WorkflowSummary route
+// Version 6.0 - Refactored to use AuthContext for ProtectedRoute
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase';
 
 // Import context providers
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { TestUserProvider } from './contexts/TestUserContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -33,29 +31,20 @@ import Settings from './pages/Settings';
 import AccountSettings from './pages/AccountSettings';
 import WorkflowSummary from './pages/WorkflowSummary';
 
-// Protected Route wrapper
+/**
+ * ProtectedRoute - Wraps routes that require authentication
+ * 
+ * Uses AuthContext instead of managing its own auth state.
+ * This ensures a single source of truth for authentication.
+ */
 function ProtectedRoute({ children }) {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, isLoading } = useAuth();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return <div className="loading">Loading...</div>;
   }
 
-  if (!session) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -70,83 +59,83 @@ export default function App() {
         <ProjectProvider>
           <TestUserProvider>
             <NotificationProvider>
-          <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          
-          {/* Protected routes */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          
-          <Route path="/dashboard" element={
-            <ProtectedRoute><Dashboard /></ProtectedRoute>
-          } />
-          
-          <Route path="/milestones" element={
-            <ProtectedRoute><Milestones /></ProtectedRoute>
-          } />
-          <Route path="/milestones/:id" element={
-            <ProtectedRoute><MilestoneDetail /></ProtectedRoute>
-          } />
-          
-          <Route path="/gantt" element={
-            <ProtectedRoute><Gantt /></ProtectedRoute>
-          } />
-          
-          <Route path="/deliverables" element={
-            <ProtectedRoute><Deliverables /></ProtectedRoute>
-          } />
-          
-          <Route path="/resources" element={
-            <ProtectedRoute><Resources /></ProtectedRoute>
-          } />
-          
-          <Route path="/timesheets" element={
-            <ProtectedRoute><Timesheets /></ProtectedRoute>
-          } />
-          
-          <Route path="/expenses" element={
-            <ProtectedRoute><Expenses /></ProtectedRoute>
-          } />
-          
-          <Route path="/kpis" element={
-            <ProtectedRoute><KPIs /></ProtectedRoute>
-          } />
-          <Route path="/kpis/:id" element={
-            <ProtectedRoute><KPIDetail /></ProtectedRoute>
-          } />
-          
-          <Route path="/quality-standards" element={
-            <ProtectedRoute><QualityStandards /></ProtectedRoute>
-          } />
-          <Route path="/quality-standards/:id" element={
-            <ProtectedRoute><QualityStandardDetail /></ProtectedRoute>
-          } />
-          
-          <Route path="/reports" element={
-            <ProtectedRoute><Reports /></ProtectedRoute>
-          } />
-          
-          <Route path="/users" element={
-            <ProtectedRoute><Users /></ProtectedRoute>
-          } />
-          
-          <Route path="/settings" element={
-            <ProtectedRoute><Settings /></ProtectedRoute>
-          } />
-          
-          <Route path="/account" element={
-            <ProtectedRoute><AccountSettings /></ProtectedRoute>
-          } />
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                
+                {/* Protected routes */}
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                
+                <Route path="/dashboard" element={
+                  <ProtectedRoute><Dashboard /></ProtectedRoute>
+                } />
+                
+                <Route path="/milestones" element={
+                  <ProtectedRoute><Milestones /></ProtectedRoute>
+                } />
+                <Route path="/milestones/:id" element={
+                  <ProtectedRoute><MilestoneDetail /></ProtectedRoute>
+                } />
+                
+                <Route path="/gantt" element={
+                  <ProtectedRoute><Gantt /></ProtectedRoute>
+                } />
+                
+                <Route path="/deliverables" element={
+                  <ProtectedRoute><Deliverables /></ProtectedRoute>
+                } />
+                
+                <Route path="/resources" element={
+                  <ProtectedRoute><Resources /></ProtectedRoute>
+                } />
+                
+                <Route path="/timesheets" element={
+                  <ProtectedRoute><Timesheets /></ProtectedRoute>
+                } />
+                
+                <Route path="/expenses" element={
+                  <ProtectedRoute><Expenses /></ProtectedRoute>
+                } />
+                
+                <Route path="/kpis" element={
+                  <ProtectedRoute><KPIs /></ProtectedRoute>
+                } />
+                <Route path="/kpis/:id" element={
+                  <ProtectedRoute><KPIDetail /></ProtectedRoute>
+                } />
+                
+                <Route path="/quality-standards" element={
+                  <ProtectedRoute><QualityStandards /></ProtectedRoute>
+                } />
+                <Route path="/quality-standards/:id" element={
+                  <ProtectedRoute><QualityStandardDetail /></ProtectedRoute>
+                } />
+                
+                <Route path="/reports" element={
+                  <ProtectedRoute><Reports /></ProtectedRoute>
+                } />
+                
+                <Route path="/users" element={
+                  <ProtectedRoute><Users /></ProtectedRoute>
+                } />
+                
+                <Route path="/settings" element={
+                  <ProtectedRoute><Settings /></ProtectedRoute>
+                } />
+                
+                <Route path="/account" element={
+                  <ProtectedRoute><AccountSettings /></ProtectedRoute>
+                } />
 
-          {/* Workflow Summary - for PMs and admins */}
-          <Route path="/workflow-summary" element={
-            <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
-          } />
-          
-          {/* Catch all - redirect to dashboard */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+                {/* Workflow Summary - for PMs and admins */}
+                <Route path="/workflow-summary" element={
+                  <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
+                } />
+                
+                {/* Catch all - redirect to dashboard */}
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
             </NotificationProvider>
           </TestUserProvider>
         </ProjectProvider>

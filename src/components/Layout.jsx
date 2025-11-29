@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+// src/components/Layout.jsx
+// Version 6.0 - Refactored to use AuthContext and centralized permissions
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
@@ -23,97 +26,63 @@ import {
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
-// Permission checks
-function canManageSystem(role) {
-  return role === 'admin' || role === 'supplier_pm';
-}
+// Import from centralized permissions
+import { canAccessSettings, canViewWorkflowSummary, getRoleConfig } from '../lib/permissions';
 
-function canViewWorkflow(role) {
-  return ['supplier_pm', 'customer_pm'].includes(role);
-}
-
-function getRoleConfig(role) {
-  const configs = {
-    admin: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
-    supplier_pm: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
-    customer_pm: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
-    contributor: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
-    viewer: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' }
-  };
-  return configs[role] || configs.viewer;
-}
+// Import AuthContext for user data
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Use AuthContext for user data - single source of truth
+  const { user, profile, role, signOut } = useAuth();
+  
+  // Local state for UI
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState('viewer');
-  const [displayName, setDisplayName] = useState('User');
-  const [initials, setInitials] = useState('U');
   const [navOrder, setNavOrder] = useState(null);
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragOverItem, setDragOverItem] = useState(null);
   const dragNode = useRef(null);
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
+  // Derive display name and initials from profile
+  const displayName = useMemo(() => {
+    if (!profile) return 'User';
+    return profile.full_name || profile.email || user?.email || 'User';
+  }, [profile, user]);
 
-  async function fetchUser() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUser(user);
-        
-        // Fetch profile for role, full name, and nav_order
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, full_name, email, nav_order')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) {
-          setUserRole(profile.role || 'viewer');
-          
-          // Set nav order if saved
-          if (profile.nav_order && Array.isArray(profile.nav_order)) {
-            setNavOrder(profile.nav_order);
-          }
-          
-          // Set display name - prefer full_name, then profile email, then user email
-          const name = profile.full_name || profile.email || user.email || 'User';
-          setDisplayName(name);
-          
-          // Calculate initials
-          if (profile.full_name) {
-            const parts = profile.full_name.split(' ');
-            if (parts.length >= 2) {
-              setInitials(parts[0][0] + parts[parts.length - 1][0]);
-            } else {
-              setInitials(profile.full_name[0]);
-            }
-          } else {
-            setInitials(name[0].toUpperCase());
-          }
-        }
+  const initials = useMemo(() => {
+    if (!profile) return 'U';
+    if (profile.full_name) {
+      const parts = profile.full_name.split(' ');
+      if (parts.length >= 2) {
+        return parts[0][0] + parts[parts.length - 1][0];
       }
-    } catch (error) {
-      console.error('Error fetching user:', error);
+      return profile.full_name[0].toUpperCase();
     }
-  }
+    return displayName[0].toUpperCase();
+  }, [profile, displayName]);
 
+  // Load nav_order from profile when it becomes available
+  useEffect(() => {
+    if (profile?.nav_order && Array.isArray(profile.nav_order)) {
+      setNavOrder(profile.nav_order);
+    }
+  }, [profile]);
+
+  // Handle logout using AuthContext
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await signOut();
     navigate('/login');
   }
 
   // Permission checks using centralized permissions
-  const hasSystemAccess = canManageSystem(userRole);
-  const hasWorkflowAccess = canViewWorkflow(userRole);
+  const hasSystemAccess = canAccessSettings(role);
+  const hasWorkflowAccess = canViewWorkflowSummary(role);
 
   // Base navigation items (before user ordering)
-  const baseNavItems = [
+  const baseNavItems = useMemo(() => [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/milestones', icon: Milestone, label: 'Milestones' },
     { path: '/gantt', icon: GanttChart, label: 'Gantt Chart' },
@@ -133,10 +102,10 @@ export default function Layout({ children }) {
       { path: '/users', icon: UserCircle, label: 'Users' },
       { path: '/settings', icon: Settings, label: 'Settings' }
     ] : []),
-  ];
+  ], [hasSystemAccess, hasWorkflowAccess]);
 
   // Get sorted nav items based on user's saved order
-  function getSortedNavItems() {
+  const navItems = useMemo(() => {
     if (!navOrder || navOrder.length === 0) {
       return baseNavItems;
     }
@@ -162,16 +131,13 @@ export default function Layout({ children }) {
     });
     
     return sorted;
-  }
-
-  const navItems = getSortedNavItems();
+  }, [navOrder, baseNavItems]);
 
   // Drag and drop handlers
   function handleDragStart(e, index) {
     dragNode.current = e.target;
     setDraggedItem(index);
     
-    // Add a slight delay to allow the drag image to be created
     setTimeout(() => {
       if (dragNode.current) {
         dragNode.current.style.opacity = '0.5';
@@ -195,15 +161,12 @@ export default function Layout({ children }) {
     }
     
     if (draggedItem !== null && dragOverItem !== null && draggedItem !== dragOverItem) {
-      // Reorder the items
       const newNavItems = [...navItems];
       const draggedItemContent = newNavItems[draggedItem];
       
-      // Remove from old position and insert at new position
       newNavItems.splice(draggedItem, 1);
       newNavItems.splice(dragOverItem, 0, draggedItemContent);
       
-      // Save the new order
       const newOrder = newNavItems.map(item => item.path);
       setNavOrder(newOrder);
       saveNavOrder(newOrder);
@@ -231,7 +194,8 @@ export default function Layout({ children }) {
     }
   }
 
-  const roleConfig = getRoleConfig(userRole);
+  // Get role config from centralized permissions
+  const roleConfig = getRoleConfig(role);
 
   const isAccountPage = location.pathname === '/account';
 
