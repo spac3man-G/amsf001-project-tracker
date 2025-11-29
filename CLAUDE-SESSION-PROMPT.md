@@ -1,92 +1,120 @@
-# AMSF001 Project Tracker - Claude Session Starter Prompt
+# AMSF001 Project Tracker - Claude AI Session Prompt
 
-Use this prompt to start a new Claude session for working on the AMSF001 Project Tracker.
-
----
-
-## COPY THIS PROMPT:
+**Version:** 2.0  
+**Last Updated:** 29 November 2025
 
 ---
 
-I need help developing the AMSF001 Project Tracker application. Here's the setup:
+## How to Use This Prompt
+
+Copy everything below the line into a new Claude chat to start a development session. The Configuration Guide with credentials should be uploaded to your Claude Project Knowledge (not pasted into chat).
+
+---
+
+## PROMPT FOR CLAUDE
+
+---
+
+I need help developing the **AMSF001 Project Tracker** application.
 
 ## Project Overview
 
-**AMSF001 Project Tracker** is a React + Vite web application for managing a Government of Jersey / JT Telecom project. It uses:
-- **Frontend:** React 18.2 with React Router 6
-- **Backend:** Supabase (PostgreSQL + Auth)
-- **Hosting:** Vercel (auto-deploys from GitHub)
-- **Repository:** github.com/spac3man-G/amsf001-project-tracker
+| Component | Details |
+|-----------|---------|
+| **Application** | AMSF001 Project Tracker |
+| **Tech Stack** | React 18.2 + Vite + Supabase + Vercel |
+| **Repository** | github.com/spac3man-G/amsf001-project-tracker |
+| **Live Site** | https://amsf001-project-tracker.vercel.app |
+| **Local Repo** | `/Users/glennnickols/Projects/amsf001-project-tracker` |
+
+---
 
 ## How You Access My System
 
 You have access to my Mac via MCP tools:
-1. **Filesystem MCP** - Read/write files in my home directory
-2. **AppleScript (osascript)** - Execute shell commands including Git
-3. **Vercel MCP** - Check deployments, view logs
-4. **Supabase MCP** - Query/modify database via PostgREST
-5. **GitHub MCP** - Available but we prefer local Git via AppleScript (more reliable)
 
-## ⚠️ IMPORTANT: Read These Documents First
+| Tool | Purpose |
+|------|---------|
+| **Filesystem MCP** | Read/write files in `/Users/glennnickols/` |
+| **AppleScript (osascript)** | Execute Git commands via shell |
+| **Vercel MCP** | Check deployments, view logs |
+| **Supabase MCP** | Query/modify database via PostgREST |
 
-Before doing any work, please read these files from my local repository:
+**Important:** Do NOT use GitHub API for file operations - use local Git via AppleScript instead.
 
-### 1. Development Playbook v5 (project status, architecture, tasks)
+---
+
+## Key Documents to Read
+
+Before starting work, read the **Development Playbook v6** from my local repository:
+
 ```
-/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v5.md
+/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v6.md
 ```
-Contains: Current project status, completed/remaining tasks, architecture patterns (usePermissions hook, AuthContext, ProjectContext), code examples.
 
-### 2. Configuration Guide (workflow, MCP setup, troubleshooting)
+The playbook contains:
+- Current project status and completed phases
+- Architecture patterns (AuthContext, usePermissions hook)
+- Development phases with priorities
+- Code examples and anti-patterns to avoid
+- RLS policy documentation
+
+---
+
+## Current Project Status (as of 29 Nov 2025)
+
+### ✅ Completed Phases
+
+| Phase | Description |
+|-------|-------------|
+| Phase 0 | Foundation: AuthContext, ProjectContext, permissions.js, usePermissions hook |
+| Phase 1 | Database: cost_price column, RLS policies for KPIs and Resources |
+| Phase 2 | All 10 pages migrated to usePermissions hook |
+| Phase 4.3 | Settings page rebuilt and functional |
+| Phase 5.1 | KPI Add/Delete UI |
+| Phase 5.2 | Cost price and margins UI on Resources page |
+| **Phase F1** | **Code cleanup: ProtectedRoute uses AuthContext, Layout uses centralized permissions** |
+
+### ❌ Next Phases (Choose One)
+
+**Option A - Phase F2: Shared Components** (Infrastructure)
+- Create reusable UI components (ErrorBoundary, LoadingSpinner, StatCard, etc.)
+- Reduces code duplication across pages
+- Better long-term maintainability
+
+**Option B - Phase F4: Feature Development** (Visible Features)
+- F4.1: Margin Dashboard Card
+- F4.2: Reports Page (functional)
+- F4.3: Project Members Table (multi-tenancy)
+- F4.4: PDF Invoice Generation
+
+---
+
+## Standard Git Workflow
+
+**Check status:**
+```applescript
+do shell script "cd /Users/glennnickols/Projects/amsf001-project-tracker && git status"
 ```
-/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Configuration-Guide.md
+
+**Commit and deploy:**
+```applescript
+do shell script "cd /Users/glennnickols/Projects/amsf001-project-tracker && git add -A && git commit -m 'Phase X: Description' && git push origin main"
 ```
-Contains: Why we don't use GitHub API, AppleScript commands for Git operations, Supabase/Vercel setup info.
 
-### 3. Credentials (in Claude Project Knowledge)
-API keys and passwords are stored in the **Claude Project Knowledge** (AMSF001-Configuration-Guide-v2.md), NOT in the Git repository for security.
+Pushing to main triggers automatic Vercel deployment.
 
-## Key File Locations
-
-| Item | Path |
-|------|------|
-| **Local Repository** | `/Users/glennnickols/Projects/amsf001-project-tracker` |
-| **Source Code** | `/Users/glennnickols/Projects/amsf001-project-tracker/src` |
-| **Development Playbook** | `/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v5.md` |
-| **Configuration Guide** | `/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Configuration-Guide.md` |
-
-## Standard Workflow
-
-1. **Check current state:**
-   ```applescript
-   do shell script "cd /Users/glennnickols/Projects/amsf001-project-tracker && git status"
-   ```
-
-2. **Make changes** using Filesystem MCP tools
-
-3. **Commit and deploy:**
-   ```applescript
-   do shell script "cd /Users/glennnickols/Projects/amsf001-project-tracker && git add -A && git commit -m 'Phase X Task X.X: Description' && git push origin main"
-   ```
-
-4. **Verify deployment** using Vercel MCP
-
-## Current Status (as of 29 Nov 2025)
-
-✅ **Completed:**
-- Phase 0: AuthContext, ProjectContext, permissions.js, usePermissions hook
-- Phase 2: All 10 pages migrated to usePermissions hook
-- Phase 4: Settings page rebuilt and functional
-- Various bug fixes (Expenses crash, permission function call bugs)
-
-❌ **Next Priority Tasks:**
-- Phase 5.1: KPI Add/Delete UI (no "Add KPI" button exists yet)
-- Phase 1.1: Add cost_price column to resources table
-- Phase 5.2: Cost price and margins UI
+---
 
 ## My Request
 
-[STATE YOUR SPECIFIC REQUEST HERE - e.g., "Let's implement Phase 5.1: Add KPI functionality to the KPIs page"]
+[STATE YOUR SPECIFIC REQUEST HERE]
+
+**Examples:**
+- "Read the playbook and let's start Phase F2 - create the shared components"
+- "Let's implement F4.1 - add the Margin Dashboard Card"
+- "I'm seeing an error on [page] - please investigate"
+- "Give me a status update on where we are"
 
 ---
 
@@ -94,40 +122,33 @@ API keys and passwords are stored in the **Claude Project Knowledge** (AMSF001-C
 
 ---
 
-## Tips for Best Results
+## Quick Reference: Common Session Starters
 
-1. **Be specific** about what you want to accomplish
-2. **Let Claude read the playbook first** - it has detailed task breakdowns
-3. **Let Claude read source files** before making changes
-4. **Test incrementally** - deploy after each significant change
-5. **Update the playbook** when tasks are completed
-
-## Example Session Starters
-
-**For KPI Add/Delete:**
+### For Development Tasks
 ```
-[PASTE FULL PROMPT ABOVE]
-
-My Request: Let's implement Phase 5.1 - add the "Add KPI" button and delete functionality to the KPIs page.
+Read the playbook at /Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v6.md and let's implement [PHASE/TASK].
 ```
 
-**For Database Changes:**
+### For Bug Fixes
 ```
-[PASTE FULL PROMPT ABOVE]
-
-My Request: Let's implement Phase 1.1 - add the cost_price column to the resources table.
+I'm seeing an error on the [PAGE] page when I [ACTION]. Please investigate and fix it.
 ```
 
-**For Bug Fixes:**
+### For Status Check
 ```
-[PASTE FULL PROMPT ABOVE]
-
-My Request: I'm seeing an error on the Expenses page when I try to [describe issue]. Please investigate and fix it.
+Read the playbook and give me a summary of what's completed and what the next priorities are.
 ```
 
-**For Status Check:**
+### To Continue Where We Left Off
 ```
-[PASTE FULL PROMPT ABOVE]
+Read the playbook and continue with the next task in the current phase.
+```
 
-My Request: Please read the playbook and give me a summary of what's completed and what the next priorities are.
-```
+---
+
+## Notes
+
+- **Credentials:** Stored in Claude Project Knowledge (AMSF001-Configuration-Guide.md)
+- **Playbook Location:** `/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v6.md`
+- **Testing:** Deploy to Vercel and test on live site (no local dev server)
+- **Git:** Always use AppleScript shell commands, not GitHub API
