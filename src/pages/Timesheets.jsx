@@ -179,6 +179,7 @@ export default function Timesheets() {
         resource_id: newTimesheet.resource_id,
         milestone_id: newTimesheet.milestone_id || null,
         user_id: resource?.user_id || currentUserId,
+        created_by: currentUserId,  // Track who created this entry
         date: dateToUse,  // Original schema column (NOT NULL)
         work_date: dateToUse,
         week_ending: entryMode === 'weekly' ? newTimesheet.week_ending : null,
