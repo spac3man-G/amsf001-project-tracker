@@ -991,7 +991,7 @@ export default function Expenses() {
                       )}
                     </td>
                     <td>
-                      {editingId === exp.id && canValidateExpense(exp) ? (
+                      {editingId === exp.id && canValidateExpenseLocal(exp) ? (
                         <select className="form-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
                           {statuses.map(s => <option key={s} value={s}>{statusDisplayNames[s] || s}</option>)}
                         </select>
