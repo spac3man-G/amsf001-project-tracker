@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, PoundSterling, Briefcase, FileCheck } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { useProject } from '../contexts/ProjectContext';
 
 // Helper function to check if a role is PMO
 function isPMORole(role) {
@@ -40,29 +41,34 @@ export default function Dashboard() {
   const [qualityStandards, setQualityStandards] = useState([]);
   const [projectProgress, setProjectProgress] = useState(0);
 
-  // Test user context for filtering
+  // Use shared contexts
   const { showTestUsers, testUserIds } = useTestUsers();
+  const { projectId } = useProject();
 
-  useEffect(() => { fetchDashboardData(); }, [showTestUsers]);
+  // Fetch data when projectId becomes available
+  useEffect(() => {
+    if (projectId) {
+      fetchDashboardData();
+    }
+  }, [projectId, showTestUsers]);
 
   async function fetchDashboardData() {
+    if (!projectId) return;
+    
     try {
-      const { data: project } = await supabase.from('projects').select('id').eq('reference', 'AMSF001').single();
-      if (!project) return;
-
-      const { data: milestonesData } = await supabase.from('milestones').select('*').eq('project_id', project.id).order('milestone_ref');
+      const { data: milestonesData } = await supabase.from('milestones').select('*').eq('project_id', projectId).order('milestone_ref');
       setMilestones(milestonesData || []);
 
-      const { data: deliverablesData } = await supabase.from('deliverables').select('*').eq('project_id', project.id);
+      const { data: deliverablesData } = await supabase.from('deliverables').select('*').eq('project_id', projectId);
       const { data: resourcesData } = await supabase.from('resources').select('*');
-      const { data: kpisData } = await supabase.from('kpis').select('*').eq('project_id', project.id).order('kpi_ref');
-      const { data: qsData } = await supabase.from('quality_standards').select('*').eq('project_id', project.id).order('qs_ref');
+      const { data: kpisData } = await supabase.from('kpis').select('*').eq('project_id', projectId).order('kpi_ref');
+      const { data: qsData } = await supabase.from('quality_standards').select('*').eq('project_id', projectId).order('qs_ref');
 
       // Fetch timesheets to calculate spend - with test content filter
       let timesheetQuery = supabase
         .from('timesheets')
         .select('*, resources(id, name, role, daily_rate, discount_percent)')
-        .eq('project_id', project.id);
+        .eq('project_id', projectId);
       
       // Filter out test content unless admin/supplier_pm has enabled it
       if (!showTestUsers) {
@@ -163,7 +169,7 @@ export default function Dashboard() {
       const { data: certificatesData } = await supabase
         .from('milestone_certificates')
         .select('*')
-        .eq('project_id', project.id);
+        .eq('project_id', projectId);
       
       const signedCerts = certificatesData?.filter(c => c.status === 'Signed').length || 0;
       const pendingCerts = certificatesData?.filter(c => 
