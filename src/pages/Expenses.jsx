@@ -48,6 +48,12 @@ export default function Expenses() {
     expenseData: null 
   });
 
+  // Detail modal state
+  const [detailModal, setDetailModal] = useState({
+    isOpen: false,
+    expense: null
+  });
+
   // Test user context for filtering
   const { showTestUsers, testUserIds } = useTestUsers();
 
@@ -1097,7 +1103,18 @@ export default function Expenses() {
                 const catColors = getCategoryColor(exp.category);
                 const isChargeable = exp.chargeable_to_customer !== false;
                 return (
-                  <tr key={exp.id} style={{ backgroundColor: !isChargeable ? '#fffbeb' : 'inherit' }}>
+                  <tr 
+                    key={exp.id} 
+                    style={{ 
+                      backgroundColor: !isChargeable ? '#fffbeb' : 'inherit',
+                      cursor: editingId === exp.id ? 'default' : 'pointer'
+                    }}
+                    onClick={() => {
+                      if (editingId !== exp.id) {
+                        setDetailModal({ isOpen: true, expense: exp });
+                      }
+                    }}
+                  >
                     <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{exp.expense_ref || '-'}</td>
                     <td>
                       {editingId === exp.id ? (
@@ -1219,7 +1236,7 @@ export default function Expenses() {
                         <span className={`status-badge ${getStatusColor(exp.status)}`}>{statusDisplayNames[exp.status] || exp.status}</span>
                       )}
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       {exp.expense_files?.length > 0 ? (
                         <div style={{ display: 'flex', gap: '0.25rem' }}>
                           {exp.expense_files.map((file, idx) => (
@@ -1235,7 +1252,7 @@ export default function Expenses() {
                         </div>
                       ) : '-'}
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       {editingId === exp.id ? (
                         <div className="action-buttons">
                           <button className="btn-icon btn-success" onClick={() => handleSave(exp.id)}><Save size={16} /></button>
@@ -1349,6 +1366,276 @@ export default function Expenses() {
         cancelText="Cancel"
         variant="danger"
       />
+
+      {/* Expense Detail Modal */}
+      {detailModal.isOpen && detailModal.expense && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setDetailModal({ isOpen: false, expense: null })}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              width: '90%',
+              maxWidth: '600px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Expense Details</h2>
+                <span style={{ 
+                  fontFamily: 'monospace', 
+                  fontSize: '0.9rem', 
+                  color: '#6b7280',
+                  marginTop: '0.25rem',
+                  display: 'block'
+                }}>
+                  {detailModal.expense.expense_ref || 'No Reference'}
+                </span>
+              </div>
+              <button
+                onClick={() => setDetailModal({ isOpen: false, expense: null })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  color: '#6b7280'
+                }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Status Badge */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <span 
+                className={`status-badge ${getStatusColor(detailModal.expense.status)}`}
+                style={{ fontSize: '0.9rem', padding: '0.35rem 0.75rem' }}
+              >
+                {statusDisplayNames[detailModal.expense.status] || detailModal.expense.status}
+              </span>
+            </div>
+
+            {/* Main Details Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '1rem',
+              marginBottom: '1.5rem'
+            }}>
+              {/* Category */}
+              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Category</label>
+                <div style={{ 
+                  marginTop: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <span style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '0.25rem',
+                    padding: '0.35rem 0.75rem', 
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    backgroundColor: getCategoryColor(detailModal.expense.category).bg,
+                    color: getCategoryColor(detailModal.expense.category).color
+                  }}>
+                    {getCategoryIcon(detailModal.expense.category)}
+                    {detailModal.expense.category}
+                  </span>
+                </div>
+              </div>
+
+              {/* Amount */}
+              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Amount</label>
+                <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>
+                  £{parseFloat(detailModal.expense.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              {/* Resource */}
+              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Resource</label>
+                <p style={{ margin: '0.5rem 0 0 0', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <User size={16} style={{ color: '#6b7280' }} />
+                  {detailModal.expense.resource_name}
+                </p>
+              </div>
+
+              {/* Date */}
+              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Expense Date</label>
+                <p style={{ margin: '0.5rem 0 0 0', fontWeight: '500' }}>
+                  {new Date(detailModal.expense.expense_date).toLocaleDateString('en-GB', { 
+                    weekday: 'long',
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                  })}
+                </p>
+              </div>
+
+              {/* Chargeable */}
+              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Chargeable to Customer</label>
+                <p style={{ 
+                  margin: '0.5rem 0 0 0', 
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: detailModal.expense.chargeable_to_customer ? '#059669' : '#dc2626'
+                }}>
+                  {detailModal.expense.chargeable_to_customer ? (
+                    <><CheckCircle size={18} /> Yes</>
+                  ) : (
+                    <><X size={18} /> No</>
+                  )}
+                </p>
+              </div>
+
+              {/* Procurement */}
+              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Procured By</label>
+                <p style={{ margin: '0.5rem 0 0 0' }}>
+                  <span style={{ 
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: '500',
+                    backgroundColor: (detailModal.expense.procurement_method || 'supplier') === 'partner' ? '#f3e8ff' : '#e0e7ff',
+                    color: (detailModal.expense.procurement_method || 'supplier') === 'partner' ? '#7c3aed' : '#4338ca'
+                  }}>
+                    {(detailModal.expense.procurement_method || 'supplier') === 'partner' ? <Building2 size={14} /> : <Briefcase size={14} />}
+                    {(detailModal.expense.procurement_method || 'supplier') === 'partner' ? 'Partner' : 'Supplier (JT)'}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Reason / Description */}
+            <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '1rem' }}>
+              <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Reason / Description</label>
+              <p style={{ margin: '0.5rem 0 0 0', lineHeight: '1.5' }}>
+                {detailModal.expense.reason || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No description provided</span>}
+              </p>
+            </div>
+
+            {/* Notes */}
+            {detailModal.expense.notes && (
+              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '1rem' }}>
+                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Additional Notes</label>
+                <p style={{ margin: '0.5rem 0 0 0', lineHeight: '1.5' }}>
+                  {detailModal.expense.notes}
+                </p>
+              </div>
+            )}
+
+            {/* Receipts */}
+            {detailModal.expense.expense_files?.length > 0 && (
+              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '1rem' }}>
+                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Receipts</label>
+                <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  {detailModal.expense.expense_files.map((file, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => downloadFile(file.file_path, file.file_name)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: '#dbeafe',
+                        color: '#1d4ed8',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      <Download size={14} />
+                      {file.file_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer Actions */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'flex-end', 
+              gap: '0.75rem',
+              marginTop: '1.5rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid #e5e7eb'
+            }}>
+              {canEditExpense(detailModal.expense) && (
+                <button
+                  onClick={() => {
+                    handleEdit(detailModal.expense);
+                    setDetailModal({ isOpen: false, expense: null });
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#f1f5f9',
+                    color: '#475569',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <Edit2 size={16} />
+                  Edit
+                </button>
+              )}
+              <button
+                onClick={() => setDetailModal({ isOpen: false, expense: null })}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
