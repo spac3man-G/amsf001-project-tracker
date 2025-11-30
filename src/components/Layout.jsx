@@ -1,9 +1,9 @@
 // src/components/Layout.jsx
-// Version 8.0 - Cleaned up user info display
+// Version 9.0 - Added reset navigation order functionality
 // - User name/role only shown in header (top right)
 // - Clicking user info in header navigates to My Account
-// - Removed duplicate user info from sidebar
-// - Sidebar bottom now only shows logout button
+// - Drag and drop navigation reordering for non-viewers
+// - Reset to default order button when custom order is active
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -12,9 +12,11 @@ import {
   LogOut,
   Menu,
   X,
-  GripVertical
+  GripVertical,
+  RotateCcw
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
+import { useToast } from '../contexts/ToastContext';
 
 // Import from centralized navigation config
 import { 
@@ -23,7 +25,9 @@ import {
   canReorderNavigation,
   getRoleDisplay,
   isReadOnlyForRole,
-  getNavItemIdByPath
+  getNavItemIdByPath,
+  getDefaultNavOrder,
+  isDefaultOrder
 } from '../lib/navigation';
 
 // Import AuthContext for user data
@@ -32,6 +36,7 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   
   // Use AuthContext for user data - single source of truth
   const { user, profile, role, signOut } = useAuth();
@@ -79,6 +84,11 @@ export default function Layout({ children }) {
 
   // Check if this role can reorder navigation
   const canReorder = useMemo(() => canReorderNavigation(role), [role]);
+
+  // Check if current order is customized (not default)
+  const hasCustomOrder = useMemo(() => {
+    return customNavOrder && !isDefaultOrder(role, customNavOrder);
+  }, [role, customNavOrder]);
 
   // Get navigation items for current role, with custom ordering if saved
   const navItems = useMemo(() => {
@@ -156,9 +166,35 @@ export default function Layout({ children }) {
       
       if (error) {
         console.error('Error saving nav order:', error);
+        showError('Failed to save menu order');
       }
     } catch (error) {
       console.error('Error saving nav order:', error);
+      showError('Failed to save menu order');
+    }
+  }
+
+  // Reset navigation to default order
+  async function handleResetNavOrder() {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ nav_order: null })
+        .eq('id', user.id);
+      
+      if (error) {
+        console.error('Error resetting nav order:', error);
+        showError('Failed to reset menu order');
+        return;
+      }
+      
+      setCustomNavOrder(null);
+      showSuccess('Menu order reset to default');
+    } catch (error) {
+      console.error('Error resetting nav order:', error);
+      showError('Failed to reset menu order');
     }
   }
 
@@ -283,6 +319,45 @@ export default function Layout({ children }) {
             );
           })}
         </nav>
+
+        {/* Reset Navigation Order Button (only shown when custom order is active) */}
+        {sidebarOpen && canReorder && hasCustomOrder && (
+          <div style={{ 
+            padding: '0.5rem 1rem',
+            borderTop: '1px solid #e2e8f0'
+          }}>
+            <button
+              onClick={handleResetNavOrder}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem',
+                backgroundColor: '#f8fafc',
+                color: '#64748b',
+                border: '1px solid #e2e8f0',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f1f5f9';
+                e.currentTarget.style.color = '#475569';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.color = '#64748b';
+              }}
+            >
+              <RotateCcw size={14} />
+              Reset Menu Order
+            </button>
+          </div>
+        )}
 
         {/* Logout Button Only (sidebar bottom) */}
         <div style={{ 

@@ -1,7 +1,7 @@
 /**
  * AMSF001 Project Tracker - Centralized Navigation Configuration
  * Location: src/lib/navigation.js
- * Version 1.0
+ * Version 2.0 - Updated default order, added reset functionality
  * 
  * This file is the SINGLE SOURCE OF TRUTH for navigation items and role-based access.
  * It follows industry best practices for:
@@ -11,8 +11,9 @@
  * - Multi-tenant ready: Navigation can be extended per-project in future
  * 
  * Usage:
- *   import { getNavigationForRole, NAV_ITEMS } from '../lib/navigation';
+ *   import { getNavigationForRole, NAV_ITEMS, getDefaultNavOrder } from '../lib/navigation';
  *   const navItems = getNavigationForRole(userRole);
+ *   const defaultOrder = getDefaultNavOrder(userRole); // For reset functionality
  */
 
 import {
@@ -49,6 +50,14 @@ import { ROLES } from './permissions';
  * - readOnlyRoles: Array of roles that can view but not modify (optional)
  */
 export const NAV_ITEMS = {
+  workflowSummary: {
+    id: 'workflowSummary',
+    path: '/workflow-summary',
+    icon: ClipboardList,
+    label: 'Workflow Summary',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR],
+    readOnlyRoles: []
+  },
   dashboard: {
     id: 'dashboard',
     path: '/dashboard',
@@ -57,13 +66,21 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
+  reports: {
+    id: 'reports',
+    path: '/reports',
+    icon: FileText,
+    label: 'Reports',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
+    readOnlyRoles: []
+  },
   gantt: {
     id: 'gantt',
     path: '/gantt',
     icon: GanttChart,
     label: 'Gantt Chart',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM] // Customer PM can view but not drag
+    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
   },
   milestones: {
     id: 'milestones',
@@ -81,19 +98,27 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
+  kpis: {
+    id: 'kpis',
+    path: '/kpis',
+    icon: TrendingUp,
+    label: 'KPIs',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
+    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
+  },
+  qualityStandards: {
+    id: 'qualityStandards',
+    path: '/quality-standards',
+    icon: Award,
+    label: 'Quality Standards',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
+    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
+  },
   resources: {
     id: 'resources',
     path: '/resources',
     icon: Users,
     label: 'Resources',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: []
-  },
-  partners: {
-    id: 'partners',
-    path: '/partners',
-    icon: Building2,
-    label: 'Partners',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
@@ -113,36 +138,12 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR],
     readOnlyRoles: []
   },
-  kpis: {
-    id: 'kpis',
-    path: '/kpis',
-    icon: TrendingUp,
-    label: 'KPIs',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
-  },
-  qualityStandards: {
-    id: 'qualityStandards',
-    path: '/quality-standards',
-    icon: Award,
-    label: 'Quality Standards',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
-  },
-  reports: {
-    id: 'reports',
-    path: '/reports',
-    icon: FileText,
-    label: 'Reports',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER]
-  },
-  workflowSummary: {
-    id: 'workflowSummary',
-    path: '/workflow-summary',
-    icon: ClipboardList,
-    label: 'Workflow Summary',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR],
+  partners: {
+    id: 'partners',
+    path: '/partners',
+    icon: Building2,
+    label: 'Partners',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
   users: {
@@ -164,60 +165,73 @@ export const NAV_ITEMS = {
 };
 
 // ============================================
-// ROLE-BASED NAVIGATION ORDERING
+// DEFAULT NAVIGATION ORDER BY ROLE
 // ============================================
 
 /**
  * Default navigation order by role
  * This defines which items appear and in what order for each role
  * 
- * Note: Items not in a role's list will not be shown to that role,
- * even if they're in allowedRoles (this allows fine-tuned control)
+ * Order based on workflow priority:
+ * 1. Workflow Summary - pending actions first
+ * 2. Dashboard - overview
+ * 3. Reports - analysis
+ * 4. Gantt Chart - timeline view
+ * 5. Milestones - project phases
+ * 6. Deliverables - outputs
+ * 7. KPIs - metrics
+ * 8. Quality Standards - quality tracking
+ * 9. Resources - team management
+ * 10. Timesheets - time tracking
+ * 11. Expenses - cost tracking
+ * 12. Partners - supplier management
+ * 13. Users - user management
+ * 14. Settings - configuration
  */
 export const ROLE_NAV_ORDER = {
   [ROLES.ADMIN]: [
+    'workflowSummary',
     'dashboard',
+    'reports',
     'gantt',
     'milestones',
     'deliverables',
-    'resources',
-    'partners',
-    'timesheets',
-    'expenses',
     'kpis',
     'qualityStandards',
-    'reports',
-    'workflowSummary',
+    'resources',
+    'timesheets',
+    'expenses',
+    'partners',
     'users',
     'settings'
   ],
   [ROLES.SUPPLIER_PM]: [
+    'workflowSummary',
     'dashboard',
+    'reports',
     'gantt',
     'milestones',
     'deliverables',
-    'resources',
-    'partners',
-    'timesheets',
-    'expenses',
     'kpis',
     'qualityStandards',
-    'reports',
-    'workflowSummary',
+    'resources',
+    'timesheets',
+    'expenses',
+    'partners',
     'users',
     'settings'
   ],
   [ROLES.CUSTOMER_PM]: [
+    'workflowSummary',
     'dashboard',
+    'reports',
     'gantt',
     'milestones',
     'deliverables',
-    'timesheets',
-    'expenses',
     'kpis',
     'qualityStandards',
-    'reports',
-    'workflowSummary'
+    'timesheets',
+    'expenses'
   ],
   [ROLES.CONTRIBUTOR]: [
     'workflowSummary',
@@ -240,7 +254,20 @@ export const ROLE_NAV_ORDER = {
 // ============================================
 
 /**
- * Get navigation items for a specific role
+ * Get default navigation order for a role (as array of paths)
+ * Used for reset functionality
+ * @param {string} role - User's role
+ * @returns {array} Array of paths in default order
+ */
+export function getDefaultNavOrder(role) {
+  const navOrder = ROLE_NAV_ORDER[role] || ROLE_NAV_ORDER[ROLES.VIEWER];
+  return navOrder
+    .map(itemId => NAV_ITEMS[itemId]?.path)
+    .filter(Boolean);
+}
+
+/**
+ * Get navigation items for a specific role in default order
  * @param {string} role - User's role
  * @returns {array} Array of navigation item objects
  */
@@ -281,7 +308,7 @@ export function isReadOnlyForRole(role, itemId) {
 
 /**
  * Check if role can reorder navigation (drag and drop)
- * Viewers and read-only roles cannot reorder
+ * Viewers cannot reorder
  * @param {string} role - User's role
  * @returns {boolean}
  */
@@ -344,6 +371,21 @@ export function applyCustomNavOrder(role, customOrder) {
   return sorted;
 }
 
+/**
+ * Check if current order matches default order
+ * @param {string} role - User's role
+ * @param {array} currentOrder - Current nav_order (array of paths)
+ * @returns {boolean} True if order matches default
+ */
+export function isDefaultOrder(role, currentOrder) {
+  if (!currentOrder || currentOrder.length === 0) return true;
+  
+  const defaultOrder = getDefaultNavOrder(role);
+  if (currentOrder.length !== defaultOrder.length) return false;
+  
+  return currentOrder.every((path, index) => path === defaultOrder[index]);
+}
+
 // ============================================
 // ROLE DISPLAY CONFIGURATION
 // ============================================
@@ -403,7 +445,6 @@ export function getRoleDisplay(role) {
 // RE-EXPORT ROLES FOR CONVENIENCE
 // ============================================
 
-// Re-export ROLES from permissions to avoid needing two imports
 export { ROLES } from './permissions';
 
 // ============================================
@@ -415,11 +456,13 @@ export default {
   ROLE_NAV_ORDER,
   ROLE_DISPLAY,
   getNavigationForRole,
+  getDefaultNavOrder,
   canSeeNavItem,
   isReadOnlyForRole,
   canReorderNavigation,
   getNavItemByPath,
   getNavItemIdByPath,
   applyCustomNavOrder,
+  isDefaultOrder,
   getRoleDisplay
 };
