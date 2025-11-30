@@ -125,11 +125,12 @@ export default function PartnerDetail() {
           });
         }
 
-        // Fetch expenses for linked resources
+        // Fetch expenses for linked resources (by resource name since expenses use name, not ID)
+        const resourceNames = resources.map(r => r.name);
         const { data: expData } = await supabase
           .from('expenses')
-          .select('id, expense_date, category, description, amount, resource_id, resources(name)')
-          .in('resource_id', resourceIds)
+          .select('id, expense_date, category, reason, amount, resource_name, status')
+          .in('resource_name', resourceNames)
           .order('expense_date', { ascending: false })
           .limit(20);
 
@@ -623,9 +624,9 @@ export default function PartnerDetail() {
                     <td style={{ padding: '0.75rem' }}>
                       {new Date(exp.expense_date).toLocaleDateString()}
                     </td>
-                    <td style={{ padding: '0.75rem' }}>{exp.resources?.name}</td>
+                    <td style={{ padding: '0.75rem' }}>{exp.resource_name}</td>
                     <td style={{ padding: '0.75rem' }}>{exp.category}</td>
-                    <td style={{ padding: '0.75rem' }}>{exp.description}</td>
+                    <td style={{ padding: '0.75rem' }}>{exp.reason}</td>
                     <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '500' }}>
                       £{parseFloat(exp.amount).toFixed(2)}
                     </td>
