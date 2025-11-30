@@ -4,8 +4,9 @@
  * Handles all timesheet-related data operations.
  * Extends BaseService with timesheet-specific methods.
  * 
- * @version 1.0
- * @created 30 November 2025
+ * @version 2.0
+ * @updated 30 November 2025
+ * @phase Production Hardening - Service Layer
  */
 
 import { BaseService } from './base.service';
@@ -13,7 +14,10 @@ import { supabase } from '../lib/supabase';
 
 export class TimesheetsService extends BaseService {
   constructor() {
-    super('timesheets');
+    super('timesheets', {
+      supportsSoftDelete: true,
+      sanitizeConfig: 'timesheet'
+    });
   }
 
   /**
@@ -35,6 +39,42 @@ export class TimesheetsService extends BaseService {
   }
 
   /**
+   * Get timesheets filtered by test content setting
+   * @param {string} projectId - Project UUID  
+   * @param {boolean} showTestContent - Whether to include test content
+   */
+  async getAllFiltered(projectId, showTestContent = false) {
+    try {
+      let query = supabase
+        .from(this.tableName)
+        .select(`
+          *,
+          resources(id, name, email, daily_rate, cost_price),
+          milestones(id, milestone_ref, name)
+        `)
+        .eq('project_id', projectId)
+        .order('date', { ascending: false });
+
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
+
+      // Filter out test content unless enabled
+      if (!showTestContent) {
+        query = query.or('is_test_content.is.null,is_test_content.eq.false');
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('TimesheetsService getAllFiltered error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get timesheets by resource
    * @param {string} resourceId - Resource UUID
    * @param {Object} options - Optional date range { start, end }
@@ -46,6 +86,11 @@ export class TimesheetsService extends BaseService {
         .select('*, milestones(id, milestone_ref, name)')
         .eq('resource_id', resourceId)
         .order('date', { ascending: false });
+
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
 
       if (options.start) {
         query = query.gte('date', options.start);
@@ -77,7 +122,8 @@ export class TimesheetsService extends BaseService {
       const { data: resources } = await supabase
         .from('resources')
         .select('id, name, cost_price')
-        .eq('partner_id', partnerId);
+        .eq('partner_id', partnerId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
 
       if (!resources || resources.length === 0) {
         return [];
@@ -90,6 +136,11 @@ export class TimesheetsService extends BaseService {
         .select('*, resources(id, name, cost_price), milestones(id, milestone_ref, name)')
         .in('resource_id', resourceIds)
         .order('date', { ascending: false });
+
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
 
       if (options.start) {
         query = query.gte('date', options.start);

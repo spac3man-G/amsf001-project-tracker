@@ -4,9 +4,9 @@
  * Handles all expense-related data operations.
  * Extends BaseService with expense-specific methods.
  * 
- * @version 1.0
- * @created 30 November 2025
- * @phase P4 - Expenses Enhancement
+ * @version 2.0
+ * @updated 30 November 2025
+ * @phase Production Hardening
  */
 
 import { BaseService } from './base.service';
@@ -14,7 +14,10 @@ import { supabase } from '../lib/supabase';
 
 export class ExpensesService extends BaseService {
   constructor() {
-    super('expenses');
+    super('expenses', {
+      supportsSoftDelete: true,
+      sanitizeConfig: 'expense'
+    });
   }
 
   /**
@@ -23,12 +26,44 @@ export class ExpensesService extends BaseService {
    * @param {Object} options - Query options
    */
   async getAll(projectId, options = {}) {
-    const defaultSelect = '*, expense_files(*), resources(name, resource_type, partner_id)';
+    const defaultSelect = '*, expense_files(*)';
     return super.getAll(projectId, {
       ...options,
       select: options.select || defaultSelect,
       orderBy: options.orderBy || { column: 'expense_date', ascending: false }
     });
+  }
+
+  /**
+   * Get expenses filtered by test content setting
+   * @param {string} projectId - Project UUID  
+   * @param {boolean} showTestContent - Whether to include test content
+   */
+  async getAllFiltered(projectId, showTestContent = false) {
+    try {
+      let query = supabase
+        .from(this.tableName)
+        .select('*, expense_files(*)')
+        .eq('project_id', projectId)
+        .order('expense_date', { ascending: false });
+
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
+
+      // Filter out test content unless enabled
+      if (!showTestContent) {
+        query = query.or('is_test_content.is.null,is_test_content.eq.false');
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('ExpensesService getAllFiltered error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -43,6 +78,11 @@ export class ExpensesService extends BaseService {
         .select('*, expense_files(*)')
         .eq('resource_id', resourceId)
         .order('expense_date', { ascending: false });
+
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
 
       if (options.start) {
         query = query.gte('expense_date', options.start);
@@ -85,6 +125,11 @@ export class ExpensesService extends BaseService {
         .in('resource_id', resourceIds)
         .order('expense_date', { ascending: false });
 
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
+
       if (options.start) {
         query = query.gte('expense_date', options.start);
       }
@@ -103,7 +148,6 @@ export class ExpensesService extends BaseService {
       throw error;
     }
   }
-
 
   /**
    * Get partner-procured expenses for invoicing
@@ -214,6 +258,49 @@ export class ExpensesService extends BaseService {
     return super.create(expenseData);
   }
 
+  /**
+   * Create multiple expenses at once (batch insert)
+   * @param {Object[]} expenses - Array of expense data
+   * @returns {Promise<Object[]>} Created expenses
+   */
+  async createMany(expenses) {
+    if (!expenses || expenses.length === 0) {
+      return [];
+    }
+
+    try {
+      // Validate and set defaults for each expense
+      const expensesToInsert = expenses.map(expense => {
+        if (!expense.resource_id) {
+          throw new Error('resource_id is required for all expenses');
+        }
+        if (!expense.category) {
+          throw new Error('category is required for all expenses');
+        }
+        if (!expense.amount || expense.amount <= 0) {
+          throw new Error('amount must be greater than 0 for all expenses');
+        }
+
+        return {
+          ...expense,
+          status: expense.status || 'Draft',
+          chargeable_to_customer: expense.chargeable_to_customer ?? true,
+          procurement_method: expense.procurement_method || 'supplier'
+        };
+      });
+
+      const { data, error } = await supabase
+        .from(this.tableName)
+        .insert(expensesToInsert)
+        .select();
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('ExpensesService createMany error:', error);
+      throw error;
+    }
+  }
 
   /**
    * Submit expense for validation
@@ -250,6 +337,61 @@ export class ExpensesService extends BaseService {
    */
   async markPaid(id) {
     return this.update(id, { status: 'Paid' });
+  }
+
+  /**
+   * Upload a receipt file for an expense
+   * @param {string} expenseId - Expense UUID
+   * @param {File} file - File to upload
+   * @param {string} userId - User uploading the file
+   */
+  async uploadReceipt(expenseId, file, userId) {
+    try {
+      const filePath = `${expenseId}/${Date.now()}-${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data, error } = await supabase
+        .from('expense_files')
+        .insert({
+          expense_id: expenseId,
+          file_name: file.name,
+          file_path: filePath,
+          file_size: file.size,
+          file_type: file.type,
+          uploaded_by: userId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('ExpensesService uploadReceipt error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Download a receipt file
+   * @param {string} filePath - Storage path of the file
+   */
+  async downloadReceipt(filePath) {
+    try {
+      const { data, error } = await supabase.storage
+        .from('receipts')
+        .download(filePath);
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('ExpensesService downloadReceipt error:', error);
+      throw error;
+    }
   }
 }
 

@@ -3,9 +3,9 @@
  * 
  * Handles all deliverable-related data operations.
  * 
- * @version 1.0
- * @created 30 November 2025
- * @phase Phase 1 - Stabilisation
+ * @version 2.0
+ * @updated 30 November 2025
+ * @phase Production Hardening - Service Layer
  */
 
 import { BaseService } from './base.service';
@@ -13,7 +13,10 @@ import { supabase } from '../lib/supabase';
 
 export class DeliverablesService extends BaseService {
   constructor() {
-    super('deliverables');
+    super('deliverables', {
+      supportsSoftDelete: true,
+      sanitizeConfig: 'deliverable'
+    });
   }
 
   /**
@@ -21,7 +24,7 @@ export class DeliverablesService extends BaseService {
    */
   async getAllWithMilestones(projectId) {
     return this.getAll(projectId, {
-      select: '*, milestones(name, reference)',
+      select: '*, milestones(name, milestone_ref)',
       orderBy: { column: 'due_date', ascending: true }
     });
   }
@@ -31,12 +34,18 @@ export class DeliverablesService extends BaseService {
    */
   async getByMilestone(milestoneId) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from(this.tableName)
         .select('*')
         .eq('milestone_id', milestoneId)
         .order('due_date', { ascending: true });
 
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     } catch (error) {
@@ -62,7 +71,7 @@ export class DeliverablesService extends BaseService {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from(this.tableName)
         .select('*, milestones(name)')
         .eq('project_id', projectId)
@@ -70,6 +79,12 @@ export class DeliverablesService extends BaseService {
         .not('status', 'in', '("Delivered","Cancelled")')
         .order('due_date', { ascending: true });
 
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     } catch (error) {
@@ -88,7 +103,7 @@ export class DeliverablesService extends BaseService {
       futureDate.setDate(futureDate.getDate() + days);
       const future = futureDate.toISOString().split('T')[0];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from(this.tableName)
         .select('*, milestones(name)')
         .eq('project_id', projectId)
@@ -97,6 +112,12 @@ export class DeliverablesService extends BaseService {
         .not('status', 'eq', 'Delivered')
         .order('due_date', { ascending: true });
 
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     } catch (error) {
@@ -144,6 +165,52 @@ export class DeliverablesService extends BaseService {
       status: 'Rejected',
       rejection_reason: reason
     });
+  }
+
+  /**
+   * Get deliverables summary for dashboard
+   */
+  async getSummary(projectId) {
+    try {
+      const deliverables = await this.getAll(projectId);
+      const today = new Date().toISOString().split('T')[0];
+      
+      const summary = {
+        total: deliverables.length,
+        delivered: 0,
+        inProgress: 0,
+        notStarted: 0,
+        overdue: 0,
+        dueThisWeek: 0
+      };
+
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+      deliverables.forEach(d => {
+        if (d.status === 'Delivered') {
+          summary.delivered++;
+        } else if (d.status === 'In Progress') {
+          summary.inProgress++;
+          if (d.due_date < today) {
+            summary.overdue++;
+          } else if (d.due_date <= nextWeekStr) {
+            summary.dueThisWeek++;
+          }
+        } else if (d.status === 'Not Started' || d.status === 'Draft') {
+          summary.notStarted++;
+          if (d.due_date < today) {
+            summary.overdue++;
+          }
+        }
+      });
+
+      return summary;
+    } catch (error) {
+      console.error('DeliverablesService getSummary error:', error);
+      throw error;
+    }
   }
 }
 

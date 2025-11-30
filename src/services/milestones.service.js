@@ -3,9 +3,9 @@
  * 
  * Handles all milestone-related data operations.
  * 
- * @version 1.0
- * @created 30 November 2025
- * @phase Phase 1 - Stabilisation
+ * @version 2.0
+ * @updated 30 November 2025
+ * @phase Production Hardening - Service Layer
  */
 
 import { BaseService } from './base.service';
@@ -13,7 +13,10 @@ import { supabase } from '../lib/supabase';
 
 export class MilestonesService extends BaseService {
   constructor() {
-    super('milestones');
+    super('milestones', {
+      supportsSoftDelete: true,
+      sanitizeConfig: 'milestone'
+    });
   }
 
   /**
@@ -25,12 +28,13 @@ export class MilestonesService extends BaseService {
         orderBy: { column: 'start_date', ascending: true }
       });
 
-      // Get timesheet hours per milestone
+      // Get timesheet hours per milestone (excluding soft-deleted timesheets)
       const { data: timesheetStats } = await supabase
         .from('timesheets')
         .select('milestone_id, hours_worked')
         .eq('project_id', projectId)
-        .not('milestone_id', 'is', null);
+        .not('milestone_id', 'is', null)
+        .or('is_deleted.is.null,is_deleted.eq.false');
 
       // Calculate hours per milestone
       const hoursMap = {};
@@ -59,6 +63,7 @@ export class MilestonesService extends BaseService {
         .from(this.tableName)
         .select('*')
         .eq('id', milestoneId)
+        .or(this.getSoftDeleteFilter())
         .single();
 
       if (mError) throw mError;
@@ -67,6 +72,7 @@ export class MilestonesService extends BaseService {
         .from('deliverables')
         .select('*')
         .eq('milestone_id', milestoneId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('due_date', { ascending: true });
 
       if (dError) throw dError;
@@ -101,7 +107,7 @@ export class MilestonesService extends BaseService {
       futureDate.setDate(futureDate.getDate() + days);
       const future = futureDate.toISOString().split('T')[0];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from(this.tableName)
         .select('*')
         .eq('project_id', projectId)
@@ -110,6 +116,12 @@ export class MilestonesService extends BaseService {
         .neq('status', 'Completed')
         .order('end_date', { ascending: true });
 
+      // Apply soft delete filter
+      if (this.supportsSoftDelete) {
+        query = query.or(this.getSoftDeleteFilter());
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     } catch (error) {
@@ -134,6 +146,50 @@ export class MilestonesService extends BaseService {
       updates.status = 'Completed';
     }
     return this.update(milestoneId, updates);
+  }
+
+  /**
+   * Get milestones summary for dashboard
+   */
+  async getSummary(projectId) {
+    try {
+      const milestones = await this.getAll(projectId);
+      
+      const summary = {
+        total: milestones.length,
+        completed: 0,
+        inProgress: 0,
+        notStarted: 0,
+        overdue: 0,
+        upcoming: 0
+      };
+
+      const today = new Date().toISOString().split('T')[0];
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+      milestones.forEach(m => {
+        if (m.status === 'Completed') {
+          summary.completed++;
+        } else if (m.status === 'In Progress') {
+          summary.inProgress++;
+          if (m.end_date < today) {
+            summary.overdue++;
+          }
+        } else if (m.status === 'Not Started') {
+          summary.notStarted++;
+          if (m.start_date <= nextWeekStr) {
+            summary.upcoming++;
+          }
+        }
+      });
+
+      return summary;
+    } catch (error) {
+      console.error('MilestonesService getSummary error:', error);
+      throw error;
+    }
   }
 }
 
