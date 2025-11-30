@@ -51,7 +51,9 @@ export default function Expenses() {
   // Detail modal state
   const [detailModal, setDetailModal] = useState({
     isOpen: false,
-    expense: null
+    expense: null,
+    editMode: false,
+    editData: null
   });
 
   // Test user context for filtering
@@ -126,10 +128,10 @@ export default function Expenses() {
       const { data: expensesData } = await expenseQuery;
       setExpenses(expensesData || []);
 
-      // Fetch resources - filter out resources linked to test users
+      // Fetch resources with partner info - filter out resources linked to test users
       const { data: resourcesData } = await supabase
         .from('resources')
-        .select('id, name, email, user_id')
+        .select('id, name, email, user_id, partner_id, partner:partners(id, name)')
         .order('name');
       
       // Filter out resources linked to test users if not showing test users
@@ -1368,7 +1370,25 @@ export default function Expenses() {
       />
 
       {/* Expense Detail Modal */}
-      {detailModal.isOpen && detailModal.expense && (
+      {detailModal.isOpen && detailModal.expense && (() => {
+        const exp = detailModal.expense;
+        const isEditing = detailModal.editMode;
+        const editData = detailModal.editData || {};
+        const linkedResource = resources.find(r => r.id === exp.resource_id);
+        const partnerName = linkedResource?.partner?.name || null;
+        
+        // Helper to get partner name for a resource ID
+        const getPartnerForResource = (resourceId) => {
+          const res = resources.find(r => r.id === resourceId);
+          return res?.partner?.name || null;
+        };
+        
+        // Current partner based on edit data or expense
+        const currentResourceId = isEditing ? editData.resource_id : exp.resource_id;
+        const currentPartner = getPartnerForResource(currentResourceId);
+        const currentProcurement = isEditing ? editData.procurement_method : (exp.procurement_method || 'supplier');
+        
+        return (
         <div 
           style={{
             position: 'fixed',
@@ -1382,7 +1402,7 @@ export default function Expenses() {
             justifyContent: 'center',
             zIndex: 1000
           }}
-          onClick={() => setDetailModal({ isOpen: false, expense: null })}
+          onClick={() => setDetailModal({ isOpen: false, expense: null, editMode: false, editData: null })}
         >
           <div 
             style={{
@@ -1390,7 +1410,7 @@ export default function Expenses() {
               borderRadius: '12px',
               padding: '1.5rem',
               width: '90%',
-              maxWidth: '600px',
+              maxWidth: '650px',
               maxHeight: '90vh',
               overflowY: 'auto',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
@@ -1400,7 +1420,9 @@ export default function Expenses() {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Expense Details</h2>
+                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>
+                  {isEditing ? 'Edit Expense' : 'Expense Details'}
+                </h2>
                 <span style={{ 
                   fontFamily: 'monospace', 
                   fontSize: '0.9rem', 
@@ -1408,11 +1430,11 @@ export default function Expenses() {
                   marginTop: '0.25rem',
                   display: 'block'
                 }}>
-                  {detailModal.expense.expense_ref || 'No Reference'}
+                  {exp.expense_ref || 'No Reference'}
                 </span>
               </div>
               <button
-                onClick={() => setDetailModal({ isOpen: false, expense: null })}
+                onClick={() => setDetailModal({ isOpen: false, expense: null, editMode: false, editData: null })}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -1428,10 +1450,10 @@ export default function Expenses() {
             {/* Status Badge */}
             <div style={{ marginBottom: '1.5rem' }}>
               <span 
-                className={`status-badge ${getStatusColor(detailModal.expense.status)}`}
+                className={`status-badge ${getStatusColor(exp.status)}`}
                 style={{ fontSize: '0.9rem', padding: '0.35rem 0.75rem' }}
               >
-                {statusDisplayNames[detailModal.expense.status] || detailModal.expense.status}
+                {statusDisplayNames[exp.status] || exp.status}
               </span>
             </div>
 
@@ -1445,137 +1467,226 @@ export default function Expenses() {
               {/* Category */}
               <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
                 <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Category</label>
-                <div style={{ 
-                  marginTop: '0.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  <span style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '0.25rem',
-                    padding: '0.35rem 0.75rem', 
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    backgroundColor: getCategoryColor(detailModal.expense.category).bg,
-                    color: getCategoryColor(detailModal.expense.category).color
-                  }}>
-                    {getCategoryIcon(detailModal.expense.category)}
-                    {detailModal.expense.category}
-                  </span>
-                </div>
+                {isEditing ? (
+                  <select
+                    value={editData.category}
+                    onChange={(e) => setDetailModal({...detailModal, editData: {...editData, category: e.target.value}})}
+                    style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                  >
+                    <option value="Travel">Travel</option>
+                    <option value="Accommodation">Accommodation</option>
+                    <option value="Sustenance">Sustenance</option>
+                  </select>
+                ) : (
+                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ 
+                      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                      padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.9rem',
+                      backgroundColor: getCategoryColor(exp.category).bg,
+                      color: getCategoryColor(exp.category).color
+                    }}>
+                      {getCategoryIcon(exp.category)}
+                      {exp.category}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Amount */}
               <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
                 <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Amount</label>
-                <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>
-                  £{parseFloat(detailModal.expense.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
-                </p>
+                {isEditing ? (
+                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                    <span style={{ marginRight: '0.25rem', fontWeight: '600' }}>£</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editData.amount}
+                      onChange={(e) => setDetailModal({...detailModal, editData: {...editData, amount: e.target.value}})}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1.25rem', fontWeight: '600' }}
+                    />
+                  </div>
+                ) : (
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>
+                    £{parseFloat(exp.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                  </p>
+                )}
               </div>
 
               {/* Resource */}
               <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
                 <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Resource</label>
-                <p style={{ margin: '0.5rem 0 0 0', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <User size={16} style={{ color: '#6b7280' }} />
-                  {detailModal.expense.resource_name}
-                </p>
+                {isEditing ? (
+                  <select
+                    value={editData.resource_id}
+                    onChange={(e) => {
+                      const newResourceId = e.target.value;
+                      const newPartner = getPartnerForResource(newResourceId);
+                      // If resource has no partner, reset procurement to supplier
+                      const newProcurement = newPartner ? editData.procurement_method : 'supplier';
+                      setDetailModal({...detailModal, editData: {...editData, resource_id: newResourceId, procurement_method: newProcurement}});
+                    }}
+                    style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                  >
+                    <option value="">-- Select Resource --</option>
+                    {resources.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} {r.partner?.name ? `(${r.partner.name})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p style={{ margin: '0.5rem 0 0 0', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <User size={16} style={{ color: '#6b7280' }} />
+                    {exp.resource_name}
+                    {partnerName && (
+                      <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.25rem' }}>
+                        ({partnerName})
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
 
               {/* Date */}
               <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
                 <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Expense Date</label>
-                <p style={{ margin: '0.5rem 0 0 0', fontWeight: '500' }}>
-                  {new Date(detailModal.expense.expense_date).toLocaleDateString('en-GB', { 
-                    weekday: 'long',
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })}
-                </p>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={editData.expense_date}
+                    onChange={(e) => setDetailModal({...detailModal, editData: {...editData, expense_date: e.target.value}})}
+                    style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                  />
+                ) : (
+                  <p style={{ margin: '0.5rem 0 0 0', fontWeight: '500' }}>
+                    {new Date(exp.expense_date).toLocaleDateString('en-GB', { 
+                      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+                    })}
+                  </p>
+                )}
               </div>
 
               {/* Chargeable */}
               <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
                 <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Chargeable to Customer</label>
-                <p style={{ 
-                  margin: '0.5rem 0 0 0', 
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  color: detailModal.expense.chargeable_to_customer ? '#059669' : '#dc2626'
-                }}>
-                  {detailModal.expense.chargeable_to_customer ? (
-                    <><CheckCircle size={18} /> Yes</>
-                  ) : (
-                    <><X size={18} /> No</>
-                  )}
-                </p>
+                {isEditing ? (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={editData.chargeable_to_customer}
+                        onChange={(e) => setDetailModal({...detailModal, editData: {...editData, chargeable_to_customer: e.target.checked}})}
+                        style={{ width: '20px', height: '20px' }}
+                      />
+                      <span style={{ fontWeight: '500' }}>{editData.chargeable_to_customer ? 'Yes' : 'No'}</span>
+                    </label>
+                  </div>
+                ) : (
+                  <p style={{ 
+                    margin: '0.5rem 0 0 0', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    color: exp.chargeable_to_customer ? '#059669' : '#dc2626'
+                  }}>
+                    {exp.chargeable_to_customer ? <><CheckCircle size={18} /> Yes</> : <><X size={18} /> No</>}
+                  </p>
+                )}
               </div>
 
               {/* Procurement */}
               <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
                 <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Procured By</label>
-                <p style={{ margin: '0.5rem 0 0 0' }}>
-                  <span style={{ 
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    fontWeight: '500',
-                    backgroundColor: (detailModal.expense.procurement_method || 'supplier') === 'partner' ? '#f3e8ff' : '#e0e7ff',
-                    color: (detailModal.expense.procurement_method || 'supplier') === 'partner' ? '#7c3aed' : '#4338ca'
-                  }}>
-                    {(detailModal.expense.procurement_method || 'supplier') === 'partner' ? <Building2 size={14} /> : <Briefcase size={14} />}
-                    {(detailModal.expense.procurement_method || 'supplier') === 'partner' ? 'Partner' : 'Supplier (JT)'}
-                  </span>
-                </p>
+                {isEditing ? (
+                  <div>
+                    <select
+                      value={editData.procurement_method}
+                      onChange={(e) => setDetailModal({...detailModal, editData: {...editData, procurement_method: e.target.value}})}
+                      style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                      disabled={!currentPartner}
+                    >
+                      <option value="supplier">Supplier (JT)</option>
+                      {currentPartner && <option value="partner">Partner ({currentPartner})</option>}
+                    </select>
+                    {!currentPartner && (
+                      <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                        Resource has no linked partner
+                      </p>
+                    )}
+                    {currentPartner && editData.procurement_method === 'partner' && (
+                      <p style={{ fontSize: '0.75rem', color: '#7c3aed', marginTop: '0.25rem' }}>
+                        {currentPartner} will invoice JT for this expense
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ margin: '0.5rem 0 0 0' }}>
+                    <span style={{ 
+                      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                      padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500',
+                      backgroundColor: currentProcurement === 'partner' ? '#f3e8ff' : '#e0e7ff',
+                      color: currentProcurement === 'partner' ? '#7c3aed' : '#4338ca'
+                    }}>
+                      {currentProcurement === 'partner' ? <Building2 size={14} /> : <Briefcase size={14} />}
+                      {currentProcurement === 'partner' ? `Partner (${partnerName || 'Unknown'})` : 'Supplier (JT)'}
+                    </span>
+                    {currentProcurement === 'partner' && partnerName && (
+                      <p style={{ fontSize: '0.75rem', color: '#7c3aed', marginTop: '0.5rem' }}>
+                        {partnerName} will invoice JT for this expense
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Reason / Description */}
             <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '1rem' }}>
               <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Reason / Description</label>
-              <p style={{ margin: '0.5rem 0 0 0', lineHeight: '1.5' }}>
-                {detailModal.expense.reason || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No description provided</span>}
-              </p>
+              {isEditing ? (
+                <textarea
+                  value={editData.reason || ''}
+                  onChange={(e) => setDetailModal({...detailModal, editData: {...editData, reason: e.target.value}})}
+                  rows={3}
+                  style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db', resize: 'vertical' }}
+                  placeholder="Enter reason for expense..."
+                />
+              ) : (
+                <p style={{ margin: '0.5rem 0 0 0', lineHeight: '1.5' }}>
+                  {exp.reason || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No description provided</span>}
+                </p>
+              )}
             </div>
 
             {/* Notes */}
-            {detailModal.expense.notes && (
-              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Additional Notes</label>
+            <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '1rem' }}>
+              <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Additional Notes</label>
+              {isEditing ? (
+                <textarea
+                  value={editData.notes || ''}
+                  onChange={(e) => setDetailModal({...detailModal, editData: {...editData, notes: e.target.value}})}
+                  rows={2}
+                  style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db', resize: 'vertical' }}
+                  placeholder="Optional notes..."
+                />
+              ) : (
                 <p style={{ margin: '0.5rem 0 0 0', lineHeight: '1.5' }}>
-                  {detailModal.expense.notes}
+                  {exp.notes || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No notes</span>}
                 </p>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Receipts */}
-            {detailModal.expense.expense_files?.length > 0 && (
+            {/* Receipts - View mode only */}
+            {!isEditing && exp.expense_files?.length > 0 && (
               <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '1rem' }}>
                 <label style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Receipts</label>
                 <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  {detailModal.expense.expense_files.map((file, idx) => (
+                  {exp.expense_files.map((file, idx) => (
                     <button
                       key={idx}
                       onClick={() => downloadFile(file.file_path, file.file_name)}
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.5rem 0.75rem',
-                        backgroundColor: '#dbeafe',
-                        color: '#1d4ed8',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '0.85rem'
+                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                        padding: '0.5rem 0.75rem', backgroundColor: '#dbeafe', color: '#1d4ed8',
+                        border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem'
                       }}
                     >
                       <Download size={14} />
@@ -1588,54 +1699,105 @@ export default function Expenses() {
 
             {/* Footer Actions */}
             <div style={{ 
-              display: 'flex', 
-              justifyContent: 'flex-end', 
-              gap: '0.75rem',
-              marginTop: '1.5rem',
-              paddingTop: '1rem',
-              borderTop: '1px solid #e5e7eb'
+              display: 'flex', justifyContent: 'flex-end', gap: '0.75rem',
+              marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb'
             }}>
-              {canEditExpense(detailModal.expense) && (
-                <button
-                  onClick={() => {
-                    handleEdit(detailModal.expense);
-                    setDetailModal({ isOpen: false, expense: null });
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#f1f5f9',
-                    color: '#475569',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem'
-                  }}
-                >
-                  <Edit2 size={16} />
-                  Edit
-                </button>
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => setDetailModal({...detailModal, editMode: false, editData: null})}
+                    style={{
+                      padding: '0.5rem 1rem', backgroundColor: '#f1f5f9', color: '#475569',
+                      border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '0.875rem'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const resourceName = resources.find(r => r.id === editData.resource_id)?.name || exp.resource_name;
+                        const { error } = await supabase
+                          .from('expenses')
+                          .update({
+                            category: editData.category,
+                            resource_id: editData.resource_id,
+                            resource_name: resourceName,
+                            expense_date: editData.expense_date,
+                            reason: editData.reason,
+                            amount: parseFloat(editData.amount),
+                            notes: editData.notes,
+                            chargeable_to_customer: editData.chargeable_to_customer,
+                            procurement_method: editData.procurement_method
+                          })
+                          .eq('id', exp.id);
+                        
+                        if (error) throw error;
+                        
+                        await fetchData();
+                        setDetailModal({ isOpen: false, expense: null, editMode: false, editData: null });
+                        alert('Expense updated successfully!');
+                      } catch (error) {
+                        console.error('Error updating expense:', error);
+                        alert('Failed to update: ' + error.message);
+                      }
+                    }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white',
+                      border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.875rem'
+                    }}
+                  >
+                    <Save size={16} />
+                    Save Changes
+                  </button>
+                </>
+              ) : (
+                <>
+                  {canEditExpense(exp) && (
+                    <button
+                      onClick={() => {
+                        setDetailModal({
+                          ...detailModal,
+                          editMode: true,
+                          editData: {
+                            category: exp.category,
+                            resource_id: exp.resource_id,
+                            expense_date: exp.expense_date,
+                            reason: exp.reason || '',
+                            amount: exp.amount,
+                            notes: exp.notes || '',
+                            chargeable_to_customer: exp.chargeable_to_customer !== false,
+                            procurement_method: exp.procurement_method || 'supplier'
+                          }
+                        });
+                      }}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                        padding: '0.5rem 1rem', backgroundColor: '#f1f5f9', color: '#475569',
+                        border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '0.875rem'
+                      }}
+                    >
+                      <Edit2 size={16} />
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setDetailModal({ isOpen: false, expense: null, editMode: false, editData: null })}
+                    style={{
+                      padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white',
+                      border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.875rem'
+                    }}
+                  >
+                    Close
+                  </button>
+                </>
               )}
-              <button
-                onClick={() => setDetailModal({ isOpen: false, expense: null })}
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem'
-                }}
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
