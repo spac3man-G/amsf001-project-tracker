@@ -44,15 +44,19 @@ export default function ResourceDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState(null);
   
+  // Date range filter state
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
+  const [selectedMonth, setSelectedMonth] = useState('');
+  
   // Edit form state
   const [editForm, setEditForm] = useState({});
 
-  // Fetch all data on mount
+  // Fetch all data on mount and when date range changes
   useEffect(() => {
     if (id) {
       fetchResourceData();
     }
-  }, [id]);
+  }, [id, dateRange.start, dateRange.end]);
 
   // Fetch partners when we have a resource with project_id and user role is known
   useEffect(() => {
@@ -132,22 +136,42 @@ export default function ResourceDetail() {
         }
       });
 
-      // Fetch recent timesheets for this resource
-      const { data: tsData } = await supabase
+      // Fetch timesheets for this resource with optional date filter
+      let tsQuery = supabase
         .from('timesheets')
         .select('id, date, hours_worked, hours, status, description, milestone:milestones(milestone_ref, name)')
-        .eq('resource_id', id)
+        .eq('resource_id', id);
+      
+      // Apply date range filter if set
+      if (dateRange.start) {
+        tsQuery = tsQuery.gte('date', dateRange.start);
+      }
+      if (dateRange.end) {
+        tsQuery = tsQuery.lte('date', dateRange.end);
+      }
+      
+      const { data: tsData } = await tsQuery
         .order('date', { ascending: false })
-        .limit(10);
+        .limit(100);
       setTimesheets(tsData || []);
 
-      // Fetch recent expenses for this resource
-      const { data: expData } = await supabase
+      // Fetch expenses for this resource with optional date filter
+      let expQuery = supabase
         .from('expenses')
-        .select('id, expense_date, category, reason, amount, chargeable_to_customer, status')
-        .eq('resource_id', id)
+        .select('id, expense_date, travel_amount, accommodation_amount, sustenance_amount, travel_reason, accommodation_reason, sustenance_reason, chargeable_to_customer, procurement_method, status')
+        .eq('resource_id', id);
+      
+      // Apply date range filter if set
+      if (dateRange.start) {
+        expQuery = expQuery.gte('expense_date', dateRange.start);
+      }
+      if (dateRange.end) {
+        expQuery = expQuery.lte('expense_date', dateRange.end);
+      }
+      
+      const { data: expData } = await expQuery
         .order('expense_date', { ascending: false })
-        .limit(10);
+        .limit(100);
       setExpenses(expData || []);
 
     } catch (err) {
@@ -156,6 +180,58 @@ export default function ResourceDetail() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Date range handling functions
+  function getMonthOptions() {
+    const options = [];
+    const today = new Date();
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const label = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      options.push({ value, label });
+    }
+    return options;
+  }
+
+  function handleMonthChange(monthValue) {
+    setSelectedMonth(monthValue);
+    if (monthValue) {
+      const [year, month] = monthValue.split('-').map(Number);
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0); // Last day of month
+      setDateRange({
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0]
+      });
+    } else {
+      setDateRange({ start: null, end: null });
+    }
+  }
+
+  function handleCustomDateChange(field, value) {
+    setSelectedMonth(''); // Clear month selector when using custom dates
+    setDateRange(prev => ({ ...prev, [field]: value }));
+  }
+
+  function clearDateFilter() {
+    setSelectedMonth('');
+    setDateRange({ start: null, end: null });
+  }
+
+  function getDateRangeLabel() {
+    if (!dateRange.start && !dateRange.end) return 'All Time';
+    if (selectedMonth) {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      return new Date(year, month - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+    if (dateRange.start && dateRange.end) {
+      return `${new Date(dateRange.start).toLocaleDateString('en-GB')} - ${new Date(dateRange.end).toLocaleDateString('en-GB')}`;
+    }
+    if (dateRange.start) return `From ${new Date(dateRange.start).toLocaleDateString('en-GB')}`;
+    if (dateRange.end) return `Until ${new Date(dateRange.end).toLocaleDateString('en-GB')}`;
+    return 'All Time';
   }
 
   function startEditing() {
@@ -418,6 +494,97 @@ export default function ResourceDetail() {
           subtext={`${daysUsed.toFixed(1)} / ${daysAllocated} days`}
           color={utilization > 80 ? '#10b981' : utilization > 0 ? '#3b82f6' : '#64748b'}
         />
+      </div>
+
+      {/* Date Range Filter */}
+      <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Calendar size={18} style={{ color: '#3b82f6' }} />
+            <span style={{ fontWeight: '500' }}>Period:</span>
+          </div>
+          
+          {/* Month Quick Select */}
+          <select
+            value={selectedMonth}
+            onChange={(e) => handleMonthChange(e.target.value)}
+            style={{
+              padding: '0.5rem',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              fontSize: '0.875rem',
+              minWidth: '160px'
+            }}
+          >
+            <option value="">Select Month...</option>
+            {getMonthOptions().map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          
+          <span style={{ color: '#64748b' }}>or</span>
+          
+          {/* Custom Date Range */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              type="date"
+              value={dateRange.start || ''}
+              onChange={(e) => handleCustomDateChange('start', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0',
+                fontSize: '0.875rem'
+              }}
+            />
+            <span style={{ color: '#64748b' }}>to</span>
+            <input
+              type="date"
+              value={dateRange.end || ''}
+              onChange={(e) => handleCustomDateChange('end', e.target.value)}
+              style={{
+                padding: '0.5rem',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0',
+                fontSize: '0.875rem'
+              }}
+            />
+          </div>
+          
+          {/* Clear Button */}
+          {(dateRange.start || dateRange.end) && (
+            <button
+              onClick={clearDateFilter}
+              style={{
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+            >
+              <X size={14} />
+              Clear
+            </button>
+          )}
+          
+          {/* Current Selection Display */}
+          <div style={{
+            marginLeft: 'auto',
+            padding: '0.5rem 0.75rem',
+            backgroundColor: '#dbeafe',
+            color: '#1e40af',
+            borderRadius: '6px',
+            fontSize: '0.875rem',
+            fontWeight: '500'
+          }}>
+            Showing: {getDateRangeLabel()}
+          </div>
+        </div>
       </div>
 
       {/* Main Content Grid */}
@@ -758,13 +925,17 @@ export default function ResourceDetail() {
               </div>
             </div>
 
-            {/* Recent Timesheets */}
+            {/* Timesheets */}
             <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">Recent Timesheets</h3>
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 className="card-title">Timesheets</h3>
+                <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                  {timesheets.length} entries
+                  {dateRange.start || dateRange.end ? ` (${getDateRangeLabel()})` : ''}
+                </span>
               </div>
               {timesheets.length > 0 ? (
-                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
                   <table style={{ width: '100%', fontSize: '0.875rem' }}>
                     <thead>
                       <tr>
@@ -779,7 +950,7 @@ export default function ResourceDetail() {
                         return (
                           <tr key={ts.id}>
                             <td style={{ padding: '0.5rem' }}>
-                              {new Date(ts.date).toLocaleDateString()}
+                              {new Date(ts.date).toLocaleDateString('en-GB')}
                             </td>
                             <td style={{ padding: '0.5rem' }}>
                               {parseFloat(ts.hours_worked || ts.hours || 0).toFixed(1)}h
@@ -804,7 +975,7 @@ export default function ResourceDetail() {
               ) : (
                 <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                   <Clock size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                  <p>No timesheets recorded</p>
+                  <p>No timesheets {dateRange.start || dateRange.end ? 'in selected period' : 'recorded'}</p>
                 </div>
               )}
             </div>
@@ -812,53 +983,96 @@ export default function ResourceDetail() {
         )}
       </div>
 
-      {/* Recent Expenses - full width below */}
-      {!isEditing && expenses.length > 0 && (
+      {/* Expenses - full width below */}
+      {!isEditing && (
         <div className="card" style={{ marginTop: '1.5rem' }}>
-          <div className="card-header">
-            <h3 className="card-title">Recent Expenses</h3>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 className="card-title">Expenses</h3>
+            <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+              {expenses.length} entries
+              {dateRange.start || dateRange.end ? ` (${getDateRangeLabel()})` : ''}
+            </span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', fontSize: '0.875rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Date</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Category</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Description</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'right' }}>Amount</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map(exp => {
-                  const statusStyle = getStatusStyle(exp.validation_status);
-                  return (
-                    <tr key={exp.id}>
-                      <td style={{ padding: '0.75rem' }}>
-                        {new Date(exp.expense_date).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>{exp.category}</td>
-                      <td style={{ padding: '0.75rem' }}>{exp.reason}</td>
-                      <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '500' }}>
-                        £{parseFloat(exp.amount).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <span style={{
-                          padding: '0.15rem 0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          backgroundColor: statusStyle.bg,
-                          color: statusStyle.color
-                        }}>
-                          {exp.status || 'Draft'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {expenses.length > 0 ? (
+            <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', fontSize: '0.875rem' }}>
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: '#fff' }}>
+                  <tr>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Date</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Travel</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Accommodation</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Sustenance</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Chargeable</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Paid By</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.map(exp => {
+                    const travel = parseFloat(exp.travel_amount) || 0;
+                    const accommodation = parseFloat(exp.accommodation_amount) || 0;
+                    const sustenance = parseFloat(exp.sustenance_amount) || 0;
+                    const total = travel + accommodation + sustenance;
+                    const statusStyle = getStatusStyle(exp.status);
+                    return (
+                      <tr key={exp.id}>
+                        <td style={{ padding: '0.75rem' }}>
+                          {new Date(exp.expense_date).toLocaleDateString('en-GB')}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          {travel > 0 ? `£${travel.toFixed(2)}` : '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          {accommodation > 0 ? `£${accommodation.toFixed(2)}` : '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          {sustenance > 0 ? `£${sustenance.toFixed(2)}` : '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '600' }}>
+                          £{total.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          {exp.chargeable_to_customer ? (
+                            <CheckCircle size={16} style={{ color: '#10b981' }} />
+                          ) : (
+                            <X size={16} style={{ color: '#94a3b8' }} />
+                          )}
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span style={{
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            backgroundColor: exp.procurement_method === 'partner' ? '#fef3c7' : '#e0f2fe',
+                            color: exp.procurement_method === 'partner' ? '#92400e' : '#0369a1'
+                          }}>
+                            {exp.procurement_method === 'partner' ? 'Partner' : 'Supplier'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span style={{
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            backgroundColor: statusStyle.bg,
+                            color: statusStyle.color
+                          }}>
+                            {exp.status || 'Draft'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              <Receipt size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+              <p>No expenses {dateRange.start || dateRange.end ? 'in selected period' : 'recorded'}</p>
+            </div>
+          )}
         </div>
       )}
 
