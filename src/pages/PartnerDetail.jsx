@@ -51,15 +51,19 @@ export default function PartnerDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState(null);
   
+  // Date range filter state
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
+  const [selectedMonth, setSelectedMonth] = useState('');
+  
   // Edit form state
   const [editForm, setEditForm] = useState({});
 
-  // Fetch all data on mount
+  // Fetch all data on mount and when date range changes
   useEffect(() => {
     if (id) {
       fetchPartnerData();
     }
-  }, [id]);
+  }, [id, dateRange.start, dateRange.end]);
 
   async function fetchPartnerData() {
     try {
@@ -82,13 +86,23 @@ export default function PartnerDetail() {
       const resourceIds = resources.map(r => r.id);
 
       if (resourceIds.length > 0) {
-        // Fetch timesheets for linked resources
-        const { data: tsData } = await supabase
+        // Build timesheet query with optional date filter
+        let tsQuery = supabase
           .from('timesheets')
           .select('id, date, hours_worked, hours, status, resource_id, resources(name, cost_price)')
-          .in('resource_id', resourceIds)
+          .in('resource_id', resourceIds);
+        
+        // Apply date range filter if set
+        if (dateRange.start) {
+          tsQuery = tsQuery.gte('date', dateRange.start);
+        }
+        if (dateRange.end) {
+          tsQuery = tsQuery.lte('date', dateRange.end);
+        }
+        
+        const { data: tsData } = await tsQuery
           .order('date', { ascending: false })
-          .limit(20);
+          .limit(100);
 
         if (tsData) {
           // Calculate summary - track both approved and pending
@@ -125,13 +139,23 @@ export default function PartnerDetail() {
           });
         }
 
-        // Fetch expenses for linked resources (now using resource_id foreign key)
-        const { data: expData } = await supabase
+        // Build expenses query with optional date filter
+        let expQuery = supabase
           .from('expenses')
           .select('id, expense_date, category, reason, amount, resource_id, resource_name, status')
-          .in('resource_id', resourceIds)
+          .in('resource_id', resourceIds);
+        
+        // Apply date range filter if set
+        if (dateRange.start) {
+          expQuery = expQuery.gte('expense_date', dateRange.start);
+        }
+        if (dateRange.end) {
+          expQuery = expQuery.lte('expense_date', dateRange.end);
+        }
+        
+        const { data: expData } = await expQuery
           .order('expense_date', { ascending: false })
-          .limit(50);
+          .limit(100);
 
         if (expData) {
           const totalAmount = expData.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
@@ -148,6 +172,59 @@ export default function PartnerDetail() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Generate month options for the last 12 months
+  function getMonthOptions() {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const label = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      months.push({ value, label });
+    }
+    return months;
+  }
+
+  // Handle month selection
+  function handleMonthSelect(monthValue) {
+    setSelectedMonth(monthValue);
+    if (monthValue) {
+      const [year, month] = monthValue.split('-').map(Number);
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0); // Last day of month
+      setDateRange({
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0]
+      });
+    } else {
+      setDateRange({ start: null, end: null });
+    }
+  }
+
+  // Handle custom date range
+  function handleDateRangeChange(field, value) {
+    setSelectedMonth(''); // Clear month selection when custom dates used
+    setDateRange(prev => ({ ...prev, [field]: value || null }));
+  }
+
+  // Clear all filters
+  function clearDateFilter() {
+    setDateRange({ start: null, end: null });
+    setSelectedMonth('');
+  }
+
+  // Format date range for display
+  function getDateRangeLabel() {
+    if (!dateRange.start && !dateRange.end) return 'All Time';
+    if (selectedMonth) {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      return new Date(year, month - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+    const start = dateRange.start ? new Date(dateRange.start).toLocaleDateString('en-GB') : 'Start';
+    const end = dateRange.end ? new Date(dateRange.end).toLocaleDateString('en-GB') : 'End';
+    return `${start} - ${end}`;
   }
 
   function startEditing() {
@@ -288,6 +365,88 @@ export default function PartnerDetail() {
           </button>
         </div>
       )}
+
+      {/* Date Range Filter */}
+      <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Calendar size={18} style={{ color: '#6b7280' }} />
+            <span style={{ fontWeight: '500', color: '#374151' }}>Period:</span>
+          </div>
+          
+          {/* Month Quick Select */}
+          <select
+            value={selectedMonth}
+            onChange={(e) => handleMonthSelect(e.target.value)}
+            className="input-field"
+            style={{ minWidth: '160px' }}
+          >
+            <option value="">Select Month...</option>
+            {getMonthOptions().map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+          
+          <span style={{ color: '#9ca3af' }}>or</span>
+          
+          {/* Custom Date Range */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              type="date"
+              value={dateRange.start || ''}
+              onChange={(e) => handleDateRangeChange('start', e.target.value)}
+              className="input-field"
+              style={{ width: '140px' }}
+            />
+            <span style={{ color: '#6b7280' }}>to</span>
+            <input
+              type="date"
+              value={dateRange.end || ''}
+              onChange={(e) => handleDateRangeChange('end', e.target.value)}
+              className="input-field"
+              style={{ width: '140px' }}
+            />
+          </div>
+          
+          {/* Clear Button */}
+          {(dateRange.start || dateRange.end) && (
+            <button
+              onClick={clearDateFilter}
+              className="btn btn-secondary"
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
+            >
+              <X size={14} /> Clear
+            </button>
+          )}
+          
+          {/* Current Selection Display */}
+          <div style={{ 
+            marginLeft: 'auto', 
+            padding: '0.4rem 0.75rem', 
+            backgroundColor: '#f0f9ff', 
+            borderRadius: '6px',
+            color: '#0369a1',
+            fontWeight: '500',
+            fontSize: '0.9rem'
+          }}>
+            Showing: {getDateRangeLabel()}
+          </div>
+        </div>
+        
+        {/* Generate Invoice Button - only show when date range is selected */}
+        {(dateRange.start && dateRange.end) && (
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => alert('Invoice generation coming soon!')}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <FileText size={18} />
+              Generate Invoice for {getDateRangeLabel()}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Stats Row */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
