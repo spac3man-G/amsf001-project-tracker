@@ -16,8 +16,8 @@ import { sanitizeSingleLine, sanitizeMultiLine, sanitizeEmail } from '../lib/san
 export class ResourcesService extends BaseService {
   constructor() {
     super('resources', {
-      sanitizeFields: SANITIZE_FIELDS,
-      enableSoftDelete: true
+      sanitizeConfig: 'resource',
+      supportsSoftDelete: true
     });
   }
 
