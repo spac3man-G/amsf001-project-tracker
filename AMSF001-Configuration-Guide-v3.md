@@ -1,6 +1,6 @@
 # AMSF001 Project Tracker - Configuration & Development Guide
 
-> **Version:** 3.0  
+> **Version:** 3.1  
 > **Last Updated:** 30 November 2025  
 
 ---
@@ -26,6 +26,51 @@ When starting a new Claude session, the credentials are automatically available 
 | **Framework** | React + Vite |
 | **Database** | Supabase (PostgreSQL) |
 | **Hosting** | Vercel |
+
+---
+
+## 🚀 Standard Deployment Workflow
+
+> **IMPORTANT:** The standard way to deploy changes is via local Git. Pushing to the `main` branch automatically triggers a Vercel deployment. Do NOT use Vercel MCP for deployments.
+
+### Quick Reference
+
+```bash
+# 1. Make your code changes using Filesystem or Desktop Commander tools
+
+# 2. Build locally to check for errors
+cd /Users/glennnickols/Projects/amsf001-project-tracker && npm run build
+
+# 3. Commit changes
+git add -A && git commit -m "Description of changes"
+
+# 4. Push to deploy (this automatically triggers Vercel deployment)
+git push origin main
+```
+
+### Deployment Flow Diagram
+
+```
+┌─────────────────┐      ┌──────────────┐      ┌─────────────────┐      ┌──────────────┐
+│  Edit Files     │  →   │  git commit  │  →   │  git push       │  →   │  Live Site   │
+│  (Filesystem/   │      │              │      │  origin main    │      │  Updated     │
+│  Desktop Cmd)   │      │              │      │  (auto-deploy)  │      │              │
+└─────────────────┘      └──────────────┘      └─────────────────┘      └──────────────┘
+```
+
+### What NOT to Do
+
+- ❌ Do NOT use Vercel MCP's `deploy_to_vercel` tool - it doesn't work reliably
+- ❌ Do NOT use GitHub MCP for file uploads - use local Git instead
+- ❌ Do NOT manually deploy from Vercel dashboard unless rollback is needed
+
+### Verifying Deployment
+
+After pushing, Vercel automatically builds and deploys. The deployment typically completes within 30-60 seconds. You can:
+
+1. **Check the live site:** https://amsf001-project-tracker.vercel.app
+2. **Use Vercel MCP** to check deployment status (viewing only)
+3. **Check Vercel Dashboard:** https://vercel.com/glenns-projects-56c63cc4/amsf001-project-tracker
 
 ---
 
@@ -469,8 +514,9 @@ do shell script "cd /Users/glennnickols/Projects/amsf001-project-tracker && git 
 | 1.0 | 28 Nov 2025 | Initial document |
 | 2.0 | 29 Nov 2025 | Added local Git workflow, removed credentials from Git version |
 | **3.0** | **30 Nov 2025** | **Added new MCP connectors: Desktop Commander, PDF Tools, Apple Notes, iMessages** |
+| **3.1** | **30 Nov 2025** | **Added prominent "Standard Deployment Workflow" section clarifying git push auto-deploys to Vercel** |
 
 ---
 
-*Document Version: 3.0*  
+*Document Version: 3.1*  
 *Last Updated: 30 November 2025*
