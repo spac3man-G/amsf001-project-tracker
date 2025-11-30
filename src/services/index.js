@@ -15,9 +15,9 @@ export { BaseService } from './base.service';
 
 // Service instances (singletons)
 export { partnersService, PartnersService } from './partners.service';
+export { resourcesService, ResourcesService } from './resources.service';
 
 // Future services (uncomment as created)
-// export { resourcesService, ResourcesService } from './resources.service';
 // export { expensesService, ExpensesService } from './expenses.service';
 // export { invoicingService, InvoicingService } from './invoicing.service';
 // export { timesheetsService, TimesheetsService } from './timesheets.service';

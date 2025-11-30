@@ -1,5 +1,5 @@
 // src/App.jsx
-// Version 8.1 - Added Partners Page
+// Version 8.2 - Added Resource Detail Page
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -24,6 +24,7 @@ import MilestoneDetail from './pages/MilestoneDetail';
 import Gantt from './pages/Gantt';
 import Deliverables from './pages/Deliverables';
 import Resources from './pages/Resources';
+import ResourceDetail from './pages/ResourceDetail';
 import Partners from './pages/Partners';
 import Timesheets from './pages/Timesheets';
 import Expenses from './pages/Expenses';
@@ -97,6 +98,9 @@ export default function App() {
                     
                     <Route path="/resources" element={
                       <ProtectedRoute><Resources /></ProtectedRoute>
+                    } />
+                    <Route path="/resources/:id" element={
+                      <ProtectedRoute><ResourceDetail /></ProtectedRoute>
                     } />
                     
                     <Route path="/partners" element={

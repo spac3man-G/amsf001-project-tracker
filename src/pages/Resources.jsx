@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function Resources() {
+  const navigate = useNavigate();
+  
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
@@ -687,8 +690,15 @@ export default function Resources() {
                     ) : (
                       <>
                         <td>
-                          <div>
-                            <strong>{resource.name}</strong>
+                          <div 
+                            onClick={() => navigate(`/resources/${resource.id}`)}
+                            style={{ cursor: 'pointer' }}
+                            title="Click to view details"
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <strong style={{ color: '#2563eb' }}>{resource.name}</strong>
+                              <ExternalLink size={14} style={{ color: '#9ca3af' }} />
+                            </div>
                             <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
                               {resource.email}
                             </div>
