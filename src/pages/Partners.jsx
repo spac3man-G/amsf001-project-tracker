@@ -19,7 +19,7 @@ import {
   PageHeader, 
   StatCard, 
   ConfirmDialog,
-  PageSkeleton
+  Skeleton
 } from '../components/common';
 
 export default function Partners() {

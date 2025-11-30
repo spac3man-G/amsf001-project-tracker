@@ -8,6 +8,7 @@ import {
   Shield, Eye, EyeOff, TestTube, AlertTriangle, Link, Unlink
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
+import { useToast } from '../contexts/ToastContext';
 import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 
 export default function Users() {
@@ -24,6 +25,9 @@ export default function Users() {
   
   // Test user context
   const { showTestUsers, toggleTestUsers, canToggleTestUsers, testUserIds } = useTestUsers();
+  
+  // Toast notifications
+  const { showSuccess, showError, showWarning } = useToast();
 
   const [newUser, setNewUser] = useState({
     email: '',
@@ -102,7 +106,7 @@ export default function Users() {
 
   async function handleCreateUser() {
     if (!newUser.email || !newUser.password) {
-      alert('Email and password are required');
+      showWarning('Email and password are required');
       return;
     }
 
@@ -132,10 +136,10 @@ export default function Users() {
       await fetchData();
       setShowCreateForm(false);
       setNewUser({ email: '', password: '', full_name: '', role: 'viewer' });
-      alert('User created successfully!');
+      showSuccess('User created successfully!');
     } catch (error) {
       console.error('Error creating user:', error);
-      alert('Failed to create user: ' + error.message);
+      showError('Failed to create user: ' + error.message);
     }
   }
 
@@ -151,21 +155,21 @@ export default function Users() {
       setEditingId(null);
     } catch (error) {
       console.error('Error updating role:', error);
-      alert('Failed to update role');
+      showError('Failed to update role');
     }
   }
 
   async function handleDeleteUser(userId) {
     // Prevent deleting yourself
     if (userId === currentUserId) {
-      alert('You cannot delete your own account');
+      showWarning('You cannot delete your own account');
       return;
     }
 
     // Prevent deleting test users when not in test mode
     const user = users.find(u => u.id === userId);
     if (user?.is_test_user && !showTestUsers) {
-      alert('Cannot delete test users');
+      showWarning('Cannot delete test users');
       return;
     }
 
@@ -182,17 +186,17 @@ export default function Users() {
 
       // Note: Deleting from auth.users may require admin API
       await fetchData();
-      alert('User deleted');
+      showSuccess('User deleted');
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Failed to delete user');
+      showError('Failed to delete user');
     }
   }
 
   // Link user to resource
   async function handleLinkResource(userId) {
     if (!selectedResourceId) {
-      alert('Please select a resource');
+      showWarning('Please select a resource');
       return;
     }
 
@@ -207,10 +211,10 @@ export default function Users() {
       await fetchData();
       setLinkingId(null);
       setSelectedResourceId('');
-      alert('Resource linked successfully!');
+      showSuccess('Resource linked successfully!');
     } catch (error) {
       console.error('Error linking resource:', error);
-      alert('Failed to link resource');
+      showError('Failed to link resource');
     }
   }
 
@@ -227,10 +231,10 @@ export default function Users() {
       if (error) throw error;
       
       await fetchData();
-      alert('Resource unlinked');
+      showSuccess('Resource unlinked');
     } catch (error) {
       console.error('Error unlinking resource:', error);
-      alert('Failed to unlink resource');
+      showError('Failed to unlink resource');
     }
   }
 

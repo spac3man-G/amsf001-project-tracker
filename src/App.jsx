@@ -1,7 +1,8 @@
 // src/App.jsx
-// Version 8.3 - Added Partner Detail Page
+// Version 9.0 - Code splitting with React.lazy for improved bundle size
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 
 // Import context providers
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -11,40 +12,51 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { ToastProvider } from './contexts/ToastContext';
 
-// Shared components
-import { ErrorBoundary, LoadingSpinner } from './components/common';
+// Shared components - always loaded
+import { ErrorBoundary, LoadingSpinner, Skeleton } from './components/common';
 import { ChatWidget } from './components/chat';
-
-// Layout and Pages
 import Layout from './components/Layout';
+
+// Critical pages - loaded immediately
 import Login from './pages/Login';
-import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
-import Milestones from './pages/Milestones';
-import MilestoneDetail from './pages/MilestoneDetail';
-import Gantt from './pages/Gantt';
-import Deliverables from './pages/Deliverables';
-import Resources from './pages/Resources';
-import ResourceDetail from './pages/ResourceDetail';
-import Partners from './pages/Partners';
-import PartnerDetail from './pages/PartnerDetail';
-import Timesheets from './pages/Timesheets';
-import Expenses from './pages/Expenses';
-import KPIs from './pages/KPIs';
-import KPIDetail from './pages/KPIDetail';
-import QualityStandards from './pages/QualityStandards';
-import QualityStandardDetail from './pages/QualityStandardDetail';
-import Reports from './pages/Reports';
-import Users from './pages/Users';
-import Settings from './pages/Settings';
-import AccountSettings from './pages/AccountSettings';
-import WorkflowSummary from './pages/WorkflowSummary';
+
+// Lazy-loaded pages - split into separate chunks
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Milestones = lazy(() => import('./pages/Milestones'));
+const MilestoneDetail = lazy(() => import('./pages/MilestoneDetail'));
+const Gantt = lazy(() => import('./pages/Gantt'));
+const Deliverables = lazy(() => import('./pages/Deliverables'));
+const Resources = lazy(() => import('./pages/Resources'));
+const ResourceDetail = lazy(() => import('./pages/ResourceDetail'));
+const Partners = lazy(() => import('./pages/Partners'));
+const PartnerDetail = lazy(() => import('./pages/PartnerDetail'));
+const Timesheets = lazy(() => import('./pages/Timesheets'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const KPIs = lazy(() => import('./pages/KPIs'));
+const KPIDetail = lazy(() => import('./pages/KPIDetail'));
+const QualityStandards = lazy(() => import('./pages/QualityStandards'));
+const QualityStandardDetail = lazy(() => import('./pages/QualityStandardDetail'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Users = lazy(() => import('./pages/Users'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AccountSettings = lazy(() => import('./pages/AccountSettings'));
+const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
+
+/**
+ * PageLoader - Shows skeleton while lazy components load
+ */
+function PageLoader() {
+  return (
+    <div className="page-container">
+      <Skeleton type="page" />
+    </div>
+  );
+}
 
 /**
  * ProtectedRoute - Wraps routes that require authentication
- * 
- * Uses AuthContext instead of managing its own auth state.
- * This ensures a single source of truth for authentication.
+ * Uses AuthContext for single source of truth.
  */
 function ProtectedRoute({ children }) {
   const { user, isLoading } = useAuth();
@@ -57,117 +69,139 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  return <Layout>{children}</Layout>;
+  return (
+    <Layout>
+      <Suspense fallback={<PageLoader />}>
+        {children || <Outlet />}
+      </Suspense>
+    </Layout>
+  );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      {/* ErrorBoundary wraps entire app to catch any unhandled errors */}
       <ErrorBoundary>
-        {/* ToastProvider for notifications - outside auth so it's always available */}
         <ToastProvider>
-          {/* Wrap entire app with providers - AuthProvider is outermost */}
           <AuthProvider>
-          <ProjectProvider>
-            <TestUserProvider>
-              <NotificationProvider>
-                <ChatProvider>
-                  <Routes>
-                    {/* Public routes */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    
-                    {/* Protected routes */}
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    
-                    <Route path="/dashboard" element={
-                      <ProtectedRoute><Dashboard /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/milestones" element={
-                      <ProtectedRoute><Milestones /></ProtectedRoute>
-                    } />
-                    <Route path="/milestones/:id" element={
-                      <ProtectedRoute><MilestoneDetail /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/gantt" element={
-                      <ProtectedRoute><Gantt /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/deliverables" element={
-                      <ProtectedRoute><Deliverables /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/resources" element={
-                      <ProtectedRoute><Resources /></ProtectedRoute>
-                    } />
-                    <Route path="/resources/:id" element={
-                      <ProtectedRoute><ResourceDetail /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/partners" element={
-                      <ProtectedRoute><Partners /></ProtectedRoute>
-                    } />
-                    <Route path="/partners/:id" element={
-                      <ProtectedRoute><PartnerDetail /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/timesheets" element={
-                      <ProtectedRoute><Timesheets /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/expenses" element={
-                      <ProtectedRoute><Expenses /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/kpis" element={
-                      <ProtectedRoute><KPIs /></ProtectedRoute>
-                    } />
-                    <Route path="/kpis/:id" element={
-                      <ProtectedRoute><KPIDetail /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/quality-standards" element={
-                      <ProtectedRoute><QualityStandards /></ProtectedRoute>
-                    } />
-                    <Route path="/quality-standards/:id" element={
-                      <ProtectedRoute><QualityStandardDetail /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/reports" element={
-                      <ProtectedRoute><Reports /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/users" element={
-                      <ProtectedRoute><Users /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/settings" element={
-                      <ProtectedRoute><Settings /></ProtectedRoute>
-                    } />
-                    
-                    <Route path="/account" element={
-                      <ProtectedRoute><AccountSettings /></ProtectedRoute>
-                    } />
+            <ProjectProvider>
+              <TestUserProvider>
+                <NotificationProvider>
+                  <ChatProvider>
+                    <Routes>
+                      {/* Public routes */}
+                      <Route path="/login" element={<Login />} />
+                      <Route 
+                        path="/reset-password" 
+                        element={
+                          <Suspense fallback={<LoadingSpinner fullPage />}>
+                            <ResetPassword />
+                          </Suspense>
+                        } 
+                      />
+                      
+                      {/* Protected routes */}
+                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                      
+                      {/* Dashboard - not lazy loaded for fast initial render */}
+                      <Route path="/dashboard" element={
+                        <ProtectedRoute><Dashboard /></ProtectedRoute>
+                      } />
+                      
+                      {/* Milestones */}
+                      <Route path="/milestones" element={
+                        <ProtectedRoute><Milestones /></ProtectedRoute>
+                      } />
+                      <Route path="/milestones/:id" element={
+                        <ProtectedRoute><MilestoneDetail /></ProtectedRoute>
+                      } />
+                      
+                      {/* Gantt */}
+                      <Route path="/gantt" element={
+                        <ProtectedRoute><Gantt /></ProtectedRoute>
+                      } />
+                      
+                      {/* Deliverables */}
+                      <Route path="/deliverables" element={
+                        <ProtectedRoute><Deliverables /></ProtectedRoute>
+                      } />
+                      
+                      {/* Resources */}
+                      <Route path="/resources" element={
+                        <ProtectedRoute><Resources /></ProtectedRoute>
+                      } />
+                      <Route path="/resources/:id" element={
+                        <ProtectedRoute><ResourceDetail /></ProtectedRoute>
+                      } />
+                      
+                      {/* Partners */}
+                      <Route path="/partners" element={
+                        <ProtectedRoute><Partners /></ProtectedRoute>
+                      } />
+                      <Route path="/partners/:id" element={
+                        <ProtectedRoute><PartnerDetail /></ProtectedRoute>
+                      } />
+                      
+                      {/* Timesheets */}
+                      <Route path="/timesheets" element={
+                        <ProtectedRoute><Timesheets /></ProtectedRoute>
+                      } />
+                      
+                      {/* Expenses */}
+                      <Route path="/expenses" element={
+                        <ProtectedRoute><Expenses /></ProtectedRoute>
+                      } />
+                      
+                      {/* KPIs */}
+                      <Route path="/kpis" element={
+                        <ProtectedRoute><KPIs /></ProtectedRoute>
+                      } />
+                      <Route path="/kpis/:id" element={
+                        <ProtectedRoute><KPIDetail /></ProtectedRoute>
+                      } />
+                      
+                      {/* Quality Standards */}
+                      <Route path="/quality-standards" element={
+                        <ProtectedRoute><QualityStandards /></ProtectedRoute>
+                      } />
+                      <Route path="/quality-standards/:id" element={
+                        <ProtectedRoute><QualityStandardDetail /></ProtectedRoute>
+                      } />
+                      
+                      {/* Reports */}
+                      <Route path="/reports" element={
+                        <ProtectedRoute><Reports /></ProtectedRoute>
+                      } />
+                      
+                      {/* Users (Admin) */}
+                      <Route path="/users" element={
+                        <ProtectedRoute><Users /></ProtectedRoute>
+                      } />
+                      
+                      {/* Settings */}
+                      <Route path="/settings" element={
+                        <ProtectedRoute><Settings /></ProtectedRoute>
+                      } />
+                      <Route path="/account" element={
+                        <ProtectedRoute><AccountSettings /></ProtectedRoute>
+                      } />
 
-                    {/* Workflow Summary - for PMs and admins */}
-                    <Route path="/workflow-summary" element={
-                      <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
-                    } />
+                      {/* Workflow Summary */}
+                      <Route path="/workflow-summary" element={
+                        <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
+                      } />
+                      
+                      {/* Catch all */}
+                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                    </Routes>
                     
-                    {/* Catch all - redirect to dashboard */}
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
-                  
-                  {/* AI Chat Widget - available on all pages when logged in */}
-                  <ChatWidget />
-                </ChatProvider>
-              </NotificationProvider>
-            </TestUserProvider>
-          </ProjectProvider>
-        </AuthProvider>
+                    {/* AI Chat Widget */}
+                    <ChatWidget />
+                  </ChatProvider>
+                </NotificationProvider>
+              </TestUserProvider>
+            </ProjectProvider>
+          </AuthProvider>
         </ToastProvider>
       </ErrorBoundary>
     </BrowserRouter>

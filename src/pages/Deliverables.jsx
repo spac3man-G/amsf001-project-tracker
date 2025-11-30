@@ -8,6 +8,7 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatusBadge, ConfirmDialog } from '../components/common';
 
@@ -144,6 +145,7 @@ export default function Deliverables() {
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
+  const { showSuccess, showError, showWarning } = useToast();
   const currentUserId = user?.id || null;
 
   // Use the permissions hook - clean, pre-bound permission functions
@@ -209,7 +211,7 @@ export default function Deliverables() {
       setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
       setShowAddForm(false);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { showError('Failed: ' + error.message); }
   }
 
   function openEditModal(deliverable) {
@@ -234,7 +236,7 @@ export default function Deliverables() {
 
       setShowEditModal(false);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { showError('Failed: ' + error.message); }
   }
 
   async function handleStatusChange(deliverable, newStatus) {
@@ -246,7 +248,7 @@ export default function Deliverables() {
 
       await supabase.from('deliverables').update({ status: newStatus, progress: newProgress }).eq('id', deliverable.id);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { showError('Failed: ' + error.message); }
   }
 
   function openCompletionModal(deliverable) {
@@ -262,10 +264,10 @@ export default function Deliverables() {
     const linkedQS = completingDeliverable.deliverable_quality_standards || [];
 
     if (linkedKPIs.length > 0 && !linkedKPIs.every(dk => kpiAssessments[dk.kpi_id] !== undefined)) {
-      alert('Please assess all linked KPIs.'); return;
+      showWarning('Please assess all linked KPIs.'); return;
     }
     if (linkedQS.length > 0 && !linkedQS.every(dqs => qsAssessments[dqs.quality_standard_id] !== undefined)) {
-      alert('Please assess all linked Quality Standards.'); return;
+      showWarning('Please assess all linked Quality Standards.'); return;
     }
 
     try {
@@ -278,16 +280,16 @@ export default function Deliverables() {
         await supabase.from('deliverable_qs_assessments').upsert({ deliverable_id: completingDeliverable.id, quality_standard_id: dqs.quality_standard_id, criteria_met: qsAssessments[dqs.quality_standard_id], assessed_at: new Date().toISOString(), assessed_by: currentUserId }, { onConflict: 'deliverable_id,quality_standard_id' });
       }
 
-      alert('Deliverable marked as delivered and assessments saved!');
+      showSuccess('Deliverable marked as delivered and assessments saved!');
       setShowCompletionModal(false);
       fetchData();
-    } catch (error) { alert('Failed: ' + error.message); }
+    } catch (error) { showError('Failed: ' + error.message); }
   }
 
   async function handleDelete(id) {
     if (!confirm('Delete this deliverable?')) return;
     try { await supabase.from('deliverables').delete().eq('id', id); fetchData(); }
-    catch (error) { alert('Failed: ' + error.message); }
+    catch (error) { showError('Failed: ' + error.message); }
   }
 
   let filteredDeliverables = deliverables;

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
@@ -13,6 +14,7 @@ export default function Resources() {
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
+  const { showSuccess, showError, showWarning } = useToast();
   const currentUserId = user?.id || null;
 
   // Use the permissions hook - clean, pre-bound permission functions
@@ -192,10 +194,10 @@ export default function Resources() {
       
       await fetchResources();
       setEditingId(null);
-      alert('Resource updated successfully!');
+      showSuccess('Resource updated successfully!');
     } catch (error) {
       console.error('Error updating resource:', error);
-      alert('Failed to update resource: ' + error.message);
+      showError('Failed to update resource: ' + error.message);
     }
   }
 
@@ -208,7 +210,7 @@ export default function Resources() {
         .single();
 
       if (!existingProfile) {
-        alert('This email is not registered in the system. They need to sign up first.');
+        showWarning('This email is not registered in the system. They need to sign up first.');
         return;
       }
 
@@ -219,7 +221,7 @@ export default function Resources() {
         .single();
 
       if (!project) {
-        alert('Project not found');
+        showError('Project not found');
         return;
       }
 
@@ -256,10 +258,10 @@ export default function Resources() {
         days_used: 0,
         resource_type: 'internal'
       });
-      alert('Resource added successfully!');
+      showSuccess('Resource added successfully!');
     } catch (error) {
       console.error('Error adding resource:', error);
-      alert('Failed to add resource: ' + error.message);
+      showError('Failed to add resource: ' + error.message);
     }
   }
 
@@ -302,7 +304,7 @@ export default function Resources() {
       setDeleteDialog({ isOpen: false, resource: null, dependents: null });
     } catch (error) {
       console.error('Error deleting resource:', error);
-      alert('Failed to delete resource');
+      showError('Failed to delete resource');
     } finally {
       setSaving(false);
     }
@@ -323,7 +325,7 @@ export default function Resources() {
       await fetchResources();
     } catch (error) {
       console.error('Error updating resource type:', error);
-      alert('Failed to update resource type');
+      showError('Failed to update resource type');
     }
   }
 

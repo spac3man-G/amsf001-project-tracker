@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X, FileCheck, Award, CheckCircle, PenTool } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
@@ -11,6 +12,7 @@ export default function Milestones() {
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole, profile } = useAuth();
   const { projectId } = useProject();
+  const { showSuccess, showError, showWarning } = useToast();
   const currentUserId = user?.id || null;
   const currentUserName = profile?.full_name || user?.email || 'Unknown';
 
@@ -162,7 +164,7 @@ export default function Milestones() {
 
   async function handleAdd() {
     if (!newMilestone.milestone_ref || !newMilestone.name) {
-      alert('Please fill in at least Milestone Reference and Name');
+      showWarning('Please fill in at least Milestone Reference and Name');
       return;
     }
 
@@ -202,10 +204,10 @@ export default function Milestones() {
         end_date: '',
         budget: ''
       });
-      alert('Milestone added successfully!');
+      showSuccess('Milestone added successfully!');
     } catch (error) {
       console.error('Error adding milestone:', error);
-      alert('Failed to add milestone: ' + error.message);
+      showError('Failed to add milestone: ' + error.message);
     }
   }
 
@@ -229,7 +231,7 @@ export default function Milestones() {
       setDeleteDialog({ isOpen: false, milestone: null });
     } catch (error) {
       console.error('Error deleting milestone:', error);
-      alert('Failed to delete milestone: ' + error.message);
+      showError('Failed to delete milestone: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -254,7 +256,7 @@ export default function Milestones() {
 
   async function handleSaveEdit() {
     if (!editForm.milestone_ref || !editForm.name) {
-      alert('Please fill in at least Milestone Reference and Name');
+      showWarning('Please fill in at least Milestone Reference and Name');
       return;
     }
 
@@ -280,10 +282,10 @@ export default function Milestones() {
 
       await fetchMilestones();
       setShowEditModal(false);
-      alert('Milestone updated successfully!');
+      showSuccess('Milestone updated successfully!');
     } catch (error) {
       console.error('Error updating milestone:', error);
-      alert('Failed to update milestone: ' + error.message);
+      showError('Failed to update milestone: ' + error.message);
     }
   }
 
@@ -311,7 +313,7 @@ export default function Milestones() {
     // Verify all deliverables are delivered
     const allDelivered = deliverables.length > 0 && deliverables.every(d => d.status === 'Delivered');
     if (!allDelivered) {
-      alert('Cannot generate certificate: All deliverables must be delivered first.');
+      showWarning('Cannot generate certificate: All deliverables must be delivered first.');
       return;
     }
 
@@ -351,10 +353,10 @@ export default function Milestones() {
 
       await fetchCertificates();
       openCertificateModal(milestone);
-      alert('Certificate generated successfully!');
+      showSuccess('Certificate generated successfully!');
     } catch (error) {
       console.error('Error generating certificate:', error);
-      alert('Failed to generate certificate: ' + error.message);
+      showError('Failed to generate certificate: ' + error.message);
     }
   }
 
@@ -376,11 +378,11 @@ export default function Milestones() {
 
     // Check role permissions
     if (isSupplier && !['admin', 'supplier_pm'].includes(userRole)) {
-      alert('Only Admin or Supplier PM can sign as supplier.');
+      showWarning('Only Admin or Supplier PM can sign as supplier.');
       return;
     }
     if (isCustomer && userRole !== 'customer_pm') {
-      alert('Only Customer PM can sign as customer.');
+      showWarning('Only Customer PM can sign as customer.');
       return;
     }
 
@@ -427,10 +429,10 @@ export default function Milestones() {
       const updatedCert = { ...selectedCertificate, ...updates };
       setSelectedCertificate(updatedCert);
       
-      alert('Certificate signed successfully!');
+      showSuccess('Certificate signed successfully!');
     } catch (error) {
       console.error('Error signing certificate:', error);
-      alert('Failed to sign certificate: ' + error.message);
+      showError('Failed to sign certificate: ' + error.message);
     }
   }
 
