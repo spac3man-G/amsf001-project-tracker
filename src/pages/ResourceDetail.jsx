@@ -54,46 +54,83 @@ export default function ResourceDetail() {
     }
   }, [id]);
 
+  // Fetch partners when we have a resource with project_id and user role is known
+  useEffect(() => {
+    async function fetchPartners() {
+      if (resource?.project_id && userRole && ['admin', 'supplier_pm'].includes(userRole)) {
+        console.log('Fetching partners for project:', resource.project_id);
+        const { data: partnersData, error: partnersError } = await supabase
+          .from('partners')
+          .select('id, name, is_active')
+          .eq('project_id', resource.project_id)
+          .eq('is_active', true)
+          .order('name');
+        
+        if (partnersError) {
+          console.error('Error fetching partners:', partnersError);
+        } else {
+          console.log('Partners loaded:', partnersData);
+          setPartners(partnersData || []);
+        }
+      }
+    }
+    fetchPartners();
+  }, [resource?.project_id, userRole]);
+
   async function fetchResourceData() {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch resource with timesheet summary
-      const resourceData = await resourcesService.getWithTimesheetSummary(id);
-      if (!resourceData) {
+      // Fetch resource directly to ensure we get all fields including project_id
+      const { data: resourceData, error: resourceError } = await supabase
+        .from('resources')
+        .select('*, partner:partners(id, name, contact_name, contact_email, is_active)')
+        .eq('id', id)
+        .single();
+
+      if (resourceError) {
+        console.error('Error fetching resource:', resourceError);
         setError('Resource not found');
         return;
       }
-      setResource(resourceData);
-
-      // Fetch partners for dropdown (if user can see resource type)
-      // Use the resource's project_id since we have it
-      console.log('=== PARTNER FETCH DEBUG ===');
-      console.log('canSeeResourceType:', canSeeResourceType);
-      console.log('resourceData.project_id:', resourceData.project_id);
       
-      if (canSeeResourceType && resourceData.project_id) {
-        // Query partners directly to avoid any service layer issues
-        const { data: partnersData, error: partnersError } = await supabase
-          .from('partners')
-          .select('id, name, is_active')
-          .eq('project_id', resourceData.project_id)
-          .eq('is_active', true)
-          .order('name');
-        
-        console.log('Partners query result:', { partnersData, partnersError });
-        
-        if (partnersError) {
-          console.error('Error fetching partners:', partnersError);
-        } else {
-          console.log('Partners fetched for dropdown:', partnersData);
-          setPartners(partnersData || []);
-        }
-      } else {
-        console.log('Skipping partners fetch - condition not met');
+      console.log('Resource loaded with project_id:', resourceData.project_id);
+
+      // Get timesheet summary for the resource
+      const { data: timesheetsForSummary } = await supabase
+        .from('timesheets')
+        .select('id, hours_worked, hours, status, was_rejected')
+        .eq('resource_id', id);
+
+      // Calculate timesheet stats
+      let totalHours = 0;
+      let approvedHours = 0;
+      let pendingHours = 0;
+
+      if (timesheetsForSummary) {
+        timesheetsForSummary.forEach(ts => {
+          const hours = parseFloat(ts.hours_worked || ts.hours || 0);
+          totalHours += hours;
+          if (ts.status === 'Approved') {
+            approvedHours += hours;
+          } else if (ts.status === 'Submitted' && !ts.was_rejected) {
+            pendingHours += hours;
+          }
+        });
       }
-      console.log('=== END DEBUG ===');
+
+      // Set resource with timesheet summary
+      setResource({
+        ...resourceData,
+        timesheetSummary: {
+          totalEntries: timesheetsForSummary?.length || 0,
+          totalHours,
+          approvedHours,
+          pendingHours,
+          daysWorked: totalHours / 8
+        }
+      });
 
       // Fetch recent timesheets for this resource
       const { data: tsData } = await supabase
