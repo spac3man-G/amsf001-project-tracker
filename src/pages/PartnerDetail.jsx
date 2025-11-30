@@ -36,7 +36,15 @@ export default function PartnerDetail() {
   // State
   const [partner, setPartner] = useState(null);
   const [linkedResources, setLinkedResources] = useState([]);
-  const [timesheetSummary, setTimesheetSummary] = useState({ totalHours: 0, totalValue: 0, entries: [] });
+  const [timesheetSummary, setTimesheetSummary] = useState({ 
+    totalHours: 0, 
+    approvedHours: 0,
+    pendingHours: 0,
+    totalValue: 0, 
+    approvedValue: 0,
+    pendingValue: 0,
+    entries: [] 
+  });
   const [expenseSummary, setExpenseSummary] = useState({ totalAmount: 0, entries: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,24 +91,36 @@ export default function PartnerDetail() {
           .limit(20);
 
         if (tsData) {
-          // Calculate summary - use cost_price for partner billing
+          // Calculate summary - track both approved and pending
           let totalHours = 0;
-          let totalValue = 0;
+          let approvedHours = 0;
+          let pendingHours = 0;
+          let approvedValue = 0;
+          let pendingValue = 0;
           
           tsData.forEach(ts => {
             const hours = parseFloat(ts.hours_worked || ts.hours || 0);
             const costPrice = ts.resources?.cost_price || 0;
             const dailyValue = (hours / 8) * costPrice;
             
+            totalHours += hours;
+            
             if (ts.status === 'Approved') {
-              totalHours += hours;
-              totalValue += dailyValue;
+              approvedHours += hours;
+              approvedValue += dailyValue;
+            } else if (ts.status === 'Submitted') {
+              pendingHours += hours;
+              pendingValue += dailyValue;
             }
           });
 
           setTimesheetSummary({
             totalHours,
-            totalValue,
+            approvedHours,
+            pendingHours,
+            totalValue: approvedValue + pendingValue,
+            approvedValue,
+            pendingValue,
             entries: tsData
           });
         }
@@ -282,20 +302,24 @@ export default function PartnerDetail() {
           icon={Clock}
           label="Days Worked"
           value={daysWorked.toFixed(1)}
-          subtext={`${timesheetSummary.totalHours.toFixed(1)} hours`}
+          subtext={timesheetSummary.pendingHours > 0 
+            ? `${timesheetSummary.approvedHours.toFixed(1)}h approved, ${timesheetSummary.pendingHours.toFixed(1)}h pending`
+            : `${timesheetSummary.totalHours.toFixed(1)} hours`}
           color="#10b981"
         />
         <StatCard
           icon={DollarSign}
           label="Timesheet Value"
-          value={`£${timesheetSummary.totalValue.toLocaleString()}`}
-          subtext="At cost price"
+          value={`£${Math.round(timesheetSummary.totalValue).toLocaleString()}`}
+          subtext={timesheetSummary.pendingValue > 0 
+            ? `£${Math.round(timesheetSummary.approvedValue)} approved, £${Math.round(timesheetSummary.pendingValue)} pending`
+            : "At cost price"}
           color="#8b5cf6"
         />
         <StatCard
           icon={Receipt}
           label="Total Spend"
-          value={`£${totalSpend.toLocaleString()}`}
+          value={`£${Math.round(totalSpend).toLocaleString()}`}
           subtext="Timesheets + expenses"
           color="#f59e0b"
         />
