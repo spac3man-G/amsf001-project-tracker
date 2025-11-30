@@ -1,5 +1,6 @@
 // Vercel Edge Function for AI Chat
-// Uses Claude Haiku 4 for fast, cost-effective responses
+// Uses Claude Haiku for fast, cost-effective responses
+// Multi-tenant ready - project context injected dynamically
 
 export const config = {
   runtime: 'edge',
@@ -7,39 +8,62 @@ export const config = {
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-// System prompt with app documentation
-const SYSTEM_PROMPT = `You are the AI Assistant for the AMSF001 Project Tracker application. Your role is to help users understand how to use the application and answer questions about their project data.
+// Base system prompt - generic, multi-tenant ready
+const BASE_SYSTEM_PROMPT = `You are the AI Assistant for this Project Tracker application. Your role is to help users understand how to use the application and answer questions about their project data.
 
 ## About the Application
-AMSF001 Project Tracker is a project management tool for tracking:
+This is a project management tool for tracking supplier/customer engagements including:
 - **Milestones**: Major project phases with dates, budgets, and completion percentages
 - **Deliverables**: Work items linked to milestones with review workflows
-- **Resources**: Team members with daily rates, allocations, and utilization tracking
+- **Resources**: Team members with daily rates, allocations, and utilisation tracking
 - **Timesheets**: Time entries submitted by resources, requiring approval
-- **Expenses**: Cost claims with categories (travel, accommodation, subsistence, other)
+- **Expenses**: Cost claims with categories (Travel, Accommodation, Sustenance)
+- **Partners**: Third-party suppliers with invoice generation
 - **KPIs**: Key Performance Indicators with targets and assessments
 - **Quality Standards**: Quality criteria linked to deliverables
 
 ## User Roles & Permissions
 - **Admin**: Full access to everything, can manage users and settings
-- **Supplier PM**: Can manage most project data, see cost prices and margins, approve timesheets/expenses
-- **Customer PM**: Read-only view of project progress, can review deliverables, cannot see cost prices
+- **Supplier PM**: Can manage most project data, see cost prices and margins, manage partners and invoices
+- **Customer PM**: Approve timesheets, validate chargeable expenses, review deliverables
 - **Contributor**: Can submit their own timesheets and expenses, view assigned work
+
+## Workflow Overview
+### Timesheet Workflow
+1. Resource creates timesheet (Draft)
+2. Resource submits for approval (Submitted)
+3. Customer PM approves or rejects (Approved/Rejected)
+4. Approved timesheets count towards project spend
+
+### Expense Workflow
+1. Resource creates expense (Draft)
+2. Resource submits for validation (Submitted)
+3. Chargeable expenses → Customer PM validates
+4. Non-chargeable expenses → Supplier PM validates
+
+### Partner Invoice Workflow
+1. Resources (linked to partner) have approved timesheets
+2. Partner-procured expenses are recorded
+3. Supplier PM selects date range
+4. Invoice generated with timesheet costs + expenses
+5. Invoice sent to partner and tracked to payment
 
 ## How to Help Users
 1. **App Usage Questions**: Explain how features work, where to find things, how to perform actions
 2. **Data Questions**: When users ask about their data, use the context provided to answer accurately
 3. **Permission Questions**: Explain what actions their role allows them to perform
 4. **Navigation**: Guide users to the correct pages for their needs
+5. **Calculations**: Help users understand how costs, utilisation, and margins are calculated
 
 ## Key Pages
 - **Dashboard**: Overview with project health, milestone progress, budget status
-- **Milestones**: Create and track project milestones
+- **Milestones**: Create and track project milestones with budgets
 - **Deliverables**: Manage work items with review workflow (Draft → Submitted → Delivered)
-- **Resources**: View team members and their allocations
+- **Resources**: View team members, allocations, and partner links
+- **Partners**: Manage third-party suppliers and generate invoices (Supplier PM/Admin only)
 - **Timesheets**: Submit and approve time entries
 - **Expenses**: Submit and validate expense claims
-- **KPIs**: Track performance indicators
+- **KPIs**: Track performance indicators against targets
 - **Quality Standards**: Manage quality criteria
 - **Workflow Summary**: See all pending approvals and actions
 - **Settings**: Configure project parameters (admin/supplier PM only)
@@ -50,7 +74,8 @@ AMSF001 Project Tracker is a project management tool for tracking:
 - Reference specific numbers and data when available
 - If you don't have data to answer a question, explain what information would be needed
 - For complex operations, provide step-by-step guidance
-- Always respect the user's permission level - don't suggest actions they cannot perform`;
+- Always respect the user's permission level - don't suggest actions they cannot perform
+- Use UK date format (DD/MM/YYYY) and GBP currency (£)`;
 
 export default async function handler(req) {
   // Only allow POST requests
@@ -70,19 +95,38 @@ export default async function handler(req) {
   }
 
   try {
-    const { messages, userContext, dataContext } = await req.json();
+    const { messages, userContext, dataContext, projectContext } = await req.json();
 
-    // Build the full system prompt with user and data context
-    let fullSystemPrompt = SYSTEM_PROMPT;
+    // Build the full system prompt with dynamic context
+    let fullSystemPrompt = BASE_SYSTEM_PROMPT;
 
+    // Add project context if provided (multi-tenant support)
+    if (projectContext) {
+      fullSystemPrompt += `\n\n## Current Project Context
+- Project Reference: ${projectContext.reference || 'Unknown'}
+- Project Name: ${projectContext.name || 'Unknown'}
+- Description: ${projectContext.description || 'N/A'}`;
+    }
+
+    // Add user context
     if (userContext) {
       fullSystemPrompt += `\n\n## Current User Context
 - Name: ${userContext.name || 'Unknown'}
 - Email: ${userContext.email || 'Unknown'}
 - Role: ${userContext.role || 'Unknown'}
 - Linked Resource: ${userContext.linkedResourceName || 'None'}`;
+      
+      // Add role-specific hints
+      if (userContext.role === 'supplier_pm') {
+        fullSystemPrompt += `\n- This user can manage partners, generate invoices, and see cost prices`;
+      } else if (userContext.role === 'customer_pm') {
+        fullSystemPrompt += `\n- This user approves timesheets and validates chargeable expenses`;
+      } else if (userContext.role === 'contributor') {
+        fullSystemPrompt += `\n- This user can only submit their own timesheets and expenses`;
+      }
     }
 
+    // Add data context
     if (dataContext) {
       fullSystemPrompt += `\n\n## Current Data Context
 ${dataContext}`;

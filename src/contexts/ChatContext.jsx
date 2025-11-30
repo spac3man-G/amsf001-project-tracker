@@ -10,12 +10,22 @@ const ChatContext = createContext(null);
 
 export function ChatProvider({ children }) {
   const { user, profile, linkedResource, role } = useAuth();
-  const { projectId } = useProject();
+  const { projectId, projectName, projectRef, currentProject } = useProject();
   
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Build project context for the AI (multi-tenant support)
+  const getProjectContext = useCallback(() => {
+    if (!currentProject) return null;
+    return {
+      reference: projectRef || currentProject?.reference,
+      name: projectName || currentProject?.name,
+      description: currentProject?.description || null,
+    };
+  }, [currentProject, projectRef, projectName]);
 
   // Build user context for the AI
   const getUserContext = useCallback(() => {
@@ -161,6 +171,7 @@ Total days allocated: ${totalAllocated}`);
 
     try {
       // Get contexts
+      const projectContext = getProjectContext();
       const userContext = getUserContext();
       const dataContext = await getDataContext();
 
@@ -178,6 +189,7 @@ Total days allocated: ${totalAllocated}`);
         },
         body: JSON.stringify({
           messages: recentMessages,
+          projectContext,
           userContext,
           dataContext,
         }),
@@ -203,7 +215,7 @@ Total days allocated: ${totalAllocated}`);
     } finally {
       setIsLoading(false);
     }
-  }, [messages, isLoading, getUserContext, getDataContext]);
+  }, [messages, isLoading, getProjectContext, getUserContext, getDataContext]);
 
   // Clear chat history
   const clearChat = useCallback(() => {

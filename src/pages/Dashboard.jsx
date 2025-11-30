@@ -44,7 +44,7 @@ export default function Dashboard() {
 
   // Use shared contexts
   const { showTestUsers, testUserIds } = useTestUsers();
-  const { projectId } = useProject();
+  const { projectId, projectName, projectRef } = useProject();
 
   // Fetch data when projectId becomes available
   useEffect(() => {
@@ -219,8 +219,8 @@ export default function Dashboard() {
     <div className="page-container">
       <PageHeader 
         icon={Target}
-        title="AMSF001 Dashboard"
-        subtitle="Network Standards & Design Architectural Services"
+        title={`${projectRef || 'Project'} Dashboard`}
+        subtitle={projectName || 'Project Tracker'}
       />
 
       {/* Project Progress Hero */}
