@@ -6,7 +6,7 @@ import {
   ChevronRight, RefreshCw, User, AlertCircle,
   CheckCircle, Filter, Eye, UserCheck
 } from 'lucide-react';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard } from '../components/common';
 
 export default function WorkflowSummary() {
   const [workflowItems, setWorkflowItems] = useState([]);
@@ -356,70 +356,74 @@ export default function WorkflowSummary() {
 
   return (
     <div className="page-container">
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-title">
-          <ClipboardList size={28} />
-          <div>
-            <h1>Workflow Summary</h1>
-            <p>
-              {canSeeAllWorkflows(userRole) 
-                ? 'All pending actions across the project' 
-                : 'Your pending workflow actions'}
-            </p>
-          </div>
+      <PageHeader
+        icon={ClipboardList}
+        title="Workflow Summary"
+        subtitle={canSeeAllWorkflows(userRole) 
+          ? 'All pending actions across the project' 
+          : 'Your pending workflow actions'}
+      >
+        {/* Role indicator */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '0.5rem',
+          padding: '0.5rem 1rem',
+          backgroundColor: '#f1f5f9',
+          borderRadius: '8px',
+          fontSize: '0.85rem'
+        }}>
+          {canSeeAllWorkflows(userRole) ? <Eye size={16} /> : <User size={16} />}
+          <span>Viewing as: <strong>{getRoleDisplayName(userRole)}</strong></span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {/* Role indicator */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            backgroundColor: '#f1f5f9',
-            borderRadius: '8px',
-            fontSize: '0.85rem'
-          }}>
-            {canSeeAllWorkflows(userRole) ? <Eye size={16} /> : <User size={16} />}
-            <span>Viewing as: <strong>{getRoleDisplayName(userRole)}</strong></span>
-          </div>
-          <button 
-            className="btn btn-secondary" 
-            onClick={() => fetchWorkflowItems(currentUserId, currentUserProfile, projectId)}
-            disabled={refreshing}
-          >
-            <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-      </div>
+        <button 
+          className="btn btn-secondary" 
+          onClick={() => fetchWorkflowItems(currentUserId, currentUserProfile, projectId)}
+          disabled={refreshing}
+        >
+          <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
+          {refreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </PageHeader>
 
       {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">Total Pending</div>
-          <div className="stat-value">{stats.total}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Timesheets</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>{stats.timesheets}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Expenses</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>{stats.expenses}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Deliverables</div>
-          <div className="stat-value" style={{ color: '#f59e0b' }}>{stats.deliverables}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Certificates</div>
-          <div className="stat-value" style={{ color: '#8b5cf6' }}>{stats.certificates}</div>
-        </div>
-        <div className="stat-card" style={{ backgroundColor: stats.urgent > 0 ? '#fef2f2' : undefined }}>
-          <div className="stat-label">Urgent (5+ days)</div>
-          <div className="stat-value" style={{ color: '#dc2626' }}>{stats.urgent}</div>
-        </div>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(6, 1fr)' }}>
+        <StatCard
+          icon={ClipboardList}
+          label="Total Pending"
+          value={stats.total}
+          color="#64748b"
+        />
+        <StatCard
+          icon={Clock}
+          label="Timesheets"
+          value={stats.timesheets}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={Receipt}
+          label="Expenses"
+          value={stats.expenses}
+          color="#10b981"
+        />
+        <StatCard
+          icon={FileText}
+          label="Deliverables"
+          value={stats.deliverables}
+          color="#f59e0b"
+        />
+        <StatCard
+          icon={Award}
+          label="Certificates"
+          value={stats.certificates}
+          color="#8b5cf6"
+        />
+        <StatCard
+          icon={AlertCircle}
+          label="Urgent (5+ days)"
+          value={stats.urgent}
+          color="#dc2626"
+        />
       </div>
 
       {/* Filters */}

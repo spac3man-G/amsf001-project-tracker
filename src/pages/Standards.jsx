@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard } from '../components/common';
 import { BookOpen, CheckCircle, Clock, FileText } from 'lucide-react';
 
 export default function Standards() {
@@ -46,34 +46,38 @@ export default function Standards() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <BookOpen size={28} />
-          <div>
-            <h1>Network Standards</h1>
-            <p>Document and track 32 network standards</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={BookOpen}
+        title="Network Standards"
+        subtitle="Document and track 32 network standards"
+      />
 
       {/* Summary Stats */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">Total Standards</div>
-          <div className="stat-value">{standards.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Completed</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>{completed}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">In Progress</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>{inProgress}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Not Started</div>
-          <div className="stat-value" style={{ color: '#64748b' }}>{notStarted}</div>
-        </div>
+        <StatCard
+          icon={BookOpen}
+          label="Total Standards"
+          value={standards.length}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Completed"
+          value={completed}
+          color="#10b981"
+        />
+        <StatCard
+          icon={Clock}
+          label="In Progress"
+          value={inProgress}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={FileText}
+          label="Not Started"
+          value={notStarted}
+          color="#64748b"
+        />
       </div>
 
       {/* Standards Table */}

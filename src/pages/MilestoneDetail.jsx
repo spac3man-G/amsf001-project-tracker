@@ -5,7 +5,7 @@ import {
   Target, ArrowLeft, Package, CheckCircle, Clock, 
   AlertCircle, Calendar, DollarSign, Info, TrendingUp, User
 } from 'lucide-react';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, StatCard } from '../components/common';
 
 export default function MilestoneDetail() {
   const { id } = useParams();

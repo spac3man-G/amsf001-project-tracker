@@ -9,7 +9,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatusBadge, ConfirmDialog } from '../components/common';
 
 const STATUS_OPTIONS = [
   'Not Started',
@@ -308,13 +308,17 @@ export default function Deliverables() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <Package size={28} />
-          <div><h1>Deliverables</h1><p>Track project deliverables with review workflow</p></div>
-        </div>
-        {canEdit && <button className="btn-primary" onClick={() => setShowAddForm(!showAddForm)}><Plus size={18} /> Add Deliverable</button>}
-      </div>
+      <PageHeader
+        icon={Package}
+        title="Deliverables"
+        subtitle="Track project deliverables with review workflow"
+      >
+        {canEdit && (
+          <button className="btn btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
+            <Plus size={18} /> Add Deliverable
+          </button>
+        )}
+      </PageHeader>
 
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-label">Total Deliverables</div><div className="stat-value">{totalDeliverables}</div></div>

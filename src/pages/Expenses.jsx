@@ -8,7 +8,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function Expenses() {
   // Use shared contexts
@@ -494,57 +494,62 @@ export default function Expenses() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <Receipt size={28} />
-          <div>
-            <h1>Expenses</h1>
-            <p>Track project expenses against £{BUDGET.toLocaleString()} budget</p>
-          </div>
-        </div>
+      <PageHeader
+        icon={Receipt}
+        title="Expenses"
+        subtitle={`Track project expenses against £${BUDGET.toLocaleString()} budget`}
+      >
         {canAddExpense && !showAddForm && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Expenses
           </button>
         )}
-      </div>
+      </PageHeader>
 
       {/* Budget Overview */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">Total Budget</div>
-          <div className="stat-value">£{BUDGET.toLocaleString()}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Claimed</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>£{totalSpent.toLocaleString()}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Chargeable</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>£{chargeableTotal.toLocaleString()}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Non-Chargeable</div>
-          <div className="stat-value" style={{ color: '#f59e0b' }}>£{nonChargeableTotal.toLocaleString()}</div>
-        </div>
+        <StatCard
+          icon={Receipt}
+          label="Total Budget"
+          value={`£${BUDGET.toLocaleString()}`}
+          color="#3b82f6"
+        />
+        <StatCard
+          label="Total Claimed"
+          value={`£${totalSpent.toLocaleString()}`}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Chargeable"
+          value={`£${chargeableTotal.toLocaleString()}`}
+          color="#10b981"
+        />
+        <StatCard
+          icon={AlertCircle}
+          label="Non-Chargeable"
+          value={`£${nonChargeableTotal.toLocaleString()}`}
+          color="#f59e0b"
+        />
       </div>
 
       {/* Additional Stats Row */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <div className="stat-card">
-          <div className="stat-label">Validated/Paid</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>£{approvedSpent.toLocaleString()}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Remaining Budget</div>
-          <div className="stat-value" style={{ color: remaining < BUDGET * 0.2 ? '#ef4444' : '#10b981' }}>
-            £{remaining.toLocaleString()}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Pending Validation</div>
-          <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
-        </div>
+        <StatCard
+          label="Validated/Paid"
+          value={`£${approvedSpent.toLocaleString()}`}
+          color="#10b981"
+        />
+        <StatCard
+          label="Remaining Budget"
+          value={`£${remaining.toLocaleString()}`}
+          color={remaining < BUDGET * 0.2 ? '#ef4444' : '#10b981'}
+        />
+        <StatCard
+          label="Pending Validation"
+          value={pendingCount}
+          color="#f59e0b"
+        />
       </div>
 
       {/* Category Breakdown */}

@@ -8,7 +8,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function Timesheets() {
   // Use shared contexts instead of local state for auth and project
@@ -391,39 +391,44 @@ export default function Timesheets() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <Clock size={28} />
-          <div>
-            <h1>Timesheets</h1>
-            <p>Track time spent on project activities</p>
-          </div>
-        </div>
+      <PageHeader
+        icon={Clock}
+        title="Timesheets"
+        subtitle="Track time spent on project activities"
+      >
         {!showAddForm && canAddTimesheet && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Timesheet
           </button>
         )}
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">TOTAL ENTRIES</div>
-          <div className="stat-value">{filteredTimesheets.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">TOTAL HOURS</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>{totalHours.toFixed(1)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">APPROVED HOURS</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>{approvedHours.toFixed(1)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">PENDING APPROVAL</div>
-          <div className="stat-value" style={{ color: '#f59e0b' }}>{pendingCount}</div>
-        </div>
+        <StatCard
+          icon={Calendar}
+          label="Total Entries"
+          value={filteredTimesheets.length}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={Clock}
+          label="Total Hours"
+          value={totalHours.toFixed(1)}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Approved Hours"
+          value={approvedHours.toFixed(1)}
+          color="#10b981"
+        />
+        <StatCard
+          icon={AlertCircle}
+          label="Pending Approval"
+          value={pendingCount}
+          color="#f59e0b"
+        />
       </div>
 
       {/* Hours by Resource Summary */}

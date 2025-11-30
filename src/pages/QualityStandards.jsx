@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function QualityStandards() {
   // Use shared contexts instead of local state for auth and project
@@ -28,6 +28,8 @@ export default function QualityStandards() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, qs: null });
+  const [saving, setSaving] = useState(false);
   
   const [newQS, setNewQS] = useState({
     qs_ref: '',
@@ -143,29 +145,37 @@ export default function QualityStandards() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this Quality Standard? This will also remove all associated assessments.')) return;
+  async function handleDelete(qs) {
+    setDeleteDialog({ isOpen: true, qs });
+  }
 
+  async function handleConfirmDelete() {
+    const qs = deleteDialog.qs;
+    if (!qs) return;
+
+    setSaving(true);
     try {
       // First delete assessments
       await supabase
         .from('deliverable_qs_assessments')
         .delete()
-        .eq('quality_standard_id', id);
+        .eq('quality_standard_id', qs.id);
 
       // Then delete the QS
       const { error } = await supabase
         .from('quality_standards')
         .delete()
-        .eq('id', id);
+        .eq('id', qs.id);
 
       if (error) throw error;
 
       await fetchQualityStandards();
-      alert('Quality Standard deleted');
+      setDeleteDialog({ isOpen: false, qs: null });
     } catch (error) {
       console.error('Error deleting:', error);
       alert('Failed to delete: ' + error.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -236,39 +246,44 @@ export default function QualityStandards() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <Award size={28} />
-          <div>
-            <h1>Quality Standards</h1>
-            <p>Track quality compliance across deliverables</p>
-          </div>
-        </div>
+      <PageHeader
+        icon={Award}
+        title="Quality Standards"
+        subtitle="Track quality compliance across deliverables"
+      >
         {canEdit && !showAddForm && (
           <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
             <Plus size={18} /> Add Quality Standard
           </button>
         )}
-      </div>
+      </PageHeader>
 
       {/* Stats Cards */}
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">Total Standards</div>
-          <div className="stat-value">{totalQS}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label" style={{ color: '#16a34a' }}>Achieved</div>
-          <div className="stat-value" style={{ color: '#16a34a' }}>{achievedQS}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label" style={{ color: '#ea580c' }}>At Risk</div>
-          <div className="stat-value" style={{ color: '#ea580c' }}>{atRiskQS}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label" style={{ color: '#64748b' }}>Not Started</div>
-          <div className="stat-value" style={{ color: '#64748b' }}>{notStartedQS}</div>
-        </div>
+        <StatCard
+          icon={Award}
+          label="Total Standards"
+          value={totalQS}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Achieved"
+          value={achievedQS}
+          color="#16a34a"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="At Risk"
+          value={atRiskQS}
+          color="#ea580c"
+        />
+        <StatCard
+          icon={Clock}
+          label="Not Started"
+          value={notStartedQS}
+          color="#64748b"
+        />
       </div>
 
       {/* Add Form */}
@@ -512,7 +527,7 @@ export default function QualityStandards() {
                             </button>
                             <button 
                               className="btn-icon btn-danger" 
-                              onClick={() => handleDelete(qs.id)}
+                              onClick={() => handleDelete(qs)}
                               title="Delete"
                             >
                               <Trash2 size={16} />
@@ -552,6 +567,19 @@ export default function QualityStandards() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, qs: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Quality Standard?"
+        message={deleteDialog.qs ? `This will permanently delete "${deleteDialog.qs.qs_ref}: ${deleteDialog.qs.name}" and all associated assessments. This action cannot be undone.` : ''}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={saving}
+      />
     </div>
   );
 }

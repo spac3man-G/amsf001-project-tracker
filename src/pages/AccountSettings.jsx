@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader } from '../components/common';
 import { 
   User, Mail, KeyRound, Save, AlertCircle, CheckCircle, 
   Eye, EyeOff, Shield, Clock
@@ -135,15 +135,11 @@ export default function AccountSettings() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <User size={28} />
-          <div>
-            <h1>Account Settings</h1>
-            <p>Manage your account details and security</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={User}
+        title="Account Settings"
+        subtitle="Manage your account details and security"
+      />
 
       {/* Account Overview */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>

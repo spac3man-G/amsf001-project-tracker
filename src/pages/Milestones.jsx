@@ -5,7 +5,7 @@ import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X, Fi
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function Milestones() {
   // Use shared contexts instead of local state for auth and project
@@ -31,6 +31,8 @@ export default function Milestones() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, milestone: null });
+  const [saving, setSaving] = useState(false);
 
   const [newMilestone, setNewMilestone] = useState({
     milestone_ref: '',
@@ -207,20 +209,29 @@ export default function Milestones() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this milestone? This will also delete all associated deliverables.')) return;
+  function handleDeleteClick(milestone) {
+    setDeleteDialog({ isOpen: true, milestone });
+  }
+
+  async function handleConfirmDelete() {
+    const milestone = deleteDialog.milestone;
+    if (!milestone) return;
+    
+    setSaving(true);
     try {
       const { error } = await supabase
         .from('milestones')
         .delete()
-        .eq('id', id);
+        .eq('id', milestone.id);
 
       if (error) throw error;
       await fetchMilestones();
-      alert('Milestone deleted successfully');
+      setDeleteDialog({ isOpen: false, milestone: null });
     } catch (error) {
       console.error('Error deleting milestone:', error);
       alert('Failed to delete milestone: ' + error.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -451,45 +462,46 @@ export default function Milestones() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <MilestoneIcon size={28} />
-          <div>
-            <h1>Milestones</h1>
-            <p>Track project milestones and deliverables</p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={() => fetchMilestones()}>
-            <RefreshCw size={18} /> Refresh
+      <PageHeader
+        icon={MilestoneIcon}
+        title="Milestones"
+        subtitle="Track project milestones and deliverables"
+      >
+        <button className="btn btn-secondary" onClick={() => fetchMilestones()}>
+          <RefreshCw size={18} /> Refresh
+        </button>
+        {canEdit && !showAddForm && (
+          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
+            <Plus size={18} /> Add Milestone
           </button>
-          {canEdit && !showAddForm && (
-            <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-              <Plus size={18} /> Add Milestone
-            </button>
-          )}
-        </div>
-      </div>
+        )}
+      </PageHeader>
 
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">Total Milestones</div>
-          <div className="stat-value">{milestones.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Completed</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>{completedCount}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Average Progress</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>{avgProgress}%</div>
-        </div>
-        <div className="stat-card" title="Total amount that can be invoiced when milestones are completed">
-          <div className="stat-label">Total Billable</div>
-          <div className="stat-value">£{totalBudget.toLocaleString()}</div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>on completion</div>
-        </div>
+        <StatCard
+          icon={MilestoneIcon}
+          label="Total Milestones"
+          value={milestones.length}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Completed"
+          value={completedCount}
+          color="#10b981"
+        />
+        <StatCard
+          label="Average Progress"
+          value={`${avgProgress}%`}
+          color="#3b82f6"
+        />
+        <StatCard
+          label="Total Billable"
+          value={`£${totalBudget.toLocaleString()}`}
+          subtext="on completion"
+          color="#10b981"
+        />
       </div>
 
       {/* Quick Actions */}
@@ -830,7 +842,7 @@ export default function Milestones() {
                             <Edit2 size={16} />
                           </button>
                           <button 
-                            onClick={() => handleDelete(milestone.id)}
+                            onClick={() => handleDeleteClick(milestone)}
                             style={{
                               padding: '0.5rem',
                               backgroundColor: '#fef2f2',
@@ -1266,6 +1278,19 @@ export default function Milestones() {
           <li>Payment aligned to milestone completion per SOW requirements</li>
         </ul>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, milestone: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Milestone?"
+        message={deleteDialog.milestone ? `This will permanently delete "${deleteDialog.milestone.milestone_ref}: ${deleteDialog.milestone.name}" and all associated deliverables. This action cannot be undone.` : ''}
+        confirmText="Delete Milestone"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={saving}
+      />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { Settings as SettingsIcon, Save, RefreshCw, AlertCircle, CheckCircle, Do
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader } from '../components/common';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -180,37 +180,31 @@ export default function Settings() {
 
   return (
     <div className="page-container">
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-title">
-          <SettingsIcon size={28} />
-          <div>
-            <h1>Project Settings</h1>
-            <p>Configure project parameters and budget allocations</p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          {saveStatus === 'success' && (
-            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <CheckCircle size={18} /> Saved
-            </span>
-          )}
-          {saveStatus === 'error' && (
-            <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <AlertCircle size={18} /> Error saving
-            </span>
-          )}
-          <button 
-            className="btn btn-primary" 
-            onClick={handleSaveSettings}
-            disabled={saving || !hasChanges}
-            style={{ opacity: (!hasChanges || saving) ? 0.6 : 1 }}
-          >
-            {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
-            {saving ? 'Saving...' : 'Save Settings'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={SettingsIcon}
+        title="Project Settings"
+        subtitle="Configure project parameters and budget allocations"
+      >
+        {saveStatus === 'success' && (
+          <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <CheckCircle size={18} /> Saved
+          </span>
+        )}
+        {saveStatus === 'error' && (
+          <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <AlertCircle size={18} /> Error saving
+          </span>
+        )}
+        <button 
+          className="btn btn-primary" 
+          onClick={handleSaveSettings}
+          disabled={saving || !hasChanges}
+          style={{ opacity: (!hasChanges || saving) ? 0.6 : 1 }}
+        >
+          {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+          {saving ? 'Saving...' : 'Save Settings'}
+        </button>
+      </PageHeader>
 
       {/* Project Information Card */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>

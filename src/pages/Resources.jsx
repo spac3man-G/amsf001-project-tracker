@@ -4,7 +4,7 @@ import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function Resources() {
   // Use shared contexts instead of local state for auth and project
@@ -26,6 +26,8 @@ export default function Resources() {
   const [editForm, setEditForm] = useState({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [filterType, setFilterType] = useState('all');
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, resource: null });
+  const [saving, setSaving] = useState(false);
   const [newResource, setNewResource] = useState({
     resource_ref: '',
     name: '',
@@ -258,22 +260,30 @@ export default function Resources() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Are you sure you want to delete this resource?')) return;
+  async function handleDelete(resource) {
+    setDeleteDialog({ isOpen: true, resource });
+  }
+
+  async function handleConfirmDelete() {
+    const resource = deleteDialog.resource;
+    if (!resource) return;
     
+    setSaving(true);
     try {
       const { error } = await supabase
         .from('resources')
         .delete()
-        .eq('id', id);
+        .eq('id', resource.id);
 
       if (error) throw error;
       
       await fetchResources();
-      alert('Resource deleted successfully!');
+      setDeleteDialog({ isOpen: false, resource: null });
     } catch (error) {
       console.error('Error deleting resource:', error);
       alert('Failed to delete resource');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -359,31 +369,47 @@ export default function Resources() {
   }
 
   return (
-    <div>
+    <div className="page-container">
+      <PageHeader
+        icon={Users}
+        title="Team Resources"
+        subtitle="Manage project team allocation and utilization"
+      >
+        {userRole === 'admin' && (
+          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
+            <Plus size={18} /> Add Resource
+          </button>
+        )}
+      </PageHeader>
+
       {/* Stats Row 1 - General */}
       <div className="stats-grid" style={{ marginBottom: '1rem' }}>
-        <div className="stat-card">
-          <div className="stat-value">{filteredResources.length}</div>
-          <div className="stat-label">Team Members</div>
-          {canSeeResourceType && (
-            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
-              {internalCount} internal, {thirdPartyCount} third-party
-            </div>
-          )}
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">£{totalBudget.toLocaleString()}</div>
-          <div className="stat-label">Resource Budget</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{totalDaysAllocated}</div>
-          <div className="stat-label">Days Allocated</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: overallUtilization > 0 ? '#10b981' : '#64748b' }}>{overallUtilization}%</div>
-          <div className="stat-label">Utilization</div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{totalDaysUsed.toFixed(1)} days used</div>
-        </div>
+        <StatCard
+          icon={Users}
+          label="Team Members"
+          value={filteredResources.length}
+          subtext={canSeeResourceType ? `${internalCount} internal, ${thirdPartyCount} third-party` : undefined}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={DollarSign}
+          label="Resource Budget"
+          value={`£${totalBudget.toLocaleString()}`}
+          color="#10b981"
+        />
+        <StatCard
+          icon={Clock}
+          label="Days Allocated"
+          value={totalDaysAllocated}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Utilization"
+          value={`${overallUtilization}%`}
+          subtext={`${totalDaysUsed.toFixed(1)} days used`}
+          color={overallUtilization > 0 ? '#10b981' : '#64748b'}
+        />
       </div>
 
       {/* Stats Row 2 - Margin Stats (only visible to Supplier PM/Admin) */}
@@ -444,15 +470,6 @@ export default function Resources() {
               </select>
             )}
           </div>
-          {userRole === 'admin' && (
-            <button 
-              className="btn btn-primary"
-              onClick={() => setShowAddForm(true)}
-            >
-              <Plus size={20} />
-              Add Resource
-            </button>
-          )}
         </div>
 
         {showAddForm && (
@@ -794,7 +811,7 @@ export default function Resources() {
                               {userRole === 'admin' && (
                                 <button 
                                   className="btn btn-sm btn-danger"
-                                  onClick={() => handleDelete(resource.id)}
+                                  onClick={() => handleDelete(resource)}
                                   title="Delete resource"
                                 >
                                   <Trash2 size={16} />
@@ -1019,6 +1036,19 @@ export default function Resources() {
           font-size: 0.875rem;
         }
       `}</style>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, resource: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Resource?"
+        message={deleteDialog.resource ? `This will permanently delete "${deleteDialog.resource.name}" from the project. This action cannot be undone.` : ''}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={saving}
+      />
     </div>
   );
 }
