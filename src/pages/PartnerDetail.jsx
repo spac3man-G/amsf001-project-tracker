@@ -17,13 +17,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Building2, ArrowLeft, Save, X, User, Mail, FileText,
   Clock, DollarSign, Calendar, AlertCircle, Edit2,
-  Users, Receipt, Phone, CreditCard, CheckCircle, ExternalLink
+  Users, Receipt, Phone, CreditCard, CheckCircle, ExternalLink,
+  Download, Send, Loader
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
-import { partnersService, resourcesService } from '../services';
+import { partnersService, resourcesService, invoicingService } from '../services';
 import { supabase } from '../lib/supabase';
 
 export default function PartnerDetail() {
@@ -45,7 +46,7 @@ export default function PartnerDetail() {
     pendingValue: 0,
     entries: [] 
   });
-  const [expenseSummary, setExpenseSummary] = useState({ totalAmount: 0, entries: [] });
+  const [expenseSummary, setExpenseSummary] = useState({ totalAmount: 0, partnerProcuredAmount: 0, entries: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -55,6 +56,12 @@ export default function PartnerDetail() {
   const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [selectedMonth, setSelectedMonth] = useState('');
   
+  // Invoice state
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const [recentInvoices, setRecentInvoices] = useState([]);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [generatedInvoice, setGeneratedInvoice] = useState(null);
+  
   // Edit form state
   const [editForm, setEditForm] = useState({});
 
@@ -62,6 +69,7 @@ export default function PartnerDetail() {
   useEffect(() => {
     if (id) {
       fetchPartnerData();
+      fetchRecentInvoices();
     }
   }, [id, dateRange.start, dateRange.end]);
 
@@ -269,6 +277,49 @@ export default function PartnerDetail() {
     setEditForm({});
   }
 
+  // Invoice generation
+  async function handleGenerateInvoice() {
+    if (!dateRange.start || !dateRange.end) {
+      setError('Please select a date range first');
+      return;
+    }
+
+    try {
+      setGeneratingInvoice(true);
+      setError(null);
+
+      const invoice = await invoicingService.generateInvoice({
+        projectId,
+        partnerId: id,
+        periodStart: dateRange.start,
+        periodEnd: dateRange.end,
+        createdBy: user?.id,
+        notes: null
+      });
+
+      setGeneratedInvoice(invoice);
+      setShowInvoiceModal(true);
+      
+      // Refresh invoices list
+      fetchRecentInvoices();
+
+    } catch (err) {
+      console.error('Error generating invoice:', err);
+      setError('Failed to generate invoice: ' + err.message);
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  }
+
+  async function fetchRecentInvoices() {
+    try {
+      const invoices = await invoicingService.getByPartner(id);
+      setRecentInvoices(invoices.slice(0, 5));
+    } catch (err) {
+      console.error('Error fetching invoices:', err);
+    }
+  }
+
   function getStatusStyle(status) {
     switch (status) {
       case 'Approved':
@@ -442,11 +493,21 @@ export default function PartnerDetail() {
           <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
             <button
               className="btn btn-primary"
-              onClick={() => alert('Invoice generation coming soon!')}
+              onClick={handleGenerateInvoice}
+              disabled={generatingInvoice}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              <FileText size={18} />
-              Generate Invoice for {getDateRangeLabel()}
+              {generatingInvoice ? (
+                <>
+                  <Loader size={18} className="spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileText size={18} />
+                  Generate Invoice for {getDateRangeLabel()}
+                </>
+              )}
             </button>
           </div>
         )}
@@ -849,6 +910,67 @@ export default function PartnerDetail() {
         </div>
       )}
 
+      {/* Recent Invoices */}
+      {!isEditing && recentInvoices.length > 0 && (
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="card-header">
+            <h3 className="card-title">Recent Invoices</h3>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', fontSize: '0.875rem' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Invoice #</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Period</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Status</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentInvoices.map(inv => {
+                  const statusColors = {
+                    Draft: { bg: '#f1f5f9', color: '#64748b' },
+                    Sent: { bg: '#dbeafe', color: '#1e40af' },
+                    Paid: { bg: '#dcfce7', color: '#16a34a' },
+                    Cancelled: { bg: '#fee2e2', color: '#dc2626' }
+                  };
+                  const colors = statusColors[inv.status] || statusColors.Draft;
+                  
+                  return (
+                    <tr key={inv.id}>
+                      <td style={{ padding: '0.75rem', fontFamily: 'monospace', fontWeight: '500' }}>
+                        {inv.invoice_number}
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        {new Date(inv.period_start).toLocaleDateString()} - {new Date(inv.period_end).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '600' }}>
+                        £{parseFloat(inv.invoice_total).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <span style={{
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          backgroundColor: colors.bg,
+                          color: colors.color
+                        }}>
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem', color: '#64748b' }}>
+                        {new Date(inv.invoice_date).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         .input-field {
           padding: 0.5rem 0.75rem;
@@ -864,7 +986,136 @@ export default function PartnerDetail() {
         .hover-row:hover {
           background-color: #f8fafc;
         }
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
       `}</style>
+
+      {/* Invoice Generated Modal */}
+      {showInvoiceModal && generatedInvoice && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              <div style={{ 
+                backgroundColor: '#dcfce7', 
+                borderRadius: '50%', 
+                padding: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CheckCircle size={24} style={{ color: '#16a34a' }} />
+              </div>
+              <div>
+                <h2 style={{ margin: 0 }}>Invoice Generated</h2>
+                <p style={{ margin: 0, color: '#64748b' }}>{generatedInvoice.invoice_number}</p>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Partner</span>
+                  <div style={{ fontWeight: '500' }}>{partner?.name}</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Period</span>
+                  <div style={{ fontWeight: '500' }}>
+                    {new Date(generatedInvoice.period_start).toLocaleDateString()} - {new Date(generatedInvoice.period_end).toLocaleDateString()}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Timesheets</span>
+                  <div style={{ fontWeight: '500' }}>£{parseFloat(generatedInvoice.timesheet_total).toFixed(2)}</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Expenses</span>
+                  <div style={{ fontWeight: '500' }}>£{parseFloat(generatedInvoice.expense_total).toFixed(2)}</div>
+                </div>
+              </div>
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Invoice Total</span>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#16a34a' }}>
+                  £{parseFloat(generatedInvoice.invoice_total).toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            {generatedInvoice.lines && generatedInvoice.lines.length > 0 && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '0.5rem' }}>Line Items ({generatedInvoice.lines.length})</h4>
+                <div style={{ maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem' }}>
+                  <table style={{ width: '100%' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f1f5f9' }}>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Type</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Description</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {generatedInvoice.lines.map((line, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '0.5rem' }}>
+                            <span style={{
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              backgroundColor: line.line_type === 'timesheet' ? '#dbeafe' : '#fef3c7',
+                              color: line.line_type === 'timesheet' ? '#1e40af' : '#92400e'
+                            }}>
+                              {line.line_type}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.5rem' }}>{line.description}</td>
+                          <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                            £{parseFloat(line.line_total).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowInvoiceModal(false);
+                  setGeneratedInvoice(null);
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
