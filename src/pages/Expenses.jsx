@@ -49,16 +49,24 @@ export default function Expenses() {
   const [newExpense, setNewExpense] = useState({
     resource_id: '',
     expense_date: new Date().toISOString().split('T')[0],
+    // Travel
     travel_amount: '',
     travel_reason: '',
+    travel_chargeable: true,
+    travel_procurement: 'supplier',
+    // Accommodation
     accommodation_amount: '',
     accommodation_reason: '',
+    accommodation_chargeable: true,
+    accommodation_procurement: 'supplier',
+    // Sustenance
     sustenance_amount: '',
     sustenance_reason: '',
+    sustenance_chargeable: true,
+    sustenance_procurement: 'supplier',
+    // Shared
     notes: '',
-    files: [],
-    chargeable_to_customer: true,
-    procurement_method: 'supplier'
+    files: []
   });
 
   // Database uses 'Approved' but we display 'Validated'
@@ -168,8 +176,8 @@ export default function Expenses() {
           notes: newExpense.notes,
           status: 'Draft',
           created_by: currentUserId,
-          chargeable_to_customer: newExpense.chargeable_to_customer,
-          procurement_method: newExpense.procurement_method
+          chargeable_to_customer: newExpense.travel_chargeable,
+          procurement_method: newExpense.travel_procurement
         });
       }
 
@@ -185,8 +193,8 @@ export default function Expenses() {
           notes: newExpense.notes,
           status: 'Draft',
           created_by: currentUserId,
-          chargeable_to_customer: newExpense.chargeable_to_customer,
-          procurement_method: newExpense.procurement_method
+          chargeable_to_customer: newExpense.accommodation_chargeable,
+          procurement_method: newExpense.accommodation_procurement
         });
       }
 
@@ -202,8 +210,8 @@ export default function Expenses() {
           notes: newExpense.notes,
           status: 'Draft',
           created_by: currentUserId,
-          chargeable_to_customer: newExpense.chargeable_to_customer,
-          procurement_method: newExpense.procurement_method
+          chargeable_to_customer: newExpense.sustenance_chargeable,
+          procurement_method: newExpense.sustenance_procurement
         });
       }
 
@@ -245,13 +253,18 @@ export default function Expenses() {
         expense_date: new Date().toISOString().split('T')[0],
         travel_amount: '',
         travel_reason: '',
+        travel_chargeable: true,
+        travel_procurement: 'supplier',
         accommodation_amount: '',
         accommodation_reason: '',
+        accommodation_chargeable: true,
+        accommodation_procurement: 'supplier',
         sustenance_amount: '',
         sustenance_reason: '',
+        sustenance_chargeable: true,
+        sustenance_procurement: 'supplier',
         notes: '',
-        files: [],
-        chargeable_to_customer: true
+        files: []
       });
       alert('Expenses added successfully!');
     } catch (error) {
@@ -722,84 +735,14 @@ export default function Expenses() {
 
           {/* Chargeable to Customer Checkbox */}
           <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-              <input 
-                type="checkbox" 
-                checked={newExpense.chargeable_to_customer}
-                onChange={(e) => setNewExpense({ ...newExpense, chargeable_to_customer: e.target.checked })}
-                style={{ width: '20px', height: '20px', accentColor: '#10b981' }}
-              />
-              <div>
-                <span style={{ fontWeight: '600', color: '#166534' }}>Chargeable to Customer</span>
-                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  Uncheck if this expense should not be charged to the customer (validated by Supplier PM instead of Customer PM)
-                </div>
-              </div>
-            </label>
-          </div>
-
-          {/* Procurement Method - visible to Supplier PM and Admin */}
-          {hasRole(['admin', 'supplier_pm']) && (
-            <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f5f3ff', borderRadius: '8px', border: '1px solid #c4b5fd' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                <span style={{ fontWeight: '600', color: '#5b21b6', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Building2 size={18} />
-                  Procurement Method
-                </span>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
-                  How was this expense paid? Partner-procured expenses are included in partner invoices.
-                </div>
-              </label>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.5rem', 
-                  padding: '0.75rem 1rem',
-                  backgroundColor: newExpense.procurement_method === 'supplier' ? '#6366f1' : '#fff',
-                  color: newExpense.procurement_method === 'supplier' ? '#fff' : '#374151',
-                  borderRadius: '6px',
-                  border: '1px solid #c4b5fd',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}>
-                  <input 
-                    type="radio" 
-                    name="procurement_method"
-                    value="supplier"
-                    checked={newExpense.procurement_method === 'supplier'}
-                    onChange={(e) => setNewExpense({ ...newExpense, procurement_method: e.target.value })}
-                    style={{ display: 'none' }}
-                  />
-                  <Briefcase size={16} />
-                  <span style={{ fontWeight: '500' }}>Supplier (JT)</span>
-                </label>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.5rem', 
-                  padding: '0.75rem 1rem',
-                  backgroundColor: newExpense.procurement_method === 'partner' ? '#8b5cf6' : '#fff',
-                  color: newExpense.procurement_method === 'partner' ? '#fff' : '#374151',
-                  borderRadius: '6px',
-                  border: '1px solid #c4b5fd',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}>
-                  <input 
-                    type="radio" 
-                    name="procurement_method"
-                    value="partner"
-                    checked={newExpense.procurement_method === 'partner'}
-                    onChange={(e) => setNewExpense({ ...newExpense, procurement_method: e.target.value })}
-                    style={{ display: 'none' }}
-                  />
-                  <Building2 size={16} />
-                  <span style={{ fontWeight: '500' }}>Partner</span>
-                </label>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <CheckCircle size={18} style={{ color: '#16a34a' }} />
+              <span style={{ fontWeight: '600', color: '#166534' }}>Default Settings</span>
             </div>
-          )}
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0' }}>
+              Each expense category below has its own Chargeable and Procurement settings. Adjust them individually as needed.
+            </p>
+          </div>
 
           {/* Travel */}
           <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderRadius: '8px', marginBottom: '1rem' }}>
@@ -807,7 +750,7 @@ export default function Expenses() {
               <Car size={20} />
               <span style={{ fontWeight: '600', fontSize: '1rem' }}>Travel</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
               <div>
                 <label className="form-label">Amount (£)</label>
                 <input 
@@ -830,6 +773,33 @@ export default function Expenses() {
                 />
               </div>
             </div>
+            {/* Per-category settings - only show if amount entered */}
+            {parseFloat(newExpense.travel_amount) > 0 && (
+              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid #93c5fd' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={newExpense.travel_chargeable}
+                    onChange={(e) => setNewExpense({ ...newExpense, travel_chargeable: e.target.checked })}
+                    style={{ width: '16px', height: '16px', accentColor: '#2563eb' }}
+                  />
+                  <span style={{ fontSize: '0.85rem', color: '#1e40af' }}>Chargeable to Customer</span>
+                </label>
+                {hasRole(['admin', 'supplier_pm']) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#1e40af' }}>Paid by:</span>
+                    <select
+                      value={newExpense.travel_procurement}
+                      onChange={(e) => setNewExpense({ ...newExpense, travel_procurement: e.target.value })}
+                      style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #93c5fd', fontSize: '0.85rem', backgroundColor: '#fff' }}
+                    >
+                      <option value="supplier">Supplier (JT)</option>
+                      <option value="partner">Partner</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Accommodation */}
@@ -838,7 +808,7 @@ export default function Expenses() {
               <Home size={20} />
               <span style={{ fontWeight: '600', fontSize: '1rem' }}>Accommodation</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
               <div>
                 <label className="form-label">Amount (£)</label>
                 <input 
@@ -861,6 +831,33 @@ export default function Expenses() {
                 />
               </div>
             </div>
+            {/* Per-category settings - only show if amount entered */}
+            {parseFloat(newExpense.accommodation_amount) > 0 && (
+              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid #d8b4fe' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={newExpense.accommodation_chargeable}
+                    onChange={(e) => setNewExpense({ ...newExpense, accommodation_chargeable: e.target.checked })}
+                    style={{ width: '16px', height: '16px', accentColor: '#7c3aed' }}
+                  />
+                  <span style={{ fontSize: '0.85rem', color: '#6b21a8' }}>Chargeable to Customer</span>
+                </label>
+                {hasRole(['admin', 'supplier_pm']) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#6b21a8' }}>Paid by:</span>
+                    <select
+                      value={newExpense.accommodation_procurement}
+                      onChange={(e) => setNewExpense({ ...newExpense, accommodation_procurement: e.target.value })}
+                      style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #d8b4fe', fontSize: '0.85rem', backgroundColor: '#fff' }}
+                    >
+                      <option value="supplier">Supplier (JT)</option>
+                      <option value="partner">Partner</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Sustenance */}
@@ -869,7 +866,7 @@ export default function Expenses() {
               <Utensils size={20} />
               <span style={{ fontWeight: '600', fontSize: '1rem' }}>Sustenance</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
               <div>
                 <label className="form-label">Amount (£)</label>
                 <input 
@@ -892,6 +889,33 @@ export default function Expenses() {
                 />
               </div>
             </div>
+            {/* Per-category settings - only show if amount entered */}
+            {parseFloat(newExpense.sustenance_amount) > 0 && (
+              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid #fdba74' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={newExpense.sustenance_chargeable}
+                    onChange={(e) => setNewExpense({ ...newExpense, sustenance_chargeable: e.target.checked })}
+                    style={{ width: '16px', height: '16px', accentColor: '#ea580c' }}
+                  />
+                  <span style={{ fontSize: '0.85rem', color: '#c2410c' }}>Chargeable to Customer</span>
+                </label>
+                {hasRole(['admin', 'supplier_pm']) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#c2410c' }}>Paid by:</span>
+                    <select
+                      value={newExpense.sustenance_procurement}
+                      onChange={(e) => setNewExpense({ ...newExpense, sustenance_procurement: e.target.value })}
+                      style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #fdba74', fontSize: '0.85rem', backgroundColor: '#fff' }}
+                    >
+                      <option value="supplier">Supplier (JT)</option>
+                      <option value="partner">Partner</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -950,18 +974,48 @@ export default function Expenses() {
           {/* Summary */}
           {(parseFloat(newExpense.travel_amount) > 0 || parseFloat(newExpense.accommodation_amount) > 0 || parseFloat(newExpense.sustenance_amount) > 0) && (
             <div style={{ padding: '1rem', backgroundColor: '#f0fdf4', borderRadius: '8px', marginBottom: '1rem' }}>
-              <div style={{ fontWeight: '600', color: '#166534', marginBottom: '0.5rem' }}>Summary</div>
-              <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: '600', color: '#166534', marginBottom: '0.75rem' }}>Summary</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {parseFloat(newExpense.travel_amount) > 0 && (
-                  <div><span style={{ color: '#64748b' }}>Travel:</span> £{parseFloat(newExpense.travel_amount).toFixed(2)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: '500', minWidth: '120px' }}>Travel: £{parseFloat(newExpense.travel_amount).toFixed(2)}</span>
+                    <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.5rem', borderRadius: '4px', backgroundColor: newExpense.travel_chargeable ? '#dcfce7' : '#fef3c7', color: newExpense.travel_chargeable ? '#166534' : '#92400e' }}>
+                      {newExpense.travel_chargeable ? 'Chargeable' : 'Non-chargeable'}
+                    </span>
+                    {hasRole(['admin', 'supplier_pm']) && (
+                      <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.5rem', borderRadius: '4px', backgroundColor: newExpense.travel_procurement === 'partner' ? '#f3e8ff' : '#e0e7ff', color: newExpense.travel_procurement === 'partner' ? '#7c3aed' : '#4338ca' }}>
+                        {newExpense.travel_procurement === 'partner' ? 'Partner' : 'Supplier'}
+                      </span>
+                    )}
+                  </div>
                 )}
                 {parseFloat(newExpense.accommodation_amount) > 0 && (
-                  <div><span style={{ color: '#64748b' }}>Accommodation:</span> £{parseFloat(newExpense.accommodation_amount).toFixed(2)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: '500', minWidth: '120px' }}>Accommodation: £{parseFloat(newExpense.accommodation_amount).toFixed(2)}</span>
+                    <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.5rem', borderRadius: '4px', backgroundColor: newExpense.accommodation_chargeable ? '#dcfce7' : '#fef3c7', color: newExpense.accommodation_chargeable ? '#166534' : '#92400e' }}>
+                      {newExpense.accommodation_chargeable ? 'Chargeable' : 'Non-chargeable'}
+                    </span>
+                    {hasRole(['admin', 'supplier_pm']) && (
+                      <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.5rem', borderRadius: '4px', backgroundColor: newExpense.accommodation_procurement === 'partner' ? '#f3e8ff' : '#e0e7ff', color: newExpense.accommodation_procurement === 'partner' ? '#7c3aed' : '#4338ca' }}>
+                        {newExpense.accommodation_procurement === 'partner' ? 'Partner' : 'Supplier'}
+                      </span>
+                    )}
+                  </div>
                 )}
                 {parseFloat(newExpense.sustenance_amount) > 0 && (
-                  <div><span style={{ color: '#64748b' }}>Sustenance:</span> £{parseFloat(newExpense.sustenance_amount).toFixed(2)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: '500', minWidth: '120px' }}>Sustenance: £{parseFloat(newExpense.sustenance_amount).toFixed(2)}</span>
+                    <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.5rem', borderRadius: '4px', backgroundColor: newExpense.sustenance_chargeable ? '#dcfce7' : '#fef3c7', color: newExpense.sustenance_chargeable ? '#166534' : '#92400e' }}>
+                      {newExpense.sustenance_chargeable ? 'Chargeable' : 'Non-chargeable'}
+                    </span>
+                    {hasRole(['admin', 'supplier_pm']) && (
+                      <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.5rem', borderRadius: '4px', backgroundColor: newExpense.sustenance_procurement === 'partner' ? '#f3e8ff' : '#e0e7ff', color: newExpense.sustenance_procurement === 'partner' ? '#7c3aed' : '#4338ca' }}>
+                        {newExpense.sustenance_procurement === 'partner' ? 'Partner' : 'Supplier'}
+                      </span>
+                    )}
+                  </div>
                 )}
-                <div style={{ fontWeight: '700', color: '#166534' }}>
+                <div style={{ fontWeight: '700', color: '#166534', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #86efac' }}>
                   Total: £{(
                     (parseFloat(newExpense.travel_amount) || 0) + 
                     (parseFloat(newExpense.accommodation_amount) || 0) + 
@@ -969,21 +1023,8 @@ export default function Expenses() {
                   ).toFixed(2)}
                 </div>
               </div>
-              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
-                {newExpense.chargeable_to_customer ? (
-                  <span style={{ color: '#10b981' }}>✓ Chargeable to customer (validated by Customer PM)</span>
-                ) : (
-                  <span style={{ color: '#f59e0b' }}>✗ Non-chargeable (validated by Supplier PM)</span>
-                )}
-              </div>
-              {hasRole(['admin', 'supplier_pm']) && (
-                <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
-                  {newExpense.procurement_method === 'partner' ? (
-                    <span style={{ color: '#8b5cf6' }}>◆ Partner procured (included in partner invoice)</span>
-                  ) : (
-                    <span style={{ color: '#6366f1' }}>◆ Supplier procured (paid by JT)</span>
-                  )}
-                </div>
+            </div>
+          )}
               )}
             </div>
           )}
