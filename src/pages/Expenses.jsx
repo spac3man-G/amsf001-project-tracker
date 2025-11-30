@@ -1025,9 +1025,6 @@ export default function Expenses() {
               </div>
             </div>
           )}
-              )}
-            </div>
-          )}
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-primary" onClick={handleAdd} disabled={uploadingFiles}>
