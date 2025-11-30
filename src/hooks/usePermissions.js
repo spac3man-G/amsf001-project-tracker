@@ -91,6 +91,13 @@ export function usePermissions() {
     canSeeResourceType: perms.canSeeResourceType(userRole),
     canSeeMargins: perms.canSeeMargins(userRole),
     
+    // Partner permissions
+    canViewPartners: perms.canViewPartners(userRole),
+    canManagePartners: perms.canManagePartners(userRole),
+    canAddPartner: perms.canAddPartner(userRole),
+    canEditPartner: perms.canEditPartner(userRole),
+    canDeletePartner: perms.canDeletePartner(userRole),
+    
     // Certificate permissions
     canSignAsSupplier: perms.canSignAsSupplier(userRole),
     canSignAsCustomer: perms.canSignAsCustomer(userRole),

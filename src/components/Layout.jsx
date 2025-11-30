@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-// Version 6.0 - Refactored to use AuthContext and centralized permissions
+// Version 6.1 - Added Partners navigation
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -22,12 +22,13 @@ import {
   Award,
   GanttChart,
   GripVertical,
-  ClipboardList
+  ClipboardList,
+  Building2
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
 // Import from centralized permissions
-import { canAccessSettings, canViewWorkflowSummary, getRoleConfig } from '../lib/permissions';
+import { canAccessSettings, canViewWorkflowSummary, canViewPartners, getRoleConfig } from '../lib/permissions';
 
 // Import AuthContext for user data
 import { useAuth } from '../contexts/AuthContext';
@@ -80,6 +81,7 @@ export default function Layout({ children }) {
   // Permission checks using centralized permissions
   const hasSystemAccess = canAccessSettings(role);
   const hasWorkflowAccess = canViewWorkflowSummary(role);
+  const hasPartnersAccess = canViewPartners(role);
 
   // Base navigation items (before user ordering)
   const baseNavItems = useMemo(() => [
@@ -88,6 +90,10 @@ export default function Layout({ children }) {
     { path: '/gantt', icon: GanttChart, label: 'Gantt Chart' },
     { path: '/deliverables', icon: Package, label: 'Deliverables' },
     { path: '/resources', icon: Users, label: 'Resources' },
+    // Partners only visible to admin and supplier_pm
+    ...(hasPartnersAccess ? [
+      { path: '/partners', icon: Building2, label: 'Partners' }
+    ] : []),
     { path: '/timesheets', icon: Clock, label: 'Timesheets' },
     { path: '/expenses', icon: Receipt, label: 'Expenses' },
     { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
@@ -102,7 +108,7 @@ export default function Layout({ children }) {
       { path: '/users', icon: UserCircle, label: 'Users' },
       { path: '/settings', icon: Settings, label: 'Settings' }
     ] : []),
-  ], [hasSystemAccess, hasWorkflowAccess]);
+  ], [hasSystemAccess, hasWorkflowAccess, hasPartnersAccess]);
 
   // Get sorted nav items based on user's saved order
   const navItems = useMemo(() => {

@@ -523,6 +523,47 @@ export function canSeeMargins(userRole) {
 }
 
 // ============================================
+// PARTNER PERMISSIONS
+// ============================================
+
+/**
+ * Can the user view partners?
+ * Only Supplier PM and Admin can see partner information
+ */
+export function canViewPartners(userRole) {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
+
+/**
+ * Can the user manage partners (add/edit/delete)?
+ * Only Supplier PM and Admin
+ */
+export function canManagePartners(userRole) {
+  return isOneOf(userRole, [ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+}
+
+/**
+ * Can the user add a new partner?
+ */
+export function canAddPartner(userRole) {
+  return canManagePartners(userRole);
+}
+
+/**
+ * Can the user edit a partner?
+ */
+export function canEditPartner(userRole) {
+  return canManagePartners(userRole);
+}
+
+/**
+ * Can the user delete a partner?
+ */
+export function canDeletePartner(userRole) {
+  return canManagePartners(userRole);
+}
+
+// ============================================
 // CERTIFICATE PERMISSIONS
 // ============================================
 
@@ -769,6 +810,10 @@ export function getPermissionSummary(userRole) {
       canDelete: canDeleteResource(userRole),
       canSeeCostPrice: canSeeCostPrice(userRole),
       canSeeMargins: canSeeMargins(userRole)
+    },
+    partners: {
+      canView: canViewPartners(userRole),
+      canManage: canManagePartners(userRole)
     },
     certificates: {
       canSignAsSupplier: canSignAsSupplier(userRole),

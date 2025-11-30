@@ -1,5 +1,5 @@
 // src/App.jsx
-// Version 8.0 - Added AI Chat Assistant
+// Version 8.1 - Added Partners Page
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -24,6 +24,7 @@ import MilestoneDetail from './pages/MilestoneDetail';
 import Gantt from './pages/Gantt';
 import Deliverables from './pages/Deliverables';
 import Resources from './pages/Resources';
+import Partners from './pages/Partners';
 import Timesheets from './pages/Timesheets';
 import Expenses from './pages/Expenses';
 import KPIs from './pages/KPIs';
@@ -96,6 +97,10 @@ export default function App() {
                     
                     <Route path="/resources" element={
                       <ProtectedRoute><Resources /></ProtectedRoute>
+                    } />
+                    
+                    <Route path="/partners" element={
+                      <ProtectedRoute><Partners /></ProtectedRoute>
                     } />
                     
                     <Route path="/timesheets" element={
