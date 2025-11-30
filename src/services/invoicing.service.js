@@ -3,9 +3,16 @@
  * 
  * Handles partner invoice generation, management, and retrieval.
  * 
- * @version 1.0
+ * @version 2.0
  * @created 30 November 2025
- * @phase P5 - Partner Invoicing
+ * @updated 30 November 2025
+ * @phase P5/P6 - Partner Invoicing (Enhanced)
+ * 
+ * Invoice Structure:
+ * - Section 1: Timesheets by Resource (hours × cost price)
+ * - Section 2: Supplier-Procured Expenses (not billed to partner, tracked for customer billing)
+ * - Section 3: Partner-Procured Expenses (billed to partner)
+ * - Totals include chargeable/non-chargeable breakdown for customer pass-through
  */
 
 import { BaseService } from './base.service';
@@ -52,7 +59,7 @@ export class InvoicingService extends BaseService {
   }
 
   /**
-   * Get invoice with all line items
+   * Get invoice with all line items, grouped by type
    */
   async getWithLines(invoiceId) {
     try {
@@ -69,13 +76,23 @@ export class InvoicingService extends BaseService {
         .from('partner_invoice_lines')
         .select('*')
         .eq('invoice_id', invoiceId)
+        .order('line_type', { ascending: true })
+        .order('resource_name', { ascending: true })
         .order('line_date', { ascending: true });
 
       if (linesError) throw linesError;
 
+      // Group lines by type for easier display
+      const groupedLines = {
+        timesheets: (lines || []).filter(l => l.line_type === 'timesheet'),
+        supplierExpenses: (lines || []).filter(l => l.line_type === 'supplier_expense'),
+        partnerExpenses: (lines || []).filter(l => l.line_type === 'expense')
+      };
+
       return {
         ...invoice,
-        lines: lines || []
+        lines: lines || [],
+        groupedLines
       };
     } catch (error) {
       console.error('InvoicingService getWithLines error:', error);
@@ -92,7 +109,6 @@ export class InvoicingService extends BaseService {
       const year = new Date().getFullYear();
       const prefix = `INV-${year}-`;
 
-      // Get the highest invoice number for this year
       const { data, error } = await supabase
         .from(this.tableName)
         .select('invoice_number')
@@ -120,7 +136,8 @@ export class InvoicingService extends BaseService {
   }
 
   /**
-   * Generate a new invoice for a partner
+   * Generate a comprehensive invoice for a partner
+   * 
    * @param {Object} params - Invoice parameters
    * @param {string} params.projectId - Project UUID
    * @param {string} params.partnerId - Partner UUID
@@ -128,9 +145,18 @@ export class InvoicingService extends BaseService {
    * @param {string} params.periodEnd - End date (YYYY-MM-DD)
    * @param {string} params.createdBy - User UUID
    * @param {string} params.notes - Optional notes
+   * @param {boolean} params.includeSubmitted - Include submitted (not just approved) timesheets
    */
   async generateInvoice(params) {
-    const { projectId, partnerId, periodStart, periodEnd, createdBy, notes } = params;
+    const { 
+      projectId, 
+      partnerId, 
+      periodStart, 
+      periodEnd, 
+      createdBy, 
+      notes,
+      includeSubmitted = true  // Default to including submitted timesheets
+    } = params;
 
     try {
       // 1. Get resources linked to this partner
@@ -148,73 +174,166 @@ export class InvoicingService extends BaseService {
       const resourceMap = {};
       resources.forEach(r => { resourceMap[r.id] = r; });
 
-      // 2. Get timesheets for period
+      // 2. Get timesheets for period (approved or submitted based on option)
+      const validStatuses = includeSubmitted ? ['Approved', 'Submitted'] : ['Approved'];
+      
       const { data: timesheets, error: tsError } = await supabase
         .from('timesheets')
         .select('id, date, hours_worked, hours, status, resource_id')
         .in('resource_id', resourceIds)
         .gte('date', periodStart)
         .lte('date', periodEnd)
-        .eq('status', 'Approved');
+        .in('status', validStatuses);
 
       if (tsError) throw tsError;
 
-      // 3. Get partner-procured expenses for period
-      const { data: expenses, error: expError } = await supabase
+      // 3. Get ALL expenses for period (both supplier and partner procured)
+      const { data: allExpenses, error: expError } = await supabase
         .from('expenses')
-        .select('id, expense_date, category, reason, amount, resource_id, resource_name')
+        .select('id, expense_date, category, reason, amount, resource_id, resource_name, procurement_method, chargeable_to_customer, status')
         .in('resource_id', resourceIds)
-        .eq('procurement_method', 'partner')
         .gte('expense_date', periodStart)
         .lte('expense_date', periodEnd)
-        .in('status', ['Approved', 'Paid']);
+        .in('status', ['Approved', 'Submitted', 'Paid']);
 
       if (expError) throw expError;
 
-      // 4. Calculate totals
-      let timesheetTotal = 0;
-      const timesheetLines = (timesheets || []).map(ts => {
-        const hours = parseFloat(ts.hours_worked || ts.hours || 0);
-        const resource = resourceMap[ts.resource_id];
-        const costPrice = resource?.cost_price || 0;
-        const lineTotal = (hours / 8) * costPrice;
-        timesheetTotal += lineTotal;
+      // Separate expenses by procurement method
+      const partnerExpenses = (allExpenses || []).filter(e => e.procurement_method === 'partner');
+      const supplierExpenses = (allExpenses || []).filter(e => e.procurement_method === 'supplier');
 
-        return {
-          line_type: 'timesheet',
-          timesheet_id: ts.id,
-          description: `${resource?.name || 'Unknown'} - ${hours}h`,
-          quantity: hours,
-          unit_price: costPrice,
-          line_total: lineTotal,
-          resource_name: resource?.name,
-          line_date: ts.date
-        };
+      // 4. Build timesheet lines (grouped by resource for clarity)
+      let timesheetTotal = 0;
+      let timesheetChargeable = 0; // All timesheets are typically chargeable
+      const timesheetLines = [];
+
+      // Group timesheets by resource
+      const timesheetsByResource = {};
+      (timesheets || []).forEach(ts => {
+        if (!timesheetsByResource[ts.resource_id]) {
+          timesheetsByResource[ts.resource_id] = [];
+        }
+        timesheetsByResource[ts.resource_id].push(ts);
       });
 
-      let expenseTotal = 0;
-      const expenseLines = (expenses || []).map(exp => {
-        const amount = parseFloat(exp.amount || 0);
-        expenseTotal += amount;
+      // Create lines for each timesheet
+      Object.keys(timesheetsByResource).forEach(resourceId => {
+        const resource = resourceMap[resourceId];
+        const resourceTimesheets = timesheetsByResource[resourceId];
+        
+        resourceTimesheets.forEach(ts => {
+          const hours = parseFloat(ts.hours_worked || ts.hours || 0);
+          const costPrice = resource?.cost_price || 0;
+          const days = hours / 8;
+          const lineTotal = days * costPrice;
+          
+          timesheetTotal += lineTotal;
+          timesheetChargeable += lineTotal; // All timesheets chargeable
 
-        return {
+          timesheetLines.push({
+            line_type: 'timesheet',
+            timesheet_id: ts.id,
+            expense_id: null,
+            description: `${resource?.name || 'Unknown'} - ${hours}h (${days.toFixed(2)} days)`,
+            quantity: hours,
+            unit_price: costPrice,
+            line_total: lineTotal,
+            resource_name: resource?.name,
+            line_date: ts.date,
+            hours: hours,
+            cost_price: costPrice,
+            source_status: ts.status,
+            chargeable_to_customer: true,
+            procurement_method: null,
+            expense_category: null
+          });
+        });
+      });
+
+      // 5. Build partner expense lines (these go ON the invoice)
+      let partnerExpenseTotal = 0;
+      let partnerExpenseChargeable = 0;
+      let partnerExpenseNonChargeable = 0;
+      const partnerExpenseLines = [];
+
+      partnerExpenses.forEach(exp => {
+        const amount = parseFloat(exp.amount || 0);
+        partnerExpenseTotal += amount;
+        
+        if (exp.chargeable_to_customer) {
+          partnerExpenseChargeable += amount;
+        } else {
+          partnerExpenseNonChargeable += amount;
+        }
+
+        partnerExpenseLines.push({
           line_type: 'expense',
+          timesheet_id: null,
           expense_id: exp.id,
-          description: `${exp.category}: ${exp.reason}`,
+          description: `${exp.resource_name} - ${exp.category}: ${exp.reason}`,
           quantity: 1,
           unit_price: amount,
           line_total: amount,
           resource_name: exp.resource_name,
-          line_date: exp.expense_date
-        };
+          line_date: exp.expense_date,
+          hours: null,
+          cost_price: null,
+          source_status: exp.status,
+          chargeable_to_customer: exp.chargeable_to_customer,
+          procurement_method: 'partner',
+          expense_category: exp.category
+        });
       });
 
-      const invoiceTotal = timesheetTotal + expenseTotal;
+      // 6. Build supplier expense lines (NOT on invoice, but tracked for reference)
+      let supplierExpenseTotal = 0;
+      let supplierExpenseChargeable = 0;
+      let supplierExpenseNonChargeable = 0;
+      const supplierExpenseLines = [];
 
-      // 5. Generate invoice number
+      supplierExpenses.forEach(exp => {
+        const amount = parseFloat(exp.amount || 0);
+        supplierExpenseTotal += amount;
+        
+        if (exp.chargeable_to_customer) {
+          supplierExpenseChargeable += amount;
+        } else {
+          supplierExpenseNonChargeable += amount;
+        }
+
+        supplierExpenseLines.push({
+          line_type: 'supplier_expense',
+          timesheet_id: null,
+          expense_id: exp.id,
+          description: `${exp.resource_name} - ${exp.category}: ${exp.reason}`,
+          quantity: 1,
+          unit_price: amount,
+          line_total: amount,
+          resource_name: exp.resource_name,
+          line_date: exp.expense_date,
+          hours: null,
+          cost_price: null,
+          source_status: exp.status,
+          chargeable_to_customer: exp.chargeable_to_customer,
+          procurement_method: 'supplier',
+          expense_category: exp.category
+        });
+      });
+
+      // 7. Calculate totals
+      // Invoice total = timesheets + partner expenses (supplier expenses are informational only)
+      const invoiceTotal = timesheetTotal + partnerExpenseTotal;
+      
+      // Chargeable total = everything that can be passed to customer
+      const chargeableTotal = timesheetChargeable + partnerExpenseChargeable + supplierExpenseChargeable;
+      
+      // Non-chargeable total
+      const nonChargeableTotal = partnerExpenseNonChargeable + supplierExpenseNonChargeable;
+
+      // 8. Generate invoice number
       const invoiceNumber = await this.generateInvoiceNumber(projectId);
 
-      // 6. Create invoice record
+      // 9. Create invoice record
       const { data: invoice, error: invError } = await supabase
         .from(this.tableName)
         .insert({
@@ -225,8 +344,11 @@ export class InvoicingService extends BaseService {
           period_start: periodStart,
           period_end: periodEnd,
           timesheet_total: timesheetTotal,
-          expense_total: expenseTotal,
+          expense_total: partnerExpenseTotal,
+          supplier_expense_total: supplierExpenseTotal,
           invoice_total: invoiceTotal,
+          chargeable_total: chargeableTotal,
+          non_chargeable_total: nonChargeableTotal,
           status: 'Draft',
           notes: notes || null,
           created_by: createdBy
@@ -236,8 +358,12 @@ export class InvoicingService extends BaseService {
 
       if (invError) throw invError;
 
-      // 7. Create line items
-      const allLines = [...timesheetLines, ...expenseLines].map(line => ({
+      // 10. Create line items
+      const allLines = [
+        ...timesheetLines, 
+        ...partnerExpenseLines, 
+        ...supplierExpenseLines
+      ].map(line => ({
         ...line,
         invoice_id: invoice.id
       }));
@@ -250,7 +376,7 @@ export class InvoicingService extends BaseService {
         if (linesError) throw linesError;
       }
 
-      // 8. Return complete invoice
+      // 11. Return complete invoice with grouped lines
       return this.getWithLines(invoice.id);
 
     } catch (error) {

@@ -995,7 +995,7 @@ export default function PartnerDetail() {
         }
       `}</style>
 
-      {/* Invoice Generated Modal */}
+      {/* Invoice Generated Modal - Enhanced */}
       {showInvoiceModal && generatedInvoice && (
         <div style={{
           position: 'fixed',
@@ -1013,11 +1013,12 @@ export default function PartnerDetail() {
             backgroundColor: '#fff',
             borderRadius: '12px',
             padding: '2rem',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '80vh',
+            maxWidth: '900px',
+            width: '95%',
+            maxHeight: '90vh',
             overflow: 'auto'
           }}>
+            {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
               <div style={{ 
                 backgroundColor: '#dcfce7', 
@@ -1029,80 +1030,267 @@ export default function PartnerDetail() {
               }}>
                 <CheckCircle size={24} style={{ color: '#16a34a' }} />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <h2 style={{ margin: 0 }}>Invoice Generated</h2>
                 <p style={{ margin: 0, color: '#64748b' }}>{generatedInvoice.invoice_number}</p>
               </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Period</div>
+                <div style={{ fontWeight: '500' }}>
+                  {new Date(generatedInvoice.period_start).toLocaleDateString('en-GB')} - {new Date(generatedInvoice.period_end).toLocaleDateString('en-GB')}
+                </div>
+              </div>
             </div>
 
-            <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Partner</span>
-                  <div style={{ fontWeight: '500' }}>{partner?.name}</div>
+            {/* Summary Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ backgroundColor: '#dbeafe', borderRadius: '8px', padding: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#1e40af' }}>Timesheets</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e40af' }}>
+                  £{parseFloat(generatedInvoice.timesheet_total || 0).toFixed(2)}
                 </div>
+              </div>
+              <div style={{ backgroundColor: '#f3e8ff', borderRadius: '8px', padding: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Partner Expenses</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#7c3aed' }}>
+                  £{parseFloat(generatedInvoice.expense_total || 0).toFixed(2)}
+                </div>
+              </div>
+              <div style={{ backgroundColor: '#fef3c7', borderRadius: '8px', padding: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#92400e' }}>Supplier Expenses</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#92400e' }}>
+                  £{parseFloat(generatedInvoice.supplier_expense_total || 0).toFixed(2)}
+                </div>
+                <div style={{ fontSize: '0.65rem', color: '#92400e', marginTop: '0.25rem' }}>Not on this invoice</div>
+              </div>
+              <div style={{ backgroundColor: '#dcfce7', borderRadius: '8px', padding: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>Invoice Total</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                  £{parseFloat(generatedInvoice.invoice_total || 0).toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            {/* Chargeable Summary */}
+            <div style={{ 
+              backgroundColor: '#f0fdf4', 
+              borderRadius: '8px', 
+              padding: '1rem', 
+              marginBottom: '1.5rem',
+              border: '1px solid #bbf7d0'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Period</span>
-                  <div style={{ fontWeight: '500' }}>
-                    {new Date(generatedInvoice.period_start).toLocaleDateString()} - {new Date(generatedInvoice.period_end).toLocaleDateString()}
+                  <span style={{ fontWeight: '600', color: '#166534' }}>Chargeable to Customer:</span>
+                  <span style={{ marginLeft: '0.5rem', fontSize: '1.1rem', fontWeight: '700', color: '#166534' }}>
+                    £{parseFloat(generatedInvoice.chargeable_total || generatedInvoice.invoice_total || 0).toFixed(2)}
+                  </span>
+                </div>
+                {(generatedInvoice.non_chargeable_total || 0) > 0 && (
+                  <div>
+                    <span style={{ color: '#dc2626', fontSize: '0.85rem' }}>Non-chargeable:</span>
+                    <span style={{ marginLeft: '0.5rem', fontWeight: '600', color: '#dc2626' }}>
+                      £{parseFloat(generatedInvoice.non_chargeable_total || 0).toFixed(2)}
+                    </span>
                   </div>
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Timesheets</span>
-                  <div style={{ fontWeight: '500' }}>£{parseFloat(generatedInvoice.timesheet_total).toFixed(2)}</div>
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Expenses</span>
-                  <div style={{ fontWeight: '500' }}>£{parseFloat(generatedInvoice.expense_total).toFixed(2)}</div>
-                </div>
-              </div>
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Invoice Total</span>
-                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#16a34a' }}>
-                  £{parseFloat(generatedInvoice.invoice_total).toFixed(2)}
-                </div>
+                )}
               </div>
             </div>
 
-            {generatedInvoice.lines && generatedInvoice.lines.length > 0 && (
+            {/* Timesheet Lines */}
+            {generatedInvoice.groupedLines?.timesheets?.length > 0 && (
               <div style={{ marginBottom: '1.5rem' }}>
-                <h4 style={{ marginBottom: '0.5rem' }}>Line Items ({generatedInvoice.lines.length})</h4>
-                <div style={{ maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem' }}>
-                  <table style={{ width: '100%' }}>
+                <h4 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Clock size={18} style={{ color: '#1e40af' }} />
+                  Timesheets ({generatedInvoice.groupedLines.timesheets.length} entries)
+                </h4>
+                <div style={{ maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ backgroundColor: '#f1f5f9' }}>
-                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Type</th>
-                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Description</th>
-                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Amount</th>
+                      <tr style={{ backgroundColor: '#dbeafe' }}>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Date</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Resource</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Hours</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Cost/Day</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'center' }}>Status</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {generatedInvoice.lines.map((line, idx) => (
+                      {generatedInvoice.groupedLines.timesheets.map((line, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                          <td style={{ padding: '0.5rem' }}>
+                          <td style={{ padding: '0.5rem' }}>{new Date(line.line_date).toLocaleDateString('en-GB')}</td>
+                          <td style={{ padding: '0.5rem', fontWeight: '500' }}>{line.resource_name}</td>
+                          <td style={{ padding: '0.5rem', textAlign: 'right' }}>{parseFloat(line.hours || line.quantity || 0).toFixed(1)}h</td>
+                          <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>£{parseFloat(line.cost_price || line.unit_price || 0).toFixed(0)}</td>
+                          <td style={{ padding: '0.5rem', textAlign: 'center' }}>
                             <span style={{
-                              padding: '0.15rem 0.5rem',
+                              padding: '0.1rem 0.4rem',
                               borderRadius: '4px',
                               fontSize: '0.7rem',
-                              backgroundColor: line.line_type === 'timesheet' ? '#dbeafe' : '#fef3c7',
-                              color: line.line_type === 'timesheet' ? '#1e40af' : '#92400e'
+                              backgroundColor: line.source_status === 'Approved' ? '#dcfce7' : '#fef3c7',
+                              color: line.source_status === 'Approved' ? '#16a34a' : '#92400e'
                             }}>
-                              {line.line_type}
+                              {line.source_status}
                             </span>
                           </td>
-                          <td style={{ padding: '0.5rem' }}>{line.description}</td>
-                          <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                          <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: '600' }}>
                             £{parseFloat(line.line_total).toFixed(2)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr style={{ backgroundColor: '#f1f5f9', fontWeight: '600' }}>
+                        <td colSpan={5} style={{ padding: '0.5rem', textAlign: 'right' }}>Timesheet Total:</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                          £{parseFloat(generatedInvoice.timesheet_total || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            {/* Partner Expense Lines (ON the invoice) */}
+            {generatedInvoice.groupedLines?.partnerExpenses?.length > 0 && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Receipt size={18} style={{ color: '#7c3aed' }} />
+                  Partner-Procured Expenses ({generatedInvoice.groupedLines.partnerExpenses.length} entries)
+                  <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#7c3aed' }}>- Billed to {partner?.name}</span>
+                </h4>
+                <div style={{ maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem', border: '1px solid #e9d5ff', borderRadius: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f3e8ff' }}>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Date</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Resource</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Category</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Description</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'center' }}>Chargeable</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {generatedInvoice.groupedLines.partnerExpenses.map((line, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '0.5rem' }}>{new Date(line.line_date).toLocaleDateString('en-GB')}</td>
+                          <td style={{ padding: '0.5rem', fontWeight: '500' }}>{line.resource_name}</td>
+                          <td style={{ padding: '0.5rem' }}>{line.expense_category}</td>
+                          <td style={{ padding: '0.5rem', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {line.description.split(': ').slice(1).join(': ') || line.description}
+                          </td>
+                          <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              backgroundColor: line.chargeable_to_customer ? '#dcfce7' : '#fee2e2',
+                              color: line.chargeable_to_customer ? '#16a34a' : '#dc2626'
+                            }}>
+                              {line.chargeable_to_customer ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: '600' }}>
+                            £{parseFloat(line.line_total).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ backgroundColor: '#f1f5f9', fontWeight: '600' }}>
+                        <td colSpan={5} style={{ padding: '0.5rem', textAlign: 'right' }}>Partner Expenses Total:</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                          £{parseFloat(generatedInvoice.expense_total || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Supplier Expense Lines (NOT on invoice, informational) */}
+            {generatedInvoice.groupedLines?.supplierExpenses?.length > 0 && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <DollarSign size={18} style={{ color: '#92400e' }} />
+                  Supplier-Procured Expenses ({generatedInvoice.groupedLines.supplierExpenses.length} entries)
+                  <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#92400e' }}>- Not on this invoice, for customer billing reference</span>
+                </h4>
+                <div style={{ maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem', border: '1px solid #fde68a', borderRadius: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#fef3c7' }}>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Date</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Resource</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Category</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Description</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'center' }}>Chargeable</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'right' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {generatedInvoice.groupedLines.supplierExpenses.map((line, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#fffbeb' }}>
+                          <td style={{ padding: '0.5rem' }}>{new Date(line.line_date).toLocaleDateString('en-GB')}</td>
+                          <td style={{ padding: '0.5rem', fontWeight: '500' }}>{line.resource_name}</td>
+                          <td style={{ padding: '0.5rem' }}>{line.expense_category}</td>
+                          <td style={{ padding: '0.5rem', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {line.description.split(': ').slice(1).join(': ') || line.description}
+                          </td>
+                          <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              backgroundColor: line.chargeable_to_customer ? '#dcfce7' : '#fee2e2',
+                              color: line.chargeable_to_customer ? '#16a34a' : '#dc2626'
+                            }}>
+                              {line.chargeable_to_customer ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: '600' }}>
+                            £{parseFloat(line.line_total).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ backgroundColor: '#fef3c7', fontWeight: '600' }}>
+                        <td colSpan={5} style={{ padding: '0.5rem', textAlign: 'right' }}>Supplier Expenses Total (not invoiced):</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                          £{parseFloat(generatedInvoice.supplier_expense_total || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* No data message */}
+            {(!generatedInvoice.groupedLines?.timesheets?.length && 
+              !generatedInvoice.groupedLines?.partnerExpenses?.length && 
+              !generatedInvoice.groupedLines?.supplierExpenses?.length) && (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '2rem', 
+                backgroundColor: '#fef3c7', 
+                borderRadius: '8px',
+                marginBottom: '1.5rem'
+              }}>
+                <AlertCircle size={32} style={{ color: '#92400e', marginBottom: '0.5rem' }} />
+                <p style={{ color: '#92400e', margin: 0 }}>
+                  No approved or submitted timesheets/expenses found for this period.
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
               <button 
                 className="btn btn-secondary"
                 onClick={() => {
