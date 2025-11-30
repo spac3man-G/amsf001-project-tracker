@@ -158,7 +158,7 @@ export default function ResourceDetail() {
       // Fetch expenses for this resource with optional date filter
       let expQuery = supabase
         .from('expenses')
-        .select('id, expense_date, travel_amount, accommodation_amount, sustenance_amount, travel_reason, accommodation_reason, sustenance_reason, chargeable_to_customer, procurement_method, status')
+        .select('id, expense_date, category, reason, amount, chargeable_to_customer, procurement_method, status')
         .eq('resource_id', id);
       
       // Apply date range filter if set
@@ -999,10 +999,9 @@ export default function ResourceDetail() {
                 <thead style={{ position: 'sticky', top: 0, backgroundColor: '#fff' }}>
                   <tr>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Date</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Travel</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Accommodation</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Sustenance</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Category</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Reason</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Amount</th>
                     <th style={{ padding: '0.75rem', textAlign: 'center' }}>Chargeable</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Paid By</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Status</th>
@@ -1010,27 +1009,35 @@ export default function ResourceDetail() {
                 </thead>
                 <tbody>
                   {expenses.map(exp => {
-                    const travel = parseFloat(exp.travel_amount) || 0;
-                    const accommodation = parseFloat(exp.accommodation_amount) || 0;
-                    const sustenance = parseFloat(exp.sustenance_amount) || 0;
-                    const total = travel + accommodation + sustenance;
+                    const amount = parseFloat(exp.amount) || 0;
                     const statusStyle = getStatusStyle(exp.status);
+                    const categoryColors = {
+                      'Travel': { bg: '#dbeafe', color: '#1e40af' },
+                      'Accommodation': { bg: '#f3e8ff', color: '#7c3aed' },
+                      'Sustenance': { bg: '#fef3c7', color: '#92400e' }
+                    };
+                    const catStyle = categoryColors[exp.category] || { bg: '#f1f5f9', color: '#475569' };
                     return (
                       <tr key={exp.id}>
                         <td style={{ padding: '0.75rem' }}>
                           {new Date(exp.expense_date).toLocaleDateString('en-GB')}
                         </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                          {travel > 0 ? `£${travel.toFixed(2)}` : '-'}
+                        <td style={{ padding: '0.75rem' }}>
+                          <span style={{
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            backgroundColor: catStyle.bg,
+                            color: catStyle.color
+                          }}>
+                            {exp.category}
+                          </span>
                         </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                          {accommodation > 0 ? `£${accommodation.toFixed(2)}` : '-'}
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                          {sustenance > 0 ? `£${sustenance.toFixed(2)}` : '-'}
+                        <td style={{ padding: '0.75rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {exp.reason || '-'}
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '600' }}>
-                          £{total.toFixed(2)}
+                          £{amount.toFixed(2)}
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                           {exp.chargeable_to_customer ? (
