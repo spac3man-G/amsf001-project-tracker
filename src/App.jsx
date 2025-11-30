@@ -42,6 +42,8 @@ const Users = lazy(() => import('./pages/Users'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
+const AuditLog = lazy(() => import('./pages/AuditLog'));
+const DeletedItems = lazy(() => import('./pages/DeletedItems'));
 
 /**
  * PageLoader - Shows skeleton while lazy components load
@@ -189,6 +191,14 @@ export default function App() {
                       {/* Workflow Summary */}
                       <Route path="/workflow-summary" element={
                         <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
+                      } />
+
+                      {/* Admin Pages */}
+                      <Route path="/audit-log" element={
+                        <ProtectedRoute><AuditLog /></ProtectedRoute>
+                      } />
+                      <Route path="/deleted-items" element={
+                        <ProtectedRoute><DeletedItems /></ProtectedRoute>
                       } />
                       
                       {/* Catch all */}

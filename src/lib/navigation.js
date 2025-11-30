@@ -30,7 +30,9 @@ import {
   Award,
   GanttChart,
   ClipboardList,
-  Building2
+  Building2,
+  History,
+  Archive
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -161,6 +163,22 @@ export const NAV_ITEMS = {
     label: 'Settings',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
+  },
+  auditLog: {
+    id: 'auditLog',
+    path: '/audit-log',
+    icon: History,
+    label: 'Audit Log',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: []
+  },
+  deletedItems: {
+    id: 'deletedItems',
+    path: '/deleted-items',
+    icon: Archive,
+    label: 'Deleted Items',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: []
   }
 };
 
@@ -203,7 +221,9 @@ export const ROLE_NAV_ORDER = {
     'expenses',
     'partners',
     'users',
-    'settings'
+    'settings',
+    'auditLog',
+    'deletedItems'
   ],
   [ROLES.SUPPLIER_PM]: [
     'workflowSummary',
@@ -219,7 +239,9 @@ export const ROLE_NAV_ORDER = {
     'expenses',
     'partners',
     'users',
-    'settings'
+    'settings',
+    'auditLog',
+    'deletedItems'
   ],
   [ROLES.CUSTOMER_PM]: [
     'workflowSummary',
