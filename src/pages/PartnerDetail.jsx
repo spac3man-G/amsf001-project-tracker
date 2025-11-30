@@ -142,7 +142,7 @@ export default function PartnerDetail() {
         // Build expenses query with optional date filter
         let expQuery = supabase
           .from('expenses')
-          .select('id, expense_date, category, reason, amount, resource_id, resource_name, status')
+          .select('id, expense_date, category, reason, amount, resource_id, resource_name, status, procurement_method')
           .in('resource_id', resourceIds);
         
         // Apply date range filter if set
@@ -159,8 +159,12 @@ export default function PartnerDetail() {
 
         if (expData) {
           const totalAmount = expData.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+          const partnerProcuredAmount = expData
+            .filter(exp => exp.procurement_method === 'partner')
+            .reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
           setExpenseSummary({
             totalAmount,
+            partnerProcuredAmount,
             entries: expData
           });
         }
@@ -477,12 +481,42 @@ export default function PartnerDetail() {
         />
         <StatCard
           icon={Receipt}
-          label="Total Spend"
-          value={`£${Math.round(totalSpend).toLocaleString()}`}
-          subtext="Timesheets + expenses"
+          label="Partner Expenses"
+          value={`£${Math.round(expenseSummary.partnerProcuredAmount || 0).toLocaleString()}`}
+          subtext={`£${Math.round(expenseSummary.totalAmount || 0)} total expenses`}
           color="#f59e0b"
         />
       </div>
+
+      {/* Invoice Summary - only show when date range selected */}
+      {(dateRange.start && dateRange.end) && (
+        <div className="card" style={{ marginBottom: '1.5rem', backgroundColor: '#faf5ff', border: '1px solid #e9d5ff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3 style={{ color: '#7c3aed', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={20} />
+                Invoice Preview: {getDateRangeLabel()}
+              </h3>
+              <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                <div>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Timesheets (at cost):</span>
+                  <span style={{ fontWeight: '600', marginLeft: '0.5rem' }}>£{Math.round(timesheetSummary.totalValue).toLocaleString()}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Partner Expenses:</span>
+                  <span style={{ fontWeight: '600', marginLeft: '0.5rem' }}>£{Math.round(expenseSummary.partnerProcuredAmount || 0).toLocaleString()}</span>
+                </div>
+                <div style={{ borderLeft: '2px solid #c4b5fd', paddingLeft: '1rem' }}>
+                  <span style={{ color: '#7c3aed', fontSize: '0.9rem', fontWeight: '600' }}>Invoice Total:</span>
+                  <span style={{ fontWeight: '700', marginLeft: '0.5rem', fontSize: '1.1rem', color: '#7c3aed' }}>
+                    £{Math.round(timesheetSummary.totalValue + (expenseSummary.partnerProcuredAmount || 0)).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: isEditing ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
@@ -773,23 +807,42 @@ export default function PartnerDetail() {
                   <th style={{ padding: '0.75rem', textAlign: 'left' }}>Resource</th>
                   <th style={{ padding: '0.75rem', textAlign: 'left' }}>Category</th>
                   <th style={{ padding: '0.75rem', textAlign: 'left' }}>Description</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Procured By</th>
                   <th style={{ padding: '0.75rem', textAlign: 'right' }}>Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {expenseSummary.entries.map(exp => (
-                  <tr key={exp.id}>
-                    <td style={{ padding: '0.75rem' }}>
-                      {new Date(exp.expense_date).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: '0.75rem' }}>{exp.resource_name}</td>
-                    <td style={{ padding: '0.75rem' }}>{exp.category}</td>
-                    <td style={{ padding: '0.75rem' }}>{exp.reason}</td>
-                    <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '500' }}>
-                      £{parseFloat(exp.amount).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
+                {expenseSummary.entries.map(exp => {
+                  const isPartnerProcured = exp.procurement_method === 'partner';
+                  return (
+                    <tr key={exp.id} style={{ backgroundColor: isPartnerProcured ? '#faf5ff' : 'inherit' }}>
+                      <td style={{ padding: '0.75rem' }}>
+                        {new Date(exp.expense_date).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>{exp.resource_name}</td>
+                      <td style={{ padding: '0.75rem' }}>{exp.category}</td>
+                      <td style={{ padding: '0.75rem' }}>{exp.reason}</td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: '500',
+                          backgroundColor: isPartnerProcured ? '#f3e8ff' : '#e0e7ff',
+                          color: isPartnerProcured ? '#7c3aed' : '#4338ca'
+                        }}>
+                          {isPartnerProcured ? 'Partner' : 'Supplier'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '500' }}>
+                        £{parseFloat(exp.amount).toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

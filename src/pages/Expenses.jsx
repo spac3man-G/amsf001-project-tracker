@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Receipt, Plus, Edit2, Save, X, Trash2, Upload, Download,
-  Car, Home, Utensils, AlertCircle, FileText, Check, User, Send, CheckCircle
+  Car, Home, Utensils, AlertCircle, FileText, Check, User, Send, CheckCircle,
+  Building2, Briefcase
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,6 +38,7 @@ export default function Expenses() {
   const [filterResource, setFilterResource] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterChargeable, setFilterChargeable] = useState('all');
+  const [filterProcurement, setFilterProcurement] = useState('all');
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
   // Test user context for filtering
@@ -55,7 +57,8 @@ export default function Expenses() {
     sustenance_reason: '',
     notes: '',
     files: [],
-    chargeable_to_customer: true
+    chargeable_to_customer: true,
+    procurement_method: 'supplier'
   });
 
   // Database uses 'Approved' but we display 'Validated'
@@ -165,7 +168,8 @@ export default function Expenses() {
           notes: newExpense.notes,
           status: 'Draft',
           created_by: currentUserId,
-          chargeable_to_customer: newExpense.chargeable_to_customer
+          chargeable_to_customer: newExpense.chargeable_to_customer,
+          procurement_method: newExpense.procurement_method
         });
       }
 
@@ -181,7 +185,8 @@ export default function Expenses() {
           notes: newExpense.notes,
           status: 'Draft',
           created_by: currentUserId,
-          chargeable_to_customer: newExpense.chargeable_to_customer
+          chargeable_to_customer: newExpense.chargeable_to_customer,
+          procurement_method: newExpense.procurement_method
         });
       }
 
@@ -197,7 +202,8 @@ export default function Expenses() {
           notes: newExpense.notes,
           status: 'Draft',
           created_by: currentUserId,
-          chargeable_to_customer: newExpense.chargeable_to_customer
+          chargeable_to_customer: newExpense.chargeable_to_customer,
+          procurement_method: newExpense.procurement_method
         });
       }
 
@@ -265,7 +271,8 @@ export default function Expenses() {
       amount: expense.amount,
       notes: expense.notes,
       status: expense.status,
-      chargeable_to_customer: expense.chargeable_to_customer !== false
+      chargeable_to_customer: expense.chargeable_to_customer !== false,
+      procurement_method: expense.procurement_method || 'supplier'
     });
   }
 
@@ -285,7 +292,8 @@ export default function Expenses() {
           amount: parseFloat(editForm.amount),
           notes: editForm.notes,
           status: editForm.status,
-          chargeable_to_customer: editForm.chargeable_to_customer
+          chargeable_to_customer: editForm.chargeable_to_customer,
+          procurement_method: editForm.procurement_method
         })
         .eq('id', id);
 
@@ -457,6 +465,7 @@ export default function Expenses() {
     if (filterStatus !== 'all' && e.status !== filterStatus) return false;
     if (filterChargeable === 'chargeable' && e.chargeable_to_customer === false) return false;
     if (filterChargeable === 'non-chargeable' && e.chargeable_to_customer !== false) return false;
+    if (filterProcurement !== 'all' && (e.procurement_method || 'supplier') !== filterProcurement) return false;
     return true;
   });
 
@@ -472,6 +481,14 @@ export default function Expenses() {
     .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
   const remaining = BUDGET - approvedSpent;
   const pendingCount = expenses.filter(e => e.status === 'Submitted').length;
+
+  // Procurement method totals
+  const supplierProcuredTotal = expenses
+    .filter(e => (e.procurement_method || 'supplier') === 'supplier')
+    .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+  const partnerProcuredTotal = expenses
+    .filter(e => e.procurement_method === 'partner')
+    .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
 
   // Category totals
   const categoryTotals = {
@@ -560,6 +577,26 @@ export default function Expenses() {
         />
       </div>
 
+      {/* Procurement Breakdown - visible to Supplier PM and Admin */}
+      {hasRole(['admin', 'supplier_pm']) && (
+        <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+          <StatCard
+            icon={Briefcase}
+            label="Supplier Procured"
+            value={`£${supplierProcuredTotal.toLocaleString()}`}
+            subtext="Paid directly by JT"
+            color="#6366f1"
+          />
+          <StatCard
+            icon={Building2}
+            label="Partner Procured"
+            value={`£${partnerProcuredTotal.toLocaleString()}`}
+            subtext="Reimbursable to partners"
+            color="#8b5cf6"
+          />
+        </div>
+      )}
+
       {/* Category Breakdown */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginBottom: '1rem' }}>Breakdown by Type</h3>
@@ -642,6 +679,13 @@ export default function Expenses() {
             <option value="chargeable">Chargeable Only</option>
             <option value="non-chargeable">Non-Chargeable Only</option>
           </select>
+          {hasRole(['admin', 'supplier_pm']) && (
+            <select value={filterProcurement} onChange={(e) => setFilterProcurement(e.target.value)} style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+              <option value="all">All Procurement</option>
+              <option value="supplier">Supplier Procured</option>
+              <option value="partner">Partner Procured</option>
+            </select>
+          )}
         </div>
       </div>
 
@@ -693,6 +737,69 @@ export default function Expenses() {
               </div>
             </label>
           </div>
+
+          {/* Procurement Method - visible to Supplier PM and Admin */}
+          {hasRole(['admin', 'supplier_pm']) && (
+            <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f5f3ff', borderRadius: '8px', border: '1px solid #c4b5fd' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                <span style={{ fontWeight: '600', color: '#5b21b6', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Building2 size={18} />
+                  Procurement Method
+                </span>
+                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
+                  How was this expense paid? Partner-procured expenses are included in partner invoices.
+                </div>
+              </label>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  padding: '0.75rem 1rem',
+                  backgroundColor: newExpense.procurement_method === 'supplier' ? '#6366f1' : '#fff',
+                  color: newExpense.procurement_method === 'supplier' ? '#fff' : '#374151',
+                  borderRadius: '6px',
+                  border: '1px solid #c4b5fd',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}>
+                  <input 
+                    type="radio" 
+                    name="procurement_method"
+                    value="supplier"
+                    checked={newExpense.procurement_method === 'supplier'}
+                    onChange={(e) => setNewExpense({ ...newExpense, procurement_method: e.target.value })}
+                    style={{ display: 'none' }}
+                  />
+                  <Briefcase size={16} />
+                  <span style={{ fontWeight: '500' }}>Supplier (JT)</span>
+                </label>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  padding: '0.75rem 1rem',
+                  backgroundColor: newExpense.procurement_method === 'partner' ? '#8b5cf6' : '#fff',
+                  color: newExpense.procurement_method === 'partner' ? '#fff' : '#374151',
+                  borderRadius: '6px',
+                  border: '1px solid #c4b5fd',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}>
+                  <input 
+                    type="radio" 
+                    name="procurement_method"
+                    value="partner"
+                    checked={newExpense.procurement_method === 'partner'}
+                    onChange={(e) => setNewExpense({ ...newExpense, procurement_method: e.target.value })}
+                    style={{ display: 'none' }}
+                  />
+                  <Building2 size={16} />
+                  <span style={{ fontWeight: '500' }}>Partner</span>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* Travel */}
           <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderRadius: '8px', marginBottom: '1rem' }}>
@@ -869,6 +976,15 @@ export default function Expenses() {
                   <span style={{ color: '#f59e0b' }}>✗ Non-chargeable (validated by Supplier PM)</span>
                 )}
               </div>
+              {hasRole(['admin', 'supplier_pm']) && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
+                  {newExpense.procurement_method === 'partner' ? (
+                    <span style={{ color: '#8b5cf6' }}>◆ Partner procured (included in partner invoice)</span>
+                  ) : (
+                    <span style={{ color: '#6366f1' }}>◆ Supplier procured (paid by JT)</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -895,6 +1011,7 @@ export default function Expenses() {
               <th>Reason</th>
               <th style={{ textAlign: 'right' }}>Amount</th>
               <th>Chargeable</th>
+              {hasRole(['admin', 'supplier_pm']) && <th>Procured By</th>}
               <th>Status</th>
               <th>Receipts</th>
               <th>Actions</th>
@@ -902,7 +1019,7 @@ export default function Expenses() {
           </thead>
           <tbody>
             {filteredExpenses.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No expenses found.</td></tr>
+              <tr><td colSpan={hasRole(['admin', 'supplier_pm']) ? 11 : 10} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No expenses found.</td></tr>
             ) : (
               filteredExpenses.map(exp => {
                 const catColors = getCategoryColor(exp.category);
@@ -991,6 +1108,36 @@ export default function Expenses() {
                         </span>
                       )}
                     </td>
+                    {hasRole(['admin', 'supplier_pm']) && (
+                      <td>
+                        {editingId === exp.id ? (
+                          <select 
+                            className="form-input" 
+                            value={editForm.procurement_method || 'supplier'} 
+                            onChange={(e) => setEditForm({ ...editForm, procurement_method: e.target.value })}
+                            style={{ fontSize: '0.85rem', padding: '0.25rem' }}
+                          >
+                            <option value="supplier">Supplier</option>
+                            <option value="partner">Partner</option>
+                          </select>
+                        ) : (
+                          <span style={{ 
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            backgroundColor: (exp.procurement_method || 'supplier') === 'partner' ? '#f3e8ff' : '#e0e7ff',
+                            color: (exp.procurement_method || 'supplier') === 'partner' ? '#7c3aed' : '#4338ca'
+                          }}>
+                            {(exp.procurement_method || 'supplier') === 'partner' ? <Building2 size={12} /> : <Briefcase size={12} />}
+                            {(exp.procurement_method || 'supplier') === 'partner' ? 'Partner' : 'Supplier'}
+                          </span>
+                        )}
+                      </td>
+                    )}
                     <td>
                       {editingId === exp.id && canValidateExpense(exp) ? (
                         <select className="form-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>

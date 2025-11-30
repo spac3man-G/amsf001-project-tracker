@@ -4,7 +4,7 @@
  * Central export point for all service modules.
  * 
  * Usage:
- *   import { partnersService, resourcesService } from '../services';
+ *   import { partnersService, resourcesService, expensesService } from '../services';
  *   
  *   // Or import the base class for custom services
  *   import { BaseService } from '../services';
@@ -16,8 +16,8 @@ export { BaseService } from './base.service';
 // Service instances (singletons)
 export { partnersService, PartnersService } from './partners.service';
 export { resourcesService, ResourcesService } from './resources.service';
+export { expensesService, ExpensesService } from './expenses.service';
 
 // Future services (uncomment as created)
-// export { expensesService, ExpensesService } from './expenses.service';
 // export { invoicingService, InvoicingService } from './invoicing.service';
 // export { timesheetsService, TimesheetsService } from './timesheets.service';

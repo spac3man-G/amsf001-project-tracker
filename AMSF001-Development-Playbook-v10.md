@@ -1,10 +1,10 @@
 # AMSF001 Project Tracker
 # Development Playbook & Implementation Guide
 
-**Version:** 9.0  
+**Version:** 10.0  
 **Created:** 29 November 2025  
 **Last Updated:** 30 November 2025  
-**Purpose:** Complete Partners feature implementation with date filtering and invoice preparation  
+**Purpose:** Phase P4 Expenses Enhancement - procurement method tracking for partner invoicing  
 **Repository:** github.com/spac3man-G/amsf001-project-tracker  
 **Live Application:** https://amsf001-project-tracker.vercel.app
 
@@ -17,26 +17,42 @@
 | 1.0-7.0 | 28-29 Nov | Foundation phases, shared components, architecture |
 | 8.0 | 30 Nov | AI Chat Assistant, Services Layer planned |
 | 8.1 | 30 Nov | Phase F3: Services Layer Foundation |
-| **9.0** | **30 Nov** | **Complete P1-P3 implementation, data integrity enforcement, date range filtering** |
+| 9.0 | 30 Nov | Complete P1-P3 implementation, data integrity enforcement, date range filtering |
+| **10.0** | **30 Nov** | **Phase P4: Expenses Enhancement - procurement_method field** |
 
 ---
 
-## What's New in Version 9.0
+## What's New in Version 10.0
 
-### Phase P1-P3 Complete ✅
+### Phase P4 Complete ✅
 
 | Phase | Feature | Status |
 |-------|---------|--------|
 | P1 | Partners Database Schema | ✅ Complete |
 | P2 | Partners Management Page | ✅ Complete |
 | P3 | Resources Enhancement | ✅ Complete |
+| **P4** | **Expenses Enhancement** | ✅ Complete |
 
-### Major Achievements Today (30 Nov 2025)
+### Major Achievements (30 Nov 2025)
+
+#### Phase P4: Expenses Enhancement
+- Added `procurement_method` column to expenses (`supplier` | `partner`)
+- ExpensesService with procurement filtering methods
+- Expenses page updates:
+  - Procurement method selector in add form (radio buttons)
+  - Procurement filter dropdown (Supplier PM/Admin only)
+  - Procurement breakdown stats cards
+  - Procured By column in expenses table with edit support
+- Partner Detail page updates:
+  - Partner Expenses stat card showing partner-procured amount
+  - Invoice Preview summary when date range selected
+  - Procured By column in expenses table with highlighting
 
 #### 1. Services Layer Foundation
 - `BaseService` class with CRUD operations
 - `PartnersService` for partner management
 - `ResourcesService` for resource operations
+- `ExpensesService` for expense operations (NEW)
 - Multi-tenant project filtering built-in
 
 #### 2. Partners Feature
@@ -277,12 +293,12 @@ Tables protected:
 | F1 | Code Cleanup | ✅ Complete | Legacy code removal |
 | F2 | Shared Components | ✅ Complete | 7 reusable components |
 | AI | Chat Assistant | ✅ Complete | Claude Haiku integration |
-| F3 | Services Layer | ✅ Complete | BaseService, Partners, Resources |
+| F3 | Services Layer | ✅ Complete | BaseService, Partners, Resources, Expenses |
 | P1 | Partners Schema | ✅ Complete | Database table + RLS |
 | P2 | Partners Page | ✅ Complete | Full CRUD management |
 | P3 | Resources Enhancement | ✅ Complete | Types, partner links, detail page |
-| **P4** | **Expenses Enhancement** | 🔜 Next | Add `procurement_method` field |
-| **P5** | **Partner Invoicing** | 🔜 Planned | Invoice generation workflow |
+| P4 | Expenses Enhancement | ✅ Complete | procurement_method field, invoice prep |
+| **P5** | **Partner Invoicing** | 🔜 Next | Invoice generation workflow |
 | **P6** | **Reporting** | 🔜 Planned | Enhanced reports with partner data |
 
 ### Completed Today (30 Nov)
@@ -417,18 +433,13 @@ Local → git push → GitHub → Vercel Auto-Deploy → Live
 
 ### Immediate (Next Session)
 
-#### Phase P4: Expenses Enhancement
-- Add `procurement_method` column (`supplier` | `partner`)
-- Update expenses form with procurement selector
-- Filter expenses by procurement method
-- Update summaries to show breakdown
-
 #### Phase P5: Partner Invoicing
 - Invoice generation workflow from Partner Detail
 - Date range selection (already implemented!)
-- Invoice content: timesheets + partner-procured expenses
+- Invoice content: timesheets (at cost) + partner-procured expenses
 - Export to PDF/CSV
 - Invoice status tracking
+- Invoice number generation
 
 ### Short Term
 
