@@ -7,13 +7,16 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
+import { timesheetsService } from '../services';
 
 export default function Timesheets() {
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole, linkedResource } = useAuth();
   const { projectId } = useProject();
+  const { showSuccess, showError, showWarning } = useToast();
   const currentUserId = user?.id || null;
   const currentUserResourceId = linkedResource?.id || null;
 
@@ -170,12 +173,12 @@ export default function Timesheets() {
 
   async function handleAdd() {
     if (!newTimesheet.resource_id || !newTimesheet.hours_worked) {
-      alert('Please fill in all required fields');
+      showWarning('Please fill in all required fields');
       return;
     }
 
     if (!projectId) {
-      alert('Project not found');
+      showError('Project not found');
       return;
     }
 
@@ -220,10 +223,10 @@ export default function Timesheets() {
         status: 'Draft',
         entry_type: entryMode
       });
-      alert('Timesheet added successfully!');
+      showSuccess('Timesheet added successfully!');
     } catch (error) {
       console.error('Error adding timesheet:', error);
-      alert('Failed to add timesheet: ' + error.message);
+      showError('Failed to add timesheet: ' + error.message);
     }
   }
 
@@ -263,10 +266,10 @@ export default function Timesheets() {
 
       await fetchData();
       setEditingId(null);
-      alert('Timesheet updated!');
+      showSuccess('Timesheet updated!');
     } catch (error) {
       console.error('Error updating timesheet:', error);
-      alert('Failed to update: ' + error.message);
+      showError('Failed to update: ' + error.message);
     }
   }
 
@@ -310,16 +313,15 @@ export default function Timesheets() {
 
       await fetchData();
       setDeleteDialog({ isOpen: false, timesheetId: null, timesheetData: null });
+      showSuccess('Timesheet deleted');
     } catch (error) {
       console.error('Error deleting timesheet:', error);
-      alert('Failed to delete: ' + error.message);
+      showError('Failed to delete: ' + error.message);
     }
   }
 
   // Submit timesheet for approval
   async function handleSubmit(id) {
-    if (!confirm('Submit this timesheet for approval?')) return;
-
     try {
       const { error } = await supabase
         .from('timesheets')
@@ -329,10 +331,10 @@ export default function Timesheets() {
       if (error) throw error;
 
       await fetchData();
-      alert('Timesheet submitted for approval!');
+      showSuccess('Timesheet submitted for approval!');
     } catch (error) {
       console.error('Error submitting timesheet:', error);
-      alert('Failed to submit: ' + error.message);
+      showError('Failed to submit: ' + error.message);
     }
   }
 
@@ -347,10 +349,10 @@ export default function Timesheets() {
       if (error) throw error;
 
       await fetchData();
-      alert('Timesheet approved!');
+      showSuccess('Timesheet approved!');
     } catch (error) {
       console.error('Error approving timesheet:', error);
-      alert('Failed to approve: ' + error.message);
+      showError('Failed to approve: ' + error.message);
     }
   }
 
@@ -367,10 +369,10 @@ export default function Timesheets() {
       if (error) throw error;
 
       await fetchData();
-      alert('Timesheet rejected.');
+      showWarning('Timesheet rejected');
     } catch (error) {
       console.error('Error rejecting timesheet:', error);
-      alert('Failed to reject: ' + error.message);
+      showError('Failed to reject: ' + error.message);
     }
   }
 

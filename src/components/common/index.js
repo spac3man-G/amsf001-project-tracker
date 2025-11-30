@@ -9,3 +9,17 @@ export { default as PageHeader } from './PageHeader';
 export { default as StatusBadge, STATUS_STYLES } from './StatusBadge';
 export { default as ConfirmDialog } from './ConfirmDialog';
 export { Toast, ToastContainer } from './Toast';
+
+// Skeleton loading components
+export { 
+  Skeleton,
+  TextSkeleton,
+  StatCardSkeleton,
+  CardSkeleton,
+  TableSkeleton,
+  TableRowSkeleton,
+  PageHeaderSkeleton,
+  PageSkeleton,
+  FormSkeleton,
+  DetailPageSkeleton
+} from './Skeleton';

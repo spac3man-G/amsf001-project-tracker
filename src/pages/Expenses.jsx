@@ -8,6 +8,7 @@ import {
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
@@ -15,6 +16,7 @@ export default function Expenses() {
   // Use shared contexts
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
+  const { showSuccess, showError, showWarning } = useToast();
   const currentUserId = user?.id || null;
 
   // Use the permissions hook - clean, pre-bound permission functions
@@ -149,7 +151,7 @@ export default function Expenses() {
 
   async function handleAdd() {
     if (!newExpense.resource_id) {
-      alert('Please select a resource');
+      showWarning('Please select a resource');
       return;
     }
 
@@ -158,20 +160,20 @@ export default function Expenses() {
     const hasSustenance = parseFloat(newExpense.sustenance_amount) > 0;
 
     if (!hasTravel && !hasAccommodation && !hasSustenance) {
-      alert('Please enter at least one expense amount');
+      showWarning('Please enter at least one expense amount');
       return;
     }
 
     if (hasTravel && !newExpense.travel_reason) {
-      alert('Please enter a reason for the travel expense');
+      showWarning('Please enter a reason for the travel expense');
       return;
     }
     if (hasAccommodation && !newExpense.accommodation_reason) {
-      alert('Please enter a reason for the accommodation expense');
+      showWarning('Please enter a reason for the accommodation expense');
       return;
     }
     if (hasSustenance && !newExpense.sustenance_reason) {
-      alert('Please enter a reason for the sustenance expense');
+      showWarning('Please enter a reason for the sustenance expense');
       return;
     }
 
@@ -281,10 +283,10 @@ export default function Expenses() {
         notes: '',
         files: []
       });
-      alert('Expenses added successfully!');
+      showSuccess('Expenses added successfully!');
     } catch (error) {
       console.error('Error adding expense:', error);
-      alert('Failed to add expenses: ' + error.message);
+      showError('Failed to add expenses: ' + error.message);
     }
   }
 
@@ -329,10 +331,10 @@ export default function Expenses() {
 
       await fetchData();
       setEditingId(null);
-      alert('Expense updated!');
+      showSuccess('Expense updated!');
     } catch (error) {
       console.error('Error updating expense:', error);
-      alert('Failed to update: ' + error.message);
+      showError('Failed to update: ' + error.message);
     }
   }
 
@@ -378,7 +380,7 @@ export default function Expenses() {
       setDeleteDialog({ isOpen: false, expenseId: null, expenseData: null });
     } catch (error) {
       console.error('Error deleting expense:', error);
-      alert('Failed to delete: ' + error.message);
+      showError('Failed to delete: ' + error.message);
     }
   }
 
@@ -395,10 +397,10 @@ export default function Expenses() {
       if (error) throw error;
 
       await fetchData();
-      alert('Expense submitted for validation!');
+      showSuccess('Expense submitted for validation!');
     } catch (error) {
       console.error('Error submitting expense:', error);
-      alert('Failed to submit: ' + error.message);
+      showError('Failed to submit: ' + error.message);
     }
   }
 
@@ -413,10 +415,10 @@ export default function Expenses() {
       if (error) throw error;
 
       await fetchData();
-      alert('Expense validated!');
+      showSuccess('Expense validated!');
     } catch (error) {
       console.error('Error validating expense:', error);
-      alert('Failed to validate: ' + error.message);
+      showError('Failed to validate: ' + error.message);
     }
   }
 
@@ -438,10 +440,10 @@ export default function Expenses() {
       if (error) throw error;
 
       await fetchData();
-      alert('Expense rejected.');
+      showWarning('Expense rejected');
     } catch (error) {
       console.error('Error rejecting expense:', error);
-      alert('Failed to reject: ' + error.message);
+      showError('Failed to reject: ' + error.message);
     }
   }
 
@@ -479,7 +481,7 @@ export default function Expenses() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading file:', error);
-      alert('Failed to download file');
+      showError('Failed to download file');
     }
   }
 
@@ -1736,10 +1738,10 @@ export default function Expenses() {
                         
                         await fetchData();
                         setDetailModal({ isOpen: false, expense: null, editMode: false, editData: null });
-                        alert('Expense updated successfully!');
+                        showSuccess('Expense updated!');
                       } catch (error) {
                         console.error('Error updating expense:', error);
-                        alert('Failed to update: ' + error.message);
+                        showError('Failed to update: ' + error.message);
                       }
                     }}
                     style={{

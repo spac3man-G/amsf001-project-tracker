@@ -11,13 +11,15 @@ import { Building2, Plus, Pencil, Trash2, Mail, User, FileText, ToggleLeft, Togg
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../contexts/ToastContext';
 import { partnersService } from '../services';
 import { supabase } from '../lib/supabase';
 import { 
   LoadingSpinner, 
   PageHeader, 
   StatCard, 
-  ConfirmDialog 
+  ConfirmDialog,
+  PageSkeleton
 } from '../components/common';
 
 export default function Partners() {
@@ -25,11 +27,11 @@ export default function Partners() {
   const { user } = useAuth();
   const { projectId } = useProject();
   const { canManagePartners, hasRole } = usePermissions();
+  const { showSuccess, showError } = useToast();
   
   // State
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, partner: null, dependents: null });
@@ -58,12 +60,11 @@ export default function Partners() {
   const loadPartners = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await partnersService.getAll(projectId);
       setPartners(data);
     } catch (err) {
       console.error('Failed to load partners:', err);
-      setError('Failed to load partners. Please try again.');
+      showError('Failed to load partners. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -100,30 +101,31 @@ export default function Partners() {
     e.preventDefault();
     
     if (!formData.name.trim()) {
-      setError('Partner name is required');
+      showError('Partner name is required');
       return;
     }
 
     try {
       setSaving(true);
-      setError(null);
 
       if (editingPartner) {
         // Update existing partner
         await partnersService.update(editingPartner.id, formData);
+        showSuccess('Partner updated successfully');
       } else {
         // Create new partner
         await partnersService.create({
           ...formData,
           project_id: projectId
         });
+        showSuccess('Partner added successfully');
       }
 
       await loadPartners();
       resetForm();
     } catch (err) {
       console.error('Failed to save partner:', err);
-      setError(err.message || 'Failed to save partner. Please try again.');
+      showError(err.message || 'Failed to save partner. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -137,9 +139,10 @@ export default function Partners() {
       await partnersService.delete(deleteConfirm.partner.id);
       await loadPartners();
       setDeleteConfirm({ show: false, partner: null, dependents: null });
+      showSuccess('Partner deleted successfully');
     } catch (err) {
       console.error('Failed to delete partner:', err);
-      setError('Failed to delete partner. Please try again.');
+      showError('Failed to delete partner. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -202,9 +205,10 @@ export default function Partners() {
     try {
       await partnersService.toggleActive(partner.id);
       await loadPartners();
+      showSuccess(`Partner ${partner.is_active ? 'deactivated' : 'activated'}`);
     } catch (err) {
       console.error('Failed to toggle partner status:', err);
-      setError('Failed to update partner status.');
+      showError('Failed to update partner status.');
     }
   };
 
@@ -221,9 +225,9 @@ export default function Partners() {
     );
   }
 
-  // Loading state
+  // Loading state - use skeleton for better UX
   if (loading) {
-    return <LoadingSpinner size="large" message="Loading partners..." fullPage />;
+    return <PageSkeleton statsCount={3} tableRows={5} tableColumns={5} />;
   }
 
   // Stats
@@ -245,19 +249,6 @@ export default function Partners() {
           </button>
         }
       />
-
-      {/* Error display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
-          <button 
-            onClick={() => setError(null)}
-            className="text-red-600 underline text-sm mt-1"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
