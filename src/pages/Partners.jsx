@@ -18,8 +18,7 @@ import {
   LoadingSpinner, 
   PageHeader, 
   StatCard, 
-  ConfirmDialog,
-  Skeleton
+  ConfirmDialog
 } from '../components/common';
 
 export default function Partners() {
@@ -225,9 +224,9 @@ export default function Partners() {
     );
   }
 
-  // Loading state - use skeleton for better UX
+  // Loading state
   if (loading) {
-    return <PageSkeleton statsCount={3} tableRows={5} tableColumns={5} />;
+    return <LoadingSpinner message="Loading partners..." size="large" fullPage />;
   }
 
   // Stats
