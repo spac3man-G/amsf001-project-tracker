@@ -1,10 +1,10 @@
 # AMSF001 Project Tracker
 # Development Playbook & Implementation Guide
 
-**Version:** 10.0  
+**Version:** 11.0  
 **Created:** 29 November 2025  
 **Last Updated:** 30 November 2025  
-**Purpose:** Phase P4 Expenses Enhancement - procurement method tracking for partner invoicing  
+**Purpose:** Phase P5 Partner Invoicing + Data Protection Strategy  
 **Repository:** github.com/spac3man-G/amsf001-project-tracker  
 **Live Application:** https://amsf001-project-tracker.vercel.app
 
@@ -18,35 +18,38 @@
 | 8.0 | 30 Nov | AI Chat Assistant, Services Layer planned |
 | 8.1 | 30 Nov | Phase F3: Services Layer Foundation |
 | 9.0 | 30 Nov | Complete P1-P3 implementation, data integrity enforcement, date range filtering |
-| **10.0** | **30 Nov** | **Phase P4: Expenses Enhancement - procurement_method field** |
+| 10.0 | 30 Nov | Phase P4: Expenses Enhancement - procurement_method field |
+| **11.0** | **30 Nov** | **Phase P5: Partner Invoicing + Data Protection Strategy** |
 
 ---
 
-## What's New in Version 10.0
+## What's New in Version 11.0
 
-### Phase P4 Complete ✅
+### Phase P5 Complete ✅
 
 | Phase | Feature | Status |
 |-------|---------|--------|
 | P1 | Partners Database Schema | ✅ Complete |
 | P2 | Partners Management Page | ✅ Complete |
 | P3 | Resources Enhancement | ✅ Complete |
-| **P4** | **Expenses Enhancement** | ✅ Complete |
+| P4 | Expenses Enhancement | ✅ Complete |
+| **P5** | **Partner Invoicing** | ✅ Complete |
 
 ### Major Achievements (30 Nov 2025)
 
-#### Phase P4: Expenses Enhancement
-- Added `procurement_method` column to expenses (`supplier` | `partner`)
-- ExpensesService with procurement filtering methods
-- Expenses page updates:
-  - Procurement method selector in add form (radio buttons)
-  - Procurement filter dropdown (Supplier PM/Admin only)
-  - Procurement breakdown stats cards
-  - Procured By column in expenses table with edit support
-- Partner Detail page updates:
-  - Partner Expenses stat card showing partner-procured amount
-  - Invoice Preview summary when date range selected
-  - Procured By column in expenses table with highlighting
+#### Phase P5: Partner Invoicing
+- Created `partner_invoices` and `partner_invoice_lines` tables
+- InvoicingService with invoice generation
+- Auto-increment invoice numbers (INV-YYYY-NNN)
+- Partner Detail "Generate Invoice" now functional
+- Invoice modal showing summary and line items
+- Recent Invoices table on Partner Detail page
+
+#### Phase P4: Expenses Enhancement (Earlier)
+- Added `procurement_method` column to expenses
+- Per-category chargeable/procurement settings in expense form
+- Procurement filtering and stats on Expenses page
+- Invoice Preview on Partner Detail page
 
 #### 1. Services Layer Foundation
 - `BaseService` class with CRUD operations
@@ -433,13 +436,18 @@ Local → git push → GitHub → Vercel Auto-Deploy → Live
 
 ### Immediate (Next Session)
 
-#### Phase P5: Partner Invoicing
-- Invoice generation workflow from Partner Detail
-- Date range selection (already implemented!)
-- Invoice content: timesheets (at cost) + partner-procured expenses
-- Export to PDF/CSV
-- Invoice status tracking
-- Invoice number generation
+#### Phase P7: Delete Functionality & Cascade Warnings
+- Add delete buttons to Timesheets, Expenses, Resources, Partners pages
+- Admin and Supplier PM can delete any content
+- Cascade warning dialog showing affected child records
+- Confirmation required before deletion
+
+#### Phase P8: Soft Delete & Data Protection
+- Add `is_deleted`, `deleted_at`, `deleted_by` columns to all tables
+- Filter out deleted records in queries
+- "Trash" view for Admins to see/restore deleted items
+- 30-day auto-purge of soft-deleted records
+- Audit logging for all delete actions
 
 ### Short Term
 
@@ -448,8 +456,13 @@ Local → git push → GitHub → Vercel Auto-Deploy → Live
 - Resource utilization by type
 - Expense analysis by procurement method
 
+#### Phase P9: Invoice PDF Export
+- PDF generation for partner invoices
+- Printable invoice layout
+- Email invoice capability
+
 #### Code Quality
-- Add more services (expenses, timesheets, invoicing)
+- Add TimesheetsService
 - Unit tests for critical functions
 - Error boundary improvements
 
@@ -463,7 +476,6 @@ Local → git push → GitHub → Vercel Auto-Deploy → Live
 #### Enhanced Features
 - Document attachments
 - Email notifications
-- Audit logging
 - Dashboard customization
 
 ### Long Term (Production Readiness)
@@ -482,6 +494,95 @@ Local → git push → GitHub → Vercel Auto-Deploy → Live
 - Backup automation
 - Monitoring/alerting
 - User documentation (help pages)
+
+---
+
+## 11. Data Protection Strategy
+
+### Current Backup Capabilities (Supabase Free Tier)
+
+| Feature | Availability |
+|---------|--------------|
+| Daily automated backups | ✅ Yes (7-day retention) |
+| Point-in-time recovery | ❌ Pro tier only |
+| Self-service restore | ❌ Contact Supabase support |
+| Manual pg_dump export | ✅ Yes (manual) |
+
+### Recommended Multi-Layer Protection
+
+| Layer | Implementation | Purpose |
+|-------|----------------|---------|
+| **1. Soft Delete** | `is_deleted` + `deleted_at` columns | Immediate "undo" capability |
+| **2. Cascade Warnings** | UI shows child records before delete | Prevent accidental data loss |
+| **3. Trash/Archive** | View deleted items, restore option | Recovery within app |
+| **4. Audit Trail** | `deleted_by` + audit log table | Compliance & accountability |
+| **5. Manual Backup** | Weekly SQL export script | Disaster recovery |
+| **6. Supabase Daily** | Automatic (7-day retention) | Platform-level recovery |
+
+### Entity Dependency Map
+
+Understanding what deleting a parent record affects:
+
+```
+Project
+├── Partners → Resources → Timesheets, Expenses
+├── Milestones → Deliverables
+├── Resources → Timesheets, Expenses
+├── KPIs
+├── Quality Standards
+└── Partner Invoices → Invoice Lines
+```
+
+### Cascade Warning Requirements
+
+When deleting, show warnings for:
+
+| Entity | Show Count Of |
+|--------|---------------|
+| Partner | Linked resources, timesheets, expenses, invoices |
+| Resource | Timesheets, expenses |
+| Milestone | Deliverables |
+| Project | ALL child entities |
+
+### Soft Delete Schema (Phase P8)
+
+```sql
+-- Add to all main tables
+ALTER TABLE [table_name] ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;
+ALTER TABLE [table_name] ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE [table_name] ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES auth.users(id);
+
+-- Filter in all queries
+WHERE is_deleted = false
+```
+
+### Permission Matrix for Delete
+
+| Entity | Viewer | Contributor | Customer PM | Supplier PM | Admin |
+|--------|:------:|:-----------:|:-----------:|:-----------:|:-----:|
+| Own timesheets | ❌ | ✅ (Draft only) | ❌ | ✅ | ✅ |
+| Any timesheets | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Own expenses | ❌ | ✅ (Draft only) | ❌ | ✅ | ✅ |
+| Any expenses | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Resources | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Partners | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Milestones | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Deliverables | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Invoices | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+### Manual Backup Procedure
+
+Until automated backup is implemented, perform weekly:
+
+```bash
+# Connect to Supabase and export
+pg_dump -h db.ljqpmrcqxzgcfojrkxce.supabase.co \
+  -U postgres -d postgres \
+  --data-only --inserts \
+  > backup-$(date +%Y%m%d).sql
+```
+
+Or use Supabase Dashboard: Database → Backups → Download
 
 ---
 
@@ -514,6 +615,8 @@ Local → git push → GitHub → Vercel Auto-Deploy → Live
 |---------|---------|---------|
 | `partnersService` | `getAll, getById, getActive, create, update, delete` | Partner CRUD |
 | `resourcesService` | `getAll, getById, getByPartner, getWithTimesheetSummary, create, update, delete` | Resource CRUD |
+| `expensesService` | `getAll, getByResource, getByPartner, getSummary, create, submit, approve, reject` | Expense CRUD |
+| `invoicingService` | `generateInvoice, getWithLines, markSent, markPaid, cancel, getPartnerStats` | Invoice management |
 
 ---
 
@@ -541,7 +644,22 @@ Local → git push → GitHub → Vercel Auto-Deploy → Live
 - [ ] Deleting project cascades to children
 - [ ] Expenses link to resources via resource_id
 
+### Invoicing Feature
+- [ ] Select date range on Partner Detail
+- [ ] Click Generate Invoice
+- [ ] Invoice modal shows summary
+- [ ] Line items display correctly
+- [ ] Invoice appears in Recent Invoices table
+- [ ] Invoice number auto-increments
+
+### Delete Functionality (Phase P7)
+- [ ] Admin can delete timesheets
+- [ ] Supplier PM can delete timesheets
+- [ ] Cascade warning shows child count
+- [ ] Confirmation dialog before delete
+- [ ] Delete respects soft-delete if implemented
+
 ---
 
-*Document Version: 9.0*  
+*Document Version: 11.0*  
 *Last Updated: 30 November 2025*
