@@ -70,9 +70,20 @@ export default function ResourceDetail() {
       // Fetch partners for dropdown (if user can see resource type)
       // Use the resource's project_id since we have it
       if (canSeeResourceType && resourceData.project_id) {
-        const partnersData = await partnersService.getActive(resourceData.project_id);
-        console.log('Partners fetched for dropdown:', partnersData);
-        setPartners(partnersData);
+        // Query partners directly to avoid any service layer issues
+        const { data: partnersData, error: partnersError } = await supabase
+          .from('partners')
+          .select('id, name, is_active')
+          .eq('project_id', resourceData.project_id)
+          .eq('is_active', true)
+          .order('name');
+        
+        if (partnersError) {
+          console.error('Error fetching partners:', partnersError);
+        } else {
+          console.log('Partners fetched for dropdown:', partnersData);
+          setPartners(partnersData || []);
+        }
       }
 
       // Fetch recent timesheets for this resource
@@ -547,7 +558,7 @@ export default function ResourceDetail() {
                           style={{ width: '100%' }}
                         >
                           <option value="">-- Select Partner --</option>
-                          {partners.filter(p => p.is_active).map(partner => (
+                          {partners.map(partner => (
                             <option key={partner.id} value={partner.id}>
                               {partner.name}
                             </option>

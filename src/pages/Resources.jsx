@@ -608,14 +608,24 @@ export default function Resources() {
                         </td>
                         {canSeeResourceType && (
                           <td>
-                            <select
-                              className="input-field"
-                              value={editForm.resource_type || 'internal'}
-                              onChange={(e) => setEditForm({...editForm, resource_type: e.target.value})}
+                            {/* Type is now read-only in inline edit - use detail page to change */}
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.35rem 0.65rem',
+                                backgroundColor: typeStyle.bg,
+                                color: typeStyle.color,
+                                borderRadius: '6px',
+                                fontSize: '0.8rem',
+                                fontWeight: '500'
+                              }}
+                              title="Edit resource type from detail page"
                             >
-                              <option value="internal">Internal</option>
-                              <option value="third_party">Third-Party</option>
-                            </select>
+                              <TypeIcon size={14} />
+                              {resource.resource_type === 'third_party' ? '3rd Party' : 'Internal'}
+                            </span>
                           </td>
                         )}
                         <td>
@@ -706,8 +716,7 @@ export default function Resources() {
                         </td>
                         {canSeeResourceType && (
                           <td>
-                            <button
-                              onClick={() => canSeeResourceType && handleToggleResourceType(resource)}
+                            <span
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -715,18 +724,15 @@ export default function Resources() {
                                 padding: '0.35rem 0.65rem',
                                 backgroundColor: typeStyle.bg,
                                 color: typeStyle.color,
-                                border: 'none',
                                 borderRadius: '6px',
                                 fontSize: '0.8rem',
-                                fontWeight: '500',
-                                cursor: canSeeResourceType ? 'pointer' : 'default',
-                                transition: 'all 0.15s ease'
+                                fontWeight: '500'
                               }}
-                              title={canSeeResourceType ? 'Click to toggle type' : typeStyle.label}
+                              title={typeStyle.label}
                             >
                               <TypeIcon size={14} />
                               {resource.resource_type === 'third_party' ? '3rd Party' : 'Internal'}
-                            </button>
+                            </span>
                           </td>
                         )}
                         <td>{resource.role}</td>
