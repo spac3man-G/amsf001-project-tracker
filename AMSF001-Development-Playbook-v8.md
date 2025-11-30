@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker
 # Development Playbook & Implementation Guide
 
-**Version:** 8.0  
+**Version:** 8.1  
 **Created:** 29 November 2025  
 **Last Updated:** 30 November 2025  
 **Purpose:** Foundation-first approach with Services Layer and Partners feature  
@@ -22,7 +22,8 @@
 | 5.1 | 29 Nov 2025 | Added RLS Policy documentation, fixed Resources RLS policy |
 | 6.0 | 29 Nov 2025 | Complete restructure: Foundation Consolidation phases, technical debt cleanup |
 | 7.0 | 29 Nov 2025 | Phase F1 & F2 complete, shared components created and integrated |
-| **8.0** | **30 Nov 2025** | **AI Chat Assistant added, Services Layer planned, Partners & Resource Types feature defined** |
+| 8.0 | 30 Nov 2025 | AI Chat Assistant added, Services Layer planned, Partners & Resource Types feature defined |
+| **8.1** | **30 Nov 2025** | **Phase F3 Complete: Services Layer Foundation implemented** |
 
 ---
 
@@ -128,14 +129,14 @@ A web-based project management tool for tracking the Network Standards and Desig
 
 ## 3. File Structure
 
-### Current Structure (Post v8.0)
+### Current Structure (Post v8.1)
 
 ```
 /
 ├── api/
-│   └── chat.js                # ✅ NEW - Vercel Edge Function for AI chat
+│   └── chat.js                # ✅ Vercel Edge Function for AI chat
 ├── src/
-│   ├── App.jsx                # ✅ Routes with context providers (v8.0)
+│   ├── App.jsx                # ✅ Routes with context providers
 │   ├── main.jsx               # Entry point
 │   ├── index.css              # Global styles
 │   ├── components/
@@ -148,7 +149,7 @@ A web-based project management tool for tracking the Network Standards and Desig
 │   │   │   ├── StatusBadge.jsx
 │   │   │   ├── DataTable.jsx
 │   │   │   └── ConfirmDialog.jsx
-│   │   ├── chat/              # ✅ NEW - AI Chat components
+│   │   ├── chat/              # ✅ AI Chat components
 │   │   │   ├── index.js       # Barrel export
 │   │   │   ├── ChatWidget.jsx # Chat UI component
 │   │   │   └── ChatWidget.css # Chat styling
@@ -158,7 +159,7 @@ A web-based project management tool for tracking the Network Standards and Desig
 │   ├── contexts/
 │   │   ├── AuthContext.jsx    # User, profile, role, linkedResource
 │   │   ├── ProjectContext.jsx # Current project, multi-tenancy ready
-│   │   ├── ChatContext.jsx    # ✅ NEW - AI chat state
+│   │   ├── ChatContext.jsx    # ✅ AI chat state
 │   │   ├── NotificationContext.jsx
 │   │   └── TestUserContext.jsx
 │   ├── hooks/
@@ -166,8 +167,10 @@ A web-based project management tool for tracking the Network Standards and Desig
 │   ├── lib/
 │   │   ├── permissions.js     # 40+ permission functions
 │   │   └── supabase.js        # Supabase client
-│   ├── services/              # 🔜 PLANNED - Services layer
-│   │   └── (to be created)
+│   ├── services/              # ✅ NEW - Services Layer (v8.1)
+│   │   ├── index.js           # Barrel export
+│   │   ├── base.service.js    # BaseService class with CRUD
+│   │   └── partners.service.js # Partners operations
 │   └── pages/
 │       ├── Dashboard.jsx      # ✅ Fully integrated
 │       ├── Timesheets.jsx
@@ -324,8 +327,8 @@ USING (
 | **F2** | Shared Components | ✅ Complete | - |
 | **F2-Int** | Component Integration | 🟡 In Progress | Medium |
 | **AI** | AI Chat Assistant | ✅ Complete | - |
-| **F3** | Services Layer Foundation | 🔜 Next | High |
-| **P1** | Database Schema (Partners) | 🔜 Planned | High |
+| **F3** | Services Layer Foundation | ✅ Complete | - |
+| **P1** | Database Schema (Partners) | 🔜 Next | High |
 | **P2** | Partners Page | 🔜 Planned | High |
 | **P3** | Resources Enhancement | 🔜 Planned | High |
 | **P4** | Expenses Enhancement | 🔜 Planned | High |
@@ -342,21 +345,26 @@ USING (
 | F2-Int | LoadingSpinner in all 19 pages | ✅ | 29 Nov |
 | F2-Int | Dashboard fully integrated | ✅ | 29 Nov |
 | **AI** | **AI Chat Assistant implemented** | ✅ | **30 Nov** |
+| **F3** | **Services Layer Foundation** | ✅ | **30 Nov** |
 
 ---
 
 ## 7. Phase Details
 
-### Phase F3: Services Layer Foundation
+### Phase F3: Services Layer Foundation ✅ COMPLETE
 
 **Goal:** Establish the services pattern for all data operations.
 
-**New Structure:**
+**Implemented Structure:**
 ```
 src/services/
 ├── index.js              # Barrel export
-├── base.service.js       # Base class with CRUD
-├── partners.service.js   # Partners operations
+├── base.service.js       # Base class with CRUD operations
+├── partners.service.js   # Partners operations (ready for partners table)
+```
+
+**Future Services (add as needed):**
+```
 ├── resources.service.js  # Resources operations
 ├── expenses.service.js   # Expenses operations
 └── invoicing.service.js  # Invoice generation
@@ -397,10 +405,10 @@ export class BaseService {
 ```
 
 **Deliverables:**
-- [ ] `base.service.js` created
-- [ ] `partners.service.js` created
-- [ ] `index.js` barrel export
-- [ ] Documentation updated
+- [x] `base.service.js` created ✅
+- [x] `partners.service.js` created ✅
+- [x] `index.js` barrel export ✅
+- [x] Documentation updated ✅
 
 ---
 
@@ -671,25 +679,28 @@ Response:
 
 ## Appendix C: Next Steps Checklist
 
+### ✅ Completed This Session
+
+- [x] Phase F3: Create Services Layer foundation ✅
+- [x] Create `base.service.js` ✅
+- [x] Create `partners.service.js` ✅
+
 ### Immediate (Next Session)
 
-- [ ] Phase F3: Create Services Layer foundation
-- [ ] Create `base.service.js`
-- [ ] Create `partners.service.js`
+- [ ] Phase P1: Database schema changes (create `partners` table)
+- [ ] Phase P2: Partners page
 
 ### Short Term
 
-- [ ] Phase P1: Database schema changes
-- [ ] Phase P2: Partners page
-- [ ] Phase P3: Resources enhancement
+- [ ] Phase P3: Resources enhancement (add `resource_type`, `partner_id`)
+- [ ] Phase P4: Expenses enhancement (add `procurement_method`)
 
 ### Medium Term
 
-- [ ] Phase P4: Expenses enhancement
 - [ ] Phase P5: Partner invoicing
 - [ ] Phase P6: Reporting updates
 
 ---
 
-*Document Version: 8.0*  
+*Document Version: 8.1*  
 *Last Updated: 30 November 2025*
