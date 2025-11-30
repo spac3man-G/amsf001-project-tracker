@@ -1,10 +1,10 @@
 # AMSF001 Project Tracker
 # Development Playbook & Implementation Guide
 
-**Version:** 11.0  
+**Version:** 12.0  
 **Created:** 29 November 2025  
 **Last Updated:** 30 November 2025  
-**Purpose:** Phase P5 Partner Invoicing + Data Protection Strategy  
+**Purpose:** Phase P7: Delete Functionality with Cascade Warnings  
 **Repository:** github.com/spac3man-G/amsf001-project-tracker  
 **Live Application:** https://amsf001-project-tracker.vercel.app
 
@@ -19,13 +19,14 @@
 | 8.1 | 30 Nov | Phase F3: Services Layer Foundation |
 | 9.0 | 30 Nov | Complete P1-P3 implementation, data integrity enforcement, date range filtering |
 | 10.0 | 30 Nov | Phase P4: Expenses Enhancement - procurement_method field |
-| **11.0** | **30 Nov** | **Phase P5: Partner Invoicing + Data Protection Strategy** |
+| 11.0 | 30 Nov | Phase P5: Partner Invoicing + Data Protection Strategy |
+| **12.0** | **30 Nov** | **Phase P7: Delete functionality with cascade warnings** |
 
 ---
 
-## What's New in Version 11.0
+## What's New in Version 12.0
 
-### Phase P5 Complete ✅
+### Phase P7 Complete ✅
 
 | Phase | Feature | Status |
 |-------|---------|--------|
@@ -33,11 +34,20 @@
 | P2 | Partners Management Page | ✅ Complete |
 | P3 | Resources Enhancement | ✅ Complete |
 | P4 | Expenses Enhancement | ✅ Complete |
-| **P5** | **Partner Invoicing** | ✅ Complete |
+| P5 | Partner Invoicing | ✅ Complete |
+| P6 | User Manual v2.0 | ✅ Complete |
+| **P7** | **Delete with Cascade Warnings** | ✅ Complete |
 
 ### Major Achievements (30 Nov 2025)
 
-#### Phase P5: Partner Invoicing
+#### Phase P7: Delete Functionality
+- Partners: Full cascade warnings (resources, timesheets, expenses, invoices)
+- Resources: Cascade warnings for timesheets and expenses
+- Timesheets: Delete available for Admin/Supplier PM (all) and Contributors (Draft only)
+- Expenses: Delete with role-based permissions
+- All deletes use ConfirmDialog with clear warning messages
+
+#### Phase P5: Partner Invoicing (Earlier)
 - Created `partner_invoices` and `partner_invoice_lines` tables
 - InvoicingService with invoice generation
 - Auto-increment invoice numbers (INV-YYYY-NNN)

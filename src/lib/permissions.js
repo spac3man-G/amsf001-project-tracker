@@ -131,10 +131,12 @@ export function canEditTimesheet(userRole, timesheetOrStatus, createdByOrCurrent
 /**
  * Can the user delete this specific timesheet?
  * - Admin: can delete any
+ * - Supplier PM: can delete any
  * - Owner: can delete if Draft only
  */
 export function canDeleteTimesheet(userRole, timesheetOrStatus, createdByOrCurrentUserId, currentUserId) {
-  if (userRole === ROLES.ADMIN) return true;
+  // Admin and Supplier PM can delete any timesheet
+  if (userRole === ROLES.ADMIN || userRole === ROLES.SUPPLIER_PM) return true;
   
   // Determine if called with object or individual params
   let status, createdBy, userId;
@@ -148,6 +150,7 @@ export function canDeleteTimesheet(userRole, timesheetOrStatus, createdByOrCurre
     userId = currentUserId;
   }
   
+  // Owner can only delete Draft timesheets
   const isOwner = createdBy === userId;
   return isOwner && status === 'Draft';
 }
@@ -277,9 +280,13 @@ export function canEditExpense(userRole, expenseOrStatus, createdByOrCurrentUser
 
 /**
  * Can the user delete this expense?
+ * - Admin: can delete any
+ * - Supplier PM: can delete any
+ * - Owner: can delete if Draft only
  */
 export function canDeleteExpense(userRole, expenseOrStatus, createdByOrCurrentUserId, currentUserId) {
-  if (userRole === ROLES.ADMIN) return true;
+  // Admin and Supplier PM can delete any expense
+  if (userRole === ROLES.ADMIN || userRole === ROLES.SUPPLIER_PM) return true;
   
   let status, createdBy, userId;
   if (typeof expenseOrStatus === 'object' && expenseOrStatus !== null) {
@@ -292,7 +299,7 @@ export function canDeleteExpense(userRole, expenseOrStatus, createdByOrCurrentUs
     userId = currentUserId;
   }
   
-  // Owner can delete if still Draft
+  // Owner can only delete Draft expenses
   const isOwner = createdBy === userId;
   return isOwner && status === 'Draft';
 }

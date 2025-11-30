@@ -29,7 +29,7 @@ export default function Resources() {
   const [editForm, setEditForm] = useState({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [filterType, setFilterType] = useState('all');
-  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, resource: null });
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, resource: null, dependents: null });
   const [saving, setSaving] = useState(false);
   const [newResource, setNewResource] = useState({
     resource_ref: '',
@@ -264,7 +264,25 @@ export default function Resources() {
   }
 
   async function handleDelete(resource) {
-    setDeleteDialog({ isOpen: true, resource });
+    // Check for dependent records before showing confirmation
+    try {
+      const [timesheetResult, expenseResult] = await Promise.all([
+        supabase.from('timesheets').select('id', { count: 'exact', head: true }).eq('resource_id', resource.id),
+        supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('resource_id', resource.id)
+      ]);
+      
+      const timesheetCount = timesheetResult.count || 0;
+      const expenseCount = expenseResult.count || 0;
+      
+      setDeleteDialog({ 
+        isOpen: true, 
+        resource,
+        dependents: { timesheets: timesheetCount, expenses: expenseCount }
+      });
+    } catch (err) {
+      console.error('Error checking dependents:', err);
+      setDeleteDialog({ isOpen: true, resource, dependents: null });
+    }
   }
 
   async function handleConfirmDelete() {
@@ -281,7 +299,7 @@ export default function Resources() {
       if (error) throw error;
       
       await fetchResources();
-      setDeleteDialog({ isOpen: false, resource: null });
+      setDeleteDialog({ isOpen: false, resource: null, dependents: null });
     } catch (error) {
       console.error('Error deleting resource:', error);
       alert('Failed to delete resource');
@@ -1056,10 +1074,26 @@ export default function Resources() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteDialog.isOpen}
-        onClose={() => setDeleteDialog({ isOpen: false, resource: null })}
+        onClose={() => setDeleteDialog({ isOpen: false, resource: null, dependents: null })}
         onConfirm={handleConfirmDelete}
         title="Delete Resource?"
-        message={deleteDialog.resource ? `This will permanently delete "${deleteDialog.resource.name}" from the project. This action cannot be undone.` : ''}
+        message={deleteDialog.resource ? (
+          <>
+            This will permanently delete "<strong>{deleteDialog.resource.name}</strong>" from the project.
+            {deleteDialog.dependents && (deleteDialog.dependents.timesheets > 0 || deleteDialog.dependents.expenses > 0) && (
+              <>
+                <br /><br />
+                <span style={{ color: '#dc2626', fontWeight: '500' }}>⚠️ Warning: This will also delete:</span>
+                <ul style={{ margin: '0.5rem 0 0 1.5rem', color: '#dc2626' }}>
+                  {deleteDialog.dependents.timesheets > 0 && <li>{deleteDialog.dependents.timesheets} timesheet entries</li>}
+                  {deleteDialog.dependents.expenses > 0 && <li>{deleteDialog.dependents.expenses} expense records</li>}
+                </ul>
+              </>
+            )}
+            <br />
+            This action cannot be undone.
+          </>
+        ) : ''}
         confirmText="Delete"
         cancelText="Cancel"
         type="danger"

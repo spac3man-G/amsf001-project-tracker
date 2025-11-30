@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { partnersService } from '../services';
+import { supabase } from '../lib/supabase';
 import { 
   LoadingSpinner, 
   PageHeader, 
@@ -31,7 +32,7 @@ export default function Partners() {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, partner: null });
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, partner: null, dependents: null });
   const [saving, setSaving] = useState(false);
   
   // Form state
@@ -135,12 +136,65 @@ export default function Partners() {
       setSaving(true);
       await partnersService.delete(deleteConfirm.partner.id);
       await loadPartners();
-      setDeleteConfirm({ show: false, partner: null });
+      setDeleteConfirm({ show: false, partner: null, dependents: null });
     } catch (err) {
       console.error('Failed to delete partner:', err);
       setError('Failed to delete partner. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Fetch dependent record counts before showing delete dialog
+  const handleDeleteClick = async (partner) => {
+    try {
+      // Get count of resources linked to this partner
+      const { data: resources, error: resError } = await supabase
+        .from('resources')
+        .select('id')
+        .eq('partner_id', partner.id);
+      
+      if (resError) throw resError;
+
+      const resourceCount = resources?.length || 0;
+      let timesheetCount = 0;
+      let expenseCount = 0;
+      let invoiceCount = 0;
+
+      if (resourceCount > 0) {
+        const resourceIds = resources.map(r => r.id);
+        
+        // Get timesheet count
+        const { count: tsCount } = await supabase
+          .from('timesheets')
+          .select('*', { count: 'exact', head: true })
+          .in('resource_id', resourceIds);
+        timesheetCount = tsCount || 0;
+
+        // Get expense count
+        const { count: expCount } = await supabase
+          .from('expenses')
+          .select('*', { count: 'exact', head: true })
+          .in('resource_id', resourceIds);
+        expenseCount = expCount || 0;
+      }
+
+      // Get invoice count
+      const { count: invCount } = await supabase
+        .from('partner_invoices')
+        .select('*', { count: 'exact', head: true })
+        .eq('partner_id', partner.id);
+      invoiceCount = invCount || 0;
+
+      setDeleteConfirm({
+        show: true,
+        partner,
+        dependents: { resourceCount, timesheetCount, expenseCount, invoiceCount }
+      });
+    } catch (err) {
+      console.error('Error fetching dependents:', err);
+      // Still show dialog but without counts
+      setDeleteConfirm({ show: true, partner, dependents: null });
     }
   };
 
@@ -463,7 +517,7 @@ export default function Partners() {
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => setDeleteConfirm({ show: true, partner })}
+                        onClick={() => handleDeleteClick(partner)}
                         className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete partner"
                       >
@@ -481,10 +535,34 @@ export default function Partners() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.show}
-        onClose={() => setDeleteConfirm({ show: false, partner: null })}
+        onClose={() => setDeleteConfirm({ show: false, partner: null, dependents: null })}
         onConfirm={handleDelete}
         title="Delete Partner"
-        message={`Are you sure you want to delete "${deleteConfirm.partner?.name}"? This action cannot be undone.`}
+        message={
+          <div>
+            <p>Are you sure you want to delete "<strong>{deleteConfirm.partner?.name}</strong>"?</p>
+            {deleteConfirm.dependents && (
+              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '6px', border: '1px solid #fecaca' }}>
+                <p style={{ fontWeight: '600', color: '#991b1b', marginBottom: '0.5rem' }}>⚠️ This will also affect:</p>
+                <ul style={{ margin: '0', paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#7f1d1d' }}>
+                  {deleteConfirm.dependents.resourceCount > 0 && (
+                    <li>{deleteConfirm.dependents.resourceCount} linked resource{deleteConfirm.dependents.resourceCount !== 1 ? 's' : ''} (will be unlinked)</li>
+                  )}
+                  {deleteConfirm.dependents.timesheetCount > 0 && (
+                    <li>{deleteConfirm.dependents.timesheetCount} timesheet{deleteConfirm.dependents.timesheetCount !== 1 ? 's' : ''}</li>
+                  )}
+                  {deleteConfirm.dependents.expenseCount > 0 && (
+                    <li>{deleteConfirm.dependents.expenseCount} expense{deleteConfirm.dependents.expenseCount !== 1 ? 's' : ''}</li>
+                  )}
+                  {deleteConfirm.dependents.invoiceCount > 0 && (
+                    <li>{deleteConfirm.dependents.invoiceCount} invoice{deleteConfirm.dependents.invoiceCount !== 1 ? 's' : ''}</li>
+                  )}
+                </ul>
+              </div>
+            )}
+            <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>This action cannot be undone.</p>
+          </div>
+        }
         confirmText="Delete"
         type="danger"
       />
