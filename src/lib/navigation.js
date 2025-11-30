@@ -231,8 +231,7 @@ export const ROLE_NAV_ORDER = {
     'milestones',
     'deliverables',
     'kpis',
-    'qualityStandards',
-    'reports'
+    'qualityStandards'
   ]
 };
 
