@@ -1,9 +1,9 @@
 // src/components/Layout.jsx
-// Version 7.0 - Role-based navigation with centralized configuration
-// - Uses centralized navigation.js for all nav items
-// - Shows user name and role in header bar
-// - Role-based menu visibility
-// - Viewers get read-only access (no drag/drop)
+// Version 8.0 - Cleaned up user info display
+// - User name/role only shown in header (top right)
+// - Clicking user info in header navigates to My Account
+// - Removed duplicate user info from sidebar
+// - Sidebar bottom now only shows logout button
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -12,9 +12,7 @@ import {
   LogOut,
   Menu,
   X,
-  UserCog,
-  GripVertical,
-  ChevronDown
+  GripVertical
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
@@ -164,8 +162,6 @@ export default function Layout({ children }) {
     }
   }
 
-  const isAccountPage = location.pathname === '/account';
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       {/* Sidebar */}
@@ -288,94 +284,12 @@ export default function Layout({ children }) {
           })}
         </nav>
 
-        {/* My Account Link */}
-        <div style={{ 
-          padding: '0.5rem', 
-          borderTop: '1px solid #e2e8f0'
-        }}>
-          <Link
-            to="/account"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              color: isAccountPage ? '#10b981' : '#64748b',
-              backgroundColor: isAccountPage ? '#f0fdf4' : 'transparent',
-              fontWeight: isAccountPage ? '600' : '500',
-              justifyContent: sidebarOpen ? 'flex-start' : 'center',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <UserCog size={20} />
-            {sidebarOpen && <span>My Account</span>}
-          </Link>
-        </div>
-
-        {/* User Info & Logout (sidebar bottom) */}
+        {/* Logout Button Only (sidebar bottom) */}
         <div style={{ 
           padding: '1rem', 
           borderTop: '1px solid #e2e8f0',
           backgroundColor: '#f8fafc'
         }}>
-          {sidebarOpen ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                backgroundColor: roleDisplay.color,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: '600',
-                fontSize: '0.875rem'
-              }}>
-                {initials}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ 
-                  fontWeight: '600', 
-                  fontSize: '0.875rem',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {displayName}
-                </div>
-                <span style={{
-                  display: 'inline-block',
-                  padding: '0.125rem 0.5rem',
-                  backgroundColor: roleDisplay.bg,
-                  color: roleDisplay.color,
-                  borderRadius: '4px',
-                  fontSize: '0.7rem',
-                  fontWeight: '600'
-                }}>
-                  {roleDisplay.shortLabel}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: roleDisplay.color,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: '600',
-              fontSize: '0.875rem',
-              margin: '0 auto 0.75rem'
-            }}>
-              {initials}
-            </div>
-          )}
           <button
             onClick={handleLogout}
             style={{
@@ -421,14 +335,25 @@ export default function Layout({ children }) {
           top: 0,
           zIndex: 40
         }}>
-          {/* User Name and Role Display */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            paddingRight: '1rem',
-            borderRight: '1px solid #e2e8f0'
-          }}>
+          {/* User Name and Role Display - Clickable to go to My Account */}
+          <Link
+            to="/account"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              paddingRight: '1rem',
+              borderRight: '1px solid #e2e8f0',
+              textDecoration: 'none',
+              cursor: 'pointer',
+              borderRadius: '8px',
+              padding: '0.5rem 1rem 0.5rem 0.75rem',
+              marginRight: '0',
+              transition: 'background-color 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
             <div style={{ textAlign: 'right' }}>
               <div style={{ 
                 fontWeight: '600', 
@@ -465,7 +390,7 @@ export default function Layout({ children }) {
             }}>
               {initials}
             </div>
-          </div>
+          </Link>
           
           {/* Notification Bell */}
           <NotificationBell />
