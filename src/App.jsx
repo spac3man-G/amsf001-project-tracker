@@ -1,7 +1,9 @@
 // src/App.jsx
-// Version 9.0 - Code splitting with React.lazy for improved bundle size
+// Version 10.0 - Added Vercel Analytics and Speed Insights for production monitoring
 
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Suspense, lazy } from 'react';
 
 // Import context providers
@@ -207,6 +209,10 @@ export default function App() {
                     
                     {/* AI Chat Widget */}
                     <ChatWidget />
+                    
+                    {/* Vercel Production Monitoring */}
+                    <Analytics />
+                    <SpeedInsights />
                   </ChatProvider>
                 </NotificationProvider>
               </TestUserProvider>
