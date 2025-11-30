@@ -125,12 +125,11 @@ export default function PartnerDetail() {
           });
         }
 
-        // Fetch expenses for linked resources (by resource name since expenses use name, not ID)
-        const resourceNames = resources.map(r => r.name);
+        // Fetch expenses for linked resources (now using resource_id foreign key)
         const { data: expData } = await supabase
           .from('expenses')
-          .select('id, expense_date, category, reason, amount, resource_name, status')
-          .in('resource_name', resourceNames)
+          .select('id, expense_date, category, reason, amount, resource_id, resource_name, status')
+          .in('resource_id', resourceIds)
           .order('expense_date', { ascending: false })
           .limit(20);
 

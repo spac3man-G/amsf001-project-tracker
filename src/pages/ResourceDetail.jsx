@@ -144,7 +144,7 @@ export default function ResourceDetail() {
       // Fetch recent expenses for this resource
       const { data: expData } = await supabase
         .from('expenses')
-        .select('id, expense_date, category, description, amount, is_chargeable, validation_status')
+        .select('id, expense_date, category, reason, amount, chargeable_to_customer, status')
         .eq('resource_id', id)
         .order('expense_date', { ascending: false })
         .limit(10);
@@ -838,7 +838,7 @@ export default function ResourceDetail() {
                         {new Date(exp.expense_date).toLocaleDateString()}
                       </td>
                       <td style={{ padding: '0.75rem' }}>{exp.category}</td>
-                      <td style={{ padding: '0.75rem' }}>{exp.description}</td>
+                      <td style={{ padding: '0.75rem' }}>{exp.reason}</td>
                       <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '500' }}>
                         £{parseFloat(exp.amount).toFixed(2)}
                       </td>
@@ -850,7 +850,7 @@ export default function ResourceDetail() {
                           backgroundColor: statusStyle.bg,
                           color: statusStyle.color
                         }}>
-                          {exp.validation_status || 'Pending'}
+                          {exp.status || 'Draft'}
                         </span>
                       </td>
                     </tr>

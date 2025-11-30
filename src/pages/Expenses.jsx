@@ -157,6 +157,7 @@ export default function Expenses() {
         expensesToInsert.push({
           project_id: projectId,
           category: 'Travel',
+          resource_id: newExpense.resource_id,
           resource_name: resourceName,
           expense_date: newExpense.expense_date,
           reason: newExpense.travel_reason,
@@ -172,6 +173,7 @@ export default function Expenses() {
         expensesToInsert.push({
           project_id: projectId,
           category: 'Accommodation',
+          resource_id: newExpense.resource_id,
           resource_name: resourceName,
           expense_date: newExpense.expense_date,
           reason: newExpense.accommodation_reason,
@@ -187,6 +189,7 @@ export default function Expenses() {
         expensesToInsert.push({
           project_id: projectId,
           category: 'Sustenance',
+          resource_id: newExpense.resource_id,
           resource_name: resourceName,
           expense_date: newExpense.expense_date,
           reason: newExpense.sustenance_reason,
@@ -255,6 +258,7 @@ export default function Expenses() {
     setEditingId(expense.id);
     setEditForm({
       category: expense.category,
+      resource_id: expense.resource_id,
       resource_name: expense.resource_name,
       expense_date: expense.expense_date,
       reason: expense.reason,
@@ -267,11 +271,15 @@ export default function Expenses() {
 
   async function handleSave(id) {
     try {
+      // Look up resource name from ID if resource was changed
+      const resourceName = resources.find(r => r.id === editForm.resource_id)?.name || editForm.resource_name;
+      
       const { error } = await supabase
         .from('expenses')
         .update({
           category: editForm.category,
-          resource_name: editForm.resource_name,
+          resource_id: editForm.resource_id,
+          resource_name: resourceName,
           expense_date: editForm.expense_date,
           reason: editForm.reason,
           amount: parseFloat(editForm.amount),
@@ -927,8 +935,9 @@ export default function Expenses() {
                     </td>
                     <td>
                       {editingId === exp.id ? (
-                        <select className="form-input" value={editForm.resource_name} onChange={(e) => setEditForm({ ...editForm, resource_name: e.target.value })}>
-                          {resources.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                        <select className="form-input" value={editForm.resource_id || ''} onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })}>
+                          <option value="">-- Select --</option>
+                          {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                       ) : (
                         exp.resource_name
