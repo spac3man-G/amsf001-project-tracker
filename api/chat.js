@@ -1,6 +1,7 @@
 // Vercel Edge Function for AI Chat
 // Uses Claude Haiku for fast, cost-effective responses
 // Multi-tenant ready - project context injected dynamically
+// Version 2.0 - Added rate limiting and input sanitisation
 
 export const config = {
   runtime: 'edge',
@@ -8,7 +9,117 @@ export const config = {
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-// Base system prompt - generic, multi-tenant ready
+// ============================================
+// RATE LIMITING (Simple in-memory for Edge)
+// ============================================
+
+// Rate limit configuration
+const RATE_LIMIT = {
+  maxRequests: 20,      // Maximum requests per window
+  windowMs: 60 * 1000,  // 1 minute window
+};
+
+// Simple in-memory store (resets on cold start, but Edge functions are ephemeral)
+// For production, consider using Vercel KV or Upstash Redis
+const rateLimitStore = new Map();
+
+/**
+ * Check rate limit for a user
+ * @param {string} userId - User identifier (email or IP)
+ * @returns {Object} { allowed: boolean, remaining: number, resetAt: number }
+ */
+function checkRateLimit(userId) {
+  const now = Date.now();
+  const key = `rl:${userId}`;
+  
+  let record = rateLimitStore.get(key);
+  
+  // Clean up old records
+  if (record && record.resetAt <= now) {
+    rateLimitStore.delete(key);
+    record = null;
+  }
+  
+  if (!record) {
+    // Create new record
+    record = {
+      count: 1,
+      resetAt: now + RATE_LIMIT.windowMs,
+    };
+    rateLimitStore.set(key, record);
+    
+    return {
+      allowed: true,
+      remaining: RATE_LIMIT.maxRequests - 1,
+      resetAt: record.resetAt,
+    };
+  }
+  
+  // Increment existing record
+  record.count++;
+  
+  if (record.count > RATE_LIMIT.maxRequests) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetAt: record.resetAt,
+    };
+  }
+  
+  return {
+    allowed: true,
+    remaining: RATE_LIMIT.maxRequests - record.count,
+    resetAt: record.resetAt,
+  };
+}
+
+// ============================================
+// INPUT SANITISATION
+// ============================================
+
+/**
+ * Sanitise chat message content
+ * @param {string} content - Message content
+ * @returns {string} Sanitised content
+ */
+function sanitizeMessage(content) {
+  if (!content || typeof content !== 'string') return '';
+  
+  // Remove null bytes and control characters
+  let sanitized = content.replace(/\0/g, '');
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  
+  // Trim and limit length (prevent huge payloads)
+  sanitized = sanitized.trim();
+  if (sanitized.length > 4000) {
+    sanitized = sanitized.substring(0, 4000);
+  }
+  
+  return sanitized;
+}
+
+/**
+ * Sanitise messages array
+ * @param {Array} messages - Array of message objects
+ * @returns {Array} Sanitised messages
+ */
+function sanitizeMessages(messages) {
+  if (!Array.isArray(messages)) return [];
+  
+  return messages
+    .slice(-10) // Limit to last 10 messages (prevent huge context)
+    .filter(msg => msg && typeof msg === 'object')
+    .map(msg => ({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: sanitizeMessage(msg.content),
+    }))
+    .filter(msg => msg.content.length > 0);
+}
+
+// ============================================
+// SYSTEM PROMPT
+// ============================================
+
 const BASE_SYSTEM_PROMPT = `You are the AI Assistant for this Project Tracker application. Your role is to help users understand how to use the application and answer questions about their project data.
 
 ## About the Application
@@ -56,17 +167,20 @@ This is a project management tool for tracking supplier/customer engagements inc
 5. **Calculations**: Help users understand how costs, utilisation, and margins are calculated
 
 ## Key Pages
+- **Workflow Summary**: See all pending approvals and actions (appears first for action-oriented users)
 - **Dashboard**: Overview with project health, milestone progress, budget status
+- **Reports**: Detailed analytics and exportable summaries
+- **Gantt Chart**: Visual timeline view of milestones
 - **Milestones**: Create and track project milestones with budgets
 - **Deliverables**: Manage work items with review workflow (Draft → Submitted → Delivered)
-- **Resources**: View team members, allocations, and partner links
-- **Partners**: Manage third-party suppliers and generate invoices (Supplier PM/Admin only)
-- **Timesheets**: Submit and approve time entries
-- **Expenses**: Submit and validate expense claims
 - **KPIs**: Track performance indicators against targets
 - **Quality Standards**: Manage quality criteria
-- **Workflow Summary**: See all pending approvals and actions
-- **Settings**: Configure project parameters (admin/supplier PM only)
+- **Resources**: View team members, allocations, and partner links
+- **Timesheets**: Submit and approve time entries
+- **Expenses**: Submit and validate expense claims
+- **Partners**: Manage third-party suppliers and generate invoices (Supplier PM/Admin only)
+- **Users**: User management (Admin/Supplier PM only)
+- **Settings**: Configure project parameters (Admin/Supplier PM only)
 
 ## Response Guidelines
 - Be concise and helpful
@@ -76,6 +190,10 @@ This is a project management tool for tracking supplier/customer engagements inc
 - For complex operations, provide step-by-step guidance
 - Always respect the user's permission level - don't suggest actions they cannot perform
 - Use UK date format (DD/MM/YYYY) and GBP currency (£)`;
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 export default async function handler(req) {
   // Only allow POST requests
@@ -95,7 +213,42 @@ export default async function handler(req) {
   }
 
   try {
-    const { messages, userContext, dataContext, projectContext } = await req.json();
+    const body = await req.json();
+    const { messages, userContext, dataContext, projectContext } = body;
+
+    // Get user identifier for rate limiting
+    const userId = userContext?.email || 
+                   req.headers.get('x-forwarded-for')?.split(',')[0] || 
+                   'anonymous';
+
+    // Check rate limit
+    const rateLimit = checkRateLimit(userId);
+    
+    if (!rateLimit.allowed) {
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded. Please wait a moment before sending another message.',
+        retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+      }), {
+        status: 429,
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Limit': String(RATE_LIMIT.maxRequests),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(Math.ceil(rateLimit.resetAt / 1000)),
+          'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+        },
+      });
+    }
+
+    // Sanitise input messages
+    const sanitizedMessages = sanitizeMessages(messages);
+    
+    if (sanitizedMessages.length === 0) {
+      return new Response(JSON.stringify({ error: 'No valid messages provided' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     // Build the full system prompt with dynamic context
     let fullSystemPrompt = BASE_SYSTEM_PROMPT;
@@ -103,18 +256,18 @@ export default async function handler(req) {
     // Add project context if provided (multi-tenant support)
     if (projectContext) {
       fullSystemPrompt += `\n\n## Current Project Context
-- Project Reference: ${projectContext.reference || 'Unknown'}
-- Project Name: ${projectContext.name || 'Unknown'}
-- Description: ${projectContext.description || 'N/A'}`;
+- Project Reference: ${sanitizeMessage(projectContext.reference) || 'Unknown'}
+- Project Name: ${sanitizeMessage(projectContext.name) || 'Unknown'}
+- Description: ${sanitizeMessage(projectContext.description) || 'N/A'}`;
     }
 
     // Add user context
     if (userContext) {
       fullSystemPrompt += `\n\n## Current User Context
-- Name: ${userContext.name || 'Unknown'}
-- Email: ${userContext.email || 'Unknown'}
-- Role: ${userContext.role || 'Unknown'}
-- Linked Resource: ${userContext.linkedResourceName || 'None'}`;
+- Name: ${sanitizeMessage(userContext.name) || 'Unknown'}
+- Email: ${sanitizeMessage(userContext.email) || 'Unknown'}
+- Role: ${sanitizeMessage(userContext.role) || 'Unknown'}
+- Linked Resource: ${sanitizeMessage(userContext.linkedResourceName) || 'None'}`;
       
       // Add role-specific hints
       if (userContext.role === 'supplier_pm') {
@@ -126,10 +279,13 @@ export default async function handler(req) {
       }
     }
 
-    // Add data context
+    // Add data context (limit size)
     if (dataContext) {
-      fullSystemPrompt += `\n\n## Current Data Context
-${dataContext}`;
+      const sanitizedDataContext = sanitizeMessage(dataContext);
+      if (sanitizedDataContext.length > 0) {
+        fullSystemPrompt += `\n\n## Current Data Context
+${sanitizedDataContext.substring(0, 2000)}`;
+      }
     }
 
     // Call Claude API
@@ -144,7 +300,7 @@ ${dataContext}`;
         model: 'claude-3-haiku-20240307',
         max_tokens: 1024,
         system: fullSystemPrompt,
-        messages: messages,
+        messages: sanitizedMessages,
       }),
     });
 
@@ -164,7 +320,12 @@ ${dataContext}`;
       usage: data.usage,
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-RateLimit-Limit': String(RATE_LIMIT.maxRequests),
+        'X-RateLimit-Remaining': String(rateLimit.remaining),
+        'X-RateLimit-Reset': String(Math.ceil(rateLimit.resetAt / 1000)),
+      },
     });
 
   } catch (error) {

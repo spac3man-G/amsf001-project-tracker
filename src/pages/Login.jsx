@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { AlertCircle, Mail, KeyRound, RefreshCw } from 'lucide-react';
+import { AlertCircle, Mail, KeyRound, RefreshCw, Clock } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,9 +14,17 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showResendVerification, setShowResendVerification] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   // Check for existing session and listen for auth changes
   useEffect(() => {
+    // Check for session expired parameter
+    if (searchParams.get('expired') === 'true') {
+      setSessionExpired(true);
+      // Clear the URL parameter
+      window.history.replaceState({}, document.title, '/login');
+    }
+
     // Check if already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -31,13 +40,14 @@ export default function Login() {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
+    setSessionExpired(false);
 
     try {
       if (isSignUp) {
@@ -123,6 +133,7 @@ export default function Login() {
     setShowResendVerification(false);
     setError(null);
     setSuccess(null);
+    setSessionExpired(false);
   };
 
   // Forgot Password View
@@ -310,6 +321,26 @@ export default function Login() {
           <p className="auth-subtitle">Network Architecture Services Project</p>
         </div>
 
+        {/* Session Expired Warning */}
+        {sessionExpired && (
+          <div style={{
+            padding: '0.75rem',
+            background: '#fef3c7',
+            borderRadius: '0.5rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            color: '#92400e',
+            border: '1px solid #fcd34d'
+          }}>
+            <Clock size={20} />
+            <span style={{ fontSize: '0.875rem' }}>
+              Your session has expired. Please sign in again.
+            </span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label" htmlFor="email">
@@ -391,6 +422,7 @@ export default function Login() {
                 setShowForgotPassword(true);
                 setError(null);
                 setSuccess(null);
+                setSessionExpired(false);
               }}
               style={{
                 background: 'none',
@@ -413,6 +445,7 @@ export default function Login() {
               setIsSignUp(!isSignUp);
               setError(null);
               setSuccess(null);
+              setSessionExpired(false);
             }}
             style={{
               background: 'none',
@@ -436,6 +469,7 @@ export default function Login() {
               setShowResendVerification(true);
               setError(null);
               setSuccess(null);
+              setSessionExpired(false);
             }}
             style={{
               background: 'none',
