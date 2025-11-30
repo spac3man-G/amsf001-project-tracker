@@ -69,6 +69,10 @@ export default function ResourceDetail() {
 
       // Fetch partners for dropdown (if user can see resource type)
       // Use the resource's project_id since we have it
+      console.log('=== PARTNER FETCH DEBUG ===');
+      console.log('canSeeResourceType:', canSeeResourceType);
+      console.log('resourceData.project_id:', resourceData.project_id);
+      
       if (canSeeResourceType && resourceData.project_id) {
         // Query partners directly to avoid any service layer issues
         const { data: partnersData, error: partnersError } = await supabase
@@ -78,13 +82,18 @@ export default function ResourceDetail() {
           .eq('is_active', true)
           .order('name');
         
+        console.log('Partners query result:', { partnersData, partnersError });
+        
         if (partnersError) {
           console.error('Error fetching partners:', partnersError);
         } else {
           console.log('Partners fetched for dropdown:', partnersData);
           setPartners(partnersData || []);
         }
+      } else {
+        console.log('Skipping partners fetch - condition not met');
       }
+      console.log('=== END DEBUG ===');
 
       // Fetch recent timesheets for this resource
       const { data: tsData } = await supabase
