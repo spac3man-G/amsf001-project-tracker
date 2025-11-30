@@ -1,34 +1,32 @@
 // src/components/Layout.jsx
-// Version 6.1 - Added Partners navigation
+// Version 7.0 - Role-based navigation with centralized configuration
+// - Uses centralized navigation.js for all nav items
+// - Shows user name and role in header bar
+// - Role-based menu visibility
+// - Viewers get read-only access (no drag/drop)
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
-  LayoutDashboard, 
-  Milestone, 
-  Package,
-  Users, 
-  Clock, 
-  Receipt,
-  TrendingUp,
-  FileText,
-  Settings,
   LogOut,
   Menu,
   X,
-  UserCircle,
   UserCog,
-  Award,
-  GanttChart,
   GripVertical,
-  ClipboardList,
-  Building2
+  ChevronDown
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
-// Import from centralized permissions
-import { canAccessSettings, canViewWorkflowSummary, canViewPartners, getRoleConfig } from '../lib/permissions';
+// Import from centralized navigation config
+import { 
+  getNavigationForRole, 
+  applyCustomNavOrder, 
+  canReorderNavigation,
+  getRoleDisplay,
+  isReadOnlyForRole,
+  getNavItemIdByPath
+} from '../lib/navigation';
 
 // Import AuthContext for user data
 import { useAuth } from '../contexts/AuthContext';
@@ -42,10 +40,13 @@ export default function Layout({ children }) {
   
   // Local state for UI
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [navOrder, setNavOrder] = useState(null);
+  const [customNavOrder, setCustomNavOrder] = useState(null);
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragOverItem, setDragOverItem] = useState(null);
   const dragNode = useRef(null);
+
+  // Get role display configuration
+  const roleDisplay = useMemo(() => getRoleDisplay(role), [role]);
 
   // Derive display name and initials from profile
   const displayName = useMemo(() => {
@@ -65,10 +66,10 @@ export default function Layout({ children }) {
     return displayName[0].toUpperCase();
   }, [profile, displayName]);
 
-  // Load nav_order from profile when it becomes available
+  // Load custom nav_order from profile when it becomes available
   useEffect(() => {
     if (profile?.nav_order && Array.isArray(profile.nav_order)) {
-      setNavOrder(profile.nav_order);
+      setCustomNavOrder(profile.nav_order);
     }
   }, [profile]);
 
@@ -78,69 +79,28 @@ export default function Layout({ children }) {
     navigate('/login');
   }
 
-  // Permission checks using centralized permissions
-  const hasSystemAccess = canAccessSettings(role);
-  const hasWorkflowAccess = canViewWorkflowSummary(role);
-  const hasPartnersAccess = canViewPartners(role);
+  // Check if this role can reorder navigation
+  const canReorder = useMemo(() => canReorderNavigation(role), [role]);
 
-  // Base navigation items (before user ordering)
-  const baseNavItems = useMemo(() => [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/milestones', icon: Milestone, label: 'Milestones' },
-    { path: '/gantt', icon: GanttChart, label: 'Gantt Chart' },
-    { path: '/deliverables', icon: Package, label: 'Deliverables' },
-    { path: '/resources', icon: Users, label: 'Resources' },
-    // Partners only visible to admin and supplier_pm
-    ...(hasPartnersAccess ? [
-      { path: '/partners', icon: Building2, label: 'Partners' }
-    ] : []),
-    { path: '/timesheets', icon: Clock, label: 'Timesheets' },
-    { path: '/expenses', icon: Receipt, label: 'Expenses' },
-    { path: '/kpis', icon: TrendingUp, label: 'KPIs' },
-    { path: '/quality-standards', icon: Award, label: 'Quality Standards' },
-    { path: '/reports', icon: FileText, label: 'Reports' },
-    // Workflow Summary only visible to PMs and admins
-    ...(hasWorkflowAccess ? [
-      { path: '/workflow-summary', icon: ClipboardList, label: 'Workflow Summary' }
-    ] : []),
-    // Users and Settings only visible to admin and supplier_pm
-    ...(hasSystemAccess ? [
-      { path: '/users', icon: UserCircle, label: 'Users' },
-      { path: '/settings', icon: Settings, label: 'Settings' }
-    ] : []),
-  ], [hasSystemAccess, hasWorkflowAccess, hasPartnersAccess]);
-
-  // Get sorted nav items based on user's saved order
+  // Get navigation items for current role, with custom ordering if saved
   const navItems = useMemo(() => {
-    if (!navOrder || navOrder.length === 0) {
-      return baseNavItems;
+    const roleNav = getNavigationForRole(role);
+    if (customNavOrder && customNavOrder.length > 0) {
+      return applyCustomNavOrder(role, customNavOrder);
     }
-    
-    // Create a map of items by path for quick lookup
-    const itemMap = {};
-    baseNavItems.forEach(item => {
-      itemMap[item.path] = item;
-    });
-    
-    // Build sorted array based on saved order
-    const sorted = [];
-    navOrder.forEach(path => {
-      if (itemMap[path]) {
-        sorted.push(itemMap[path]);
-        delete itemMap[path];
-      }
-    });
-    
-    // Add any items not in the saved order at the end
-    Object.values(itemMap).forEach(item => {
-      sorted.push(item);
-    });
-    
-    return sorted;
-  }, [navOrder, baseNavItems]);
+    return roleNav;
+  }, [role, customNavOrder]);
 
-  // Drag and drop handlers
+  // Check if current page is read-only for this role
+  const isCurrentPageReadOnly = useMemo(() => {
+    const itemId = getNavItemIdByPath(location.pathname);
+    return itemId ? isReadOnlyForRole(role, itemId) : false;
+  }, [role, location.pathname]);
+
+  // Drag and drop handlers (only for non-viewers)
   function handleDragStart(e, index) {
+    if (!canReorder) return;
+    
     dragNode.current = e.target;
     setDraggedItem(index);
     
@@ -152,16 +112,20 @@ export default function Layout({ children }) {
   }
 
   function handleDragEnter(e, index) {
+    if (!canReorder) return;
     if (index !== draggedItem) {
       setDragOverItem(index);
     }
   }
 
   function handleDragOver(e) {
+    if (!canReorder) return;
     e.preventDefault();
   }
 
   function handleDragEnd() {
+    if (!canReorder) return;
+    
     if (dragNode.current) {
       dragNode.current.style.opacity = '1';
     }
@@ -174,7 +138,7 @@ export default function Layout({ children }) {
       newNavItems.splice(dragOverItem, 0, draggedItemContent);
       
       const newOrder = newNavItems.map(item => item.path);
-      setNavOrder(newOrder);
+      setCustomNavOrder(newOrder);
       saveNavOrder(newOrder);
     }
     
@@ -199,9 +163,6 @@ export default function Layout({ children }) {
       console.error('Error saving nav order:', error);
     }
   }
-
-  // Get role config from centralized permissions
-  const roleConfig = getRoleConfig(role);
 
   const isAccountPage = location.pathname === '/account';
 
@@ -260,11 +221,12 @@ export default function Layout({ children }) {
                            (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
             const isDragging = draggedItem === index;
             const isDragOver = dragOverItem === index;
+            const isReadOnly = isReadOnlyForRole(role, item.id);
             
             return (
               <div
                 key={item.path}
-                draggable
+                draggable={canReorder}
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragEnter={(e) => handleDragEnter(e, index)}
                 onDragOver={handleDragOver}
@@ -291,10 +253,10 @@ export default function Layout({ children }) {
                     fontWeight: isActive ? '600' : '500',
                     justifyContent: sidebarOpen ? 'flex-start' : 'center',
                     transition: 'all 0.15s ease',
-                    cursor: 'grab'
+                    cursor: canReorder ? 'grab' : 'pointer'
                   }}
                 >
-                  {sidebarOpen && (
+                  {sidebarOpen && canReorder && (
                     <GripVertical 
                       size={14} 
                       style={{ 
@@ -305,7 +267,21 @@ export default function Layout({ children }) {
                     />
                   )}
                   <Icon size={20} />
-                  {sidebarOpen && <span>{item.label}</span>}
+                  {sidebarOpen && (
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                  )}
+                  {sidebarOpen && isReadOnly && (
+                    <span style={{
+                      fontSize: '0.6rem',
+                      padding: '0.125rem 0.375rem',
+                      backgroundColor: '#f1f5f9',
+                      color: '#64748b',
+                      borderRadius: '4px',
+                      fontWeight: '500'
+                    }}>
+                      VIEW
+                    </span>
+                  )}
                 </Link>
               </div>
             );
@@ -338,7 +314,7 @@ export default function Layout({ children }) {
           </Link>
         </div>
 
-        {/* User Info & Logout */}
+        {/* User Info & Logout (sidebar bottom) */}
         <div style={{ 
           padding: '1rem', 
           borderTop: '1px solid #e2e8f0',
@@ -350,7 +326,7 @@ export default function Layout({ children }) {
                 width: '40px',
                 height: '40px',
                 borderRadius: '50%',
-                backgroundColor: '#10b981',
+                backgroundColor: roleDisplay.color,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -373,13 +349,13 @@ export default function Layout({ children }) {
                 <span style={{
                   display: 'inline-block',
                   padding: '0.125rem 0.5rem',
-                  backgroundColor: roleConfig.bg,
-                  color: roleConfig.color,
+                  backgroundColor: roleDisplay.bg,
+                  color: roleDisplay.color,
                   borderRadius: '4px',
                   fontSize: '0.7rem',
                   fontWeight: '600'
                 }}>
-                  {roleConfig.label}
+                  {roleDisplay.shortLabel}
                 </span>
               </div>
             </div>
@@ -388,7 +364,7 @@ export default function Layout({ children }) {
               width: '40px',
               height: '40px',
               borderRadius: '50%',
-              backgroundColor: '#10b981',
+              backgroundColor: roleDisplay.color,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -432,7 +408,7 @@ export default function Layout({ children }) {
         display: 'flex',
         flexDirection: 'column'
       }}>
-        {/* Top Header Bar with Notification Bell */}
+        {/* Top Header Bar with User Info and Notification Bell */}
         <header style={{
           padding: '0.75rem 1.5rem',
           backgroundColor: 'white',
@@ -440,12 +416,81 @@ export default function Layout({ children }) {
           display: 'flex',
           justifyContent: 'flex-end',
           alignItems: 'center',
+          gap: '1rem',
           position: 'sticky',
           top: 0,
           zIndex: 40
         }}>
+          {/* User Name and Role Display */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            paddingRight: '1rem',
+            borderRight: '1px solid #e2e8f0'
+          }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ 
+                fontWeight: '600', 
+                fontSize: '0.875rem',
+                color: '#1e293b'
+              }}>
+                {displayName}
+              </div>
+              <span style={{
+                display: 'inline-block',
+                padding: '0.125rem 0.5rem',
+                backgroundColor: roleDisplay.bg,
+                color: roleDisplay.color,
+                borderRadius: '4px',
+                fontSize: '0.65rem',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.025em'
+              }}>
+                {roleDisplay.shortLabel}
+              </span>
+            </div>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              backgroundColor: roleDisplay.color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '0.8rem'
+            }}>
+              {initials}
+            </div>
+          </div>
+          
+          {/* Notification Bell */}
           <NotificationBell />
         </header>
+
+        {/* Read-only Banner (for viewers on read-only pages) */}
+        {isCurrentPageReadOnly && (
+          <div style={{
+            padding: '0.5rem 1.5rem',
+            backgroundColor: '#f1f5f9',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '0.875rem',
+            color: '#64748b'
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span>You have read-only access to this page</span>
+          </div>
+        )}
 
         {/* Page Content */}
         <div style={{ flex: 1 }}>

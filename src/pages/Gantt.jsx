@@ -4,13 +4,14 @@ import { supabase } from '../lib/supabase';
 import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 import { 
   Calendar, ChevronLeft, ChevronRight, Info, GripHorizontal,
-  Lock, Move, ZoomIn, ZoomOut
+  Lock, Move, ZoomIn, ZoomOut, Eye
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function Gantt() {
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [projectId, setProjectId] = useState(null);
   const [viewStart, setViewStart] = useState(null);
   const [viewEnd, setViewEnd] = useState(null);
@@ -20,7 +21,12 @@ export default function Gantt() {
   const [originalDates, setOriginalDates] = useState({});
   const chartRef = useRef(null);
 
-  const canEdit = ['admin', 'supplier_pm', 'customer_pm'].includes(userRole);
+  // Use centralized auth and permissions
+  const { role } = useAuth();
+  const { canUseGantt } = usePermissions();
+  
+  // canEdit is now driven by centralized permissions
+  const canEdit = canUseGantt;
 
   useEffect(() => {
     fetchInitialData();
@@ -34,16 +40,6 @@ export default function Gantt() {
 
   async function fetchInitialData() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
-      }
-
       const { data: project } = await supabase
         .from('projects')
         .select('id')
@@ -337,10 +333,15 @@ export default function Gantt() {
             <span style={{ fontSize: '0.85rem' }}>Actual/Forecast</span>
             {canEdit && <Move size={14} style={{ color: '#3b82f6' }} />}
           </div>
-          {canEdit && (
+          {canEdit ? (
             <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <GripHorizontal size={14} />
               Drag blue bars to adjust dates
+            </div>
+          ) : (
+            <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#f1f5f9', padding: '0.375rem 0.75rem', borderRadius: '6px' }}>
+              <Eye size={14} />
+              View only mode
             </div>
           )}
         </div>
