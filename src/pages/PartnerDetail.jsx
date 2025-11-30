@@ -131,7 +131,7 @@ export default function PartnerDetail() {
           .select('id, expense_date, category, reason, amount, resource_id, resource_name, status')
           .in('resource_id', resourceIds)
           .order('expense_date', { ascending: false })
-          .limit(20);
+          .limit(50);
 
         if (expData) {
           const totalAmount = expData.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
@@ -618,7 +618,7 @@ export default function PartnerDetail() {
                 </tr>
               </thead>
               <tbody>
-                {expenseSummary.entries.slice(0, 10).map(exp => (
+                {expenseSummary.entries.map(exp => (
                   <tr key={exp.id}>
                     <td style={{ padding: '0.75rem' }}>
                       {new Date(exp.expense_date).toLocaleDateString()}
