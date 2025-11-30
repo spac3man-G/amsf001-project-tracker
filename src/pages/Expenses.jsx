@@ -41,6 +41,13 @@ export default function Expenses() {
   const [filterProcurement, setFilterProcurement] = useState('all');
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
+  // Delete dialog state
+  const [deleteDialog, setDeleteDialog] = useState({ 
+    isOpen: false, 
+    expenseId: null, 
+    expenseData: null 
+  });
+
   // Test user context for filtering
   const { showTestUsers, testUserIds } = useTestUsers();
 
@@ -321,19 +328,46 @@ export default function Expenses() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this expense?')) return;
+  // Show delete confirmation with cost impact warning
+  function handleDeleteClick(expense) {
+    const totalAmount = (parseFloat(expense.travel_amount) || 0) + 
+                        (parseFloat(expense.accommodation_amount) || 0) + 
+                        (parseFloat(expense.sustenance_amount) || 0);
+    
+    // Build category breakdown
+    const categories = [];
+    if (expense.travel_amount > 0) categories.push(`Travel: £${expense.travel_amount}`);
+    if (expense.accommodation_amount > 0) categories.push(`Accommodation: £${expense.accommodation_amount}`);
+    if (expense.sustenance_amount > 0) categories.push(`Sustenance: £${expense.sustenance_amount}`);
+    
+    setDeleteDialog({
+      isOpen: true,
+      expenseId: expense.id,
+      expenseData: {
+        resourceName: expense.resource_name,
+        date: expense.expense_date,
+        totalAmount: totalAmount,
+        categories: categories,
+        chargeable: expense.chargeable_to_customer,
+        procurement: expense.procurement_method,
+        status: expense.status
+      }
+    });
+  }
+
+  async function confirmDelete() {
+    if (!deleteDialog.expenseId) return;
 
     try {
       const { error } = await supabase
         .from('expenses')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteDialog.expenseId);
 
       if (error) throw error;
 
       await fetchData();
-      alert('Expense deleted');
+      setDeleteDialog({ isOpen: false, expenseId: null, expenseData: null });
     } catch (error) {
       console.error('Error deleting expense:', error);
       alert('Failed to delete: ' + error.message);
@@ -1243,7 +1277,7 @@ export default function Expenses() {
                             <button className="btn-icon" onClick={() => handleEdit(exp)} title="Edit"><Edit2 size={16} /></button>
                           )}
                           {canDeleteExpense(exp) && (
-                            <button className="btn-icon btn-danger" onClick={() => handleDelete(exp.id)} title="Delete"><Trash2 size={16} /></button>
+                            <button className="btn-icon btn-danger" onClick={() => handleDeleteClick(exp)} title="Delete"><Trash2 size={16} /></button>
                           )}
                         </div>
                       )}
@@ -1263,7 +1297,7 @@ export default function Expenses() {
           <li>PMO travel/accommodation requires advance approval from Authority Project Manager</li>
           <li>Attach receipts for all expenses over £25</li>
           <li>Submit expenses within 30 days of incurring them</li>
-          <li><strong>Submit:</strong> Click the send icon (→) to submit for validation</li>
+          <li><strong>Submit:</strong> Click the send icon to submit for validation</li>
           <li><strong>Chargeable expenses:</strong> Validated by Customer PM</li>
           <li><strong>Non-chargeable expenses:</strong> Validated by Supplier PM</li>
           {userRole === 'customer_pm' && (
@@ -1274,6 +1308,47 @@ export default function Expenses() {
           )}
         </ul>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, expenseId: null, expenseData: null })}
+        onConfirm={confirmDelete}
+        title="Delete Expense"
+        message={deleteDialog.expenseData ? (
+          <div>
+            <p>Are you sure you want to delete this expense?</p>
+            <div style={{ 
+              backgroundColor: '#fef3c7', 
+              border: '1px solid #f59e0b', 
+              borderRadius: '6px', 
+              padding: '0.75rem', 
+              marginTop: '0.75rem' 
+            }}>
+              <p style={{ fontWeight: '600', color: '#92400e', margin: '0 0 0.5rem 0' }}>
+                Impact on Running Totals:
+              </p>
+              <ul style={{ margin: '0', paddingLeft: '1.25rem', color: '#92400e', fontSize: '0.9rem' }}>
+                <li><strong>Resource:</strong> {deleteDialog.expenseData.resourceName}</li>
+                <li><strong>Date:</strong> {deleteDialog.expenseData.date}</li>
+                <li><strong>Total Amount:</strong> -£{deleteDialog.expenseData.totalAmount?.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</li>
+                {deleteDialog.expenseData.categories?.length > 0 && (
+                  <li><strong>Breakdown:</strong> {deleteDialog.expenseData.categories.join(', ')}</li>
+                )}
+                <li><strong>Chargeable:</strong> {deleteDialog.expenseData.chargeable ? 'Yes' : 'No'}</li>
+                <li><strong>Paid by:</strong> {deleteDialog.expenseData.procurement === 'partner' ? 'Partner' : 'Supplier (JT)'}</li>
+                <li><strong>Status:</strong> {deleteDialog.expenseData.status}</li>
+              </ul>
+            </div>
+            <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#6b7280' }}>
+              This will permanently remove this expense from all reports and partner invoices.
+            </p>
+          </div>
+        ) : 'Are you sure you want to delete this expense?'}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

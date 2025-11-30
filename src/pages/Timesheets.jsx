@@ -39,6 +39,13 @@ export default function Timesheets() {
   const [filterWeek, setFilterWeek] = useState('all');
   const [entryMode, setEntryMode] = useState('daily'); // 'daily' or 'weekly'
 
+  // Delete dialog state
+  const [deleteDialog, setDeleteDialog] = useState({ 
+    isOpen: false, 
+    timesheetId: null, 
+    timesheetData: null 
+  });
+
   // Test user context for filtering
   const { showTestUsers, testUserIds } = useTestUsers();
 
@@ -268,19 +275,41 @@ export default function Timesheets() {
     setEditForm({});
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this timesheet entry?')) return;
+  // Show delete confirmation with cost impact warning
+  function handleDeleteClick(timesheet) {
+    // Find the resource to get cost info
+    const resource = resources.find(r => r.id === timesheet.resource_id);
+    const costPerDay = resource?.cost_price || 0;
+    const hours = parseFloat(timesheet.hours_worked) || 0;
+    const days = hours / 8;
+    const costImpact = days * costPerDay;
+    
+    setDeleteDialog({
+      isOpen: true,
+      timesheetId: timesheet.id,
+      timesheetData: {
+        resourceName: timesheet.resource_name || resource?.name || 'Unknown',
+        date: timesheet.work_date,
+        hours: hours,
+        costImpact: costImpact,
+        status: timesheet.status
+      }
+    });
+  }
+
+  async function confirmDelete() {
+    if (!deleteDialog.timesheetId) return;
 
     try {
       const { error } = await supabase
         .from('timesheets')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteDialog.timesheetId);
 
       if (error) throw error;
 
       await fetchData();
-      alert('Timesheet deleted');
+      setDeleteDialog({ isOpen: false, timesheetId: null, timesheetData: null });
     } catch (error) {
       console.error('Error deleting timesheet:', error);
       alert('Failed to delete: ' + error.message);
@@ -730,7 +759,7 @@ export default function Timesheets() {
                           </>
                         )}
                         {canEditTimesheet(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}
-                        {canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDelete(ts.id)} title="Delete"><Trash2 size={16} /></button>}
+                        {canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDeleteClick(ts)} title="Delete"><Trash2 size={16} /></button>}
                       </div>
                     )}
                   </td>
@@ -750,10 +779,49 @@ export default function Timesheets() {
           <li>Link time to specific milestones when possible for better tracking</li>
           <li><strong>Submit:</strong> Click the send icon (→) to submit for approval</li>
           {userRole === 'customer_pm' && (
-            <li><strong>As Customer PM:</strong> You can approve (✓) or reject (✗) submitted timesheets</li>
+            <li><strong>As Customer PM:</strong> You can approve or reject submitted timesheets</li>
           )}
         </ul>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, timesheetId: null, timesheetData: null })}
+        onConfirm={confirmDelete}
+        title="Delete Timesheet Entry"
+        message={deleteDialog.timesheetData ? (
+          <div>
+            <p>Are you sure you want to delete this timesheet entry?</p>
+            <div style={{ 
+              backgroundColor: '#fef3c7', 
+              border: '1px solid #f59e0b', 
+              borderRadius: '6px', 
+              padding: '0.75rem', 
+              marginTop: '0.75rem' 
+            }}>
+              <p style={{ fontWeight: '600', color: '#92400e', margin: '0 0 0.5rem 0' }}>
+                ⚠️ Impact on Running Totals:
+              </p>
+              <ul style={{ margin: '0', paddingLeft: '1.25rem', color: '#92400e', fontSize: '0.9rem' }}>
+                <li><strong>Resource:</strong> {deleteDialog.timesheetData.resourceName}</li>
+                <li><strong>Date:</strong> {deleteDialog.timesheetData.date}</li>
+                <li><strong>Hours:</strong> {deleteDialog.timesheetData.hours}h ({(deleteDialog.timesheetData.hours / 8).toFixed(2)} days)</li>
+                {deleteDialog.timesheetData.costImpact > 0 && (
+                  <li><strong>Cost Impact:</strong> -£{deleteDialog.timesheetData.costImpact.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</li>
+                )}
+                <li><strong>Status:</strong> {deleteDialog.timesheetData.status}</li>
+              </ul>
+            </div>
+            <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#6b7280' }}>
+              This will permanently remove this entry from all reports and partner invoices.
+            </p>
+          </div>
+        ) : 'Are you sure you want to delete this timesheet?'}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
