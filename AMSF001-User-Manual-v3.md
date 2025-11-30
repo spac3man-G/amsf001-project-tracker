@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker
 # User Manual
 
-**Version:** 3.0  
+**Version:** 3.1  
 **Last Updated:** 30 November 2025  
 **Application:** https://amsf001-project-tracker.vercel.app
 
@@ -30,7 +30,8 @@
 |---------|------|---------|
 | 1.0 | 30 Nov 2025 | Initial release |
 | 2.0 | 30 Nov 2025 | Added procurement method, per-category expense settings, invoice preview |
-| **3.0** | **30 Nov 2025** | **Added delete warnings, date filtering on resources, complete feature documentation** |
+| 3.0 | 30 Nov 2025 | Added delete warnings, date filtering on resources, complete feature documentation |
+| **3.1** | **30 Nov 2025** | **Addendum: Expense detail modal, in-modal editing** |
 
 ---
 
@@ -197,6 +198,32 @@ The stat cards show expense breakdown:
 3. Validation depends on chargeable status:
    - Chargeable → Customer PM validates
    - Non-chargeable → Supplier PM validates
+
+### Viewing Expense Details (v3.1)
+
+Click any expense row to open a detail modal showing:
+- Reference number and status
+- Category with icon
+- Amount (large, prominent)
+- Resource name with partner (if applicable)
+- Full date
+- Chargeable status
+- Procurement method with partner name
+- Full description text
+- Receipts for download
+
+### Editing Expenses (v3.1)
+
+1. Click an expense row to open detail modal
+2. Click **Edit** button
+3. All fields become editable
+4. Make changes
+5. Click **Save Changes** or **Cancel**
+
+**Partner Selection:** When editing procurement:
+- Shows which partner will invoice: "Partner (Progressive)"
+- Explains: "Progressive will invoice JT for this expense"
+- Partner option only available if resource is linked to a partner
 
 ### Deleting Expenses
 

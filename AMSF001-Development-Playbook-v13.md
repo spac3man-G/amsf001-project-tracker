@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker
 # Development Playbook & Implementation Guide
 
-**Version:** 13.0  
+**Version:** 13.1  
 **Created:** 29 November 2025  
 **Last Updated:** 30 November 2025  
 **Purpose:** Complete Phase Documentation + Technical Debt  
@@ -20,7 +20,8 @@
 | 10.0 | 30 Nov | Phase P4: Expenses Enhancement |
 | 11.0 | 30 Nov | Phase P5: Partner Invoicing |
 | 12.0 | 30 Nov | Phase P7: Delete with cascade warnings |
-| **13.0** | **30 Nov** | **Complete documentation update, technical debt, date filtering** |
+| 13.0 | 30 Nov | Complete documentation update, technical debt, date filtering |
+| **13.1** | **30 Nov** | **Addendum: Expense Detail modal, in-modal editing, partner clarity** |
 
 ---
 
@@ -406,6 +407,21 @@ const invoice = await invoicingService.generateInvoice({
 - Settings only show when amount > 0
 
 **Database Note:** Each expense is stored as a single row with one category. The per-category UI creates multiple expense records when multiple categories have amounts.
+
+### 6.5 Expense Detail Modal (Addendum v13.1)
+
+**Click-to-View:** Click any expense row in the table to open a detail modal showing all expense information clearly formatted.
+
+**In-Modal Editing:** Click Edit within the modal to switch to edit mode. All fields become editable forms. Save/Cancel buttons appear. No more inline table editing.
+
+**Partner Clarity in Procurement:**
+- Resource dropdown shows partner: `Will Kirby (Progressive)`
+- Procurement dropdown shows: `Partner (Progressive)` when applicable
+- Explanatory text: "Progressive will invoice JT for this expense"
+- Partner option disabled if resource has no linked partner
+- Changing resource auto-resets procurement if new resource has no partner
+
+**Files:** `src/pages/Expenses.jsx` - detailModal state with editMode and editData
 
 ---
 
