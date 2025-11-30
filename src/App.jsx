@@ -9,6 +9,7 @@ import { ProjectProvider } from './contexts/ProjectContext';
 import { TestUserProvider } from './contexts/TestUserContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ChatProvider } from './contexts/ChatContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 // Shared components
 import { ErrorBoundary, LoadingSpinner } from './components/common';
@@ -64,8 +65,10 @@ export default function App() {
     <BrowserRouter>
       {/* ErrorBoundary wraps entire app to catch any unhandled errors */}
       <ErrorBoundary>
-        {/* Wrap entire app with providers - AuthProvider is outermost */}
-        <AuthProvider>
+        {/* ToastProvider for notifications - outside auth so it's always available */}
+        <ToastProvider>
+          {/* Wrap entire app with providers - AuthProvider is outermost */}
+          <AuthProvider>
           <ProjectProvider>
             <TestUserProvider>
               <NotificationProvider>
@@ -165,6 +168,7 @@ export default function App() {
             </TestUserProvider>
           </ProjectProvider>
         </AuthProvider>
+        </ToastProvider>
       </ErrorBoundary>
     </BrowserRouter>
   );
