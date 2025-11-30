@@ -1,5 +1,5 @@
 // src/App.jsx
-// Version 8.2 - Added Resource Detail Page
+// Version 8.3 - Added Partner Detail Page
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -26,6 +26,7 @@ import Deliverables from './pages/Deliverables';
 import Resources from './pages/Resources';
 import ResourceDetail from './pages/ResourceDetail';
 import Partners from './pages/Partners';
+import PartnerDetail from './pages/PartnerDetail';
 import Timesheets from './pages/Timesheets';
 import Expenses from './pages/Expenses';
 import KPIs from './pages/KPIs';
@@ -105,6 +106,9 @@ export default function App() {
                     
                     <Route path="/partners" element={
                       <ProtectedRoute><Partners /></ProtectedRoute>
+                    } />
+                    <Route path="/partners/:id" element={
+                      <ProtectedRoute><PartnerDetail /></ProtectedRoute>
                     } />
                     
                     <Route path="/timesheets" element={

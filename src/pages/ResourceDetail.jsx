@@ -68,8 +68,10 @@ export default function ResourceDetail() {
       setResource(resourceData);
 
       // Fetch partners for dropdown (if user can see resource type)
-      if (canSeeResourceType && projectId) {
-        const partnersData = await partnersService.getForSelect(projectId);
+      // Use the resource's project_id since we have it
+      if (canSeeResourceType && resourceData.project_id) {
+        const partnersData = await partnersService.getActive(resourceData.project_id);
+        console.log('Partners fetched for dropdown:', partnersData);
         setPartners(partnersData);
       }
 

@@ -6,7 +6,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Building2, Plus, Pencil, Trash2, Mail, User, FileText, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, Plus, Pencil, Trash2, Mail, User, FileText, ToggleLeft, ToggleRight, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -19,6 +20,7 @@ import {
 } from '../components/common';
 
 export default function Partners() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { projectId } = useProject();
   const { canManagePartners, hasRole } = usePermissions();
@@ -381,12 +383,19 @@ export default function Partners() {
               {partners.map((partner) => (
                 <tr key={partner.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
+                    <div 
+                      className="flex items-center gap-3 cursor-pointer"
+                      onClick={() => navigate(`/partners/${partner.id}`)}
+                      title="Click to view details"
+                    >
                       <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                         <Building2 className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{partner.name}</div>
+                        <div className="font-medium text-gray-900 flex items-center gap-2">
+                          <span style={{ color: '#2563eb' }}>{partner.name}</span>
+                          <ExternalLink size={14} style={{ color: '#9ca3af' }} />
+                        </div>
                         {partner.notes && (
                           <div className="text-sm text-gray-500 truncate max-w-xs" title={partner.notes}>
                             {partner.notes}
