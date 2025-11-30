@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function KPIs() {
   // Use shared contexts instead of local state for auth and project
@@ -24,6 +24,9 @@ export default function KPIs() {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // Confirm dialog state
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, kpi: null });
 
   // Form state for new KPI
   const [newKPI, setNewKPI] = useState({
@@ -169,35 +172,28 @@ export default function KPIs() {
     }
   }
 
-  async function handleDeleteKPI(kpi) {
-    // Check if KPI has assessments
-    const assessments = assessmentCounts[kpi.id];
-    const hasAssessments = assessments && assessments.total > 0;
+  function handleDeleteClick(kpi) {
+    setDeleteDialog({ isOpen: true, kpi });
+  }
 
-    // Check if KPI is linked to deliverables
-    const { data: linkedDeliverables } = await supabase
-      .from('deliverable_kpis')
-      .select('id')
-      .eq('kpi_id', kpi.id);
+  async function handleConfirmDelete() {
+    const kpi = deleteDialog.kpi;
+    if (!kpi) return;
 
-    const hasLinks = linkedDeliverables && linkedDeliverables.length > 0;
-
-    let confirmMessage = `Are you sure you want to delete KPI "${kpi.kpi_ref}: ${kpi.name}"?`;
-    
-    if (hasAssessments || hasLinks) {
-      confirmMessage += '\n\n⚠️ WARNING: This KPI has:';
-      if (hasAssessments) {
-        confirmMessage += `\n• ${assessments.total} assessment(s) that will be deleted`;
-      }
-      if (hasLinks) {
-        confirmMessage += `\n• ${linkedDeliverables.length} deliverable link(s) that will be removed`;
-      }
-      confirmMessage += '\n\nThis action cannot be undone.';
-    }
-
-    if (!confirm(confirmMessage)) return;
-
+    setSaving(true);
     try {
+      // Check if KPI has assessments
+      const assessments = assessmentCounts[kpi.id];
+      const hasAssessments = assessments && assessments.total > 0;
+
+      // Check if KPI is linked to deliverables
+      const { data: linkedDeliverables } = await supabase
+        .from('deliverable_kpis')
+        .select('id')
+        .eq('kpi_id', kpi.id);
+
+      const hasLinks = linkedDeliverables && linkedDeliverables.length > 0;
+
       // Delete assessments first (foreign key constraint)
       if (hasAssessments) {
         const { error: assessError } = await supabase
@@ -225,11 +221,26 @@ export default function KPIs() {
       if (error) throw error;
 
       await fetchKPIs();
-      alert('KPI deleted successfully');
+      setDeleteDialog({ isOpen: false, kpi: null });
     } catch (error) {
       console.error('Error deleting KPI:', error);
       alert('Failed to delete KPI: ' + error.message);
+    } finally {
+      setSaving(false);
     }
+  }
+
+  function getDeleteMessage(kpi) {
+    if (!kpi) return '';
+    const assessments = assessmentCounts[kpi.id];
+    const hasAssessments = assessments && assessments.total > 0;
+    
+    let message = `This will permanently delete KPI "${kpi.kpi_ref}: ${kpi.name}".`;
+    if (hasAssessments) {
+      message += ` This KPI has ${assessments.total} assessment(s) that will also be deleted.`;
+    }
+    message += ' This action cannot be undone.';
+    return message;
   }
 
   function getKPIStatus(kpi) {
@@ -326,50 +337,53 @@ export default function KPIs() {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <TrendingUp size={28} />
-          <div>
-            <h1>Key Performance Indicators</h1>
-            <p>Track project performance against SOW targets</p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <PageHeader
+        icon={TrendingUp}
+        title="Key Performance Indicators"
+        subtitle="Track project performance against SOW targets"
+      >
+        <button 
+          className="btn btn-secondary" 
+          onClick={() => fetchKPIs()}
+        >
+          <RefreshCw size={18} /> Refresh
+        </button>
+        {canEdit && !showAddForm && (
           <button 
-            className="btn btn-secondary" 
-            onClick={() => fetchKPIs()}
+            className="btn btn-primary" 
+            onClick={() => setShowAddForm(true)}
           >
-            <RefreshCw size={18} /> Refresh
+            <Plus size={18} /> Add KPI
           </button>
-          {canEdit && !showAddForm && (
-            <button 
-              className="btn btn-primary" 
-              onClick={() => setShowAddForm(true)}
-            >
-              <Plus size={18} /> Add KPI
-            </button>
-          )}
-        </div>
-      </div>
+        )}
+      </PageHeader>
 
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">Total KPIs</div>
-          <div className="stat-value">{totalKPIs}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Achieved</div>
-          <div className="stat-value" style={{ color: '#10b981' }}>{achievedKPIs}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">At Risk / Critical</div>
-          <div className="stat-value" style={{ color: '#ef4444' }}>{atRiskKPIs}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Not Started</div>
-          <div className="stat-value" style={{ color: '#64748b' }}>{notStartedKPIs}</div>
-        </div>
+        <StatCard
+          icon={TrendingUp}
+          label="Total KPIs"
+          value={totalKPIs}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Achieved"
+          value={achievedKPIs}
+          color="#10b981"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="At Risk / Critical"
+          value={atRiskKPIs}
+          color="#ef4444"
+        />
+        <StatCard
+          icon={Clock}
+          label="Not Started"
+          value={notStartedKPIs}
+          color="#64748b"
+        />
       </div>
 
       {/* Add KPI Form */}
@@ -733,7 +747,7 @@ export default function KPIs() {
                         </Link>
                         {canEdit && (
                           <button
-                            onClick={() => handleDeleteKPI(kpi)}
+                            onClick={() => handleDeleteClick(kpi)}
                             style={{
                               padding: '0.5rem',
                               backgroundColor: '#fef2f2',
@@ -896,6 +910,19 @@ export default function KPIs() {
           <li><strong>Critical</strong> - Below 60% of target (only for KPIs that have been assessed)</li>
         </ul>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, kpi: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete KPI?"
+        message={getDeleteMessage(deleteDialog.kpi)}
+        confirmText="Delete KPI"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={saving}
+      />
     </div>
   );
 }
