@@ -3,15 +3,17 @@
 -- =============================================================================
 -- Purpose: Automatically log all changes to main tables
 -- Date: 2025-11-30
--- Version: 1.0
+-- Version: 1.0 (corrected)
 -- Phase: Production Hardening - High Priority
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- STEP 1: Ensure audit_log table exists with correct structure
+-- STEP 1: Drop and recreate audit_log table
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS audit_log (
+DROP TABLE IF EXISTS audit_log CASCADE;
+
+CREATE TABLE audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_name TEXT NOT NULL,
   record_id UUID NOT NULL,
@@ -52,7 +54,6 @@ DECLARE
   record_project_id UUID;
   current_user_id UUID;
   current_user_email TEXT;
-  key TEXT;
 BEGIN
   -- Get current user info
   current_user_id := auth.uid();
@@ -187,12 +188,6 @@ CREATE TRIGGER audit_partner_invoices
   AFTER INSERT OR UPDATE OR DELETE ON partner_invoices
   FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
--- Profiles (user changes)
-DROP TRIGGER IF EXISTS audit_profiles ON profiles;
-CREATE TRIGGER audit_profiles
-  AFTER INSERT OR UPDATE OR DELETE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
-
 -- -----------------------------------------------------------------------------
 -- STEP 4: Create helper views for audit log queries
 -- -----------------------------------------------------------------------------
@@ -251,7 +246,7 @@ ORDER BY total_actions DESC;
 
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
--- Admins and Supplier PMs can view all audit logs for their project
+-- Admins and Supplier PMs can view all audit logs
 DROP POLICY IF EXISTS "Admin and Supplier PM can view audit logs" ON audit_log;
 CREATE POLICY "Admin and Supplier PM can view audit logs" ON audit_log
   FOR SELECT
@@ -263,7 +258,7 @@ CREATE POLICY "Admin and Supplier PM can view audit logs" ON audit_log
     )
   );
 
--- No one can directly modify audit logs (they're append-only via triggers)
+-- Audit logs are append-only via triggers
 DROP POLICY IF EXISTS "Audit logs are append only" ON audit_log;
 CREATE POLICY "Audit logs are append only" ON audit_log
   FOR INSERT
