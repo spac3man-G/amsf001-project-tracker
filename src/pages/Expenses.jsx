@@ -1267,10 +1267,10 @@ export default function Expenses() {
           <li><strong>Chargeable expenses:</strong> Validated by Customer PM</li>
           <li><strong>Non-chargeable expenses:</strong> Validated by Supplier PM</li>
           {userRole === 'customer_pm' && (
-            <li><strong>As Customer PM:</strong> You can validate (✓) or reject (✗) chargeable expenses</li>
+            <li><strong>As Customer PM:</strong> You can validate or reject chargeable expenses</li>
           )}
           {userRole === 'supplier_pm' && (
-            <li><strong>As Supplier PM:</strong> You can validate (✓) or reject (✗) non-chargeable expenses</li>
+            <li><strong>As Supplier PM:</strong> You can validate or reject non-chargeable expenses</li>
           )}
         </ul>
       </div>
