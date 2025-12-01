@@ -85,6 +85,12 @@ Implemented in `api/chat.js` v3.1:
 - [x] GET endpoint for usage stats monitoring
 - [x] Frontend retry logic and cancel support
 
+Enhanced in v3.2 (1 December 2025):
+- [x] Copy message to clipboard
+- [x] Conversation persistence (localStorage, 50 messages)
+- [x] Export chat as Markdown file
+- [x] Token usage stats display in footer
+
 ### 2.4 Dashboard Performance
 **Effort:** 2 hours  
 **Risk:** Low
@@ -103,8 +109,10 @@ Implemented in `api/chat.js` v3.1:
 **Business Value:** High
 
 **Phase 1 Enhancements:**
-- [ ] Conversation history persistence (store in database)
-- [ ] Export chat to document
+- [x] Conversation history persistence (localStorage - 50 messages)
+- [x] Export chat to document (Markdown download)
+- [x] Copy message to clipboard
+- [x] Token usage stats display
 - [ ] Suggested follow-up questions
 - [ ] Date range picker for data queries
 - [ ] Natural language date parsing ("last month", "Q3")
