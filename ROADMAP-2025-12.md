@@ -31,28 +31,23 @@ This roadmap outlines technical debt, improvements, and pending features for the
 
 ## 🟠 Priority 2: Technical Debt (Short-term)
 
-### 2.1 Large Component Refactoring
+### 2.1 Large Component Refactoring ✅
 **Effort:** 2-4 hours each  
-**Risk:** Medium - improves maintainability
+**Risk:** Medium - improves maintainability  
+**Status:** COMPLETE (1 December 2025)
 
-| Component | Lines | Recommended Action |
-|-----------|-------|-------------------|
-| PartnerDetail.jsx | 1,492 | Extract InvoiceModal, ExpenseTable, TimesheetTable |
-| Milestones.jsx | 1,274 | Extract MilestoneForm, MilestoneTable, BudgetChart |
-| ResourceDetail.jsx | 1,117 | Extract TimesheetPanel, ExpensePanel, AllocationChart |
-| Expenses.jsx | 1,020 | Extract ExpenseForm, ExpenseFilters, ReceiptViewer |
+| Component | Before | After | Reduction |
+|-----------|--------|-------|-----------|
+| PartnerDetail.jsx | 1,493 | 585 | 61% ✅ |
+| Milestones.jsx | 1,274 | 443 | 65% ✅ |
+| ResourceDetail.jsx | 1,117 | 423 | 62% ✅ |
+| Expenses.jsx | 1,020 | 399 | 61% ✅ |
 
-**Refactoring Pattern:**
-```
-Before: src/pages/PartnerDetail.jsx (1,492 lines)
-
-After:
-  src/pages/PartnerDetail.jsx (~400 lines)
-  src/components/partners/InvoiceModal.jsx (~500 lines)
-  src/components/partners/InvoiceSummaryCards.jsx (~200 lines)
-  src/components/partners/PartnerTimesheets.jsx (~200 lines)
-  src/components/partners/PartnerExpenses.jsx (~200 lines)
-```
+**Extracted Components:**
+- `src/components/partners/` - InvoiceModal, DateRangeFilter, PartnerEditForm, PartnerDataTables
+- `src/components/milestones/` - CertificateModal, MilestoneForms, MilestoneTable
+- `src/components/resources/` - ResourceEditForm, ResourceStats, ResourceDataTables
+- `src/components/expenses/` - ExpenseAddForm, ExpenseFilters, ExpenseBreakdowns, ExpenseTable
 
 ### 2.2 Dependency Updates
 **Effort:** 1-2 hours  
@@ -77,15 +72,18 @@ npm update @vercel/speed-insights lucide-react
 - React 19, React Router 7, Vite 7 - defer until ecosystem mature
 - date-fns 4, recharts 3 - schedule dedicated update sprint
 
-### 2.3 Chat API Error Handling Enhancement
+### 2.3 Chat API Error Handling Enhancement ✅
 **Effort:** 1 hour  
-**Risk:** Low
+**Risk:** Low  
+**Status:** COMPLETE (1 December 2025)
 
-Current `api/chat.js` needs:
-- [ ] Better error messages for tool failures
-- [ ] Retry logic for transient Supabase errors
-- [ ] Token usage logging for cost monitoring
-- [ ] Rate limit response caching
+Implemented in `api/chat.js` v3.1:
+- [x] Better error messages for tool failures (user-friendly messages)
+- [x] Retry logic for transient Supabase errors (3 retries with exponential backoff)
+- [x] Token usage logging for cost monitoring (Haiku pricing)
+- [x] Response caching for stable queries (1-minute TTL)
+- [x] GET endpoint for usage stats monitoring
+- [x] Frontend retry logic and cancel support
 
 ### 2.4 Dashboard Performance
 **Effort:** 2 hours  
