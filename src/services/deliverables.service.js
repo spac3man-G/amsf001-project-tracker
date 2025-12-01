@@ -212,6 +212,159 @@ export class DeliverablesService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Get deliverables with relations (milestones, users, test filtering)
+   */
+  async getAllWithRelations(projectId, showTestUsers = false) {
+    try {
+      let query = this.supabase
+        .from('deliverables')
+        .select(`
+          *,
+          milestone:milestones(milestone_ref, name),
+          assigned_user:profiles!deliverables_assigned_to_fkey(full_name),
+          creator:profiles!deliverables_created_by_fkey(full_name)
+        `)
+        .eq('project_id', projectId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('deliverable_ref');
+
+      if (!showTestUsers) {
+        query = query.or('is_test_content.is.null,is_test_content.eq.false');
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return data || [];
+    } catch (error) {
+      console.error('DeliverablesService getAllWithRelations error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync KPI links for a deliverable
+   * Deletes existing links and inserts new ones
+   */
+  async syncKPILinks(deliverableId, kpiIds = []) {
+    try {
+      // Delete existing links
+      const { error: deleteError } = await this.supabase
+        .from('deliverable_kpis')
+        .delete()
+        .eq('deliverable_id', deliverableId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new links if any
+      if (kpiIds.length > 0) {
+        const links = kpiIds.map(kpiId => ({
+          deliverable_id: deliverableId,
+          kpi_id: kpiId
+        }));
+
+        const { error: insertError } = await this.supabase
+          .from('deliverable_kpis')
+          .insert(links);
+
+        if (insertError) throw insertError;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('DeliverablesService syncKPILinks error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync QS links for a deliverable
+   * Deletes existing links and inserts new ones
+   */
+  async syncQSLinks(deliverableId, qsIds = []) {
+    try {
+      // Delete existing links
+      const { error: deleteError } = await this.supabase
+        .from('deliverable_quality_standards')
+        .delete()
+        .eq('deliverable_id', deliverableId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new links if any
+      if (qsIds.length > 0) {
+        const links = qsIds.map(qsId => ({
+          deliverable_id: deliverableId,
+          quality_standard_id: qsId
+        }));
+
+        const { error: insertError } = await this.supabase
+          .from('deliverable_quality_standards')
+          .insert(links);
+
+        if (insertError) throw insertError;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('DeliverablesService syncQSLinks error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upsert KPI assessments
+   * Used when marking deliverables as delivered
+   */
+  async upsertKPIAssessments(deliverableId, kpiAssessments, assessedBy) {
+    try {
+      const upserts = kpiAssessments.map(assessment => ({
+        deliverable_id: deliverableId,
+        kpi_id: assessment.kpiId,
+        criteria_met: assessment.criteriaMet,
+        assessed_at: new Date().toISOString(),
+        assessed_by: assessedBy
+      }));
+
+      const { error } = await this.supabase
+        .from('deliverable_kpi_assessments')
+        .upsert(upserts, { onConflict: 'deliverable_id,kpi_id' });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('DeliverablesService upsertKPIAssessments error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upsert QS assessments
+   * Used when marking deliverables as delivered
+   */
+  async upsertQSAssessments(deliverableId, qsAssessments, assessedBy) {
+    try {
+      const upserts = qsAssessments.map(assessment => ({
+        deliverable_id: deliverableId,
+        quality_standard_id: assessment.qsId,
+        criteria_met: assessment.criteriaMet,
+        assessed_at: new Date().toISOString(),
+        assessed_by: assessedBy
+      }));
+
+      const { error } = await this.supabase
+        .from('deliverable_qs_assessments')
+        .upsert(upserts, { onConflict: 'deliverable_id,quality_standard_id' });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('DeliverablesService upsertQSAssessments error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

@@ -9,8 +9,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { timesheetsService, milestonesService } from '../services';
-import { supabase } from '../lib/supabase';
+import { timesheetsService, milestonesService, resourcesService } from '../services';
 import { 
   Clock, Plus, Edit2, Save, X, Trash2, Calendar,
   CheckCircle, AlertCircle, User, CalendarDays, Send
@@ -65,11 +64,10 @@ export default function Timesheets() {
       const timesheetsData = await timesheetsService.getAllFiltered(projectId, showTestUsers);
       setTimesheets(timesheetsData);
 
-      const { data: resourcesData } = await supabase.from('resources').select('id, name, email, user_id, cost_price').order('name');
-      let filteredResources = resourcesData || [];
-      if (!showTestUsers && testUserIds?.length > 0) {
-        filteredResources = filteredResources.filter(r => !r.user_id || !testUserIds.includes(r.user_id));
-      }
+      const filteredResources = await resourcesService.getAllWithTestFilter(
+        projectId, 
+        showTestUsers ? [] : testUserIds
+      );
       setResources(filteredResources);
 
       const milestonesData = await milestonesService.getAll(projectId, { orderBy: { column: 'milestone_ref', ascending: true } });

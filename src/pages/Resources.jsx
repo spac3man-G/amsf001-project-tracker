@@ -11,7 +11,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resourcesService, timesheetsService } from '../services';
-import { supabase } from '../lib/supabase';
 import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -135,7 +134,7 @@ export default function Resources() {
 
   async function handleAdd() {
     try {
-      const { data: existingProfile } = await supabase.from('profiles').select('id').eq('email', newResource.email).single();
+      const existingProfile = await resourcesService.getProfileByEmail(newResource.email);
       if (!existingProfile) {
         showWarning('This email is not registered. They need to sign up first.');
         return;
@@ -165,14 +164,11 @@ export default function Resources() {
 
   async function handleDelete(resource) {
     try {
-      const [timesheetResult, expenseResult] = await Promise.all([
-        supabase.from('timesheets').select('id', { count: 'exact', head: true }).eq('resource_id', resource.id),
-        supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('resource_id', resource.id)
-      ]);
+      const counts = await resourcesService.getDependencyCounts(resource.id);
       
       setDeleteDialog({ 
         isOpen: true, resource,
-        dependents: { timesheets: timesheetResult.count || 0, expenses: expenseResult.count || 0 }
+        dependents: { timesheets: counts.timesheetCount, expenses: counts.expenseCount }
       });
     } catch (err) {
       setDeleteDialog({ isOpen: true, resource, dependents: null });

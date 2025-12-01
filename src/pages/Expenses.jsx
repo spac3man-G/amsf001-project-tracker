@@ -2,11 +2,12 @@
  * Expenses Page
  * 
  * Track project expenses with category breakdown, validation workflow,
- * and procurement method tracking.
+ * and procurement method tracking. Now includes Smart Receipt Scanner
+ * for AI-powered expense entry from receipt photos.
  * 
- * @version 2.0
- * @updated 30 November 2025
- * @phase Production Hardening - Service Layer Adoption
+ * @version 3.0
+ * @updated 2 December 2025
+ * @phase Phase 2 - Smart Receipt Scanner
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -15,7 +16,7 @@ import { supabase } from '../lib/supabase';
 import { 
   Receipt, Plus, Edit2, Save, X, Trash2, Upload, Download,
   Car, Home, Utensils, AlertCircle, FileText, Check, User, Send, CheckCircle,
-  Building2, Briefcase
+  Building2, Briefcase, Camera, Sparkles
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +24,7 @@ import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
+import { ReceiptScanner } from '../components/expenses';
 
 // Constants
 const BUDGET = 20520;
@@ -80,6 +82,7 @@ export default function Expenses() {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [entryMode, setEntryMode] = useState('form'); // 'form' or 'scanner'
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -239,6 +242,32 @@ export default function Expenses() {
     } catch (error) {
       console.error('Error adding expense:', error);
       showError('Failed to add expenses: ' + error.message);
+    }
+  }
+
+  // Handle expense created from receipt scanner
+  async function handleScannedExpense(expenseData) {
+    try {
+      // Create expense using service
+      const expense = await expensesService.create({
+        project_id: projectId,
+        category: expenseData.category,
+        resource_id: expenseData.resource_id,
+        resource_name: expenseData.resource_name,
+        expense_date: expenseData.expense_date,
+        reason: expenseData.reason,
+        amount: expenseData.amount,
+        notes: expenseData.notes,
+        created_by: currentUserId,
+        chargeable_to_customer: expenseData.chargeable_to_customer,
+        procurement_method: expenseData.procurement_method
+      });
+
+      await fetchData();
+      // Don't close form - let scanner handle completion
+    } catch (error) {
+      console.error('Error creating scanned expense:', error);
+      showError('Failed to create expense: ' + error.message);
     }
   }
 
@@ -475,9 +504,22 @@ export default function Expenses() {
         subtitle={`Track project expenses against £${BUDGET.toLocaleString()} budget`}
       >
         {canAddExpense && !showAddForm && (
-          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-            <Plus size={18} /> Add Expenses
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => { setEntryMode('form'); setShowAddForm(true); }}
+            >
+              <Plus size={18} /> Add Expenses
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => { setEntryMode('scanner'); setShowAddForm(true); }}
+              style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', color: 'white', border: 'none' }}
+              title="Scan a receipt with AI"
+            >
+              <Camera size={18} /> <Sparkles size={14} /> Scan Receipt
+            </button>
+          </div>
         )}
       </PageHeader>
 
@@ -582,8 +624,8 @@ export default function Expenses() {
         </div>
       </div>
 
-      {/* Add Form - Simplified for brevity, keeping the original form structure */}
-      {showAddForm && (
+      {/* Add Form or Receipt Scanner */}
+      {showAddForm && entryMode === 'form' && (
         <AddExpenseForm
           newExpense={newExpense}
           setNewExpense={setNewExpense}
@@ -595,6 +637,18 @@ export default function Expenses() {
           uploadingFiles={uploadingFiles}
           onCancel={() => setShowAddForm(false)}
         />
+      )}
+
+      {/* Receipt Scanner */}
+      {showAddForm && entryMode === 'scanner' && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <ReceiptScanner
+            resources={availableResources}
+            defaultResourceId={availableResources.length === 1 ? availableResources[0].id : null}
+            onExpenseCreated={handleScannedExpense}
+            onCancel={() => { setShowAddForm(false); setEntryMode('form'); }}
+          />
+        </div>
       )}
 
       {/* Expenses Table */}

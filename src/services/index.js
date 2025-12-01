@@ -31,3 +31,6 @@ export { kpisService, KPIsService } from './kpis.service';
 export { qualityStandardsService, QualityStandardsService } from './qualityStandards.service';
 export { standardsService, StandardsService } from './standards.service';
 export { dashboardService, DashboardService } from './dashboard.service';
+
+// Smart features
+export { receiptScannerService } from './receiptScanner.service';

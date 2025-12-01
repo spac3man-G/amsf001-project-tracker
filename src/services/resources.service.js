@@ -387,6 +387,85 @@ export class ResourcesService extends BaseService {
       totalBudget: resources.reduce((sum, r) => sum + ((r.daily_rate || 0) * (r.days_allocated || 0)), 0)
     };
   }
+
+  /**
+   * Check if a profile exists by email
+   * Used before adding new resources to verify user exists
+   */
+  async getProfileByEmail(email) {
+    try {
+      const { data, error } = await this.supabase
+        .from('profiles')
+        .select('id, email, full_name, role')
+        .eq('email', email)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Not found
+          return null;
+        }
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('ResourcesService getProfileByEmail error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all resources with optional test user filtering
+   * Used by Timesheets page to populate resource dropdown
+   */
+  async getAllWithTestFilter(projectId, testUserIds = []) {
+    try {
+      const resources = await this.getAll(projectId, {
+        orderBy: { column: 'name', ascending: true }
+      });
+
+      // Filter out test users if provided
+      if (testUserIds && testUserIds.length > 0) {
+        return resources.filter(r => !r.user_id || !testUserIds.includes(r.user_id));
+      }
+
+      return resources;
+    } catch (error) {
+      console.error('ResourcesService getAllWithTestFilter error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check dependencies before deleting a resource
+   * Returns counts of timesheets and expenses linked to this resource
+   */
+  async getDependencyCounts(resourceId) {
+    try {
+      const [timesheetResult, expenseResult] = await Promise.all([
+        this.supabase
+          .from('timesheets')
+          .select('id', { count: 'exact', head: true })
+          .eq('resource_id', resourceId)
+          .or('is_deleted.is.null,is_deleted.eq.false'),
+        this.supabase
+          .from('expenses')
+          .select('id', { count: 'exact', head: true })
+          .eq('resource_id', resourceId)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+      ]);
+
+      return {
+        timesheetCount: timesheetResult.count || 0,
+        expenseCount: expenseResult.count || 0,
+        canDelete: (timesheetResult.count || 0) === 0 && (expenseResult.count || 0) === 0
+      };
+    } catch (error) {
+      console.error('ResourcesService getDependencyCounts error:', error);
+      throw error;
+    }
+  }
 }
 
 // Singleton instance

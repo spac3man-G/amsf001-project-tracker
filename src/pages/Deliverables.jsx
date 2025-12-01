@@ -11,7 +11,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService } from '../services';
-import { supabase } from '../lib/supabase';
 import { Package, Plus, X, Edit2, Trash2, Save, CheckCircle, Clock, AlertCircle, Send, ThumbsUp, RotateCcw, Info } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -112,10 +111,8 @@ export default function Deliverables() {
       const qsData = await qualityStandardsService.getAll(projectId, { orderBy: { column: 'qs_ref', ascending: true } });
       setQualityStandards(qsData);
 
-      // Fetch deliverables with relations (service doesn't handle complex joins yet)
-      let query = supabase.from('deliverables').select(`*, milestones(milestone_ref, name), deliverable_kpis(kpi_id, kpis(kpi_ref, name)), deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name))`).eq('project_id', projectId).or('is_deleted.is.null,is_deleted.eq.false').order('deliverable_ref');
-      if (!showTestUsers) query = query.or('is_test_content.is.null,is_test_content.eq.false');
-      const { data: deliverablesData } = await query;
+      // Fetch deliverables with relations using service
+      const deliverablesData = await deliverablesService.getAllWithRelations(projectId, showTestUsers);
       setDeliverables(deliverablesData || []);
     } catch (error) { console.error('Error:', error); showError('Failed to load deliverables'); }
     finally { setLoading(false); }
@@ -133,8 +130,9 @@ export default function Deliverables() {
         assigned_to: newDeliverable.assigned_to, due_date: newDeliverable.due_date || null, created_by: currentUserId
       });
 
-      if (newDeliverable.kpi_ids.length > 0) await supabase.from('deliverable_kpis').insert(newDeliverable.kpi_ids.map(kpiId => ({ deliverable_id: data.id, kpi_id: kpiId })));
-      if (newDeliverable.qs_ids.length > 0) await supabase.from('deliverable_quality_standards').insert(newDeliverable.qs_ids.map(qsId => ({ deliverable_id: data.id, quality_standard_id: qsId })));
+      // Sync KPI and QS links using service
+      await deliverablesService.syncKPILinks(data.id, newDeliverable.kpi_ids);
+      await deliverablesService.syncQSLinks(data.id, newDeliverable.qs_ids);
 
       setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
       setShowAddForm(false);
@@ -152,11 +150,9 @@ export default function Deliverables() {
     try {
       await deliverablesService.update(editForm.id, { name: editForm.name, description: editForm.description, milestone_id: editForm.milestone_id || null, status: editForm.status, progress: parseInt(editForm.progress) || 0, assigned_to: editForm.assigned_to, due_date: editForm.due_date || null });
 
-      await supabase.from('deliverable_kpis').delete().eq('deliverable_id', editForm.id);
-      if (editForm.kpi_ids.length > 0) await supabase.from('deliverable_kpis').insert(editForm.kpi_ids.map(kpiId => ({ deliverable_id: editForm.id, kpi_id: kpiId })));
-
-      await supabase.from('deliverable_quality_standards').delete().eq('deliverable_id', editForm.id);
-      if (editForm.qs_ids.length > 0) await supabase.from('deliverable_quality_standards').insert(editForm.qs_ids.map(qsId => ({ deliverable_id: editForm.id, quality_standard_id: qsId })));
+      // Sync KPI and QS links using service
+      await deliverablesService.syncKPILinks(editForm.id, editForm.kpi_ids);
+      await deliverablesService.syncQSLinks(editForm.id, editForm.qs_ids);
 
       setShowEditModal(false);
       fetchData();
@@ -189,11 +185,22 @@ export default function Deliverables() {
     try {
       await deliverablesService.update(completingDeliverable.id, { status: 'Delivered', progress: 100 });
 
-      for (const dk of linkedKPIs) {
-        await supabase.from('deliverable_kpi_assessments').upsert({ deliverable_id: completingDeliverable.id, kpi_id: dk.kpi_id, criteria_met: kpiAssessments[dk.kpi_id], assessed_at: new Date().toISOString(), assessed_by: currentUserId }, { onConflict: 'deliverable_id,kpi_id' });
+      // Upsert KPI assessments using service
+      if (linkedKPIs.length > 0) {
+        const kpiAssessmentData = linkedKPIs.map(dk => ({
+          kpiId: dk.kpi_id,
+          criteriaMet: kpiAssessments[dk.kpi_id]
+        }));
+        await deliverablesService.upsertKPIAssessments(completingDeliverable.id, kpiAssessmentData, currentUserId);
       }
-      for (const dqs of linkedQS) {
-        await supabase.from('deliverable_qs_assessments').upsert({ deliverable_id: completingDeliverable.id, quality_standard_id: dqs.quality_standard_id, criteria_met: qsAssessments[dqs.quality_standard_id], assessed_at: new Date().toISOString(), assessed_by: currentUserId }, { onConflict: 'deliverable_id,quality_standard_id' });
+
+      // Upsert QS assessments using service
+      if (linkedQS.length > 0) {
+        const qsAssessmentData = linkedQS.map(dqs => ({
+          qsId: dqs.quality_standard_id,
+          criteriaMet: qsAssessments[dqs.quality_standard_id]
+        }));
+        await deliverablesService.upsertQSAssessments(completingDeliverable.id, qsAssessmentData, currentUserId);
       }
 
       showSuccess('Deliverable marked as delivered!');

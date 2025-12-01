@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { milestonesService } from '../services';
 import { Settings as SettingsIcon, Save, RefreshCw, AlertCircle, CheckCircle, DollarSign, Target, Info } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -46,7 +47,7 @@ export default function Settings() {
 
   async function fetchSettings() {
     try {
-      // Fetch project details
+      // Fetch project details (no projects service yet, keep direct query)
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('*')
@@ -66,14 +67,10 @@ export default function Settings() {
         setOriginalSettings(settingsData);
       }
 
-      // Fetch milestones for budget allocation
-      const { data: milestonesData, error: milestonesError } = await supabase
-        .from('milestones')
-        .select('id, milestone_ref, name, budget')
-        .eq('project_id', projectId)
-        .order('milestone_ref');
-      
-      if (milestonesError) throw milestonesError;
+      // Fetch milestones using service
+      const milestonesData = await milestonesService.getAll(projectId, {
+        orderBy: { column: 'milestone_ref', ascending: true }
+      });
       setMilestones(milestonesData || []);
       
     } catch (error) {
@@ -130,12 +127,9 @@ export default function Settings() {
     setSavingMilestone(milestoneId);
     
     try {
-      const { error } = await supabase
-        .from('milestones')
-        .update({ budget: parseFloat(newBudget) || 0 })
-        .eq('id', milestoneId);
-
-      if (error) throw error;
+      await milestonesService.update(milestoneId, { 
+        budget: parseFloat(newBudget) || 0 
+      });
 
       // Update local state
       setMilestones(milestones.map(m => 
