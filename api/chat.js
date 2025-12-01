@@ -903,7 +903,7 @@ async function executeGetTimesheetSummary(params, context) {
 async function executeGetExpenses(params, context) {
   const { projectId, userContext } = context;
   
-  // Use left join (no !inner) so expenses without resources still return
+  // Simple query without complex joins for reliability
   let query = supabase
     .from('expenses')
     .select(`
@@ -916,14 +916,12 @@ async function executeGetExpenses(params, context) {
     .limit(50);
   
   // Apply permission scoping based on role
+  // supplier_pm, admin, customer_pm see all expenses (no filter needed)
   if (userContext.role === 'contributor' && userContext.linkedResourceId) {
     query = query.eq('resource_id', userContext.linkedResourceId);
-  } else if (['partner_user', 'partner_admin'].includes(userContext.role) && userContext.partnerId) {
-    // For partner users, filter by their partner's resources
-    query = query.not('resources', 'is', null)
-                 .eq('resources.partner_id', userContext.partnerId);
   }
-  // supplier_pm, admin, and other roles see all expenses (no additional filter)
+  // Note: Partner filtering requires post-processing since we use left join
+  const filterByPartner = ['partner_user', 'partner_admin'].includes(userContext.role) && userContext.partnerId;
   
   // Apply filters
   if (params.status && params.status !== 'all') {
@@ -951,9 +949,17 @@ async function executeGetExpenses(params, context) {
   const { data, error } = await query;
   if (error) throw error;
   
-  const expenses = (data || []).map(e => ({
+  // Post-process for partner filtering if needed
+  let filteredData = data || [];
+  if (filterByPartner) {
+    filteredData = filteredData.filter(e => 
+      e.resources && e.resources.partner_id === userContext.partnerId
+    );
+  }
+  
+  const expenses = filteredData.map(e => ({
     date: e.expense_date,
-    resource: e.resources?.name,
+    resource: e.resources?.name || 'Unassigned',
     category: e.category,
     amount: e.amount,
     status: e.status,
@@ -977,7 +983,7 @@ async function executeGetExpenses(params, context) {
 async function executeGetExpenseSummary(params, context) {
   const { projectId, userContext } = context;
   
-  // Use left join (no !inner) so expenses without resources still return
+  // Simple query without complex joins for reliability
   let query = supabase
     .from('expenses')
     .select(`
@@ -987,13 +993,11 @@ async function executeGetExpenseSummary(params, context) {
     .eq('project_id', projectId);
   
   // Apply permission scoping based on role
+  // supplier_pm, admin, customer_pm see all expenses
   if (userContext.role === 'contributor' && userContext.linkedResourceId) {
     query = query.eq('resource_id', userContext.linkedResourceId);
-  } else if (['partner_user', 'partner_admin'].includes(userContext.role) && userContext.partnerId) {
-    query = query.not('resources', 'is', null)
-                 .eq('resources.partner_id', userContext.partnerId);
   }
-  // supplier_pm, admin, and other roles see all expenses
+  const filterByPartner = ['partner_user', 'partner_admin'].includes(userContext.role) && userContext.partnerId;
   
   if (params.dateRange) {
     const range = getDateRange(params.dateRange);
@@ -1005,7 +1009,14 @@ async function executeGetExpenseSummary(params, context) {
   const { data, error } = await query;
   if (error) throw error;
   
-  const expenses = data || [];
+  // Post-process for partner filtering if needed
+  let expenses = data || [];
+  if (filterByPartner) {
+    expenses = expenses.filter(e => 
+      e.resources && e.resources.partner_id === userContext.partnerId
+    );
+  }
+  
   const groupBy = params.groupBy || 'category';
   
   const groups = {};
