@@ -1,12 +1,16 @@
 // src/contexts/ChatContext.jsx
 // Provides AI chat state and functionality to the application
-// Version 3.1 - Enhanced error handling and retry logic
+// Version 3.2 - Added persistence, token tracking, and export
 
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { useProject } from './ProjectContext';
 
 const ChatContext = createContext(null);
+
+// Storage key for chat history
+const CHAT_STORAGE_KEY = 'amsf-chat-history';
+const MAX_STORED_MESSAGES = 50;
 
 // Retry configuration
 const RETRY_CONFIG = {
@@ -15,16 +19,59 @@ const RETRY_CONFIG = {
   retryableCodes: [429, 503, 504],
 };
 
+// Load chat history from localStorage
+function loadChatHistory() {
+  try {
+    const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (stored) {
+      const data = JSON.parse(stored);
+      return {
+        messages: data.messages || [],
+        tokenUsage: data.tokenUsage || { input: 0, output: 0, requests: 0 },
+      };
+    }
+  } catch (e) {
+    console.warn('Failed to load chat history:', e);
+  }
+  return { messages: [], tokenUsage: { input: 0, output: 0, requests: 0 } };
+}
+
+// Save chat history to localStorage
+function saveChatHistory(messages, tokenUsage) {
+  try {
+    // Keep only last N messages
+    const trimmedMessages = messages.slice(-MAX_STORED_MESSAGES);
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({
+      messages: trimmedMessages,
+      tokenUsage,
+      savedAt: new Date().toISOString(),
+    }));
+  } catch (e) {
+    console.warn('Failed to save chat history:', e);
+  }
+}
+
 export function ChatProvider({ children }) {
   const { user, profile, linkedResource, role } = useAuth();
   const { projectId, projectName, projectRef, currentProject } = useProject();
   
+  // Load initial state from localStorage
+  const initialState = loadChatHistory();
+  
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(initialState.messages);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [tokenUsage, setTokenUsage] = useState(initialState.tokenUsage);
   const abortControllerRef = useRef(null);
+
+  // Save to localStorage when messages or token usage change
+  useEffect(() => {
+    if (messages.length > 0 || tokenUsage.requests > 0) {
+      saveChatHistory(messages, tokenUsage);
+    }
+  }, [messages, tokenUsage]);
 
   // Build project context for the AI
   const getProjectContext = useCallback(() => {
@@ -108,7 +155,11 @@ export function ChatProvider({ children }) {
     }
 
     // Add user message to chat
-    const userMessage = { role: 'user', content: content.trim() };
+    const userMessage = { 
+      role: 'user', 
+      content: content.trim(),
+      timestamp: new Date().toISOString(),
+    };
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setError(null);
@@ -133,12 +184,26 @@ export function ChatProvider({ children }) {
         projectId,
       });
 
+      // Track token usage
+      if (data.usage) {
+        setTokenUsage(prev => ({
+          input: prev.input + (data.usage.input_tokens || 0),
+          output: prev.output + (data.usage.output_tokens || 0),
+          requests: prev.requests + 1,
+        }));
+      }
+
       // Add assistant message to chat
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: data.message,
         toolsUsed: data.toolsUsed || false,
         cached: data.cached || false,
+        timestamp: new Date().toISOString(),
+        tokens: data.usage ? {
+          input: data.usage.input_tokens,
+          output: data.usage.output_tokens,
+        } : null,
       }]);
 
     } catch (err) {
@@ -177,7 +242,15 @@ export function ChatProvider({ children }) {
     cancelRequest();
     setMessages([]);
     setError(null);
+    // Keep token usage stats (don't reset)
+    localStorage.removeItem(CHAT_STORAGE_KEY);
   }, [cancelRequest]);
+
+  // Reset all stats including token usage
+  const resetAllStats = useCallback(() => {
+    clearChat();
+    setTokenUsage({ input: 0, output: 0, requests: 0 });
+  }, [clearChat]);
 
   // Toggle chat open/closed
   const toggleChat = useCallback(() => {
@@ -189,6 +262,69 @@ export function ChatProvider({ children }) {
     setError(null);
   }, []);
 
+  // Export chat as markdown
+  const exportChat = useCallback(() => {
+    if (messages.length === 0) return null;
+
+    const userContext = getUserContext();
+    const projectContext = getProjectContext();
+    
+    let markdown = `# Chat Export\n\n`;
+    markdown += `**Exported:** ${new Date().toLocaleString('en-GB')}\n`;
+    markdown += `**User:** ${userContext.name} (${userContext.role})\n`;
+    if (projectContext) {
+      markdown += `**Project:** ${projectContext.name} (${projectContext.reference})\n`;
+    }
+    markdown += `**Messages:** ${messages.length}\n`;
+    markdown += `**Token Usage:** ${tokenUsage.input.toLocaleString()} input / ${tokenUsage.output.toLocaleString()} output\n\n`;
+    markdown += `---\n\n`;
+
+    messages.forEach((msg, index) => {
+      const role = msg.role === 'user' ? '👤 You' : '🤖 Assistant';
+      const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('en-GB') : '';
+      
+      markdown += `### ${role}${time ? ` (${time})` : ''}\n\n`;
+      markdown += `${msg.content}\n\n`;
+      
+      if (msg.toolsUsed) {
+        markdown += `*📊 Queried project data*\n\n`;
+      }
+      
+      if (index < messages.length - 1) {
+        markdown += `---\n\n`;
+      }
+    });
+
+    return markdown;
+  }, [messages, tokenUsage, getUserContext, getProjectContext]);
+
+  // Download chat as file
+  const downloadChat = useCallback(() => {
+    const markdown = exportChat();
+    if (!markdown) return;
+
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-export-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [exportChat]);
+
+  // Copy message to clipboard
+  const copyMessage = useCallback(async (content) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      return true;
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      return false;
+    }
+  }, []);
+
   const value = {
     isOpen,
     setIsOpen,
@@ -197,10 +333,15 @@ export function ChatProvider({ children }) {
     isLoading,
     error,
     retryCount,
+    tokenUsage,
     sendMessage,
     clearChat,
+    resetAllStats,
     cancelRequest,
     dismissError,
+    exportChat,
+    downloadChat,
+    copyMessage,
   };
 
   return (

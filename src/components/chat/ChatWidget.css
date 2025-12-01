@@ -1,5 +1,6 @@
 /* src/components/chat/ChatWidget.css */
 /* Floating AI Chat Widget Styles */
+/* Version 3.2 - Added copy, export, and stats styles */
 
 /* ========================================
    Chat Toggle Button
@@ -105,9 +106,10 @@
 .chat-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
+.chat-action-btn,
 .chat-clear-btn,
 .chat-close-btn {
   background: rgba(255, 255, 255, 0.15);
@@ -123,6 +125,7 @@
   transition: background 0.2s;
 }
 
+.chat-action-btn:hover,
 .chat-clear-btn:hover,
 .chat-close-btn:hover {
   background: rgba(255, 255, 255, 0.25);
@@ -194,6 +197,7 @@
   border-radius: 16px;
   line-height: 1.5;
   font-size: 0.9rem;
+  position: relative;
 }
 
 .chat-message-user .chat-message-content {
@@ -238,6 +242,72 @@
   height: 8px;
 }
 
+/* Message actions (copy, tools indicator) */
+.chat-message-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.chat-message-user .chat-message-actions {
+  border-top-color: rgba(255, 255, 255, 0.2);
+  justify-content: flex-end;
+}
+
+/* Copy button */
+.chat-copy-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: all 0.15s;
+}
+
+.chat-copy-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.chat-message-user .chat-copy-btn {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-message-user .chat-copy-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.chat-copy-success {
+  color: #10b981 !important;
+}
+
+.chat-message-user .chat-copy-success {
+  color: #6ee7b7 !important;
+}
+
+/* Tools used indicator */
+.chat-tools-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
+.chat-tools-indicator svg {
+  color: #0ea5e9;
+}
+
 /* Typing indicator */
 .chat-typing {
   display: flex;
@@ -254,22 +324,6 @@
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-/* Tools used indicator */
-.chat-tools-indicator {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid #e2e8f0;
-  color: #94a3b8;
-  font-size: 0.7rem;
-}
-
-.chat-tools-indicator svg {
-  color: #0ea5e9;
 }
 
 /* Error message */
@@ -388,16 +442,49 @@
 }
 
 /* ========================================
-   Chat Footer
+   Chat Footer with Stats
    ======================================== */
 
 .chat-footer {
   padding: 8px 16px;
   background: #f8fafc;
   border-top: 1px solid #e2e8f0;
-  text-align: center;
   font-size: 0.75rem;
   color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.chat-stats-toggle {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.chat-stats-toggle:hover {
+  color: #64748b;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.chat-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 0.7rem;
+}
+
+.chat-stats-divider {
+  color: #cbd5e1;
 }
 
 /* ========================================
@@ -418,6 +505,10 @@
     right: 16px;
     width: 52px;
     height: 52px;
+  }
+  
+  .chat-stats {
+    font-size: 0.65rem;
   }
 }
 

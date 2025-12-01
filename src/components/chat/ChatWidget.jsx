@@ -1,8 +1,12 @@
 // src/components/chat/ChatWidget.jsx
 // Floating AI chat widget with expandable panel
+// Version 3.2 - Added copy, export, and token stats
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Trash2, Bot, User, Loader2, Sparkles, Database, RefreshCw, XCircle } from 'lucide-react';
+import { 
+  MessageCircle, X, Send, Trash2, Bot, User, Loader2, Sparkles, 
+  Database, RefreshCw, XCircle, Copy, Check, Download, BarChart3 
+} from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import './ChatWidget.css';
 
@@ -14,13 +18,18 @@ export default function ChatWidget() {
     isLoading,
     error,
     retryCount,
+    tokenUsage,
     sendMessage,
     clearChat,
     cancelRequest,
     dismissError,
+    downloadChat,
+    copyMessage,
   } = useChat();
 
   const [input, setInput] = useState('');
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [showStats, setShowStats] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -36,6 +45,14 @@ export default function ChatWidget() {
     }
   }, [isOpen]);
 
+  // Reset copied state after 2 seconds
+  useEffect(() => {
+    if (copiedIndex !== null) {
+      const timer = setTimeout(() => setCopiedIndex(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copiedIndex]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
@@ -48,6 +65,13 @@ export default function ChatWidget() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
+    }
+  };
+
+  const handleCopy = async (content, index) => {
+    const success = await copyMessage(content);
+    if (success) {
+      setCopiedIndex(index);
     }
   };
 
@@ -66,6 +90,12 @@ All data is scoped to your role, so just ask naturally!`,
   };
 
   const displayMessages = messages.length === 0 ? [welcomeMessage] : messages;
+
+  // Calculate estimated cost (Haiku pricing)
+  const estimatedCost = (
+    (tokenUsage.input * 0.25 / 1000000) + 
+    (tokenUsage.output * 1.25 / 1000000)
+  ).toFixed(4);
 
   return (
     <>
@@ -95,13 +125,22 @@ All data is scoped to your role, so just ask naturally!`,
           </div>
           <div className="chat-header-actions">
             {messages.length > 0 && (
-              <button
-                className="chat-clear-btn"
-                onClick={clearChat}
-                title="Clear chat"
-              >
-                <Trash2 size={16} />
-              </button>
+              <>
+                <button
+                  className="chat-action-btn"
+                  onClick={downloadChat}
+                  title="Export chat as Markdown"
+                >
+                  <Download size={16} />
+                </button>
+                <button
+                  className="chat-action-btn"
+                  onClick={clearChat}
+                  title="Clear chat"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
             )}
             <button
               className="chat-close-btn"
@@ -125,11 +164,24 @@ All data is scoped to your role, so just ask naturally!`,
               </div>
               <div className="chat-message-content">
                 <MessageContent content={msg.content} />
-                {msg.toolsUsed && (
-                  <div className="chat-tools-indicator" title="Queried project data">
-                    <Database size={12} />
-                  </div>
-                )}
+                <div className="chat-message-actions">
+                  {msg.toolsUsed && (
+                    <span className="chat-tools-indicator" title="Queried project data">
+                      <Database size={12} />
+                    </span>
+                  )}
+                  <button
+                    className="chat-copy-btn"
+                    onClick={() => handleCopy(msg.content, index)}
+                    title={copiedIndex === index ? 'Copied!' : 'Copy message'}
+                  >
+                    {copiedIndex === index ? (
+                      <Check size={12} className="chat-copy-success" />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -202,9 +254,29 @@ All data is scoped to your role, so just ask naturally!`,
           </button>
         </form>
 
-        {/* Footer */}
+        {/* Footer with stats */}
         <div className="chat-footer">
-          Powered by Claude AI
+          <button 
+            className="chat-stats-toggle"
+            onClick={() => setShowStats(!showStats)}
+            title="Toggle usage stats"
+          >
+            <BarChart3 size={12} />
+          </button>
+          
+          {showStats ? (
+            <div className="chat-stats">
+              <span title="Total requests">{tokenUsage.requests} req</span>
+              <span className="chat-stats-divider">•</span>
+              <span title="Input tokens">{tokenUsage.input.toLocaleString()} in</span>
+              <span className="chat-stats-divider">•</span>
+              <span title="Output tokens">{tokenUsage.output.toLocaleString()} out</span>
+              <span className="chat-stats-divider">•</span>
+              <span title="Estimated cost">${estimatedCost}</span>
+            </div>
+          ) : (
+            <span>Powered by Claude AI</span>
+          )}
         </div>
       </div>
     </>
