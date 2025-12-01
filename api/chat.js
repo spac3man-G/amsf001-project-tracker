@@ -1,5 +1,5 @@
 // Vercel Edge Function for AI Chat Assistant
-// Version 3.0 - Tool-enabled data queries
+// Version 3.1 - Enhanced error handling, retry logic, and cost monitoring
 // Uses Claude Haiku with function calling for database queries
 
 import { createClient } from '@supabase/supabase-js';
@@ -25,6 +25,207 @@ function getSupabase() {
 const supabase = {
   from: (table) => getSupabase()?.from(table)
 };
+
+// ============================================
+// COST MONITORING - Token Usage Logging
+// ============================================
+
+// Claude Haiku pricing (per 1M tokens, as of Dec 2024)
+const TOKEN_COSTS = {
+  input: 0.25,   // $0.25 per 1M input tokens
+  output: 1.25,  // $1.25 per 1M output tokens
+};
+
+// In-memory usage stats (resets on cold start)
+const usageStats = {
+  totalRequests: 0,
+  totalInputTokens: 0,
+  totalOutputTokens: 0,
+  estimatedCostUSD: 0,
+  startedAt: new Date().toISOString(),
+  recentRequests: [], // Last 100 requests for analysis
+};
+
+function logTokenUsage(usage, userId, toolsUsed) {
+  if (!usage) return;
+  
+  const inputTokens = usage.input_tokens || 0;
+  const outputTokens = usage.output_tokens || 0;
+  const costUSD = (inputTokens * TOKEN_COSTS.input / 1000000) + 
+                  (outputTokens * TOKEN_COSTS.output / 1000000);
+  
+  // Update totals
+  usageStats.totalRequests++;
+  usageStats.totalInputTokens += inputTokens;
+  usageStats.totalOutputTokens += outputTokens;
+  usageStats.estimatedCostUSD += costUSD;
+  
+  // Track recent requests (keep last 100)
+  usageStats.recentRequests.push({
+    timestamp: new Date().toISOString(),
+    userId: userId?.substring(0, 20) || 'anonymous',
+    inputTokens,
+    outputTokens,
+    costUSD: costUSD.toFixed(6),
+    toolsUsed,
+  });
+  
+  if (usageStats.recentRequests.length > 100) {
+    usageStats.recentRequests.shift();
+  }
+  
+  // Log summary every 10 requests
+  if (usageStats.totalRequests % 10 === 0) {
+    console.log(`[Chat API Stats] Requests: ${usageStats.totalRequests}, ` +
+                `Tokens: ${usageStats.totalInputTokens}/${usageStats.totalOutputTokens}, ` +
+                `Est. Cost: $${usageStats.estimatedCostUSD.toFixed(4)}`);
+  }
+}
+
+// ============================================
+// RETRY LOGIC FOR DATABASE OPERATIONS
+// ============================================
+
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelayMs: 100,
+  maxDelayMs: 2000,
+  retryableErrors: [
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ENOTFOUND',
+    'connection',
+    'timeout',
+    'network',
+    '503',
+    '502',
+    '504',
+  ],
+};
+
+function isRetryableError(error) {
+  const errorString = String(error?.message || error).toLowerCase();
+  return RETRY_CONFIG.retryableErrors.some(re => errorString.includes(re.toLowerCase()));
+}
+
+async function withRetry(operation, operationName) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      
+      if (!isRetryableError(error) || attempt === RETRY_CONFIG.maxRetries) {
+        throw error;
+      }
+      
+      // Exponential backoff with jitter
+      const delay = Math.min(
+        RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 100,
+        RETRY_CONFIG.maxDelayMs
+      );
+      
+      console.warn(`[Retry] ${operationName} attempt ${attempt} failed, retrying in ${delay}ms:`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError;
+}
+
+// ============================================
+// USER-FRIENDLY ERROR MESSAGES
+// ============================================
+
+const ERROR_MESSAGES = {
+  'PGRST116': 'No matching records found for your query.',
+  'PGRST301': 'Database connection issue. Please try again.',
+  '42P01': 'The requested data table does not exist.',
+  '42501': 'You do not have permission to access this data.',
+  '23505': 'A record with this identifier already exists.',
+  'timeout': 'The database query took too long. Try a more specific search.',
+  'network': 'Network connection issue. Please check your connection.',
+  'rate_limit': 'Too many requests. Please wait a moment and try again.',
+};
+
+function getUserFriendlyError(error, toolName) {
+  const errorString = String(error?.message || error);
+  const errorCode = error?.code || '';
+  
+  // Check for known error codes
+  for (const [code, message] of Object.entries(ERROR_MESSAGES)) {
+    if (errorCode.includes(code) || errorString.includes(code)) {
+      return { 
+        error: message, 
+        tool: toolName, 
+        recoverable: !['42P01', '42501'].includes(code) 
+      };
+    }
+  }
+  
+  // Generic fallback with context
+  const toolContext = {
+    getUserProfile: 'fetch your profile',
+    getTimesheets: 'retrieve timesheet data',
+    getExpenses: 'retrieve expense data',
+    getMilestones: 'fetch milestone information',
+    getDeliverables: 'fetch deliverable status',
+    getBudgetSummary: 'calculate budget summary',
+    getResources: 'retrieve resource list',
+    getKPIs: 'fetch KPI data',
+  };
+  
+  const action = toolContext[toolName] || 'complete your request';
+  return { 
+    error: `Unable to ${action}. Please try again or rephrase your question.`,
+    tool: toolName,
+    recoverable: true,
+    details: process.env.NODE_ENV === 'development' ? errorString : undefined
+  };
+}
+
+// ============================================
+// RESPONSE CACHING FOR COMMON QUERIES
+// ============================================
+
+const responseCache = new Map();
+const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
+
+function getCacheKey(toolName, toolInput, context) {
+  // Only cache certain read-only, stable queries
+  const cacheableTools = ['getUserProfile', 'getRolePermissions', 'getMilestones', 'getResources'];
+  if (!cacheableTools.includes(toolName)) return null;
+  
+  return `${context.userContext?.email || 'anon'}:${toolName}:${JSON.stringify(toolInput)}`;
+}
+
+function getCachedResponse(cacheKey) {
+  if (!cacheKey) return null;
+  
+  const cached = responseCache.get(cacheKey);
+  if (!cached) return null;
+  
+  if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
+    responseCache.delete(cacheKey);
+    return null;
+  }
+  
+  return cached.data;
+}
+
+function setCachedResponse(cacheKey, data) {
+  if (!cacheKey) return;
+  
+  // Limit cache size
+  if (responseCache.size > 500) {
+    const oldestKey = responseCache.keys().next().value;
+    responseCache.delete(oldestKey);
+  }
+  
+  responseCache.set(cacheKey, { data, timestamp: Date.now() });
+}
 
 // ============================================
 // RATE LIMITING
@@ -1054,7 +1255,15 @@ async function executeGetKPIs(params, context) {
 // ============================================
 
 async function executeTool(toolName, toolInput, context) {
-  try {
+  // Check cache first
+  const cacheKey = getCacheKey(toolName, toolInput, context);
+  const cachedResult = getCachedResponse(cacheKey);
+  if (cachedResult) {
+    console.log(`[Cache Hit] ${toolName}`);
+    return cachedResult;
+  }
+
+  const executeToolOperation = async () => {
     switch (toolName) {
       case 'getUserProfile':
         return await executeGetUserProfile(context);
@@ -1081,11 +1290,21 @@ async function executeTool(toolName, toolInput, context) {
       case 'getKPIs':
         return await executeGetKPIs(toolInput, context);
       default:
-        return { error: `Unknown tool: ${toolName}` };
+        return { error: `Unknown tool: ${toolName}`, recoverable: false };
     }
+  };
+
+  try {
+    // Execute with retry logic for transient errors
+    const result = await withRetry(executeToolOperation, toolName);
+    
+    // Cache successful results
+    setCachedResponse(cacheKey, result);
+    
+    return result;
   } catch (error) {
     console.error(`Tool execution error (${toolName}):`, error);
-    return { error: `Failed to execute ${toolName}: ${error.message}` };
+    return getUserFriendlyError(error, toolName);
   }
 }
 
@@ -1140,6 +1359,35 @@ ${userContext?.partnerName ? `- Partner: ${userContext.partnerName}` : ''}
 // ============================================
 
 export default async function handler(req) {
+  // GET request returns usage stats (for admin monitoring)
+  if (req.method === 'GET') {
+    // Only allow stats access with admin key or from localhost
+    const adminKey = req.headers.get('x-admin-key');
+    const isLocal = req.headers.get('host')?.includes('localhost');
+    
+    if (adminKey === process.env.ADMIN_API_KEY || isLocal) {
+      return new Response(JSON.stringify({
+        stats: {
+          ...usageStats,
+          cacheSize: responseCache.size,
+          rateLimitEntries: rateLimitStore.size,
+          uptime: `${((Date.now() - new Date(usageStats.startedAt).getTime()) / 1000 / 60).toFixed(1)} minutes`,
+          averageTokensPerRequest: usageStats.totalRequests > 0 
+            ? Math.round((usageStats.totalInputTokens + usageStats.totalOutputTokens) / usageStats.totalRequests)
+            : 0,
+        }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
@@ -1269,10 +1517,14 @@ export default async function handler(req) {
     const textContent = finalResponse.content.find(block => block.type === 'text');
     const responseText = textContent?.text || 'I apologize, but I was unable to generate a response.';
 
+    // Log token usage for cost monitoring
+    logTokenUsage(finalResponse.usage, userId, iterations > 1);
+
     return new Response(JSON.stringify({
       message: responseText,
       usage: finalResponse.usage,
-      toolsUsed: iterations > 1
+      toolsUsed: iterations > 1,
+      cached: false
     }), {
       status: 200,
       headers: { 
@@ -1283,8 +1535,30 @@ export default async function handler(req) {
 
   } catch (error) {
     console.error('Chat API error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error: ' + error.message }), {
-      status: 500,
+    
+    // Provide better error messages based on error type
+    let userMessage = 'An error occurred while processing your request.';
+    let statusCode = 500;
+    
+    if (error.message?.includes('API key')) {
+      userMessage = 'AI service configuration error. Please contact support.';
+    } else if (error.message?.includes('rate') || error.message?.includes('429')) {
+      userMessage = 'AI service is temporarily busy. Please try again in a moment.';
+      statusCode = 429;
+    } else if (error.message?.includes('timeout')) {
+      userMessage = 'Request took too long. Please try a simpler query.';
+      statusCode = 504;
+    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      userMessage = 'Network error. Please check your connection and try again.';
+      statusCode = 503;
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: userMessage,
+      recoverable: statusCode !== 500,
+      retryAfter: statusCode === 429 ? 30 : undefined
+    }), {
+      status: statusCode,
       headers: { 'Content-Type': 'application/json' },
     });
   }

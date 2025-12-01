@@ -280,6 +280,44 @@
   border-radius: 8px;
   font-size: 0.85rem;
   border: 1px solid #fecaca;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-error-dismiss {
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.chat-error-dismiss:hover {
+  opacity: 1;
+}
+
+.chat-cancel-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.chat-cancel-btn:hover {
+  opacity: 1;
+  color: #ef4444;
 }
 
 /* ========================================

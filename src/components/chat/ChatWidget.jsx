@@ -2,7 +2,7 @@
 // Floating AI chat widget with expandable panel
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Trash2, Bot, User, Loader2, Sparkles, Database } from 'lucide-react';
+import { MessageCircle, X, Send, Trash2, Bot, User, Loader2, Sparkles, Database, RefreshCw, XCircle } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import './ChatWidget.css';
 
@@ -13,8 +13,11 @@ export default function ChatWidget() {
     messages,
     isLoading,
     error,
+    retryCount,
     sendMessage,
     clearChat,
+    cancelRequest,
+    dismissError,
   } = useChat();
 
   const [input, setInput] = useState('');
@@ -138,8 +141,24 @@ All data is scoped to your role, so just ask naturally!`,
                 <Bot size={16} />
               </div>
               <div className="chat-message-content chat-typing">
-                <Loader2 className="chat-typing-icon" size={16} />
-                <span>Querying data...</span>
+                {retryCount > 0 ? (
+                  <>
+                    <RefreshCw className="chat-typing-icon" size={16} />
+                    <span>Retrying ({retryCount}/2)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="chat-typing-icon" size={16} />
+                    <span>Querying data...</span>
+                  </>
+                )}
+                <button 
+                  className="chat-cancel-btn"
+                  onClick={cancelRequest}
+                  title="Cancel request"
+                >
+                  <XCircle size={14} />
+                </button>
               </div>
             </div>
           )}
@@ -147,7 +166,14 @@ All data is scoped to your role, so just ask naturally!`,
           {/* Error message */}
           {error && (
             <div className="chat-error">
-              {error}
+              <span>{error}</span>
+              <button 
+                className="chat-error-dismiss"
+                onClick={dismissError}
+                title="Dismiss"
+              >
+                <X size={14} />
+              </button>
             </div>
           )}
 
