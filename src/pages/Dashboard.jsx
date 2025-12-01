@@ -268,8 +268,10 @@ export default function Dashboard() {
           <Link to="/milestones" style={{ padding: '0.5rem 1rem', backgroundColor: '#ca8a04', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: '500' }}>View →</Link>
         </div>
       </div>
+      )}
 
       {/* Billable vs Spend by Milestone */}
+      {isWidgetVisible('milestones-list') && (
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginBottom: '0.5rem' }}>Billable vs Spend by Milestone</h3>
         <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem' }}>
