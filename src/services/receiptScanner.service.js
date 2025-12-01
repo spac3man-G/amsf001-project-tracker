@@ -124,16 +124,15 @@ class ReceiptScannerService {
 
   /**
    * Process receipt image with Claude Vision API
-   * @param {string} imageUrl - URL of the uploaded image
+   * @param {Object} imageData - Base64 image data {data: string, mediaType: string}
    * @param {string} projectId - Project context for classification rules
    * @returns {Promise<Object>} Extracted receipt data
    */
-  async processReceipt(imageUrl, projectId) {
+  async processReceipt(imageData, projectId) {
     const startTime = Date.now();
     
     try {
-      // Convert image to base64 for API
-      const imageData = await this.fetchImageAsBase64(imageUrl);
+      // imageData is already base64 - passed directly from component
       
       // Call Claude Vision API
       const extractedData = await this.callClaudeVision(imageData);

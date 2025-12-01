@@ -131,6 +131,22 @@ export default function ReceiptScanner({
   // PROCESSING
   // =====================================================
 
+  // Helper to convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1];
+        resolve({
+          data: base64,
+          mediaType: file.type
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const processReceipt = useCallback(async () => {
     if (!imageFile || !projectId || !user?.id) {
       showError('Missing required data for processing');
@@ -139,15 +155,19 @@ export default function ReceiptScanner({
 
     setCurrentStep(STEPS.PROCESSING);
     setIsProcessing(true);
-    setProcessingMessage('Uploading image...');
+    setProcessingMessage('Preparing image...');
 
     try {
-      // Step 1: Upload image
+      // Step 1: Convert file to base64 FIRST (before upload)
+      const imageData = await fileToBase64(imageFile);
+      
+      // Step 2: Upload image to storage (for record keeping)
+      setProcessingMessage('Uploading image...');
       const { path, url } = await receiptScannerService.uploadImage(imageFile, user.id);
+      
+      // Step 3: Process with AI using base64 data directly
       setProcessingMessage('Analyzing receipt with AI...');
-
-      // Step 2: Process with AI
-      const result = await receiptScannerService.processReceipt(url, projectId);
+      const result = await receiptScannerService.processReceipt(imageData, projectId);
       setProcessingMessage('Extracting data...');
 
       // Step 3: Save scan record
