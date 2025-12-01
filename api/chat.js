@@ -23,7 +23,13 @@ function getSupabase() {
 
 // Helper to get supabase - all tool functions use this
 const supabase = {
-  from: (table) => getSupabase()?.from(table)
+  from: (table) => {
+    const client = getSupabase();
+    if (!client) {
+      throw new Error('Database connection not available - check SUPABASE_SERVICE_ROLE_KEY');
+    }
+    return client.from(table);
+  }
 };
 
 // ============================================
@@ -178,11 +184,16 @@ function getUserFriendlyError(error, toolName) {
   };
   
   const action = toolContext[toolName] || 'complete your request';
+  
+  // Log actual error for debugging
+  console.error(`Chat tool error (${toolName}):`, errorString, 'Code:', errorCode);
+  
   return { 
     error: `Unable to ${action}. Please try again or rephrase your question.`,
     tool: toolName,
     recoverable: true,
-    details: process.env.NODE_ENV === 'development' ? errorString : undefined
+    // Include details temporarily for debugging
+    debug: errorString.substring(0, 200)
   };
 }
 
@@ -902,6 +913,8 @@ async function executeGetTimesheetSummary(params, context) {
 
 async function executeGetExpenses(params, context) {
   const { projectId, userContext } = context;
+  
+  console.log('executeGetExpenses called with:', { projectId, role: userContext?.role, params });
   
   // Simple query without complex joins for reliability
   let query = supabase
