@@ -757,22 +757,25 @@ async function executeGetMyPendingActions(context) {
 async function executeGetTimesheets(params, context) {
   const { projectId, userContext } = context;
   
+  // Use left join for consistency (timesheets should always have resources but be safe)
   let query = supabase
     .from('timesheets')
     .select(`
-      id, work_date, hours_worked, status, description,
-      resources!inner(id, name, daily_rate, partner_id)
+      id, work_date, hours_worked, status, description, resource_id,
+      resources(id, name, daily_rate, partner_id)
     `)
     .eq('project_id', projectId)
     .order('work_date', { ascending: false })
     .limit(50);
   
-  // Apply permission scoping
+  // Apply permission scoping based on role
   if (userContext.role === 'contributor' && userContext.linkedResourceId) {
     query = query.eq('resource_id', userContext.linkedResourceId);
   } else if (['partner_user', 'partner_admin'].includes(userContext.role) && userContext.partnerId) {
-    query = query.eq('resources.partner_id', userContext.partnerId);
+    query = query.not('resources', 'is', null)
+                 .eq('resources.partner_id', userContext.partnerId);
   }
+  // supplier_pm, admin, and other roles see all timesheets
   
   // Apply filters
   if (params.status && params.status !== 'all') {
@@ -823,20 +826,23 @@ async function executeGetTimesheets(params, context) {
 async function executeGetTimesheetSummary(params, context) {
   const { projectId, userContext } = context;
   
+  // Use left join for consistency
   let query = supabase
     .from('timesheets')
     .select(`
-      id, work_date, hours_worked, status,
-      resources!inner(id, name, daily_rate, partner_id)
+      id, work_date, hours_worked, status, resource_id,
+      resources(id, name, daily_rate, partner_id)
     `)
     .eq('project_id', projectId);
   
-  // Apply permission scoping
+  // Apply permission scoping based on role
   if (userContext.role === 'contributor' && userContext.linkedResourceId) {
     query = query.eq('resource_id', userContext.linkedResourceId);
   } else if (['partner_user', 'partner_admin'].includes(userContext.role) && userContext.partnerId) {
-    query = query.eq('resources.partner_id', userContext.partnerId);
+    query = query.not('resources', 'is', null)
+                 .eq('resources.partner_id', userContext.partnerId);
   }
+  // supplier_pm, admin, and other roles see all timesheets
   
   if (params.dateRange) {
     const range = getDateRange(params.dateRange);
@@ -897,23 +903,27 @@ async function executeGetTimesheetSummary(params, context) {
 async function executeGetExpenses(params, context) {
   const { projectId, userContext } = context;
   
+  // Use left join (no !inner) so expenses without resources still return
   let query = supabase
     .from('expenses')
     .select(`
       id, expense_date, amount, category, description, status, 
-      is_chargeable, procurement_method,
-      resources!inner(id, name, partner_id)
+      is_chargeable, procurement_method, resource_id,
+      resources(id, name, partner_id)
     `)
     .eq('project_id', projectId)
     .order('expense_date', { ascending: false })
     .limit(50);
   
-  // Apply permission scoping
+  // Apply permission scoping based on role
   if (userContext.role === 'contributor' && userContext.linkedResourceId) {
     query = query.eq('resource_id', userContext.linkedResourceId);
   } else if (['partner_user', 'partner_admin'].includes(userContext.role) && userContext.partnerId) {
-    query = query.eq('resources.partner_id', userContext.partnerId);
+    // For partner users, filter by their partner's resources
+    query = query.not('resources', 'is', null)
+                 .eq('resources.partner_id', userContext.partnerId);
   }
+  // supplier_pm, admin, and other roles see all expenses (no additional filter)
   
   // Apply filters
   if (params.status && params.status !== 'all') {
@@ -967,20 +977,23 @@ async function executeGetExpenses(params, context) {
 async function executeGetExpenseSummary(params, context) {
   const { projectId, userContext } = context;
   
+  // Use left join (no !inner) so expenses without resources still return
   let query = supabase
     .from('expenses')
     .select(`
-      id, expense_date, amount, category, status, is_chargeable,
-      resources!inner(id, name, partner_id)
+      id, expense_date, amount, category, status, is_chargeable, resource_id,
+      resources(id, name, partner_id)
     `)
     .eq('project_id', projectId);
   
-  // Apply permission scoping
+  // Apply permission scoping based on role
   if (userContext.role === 'contributor' && userContext.linkedResourceId) {
     query = query.eq('resource_id', userContext.linkedResourceId);
   } else if (['partner_user', 'partner_admin'].includes(userContext.role) && userContext.partnerId) {
-    query = query.eq('resources.partner_id', userContext.partnerId);
+    query = query.not('resources', 'is', null)
+                 .eq('resources.partner_id', userContext.partnerId);
   }
+  // supplier_pm, admin, and other roles see all expenses
   
   if (params.dateRange) {
     const range = getDateRange(params.dateRange);
