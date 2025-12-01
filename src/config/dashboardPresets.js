@@ -305,3 +305,6 @@ export function getRolePreset(role) {
   // Default to viewer for unknown roles
   return VIEWER_PRESET;
 }
+
+// Alias for backward compatibility
+export const getPresetForRole = getRolePreset;
