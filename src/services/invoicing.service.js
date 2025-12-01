@@ -199,8 +199,13 @@ export class InvoicingService extends BaseService {
       if (expError) throw expError;
 
       // Separate expenses by procurement method
-      const partnerExpenses = (allExpenses || []).filter(e => e.procurement_method === 'partner');
-      const supplierExpenses = (allExpenses || []).filter(e => e.procurement_method === 'supplier');
+      // Default to 'partner' if procurement_method is null (backward compatibility)
+      const partnerExpenses = (allExpenses || []).filter(e => 
+        e.procurement_method === 'partner' || !e.procurement_method
+      );
+      const supplierExpenses = (allExpenses || []).filter(e => 
+        e.procurement_method === 'supplier'
+      );
 
       // 4. Build timesheet lines (grouped by resource for clarity)
       let timesheetTotal = 0;

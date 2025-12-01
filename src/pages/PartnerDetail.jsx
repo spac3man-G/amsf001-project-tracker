@@ -1215,15 +1215,38 @@ export default function PartnerDetail() {
               </div>
             )}
 
-            {/* Supplier Expense Lines (NOT on invoice, informational) */}
-            {generatedInvoice.groupedLines?.supplierExpenses?.length > 0 && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h4 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <DollarSign size={18} style={{ color: '#92400e' }} />
-                  Supplier-Procured Expenses ({generatedInvoice.groupedLines.supplierExpenses.length} entries)
-                  <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#92400e' }}>- Not on this invoice, for customer billing reference</span>
+            {/* Supplier Expense Lines (NOT on invoice - for supplier to bill customer directly) */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ 
+                backgroundColor: '#fef3c7', 
+                border: '2px dashed #f59e0b',
+                borderRadius: '8px',
+                padding: '1rem',
+                marginBottom: '0.5rem'
+              }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#92400e' }}>
+                  <Building2 size={18} />
+                  Supplier-Procured Expenses
+                  <span style={{ 
+                    fontSize: '0.65rem', 
+                    fontWeight: '600',
+                    backgroundColor: '#92400e',
+                    color: 'white',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    marginLeft: '0.5rem'
+                  }}>
+                    NOT ON THIS INVOICE
+                  </span>
                 </h4>
-                <div style={{ maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem', border: '1px solid #fde68a', borderRadius: '8px' }}>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: '#78350f' }}>
+                  These expenses were paid by the supplier and must be reconciled separately. 
+                  The supplier should pass these charges to the customer via their own invoicing process.
+                </p>
+              </div>
+              
+              {generatedInvoice.groupedLines?.supplierExpenses?.length > 0 ? (
+                <div style={{ fontSize: '0.85rem', border: '1px solid #fde68a', borderRadius: '8px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#fef3c7' }}>
@@ -1263,7 +1286,9 @@ export default function PartnerDetail() {
                     </tbody>
                     <tfoot>
                       <tr style={{ backgroundColor: '#fef3c7', fontWeight: '600' }}>
-                        <td colSpan={5} style={{ padding: '0.5rem', textAlign: 'right' }}>Supplier Expenses Total (not invoiced):</td>
+                        <td colSpan={5} style={{ padding: '0.5rem', textAlign: 'right' }}>
+                          Supplier Expenses Total (to be billed separately):
+                        </td>
                         <td style={{ padding: '0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>
                           £{parseFloat(generatedInvoice.supplier_expense_total || 0).toFixed(2)}
                         </td>
@@ -1271,8 +1296,24 @@ export default function PartnerDetail() {
                     </tfoot>
                   </table>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '1rem', 
+                  backgroundColor: '#fffbeb', 
+                  borderRadius: '8px',
+                  border: '1px solid #fde68a',
+                  color: '#92400e'
+                }}>
+                  <p style={{ margin: 0, fontSize: '0.85rem' }}>
+                    No supplier-procured expenses for this period.
+                  </p>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#a16207' }}>
+                    When expenses are marked as "Paid by: Supplier" they will appear here.
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* No data message */}
             {(!generatedInvoice.groupedLines?.timesheets?.length && 
