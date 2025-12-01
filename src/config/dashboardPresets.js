@@ -308,3 +308,15 @@ export function getRolePreset(role) {
 
 // Alias for backward compatibility
 export const getPresetForRole = getRolePreset;
+
+/**
+ * Get available widgets for a role
+ * Returns list of widget IDs that should be available for the role
+ * @param {string} role - User role
+ * @returns {string[]} Array of widget IDs
+ */
+export function getAvailableWidgetsForRole(role) {
+  // All roles can access all widgets, but with different default visibility
+  // This allows users to customize which widgets they want to see
+  return Object.keys(WIDGET_REGISTRY);
+}
