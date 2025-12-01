@@ -18,7 +18,7 @@ import {
   Building2, ArrowLeft, Save, X, User, Mail, FileText,
   Clock, DollarSign, Calendar, AlertCircle, Edit2,
   Users, Receipt, Phone, CreditCard, CheckCircle, ExternalLink,
-  Download, Send, Loader
+  Download, Send, Loader, Printer
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -321,6 +321,62 @@ export default function PartnerDetail() {
     } catch (err) {
       console.error('Error fetching invoices:', err);
     }
+  }
+
+  // Print invoice to PDF
+  function handlePrintInvoice() {
+    const printContent = document.getElementById('invoice-print-content');
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice ${generatedInvoice?.invoice_number || ''}</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 2rem; color: #1e293b; }
+          h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+          h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; color: #475569; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #e2e8f0; }
+          .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+          .summary-card { padding: 1rem; border-radius: 8px; text-align: center; }
+          .summary-card.blue { background: #dbeafe; color: #1e40af; }
+          .summary-card.green { background: #dcfce7; color: #16a34a; }
+          .summary-card.red { background: #fee2e2; color: #dc2626; }
+          .summary-card.purple { background: #7c3aed; color: white; }
+          .summary-card .label { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; }
+          .summary-card .value { font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem; }
+          .breakdown { background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; }
+          .breakdown-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-top: 0.5rem; }
+          .breakdown-item { text-align: center; padding: 0.5rem; border-radius: 6px; background: #e2e8f0; }
+          .breakdown-item .label { font-size: 0.65rem; color: #64748b; }
+          .breakdown-item .value { font-weight: 700; font-size: 0.9rem; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.85rem; }
+          th { background: #f1f5f9; padding: 0.5rem; text-align: left; font-weight: 600; }
+          td { padding: 0.5rem; border-bottom: 1px solid #e2e8f0; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          .total-row { background: #f1f5f9; font-weight: 600; }
+          .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; }
+          .badge-green { background: #dcfce7; color: #16a34a; }
+          .badge-red { background: #fee2e2; color: #dc2626; }
+          .badge-amber { background: #fef3c7; color: #92400e; }
+          .supplier-section { background: #fef3c7; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px dashed #f59e0b; }
+          @media print { body { padding: 1rem; } }
+        </style>
+      </head>
+      <body>
+        ${printContent.innerHTML}
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
   }
 
   function getStatusStyle(status) {
@@ -1021,6 +1077,8 @@ export default function PartnerDetail() {
             maxHeight: '90vh',
             overflow: 'auto'
           }}>
+            {/* Printable Content */}
+            <div id="invoice-print-content">
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
               <div style={{ 
@@ -1045,12 +1103,14 @@ export default function PartnerDetail() {
               </div>
             </div>
 
-            {/* Calculate chargeable/non-chargeable from expenses */}
+            {/* Calculate all expense breakdowns */}
             {(() => {
               const timesheetTotal = parseFloat(generatedInvoice.timesheet_total || 0);
               const partnerExpenses = generatedInvoice.groupedLines?.partnerExpenses || [];
               const supplierExpenses = generatedInvoice.groupedLines?.supplierExpenses || [];
               
+              // Partner expenses breakdown
+              const partnerExpensesTotal = partnerExpenses.reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
               const chargeablePartnerExpenses = partnerExpenses
                 .filter(e => e.chargeable_to_customer)
                 .reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
@@ -1058,6 +1118,8 @@ export default function PartnerDetail() {
                 .filter(e => !e.chargeable_to_customer)
                 .reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
               
+              // Supplier expenses breakdown
+              const supplierExpensesTotal = supplierExpenses.reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
               const chargeableSupplierExpenses = supplierExpenses
                 .filter(e => e.chargeable_to_customer)
                 .reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
@@ -1065,105 +1127,83 @@ export default function PartnerDetail() {
                 .filter(e => !e.chargeable_to_customer)
                 .reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
               
-              const totalChargeableToCustomer = timesheetTotal + chargeablePartnerExpenses + chargeableSupplierExpenses;
-              const invoiceTotal = timesheetTotal + chargeablePartnerExpenses + nonChargeablePartnerExpenses;
+              // Totals
+              const allExpensesTotal = partnerExpensesTotal + supplierExpensesTotal;
+              const allChargeableExpenses = chargeablePartnerExpenses + chargeableSupplierExpenses;
+              const allNonChargeableExpenses = nonChargeablePartnerExpenses + nonChargeableSupplierExpenses;
+              const invoiceTotal = timesheetTotal + partnerExpensesTotal;
 
               return (
                 <>
-                  {/* Summary Cards - Row 1: Invoice Components */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+                  {/* Top Row: 4 Summary Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
                     <div style={{ backgroundColor: '#dbeafe', borderRadius: '8px', padding: '1rem' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#1e40af' }}>Timesheets</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e40af' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#1e40af', textTransform: 'uppercase', fontWeight: '600' }}>Timesheets</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e40af' }}>
                         £{timesheetTotal.toFixed(2)}
                       </div>
-                      <div style={{ fontSize: '0.65rem', color: '#1e40af', marginTop: '0.25rem' }}>100% chargeable</div>
+                      <div style={{ fontSize: '0.65rem', color: '#3b82f6' }}>All billable</div>
                     </div>
                     <div style={{ backgroundColor: '#dcfce7', borderRadius: '8px', padding: '1rem' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>Chargeable Expenses</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#16a34a', textTransform: 'uppercase', fontWeight: '600' }}>Expenses Billable</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#16a34a' }}>
                         £{chargeablePartnerExpenses.toFixed(2)}
                       </div>
-                      <div style={{ fontSize: '0.65rem', color: '#16a34a', marginTop: '0.25rem' }}>Partner-procured, billable</div>
+                      <div style={{ fontSize: '0.65rem', color: '#22c55e' }}>Chargeable to customer</div>
                     </div>
                     <div style={{ backgroundColor: '#fee2e2', borderRadius: '8px', padding: '1rem' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#dc2626' }}>Non-Chargeable Expenses</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#dc2626' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#dc2626', textTransform: 'uppercase', fontWeight: '600' }}>Expenses Non-Billable</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#dc2626' }}>
                         £{nonChargeablePartnerExpenses.toFixed(2)}
                       </div>
-                      <div style={{ fontSize: '0.65rem', color: '#dc2626', marginTop: '0.25rem' }}>Partner-procured, not billable</div>
+                      <div style={{ fontSize: '0.65rem', color: '#ef4444' }}>Not chargeable</div>
                     </div>
-                  </div>
-
-                  {/* Summary Cards - Row 2: Totals */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                    {/* Total Chargeable to Customer - prominent */}
-                    <div style={{ 
-                      backgroundColor: '#166534', 
-                      borderRadius: '8px', 
-                      padding: '1.25rem',
-                      color: 'white'
-                    }}>
-                      <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.25rem' }}>
-                        Total Chargeable to Customer
-                      </div>
-                      <div style={{ fontSize: '1.75rem', fontWeight: '700' }}>
-                        £{totalChargeableToCustomer.toFixed(2)}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: '0.5rem' }}>
-                        Timesheets (£{timesheetTotal.toFixed(2)}) + Chargeable Expenses (£{chargeablePartnerExpenses.toFixed(2)})
-                        {chargeableSupplierExpenses > 0 && ` + Supplier Chargeable (£${chargeableSupplierExpenses.toFixed(2)})`}
-                      </div>
-                    </div>
-                    
-                    {/* Invoice Total (what partner pays) */}
-                    <div style={{ 
-                      backgroundColor: '#7c3aed', 
-                      borderRadius: '8px', 
-                      padding: '1.25rem',
-                      color: 'white'
-                    }}>
-                      <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.25rem' }}>
-                        Invoice Total (Partner Pays)
-                      </div>
-                      <div style={{ fontSize: '1.75rem', fontWeight: '700' }}>
+                    <div style={{ backgroundColor: '#7c3aed', borderRadius: '8px', padding: '1rem', color: 'white' }}>
+                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: '600', opacity: 0.9 }}>Invoice Total</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>
                         £{invoiceTotal.toFixed(2)}
                       </div>
-                      <div style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: '0.5rem' }}>
-                        Timesheets + All Partner Expenses
-                      </div>
+                      <div style={{ fontSize: '0.65rem', opacity: 0.85 }}>To be paid by {partner?.name}</div>
                     </div>
                   </div>
 
-                  {/* Supplier Expenses Summary (if any) */}
-                  {(chargeableSupplierExpenses > 0 || nonChargeableSupplierExpenses > 0) && (
-                    <div style={{ 
-                      backgroundColor: '#fef3c7', 
-                      borderRadius: '8px', 
-                      padding: '1rem', 
-                      marginBottom: '1.5rem',
-                      border: '1px dashed #f59e0b'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Building2 size={16} style={{ color: '#92400e' }} />
-                          <span style={{ fontWeight: '600', color: '#92400e' }}>Supplier Expenses (for separate billing):</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '1.5rem' }}>
-                          {chargeableSupplierExpenses > 0 && (
-                            <span style={{ color: '#16a34a', fontSize: '0.9rem' }}>
-                              Chargeable: <strong>£{chargeableSupplierExpenses.toFixed(2)}</strong>
-                            </span>
-                          )}
-                          {nonChargeableSupplierExpenses > 0 && (
-                            <span style={{ color: '#dc2626', fontSize: '0.9rem' }}>
-                              Non-chargeable: <strong>£{nonChargeableSupplierExpenses.toFixed(2)}</strong>
-                            </span>
-                          )}
-                        </div>
+                  {/* Expenses Breakdown */}
+                  <div style={{ 
+                    backgroundColor: '#f8fafc', 
+                    borderRadius: '8px', 
+                    padding: '1rem', 
+                    marginBottom: '1.5rem',
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Receipt size={16} />
+                      Expenses Breakdown
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', fontSize: '0.8rem' }}>
+                      <div style={{ textAlign: 'center', padding: '0.75rem', backgroundColor: '#e2e8f0', borderRadius: '6px' }}>
+                        <div style={{ color: '#64748b', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Total Expenses</div>
+                        <div style={{ fontWeight: '700', color: '#334155' }}>£{allExpensesTotal.toFixed(2)}</div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '0.75rem', backgroundColor: '#dcfce7', borderRadius: '6px' }}>
+                        <div style={{ color: '#16a34a', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Chargeable to Customer</div>
+                        <div style={{ fontWeight: '700', color: '#16a34a' }}>£{allChargeableExpenses.toFixed(2)}</div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '0.75rem', backgroundColor: '#fee2e2', borderRadius: '6px' }}>
+                        <div style={{ color: '#dc2626', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Not Chargeable</div>
+                        <div style={{ fontWeight: '700', color: '#dc2626' }}>£{allNonChargeableExpenses.toFixed(2)}</div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '0.75rem', backgroundColor: '#f3e8ff', borderRadius: '6px' }}>
+                        <div style={{ color: '#7c3aed', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Paid by {partner?.name?.split(' ')[0] || 'Partner'}</div>
+                        <div style={{ fontWeight: '700', color: '#7c3aed' }}>£{partnerExpensesTotal.toFixed(2)}</div>
+                        <div style={{ fontSize: '0.6rem', color: '#a78bfa' }}>On this invoice</div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '0.75rem', backgroundColor: '#fef3c7', borderRadius: '6px' }}>
+                        <div style={{ color: '#92400e', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Paid by Supplier</div>
+                        <div style={{ fontWeight: '700', color: '#92400e' }}>£{supplierExpensesTotal.toFixed(2)}</div>
+                        <div style={{ fontSize: '0.6rem', color: '#b45309' }}>Not on this invoice</div>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </>
               );
             })()}
@@ -1400,9 +1440,18 @@ export default function PartnerDetail() {
                 </p>
               </div>
             )}
+            </div>{/* End of printable content */}
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+              <button 
+                className="btn btn-secondary"
+                onClick={handlePrintInvoice}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <Printer size={16} />
+                Print / Save PDF
+              </button>
               <button 
                 className="btn btn-secondary"
                 onClick={() => {
