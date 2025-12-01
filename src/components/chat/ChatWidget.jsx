@@ -2,7 +2,7 @@
 // Floating AI chat widget with expandable panel
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Trash2, Bot, User, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, X, Send, Trash2, Bot, User, Loader2, Sparkles, Database } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import './ChatWidget.css';
 
@@ -51,13 +51,15 @@ export default function ChatWidget() {
   // Welcome message for empty chat
   const welcomeMessage = {
     role: 'assistant',
-    content: `Hello! I'm your AMSF001 Project Assistant. I can help you with:
+    content: `Hello! I'm your Project Assistant. I can query your project data and help you understand what's happening. Try asking:
 
-• **Using the app** - How to navigate, submit timesheets, review deliverables, etc.
-• **Your project data** - Ask about milestones, budgets, team utilization, and more
-• **Your permissions** - What actions you can perform in your role
+• **"What do I need to do?"** - See your pending actions
+• **"Show my timesheets this month"** - Query your time entries
+• **"What milestones are at risk?"** - Check project progress
+• **"What's the budget status?"** - View spend vs forecast
+• **"What can my role do?"** - Understand your permissions
 
-How can I help you today?`,
+All data is scoped to your role, so just ask naturally!`,
   };
 
   const displayMessages = messages.length === 0 ? [welcomeMessage] : messages;
@@ -120,6 +122,11 @@ How can I help you today?`,
               </div>
               <div className="chat-message-content">
                 <MessageContent content={msg.content} />
+                {msg.toolsUsed && (
+                  <div className="chat-tools-indicator" title="Queried project data">
+                    <Database size={12} />
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -132,7 +139,7 @@ How can I help you today?`,
               </div>
               <div className="chat-message-content chat-typing">
                 <Loader2 className="chat-typing-icon" size={16} />
-                <span>Thinking...</span>
+                <span>Querying data...</span>
               </div>
             </div>
           )}
