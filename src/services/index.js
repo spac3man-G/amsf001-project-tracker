@@ -30,3 +30,4 @@ export { deliverablesService, DeliverablesService } from './deliverables.service
 export { kpisService, KPIsService } from './kpis.service';
 export { qualityStandardsService, QualityStandardsService } from './qualityStandards.service';
 export { standardsService, StandardsService } from './standards.service';
+export { dashboardService, DashboardService } from './dashboard.service';

@@ -2,19 +2,23 @@
  * Dashboard Page
  * 
  * Project overview with budget tracking, milestones, KPIs, and quality standards.
+ * Features customizable widget visibility per user.
  * 
- * @version 2.0
- * @updated 30 November 2025
- * @phase Production Hardening - Service Layer Adoption
+ * @version 3.0
+ * @updated 1 December 2025
+ * @phase Phase 5 - Enhanced UX
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { milestonesService, deliverablesService, kpisService, qualityStandardsService, timesheetsService } from '../services';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, Briefcase, FileCheck } from 'lucide-react';
+import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, Briefcase, FileCheck, Settings } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useDashboardLayout } from '../hooks/useDashboardLayout';
+import { CustomizePanel } from '../components/dashboard/CustomizePanel';
 import { LoadingSpinner, PageHeader, StatCard, StatusBadge } from '../components/common';
 
 function isPMORole(role) {
@@ -26,7 +30,20 @@ function isPMORole(role) {
 export default function Dashboard() {
   const { showTestUsers, testUserIds } = useTestUsers();
   const { projectId, projectName, projectRef } = useProject();
+  const { user, role } = useAuth();
 
+  // Dashboard customization
+  const {
+    layout,
+    loading: layoutLoading,
+    saving: layoutSaving,
+    lastSaved,
+    bulkUpdateVisibility,
+    resetToDefault,
+    isWidgetVisible
+  } = useDashboardLayout(user?.id, projectId, role);
+
+  const [showCustomizePanel, setShowCustomizePanel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalMilestones: 0, completedMilestones: 0, totalDeliverables: 0, deliveredCount: 0, totalResources: 0, totalKPIs: 0, achievedKPIs: 0, totalQS: 0, achievedQS: 0, totalBudget: 0, spendToDate: 0 });
   const [certificateStats, setCertificateStats] = useState({ signed: 0, pending: 0, awaitingGeneration: 0 });
@@ -148,29 +165,51 @@ export default function Dashboard() {
     }
   }
 
-  if (loading) return <LoadingSpinner message="Loading dashboard..." size="large" fullPage />;
+  if (loading || layoutLoading) return <LoadingSpinner message="Loading dashboard..." size="large" fullPage />;
 
   return (
     <div className="page-container">
-      <PageHeader icon={Target} title={`${projectRef || 'Project'} Dashboard`} subtitle={projectName || 'Project Tracker'} />
+      <PageHeader 
+        icon={Target} 
+        title={`${projectRef || 'Project'} Dashboard`} 
+        subtitle={projectName || 'Project Tracker'}
+        action={
+          <button
+            onClick={() => setShowCustomizePanel(true)}
+            className="btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1rem'
+            }}
+          >
+            <Settings size={18} />
+            Customize
+          </button>
+        }
+      />
 
       {/* Project Progress Hero */}
-      <div className="card" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', color: 'white' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><h2 style={{ fontSize: '2.5rem', fontWeight: '700', margin: 0 }}>{projectProgress}%</h2><p style={{ opacity: 0.9, margin: 0 }}>Overall Progress</p></div>
-          <div style={{ width: '120px', height: '120px', position: 'relative' }}>
-            <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="10" /><circle cx="50" cy="50" r="40" fill="none" stroke="white" strokeWidth="10" strokeDasharray={`${projectProgress * 2.51} 251`} strokeLinecap="round" /></svg>
+      {isWidgetVisible('progress-hero') && (
+        <div className="card" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', color: 'white' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div><h2 style={{ fontSize: '2.5rem', fontWeight: '700', margin: 0 }}>{projectProgress}%</h2><p style={{ opacity: 0.9, margin: 0 }}>Overall Progress</p></div>
+            <div style={{ width: '120px', height: '120px', position: 'relative' }}>
+              <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="10" /><circle cx="50" cy="50" r="40" fill="none" stroke="white" strokeWidth="10" strokeDasharray={`${projectProgress * 2.51} 251`} strokeLinecap="round" /></svg>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Budget & Spend Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div><div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>Total Budget</div><div style={{ fontSize: '2rem', fontWeight: '700', color: '#3b82f6' }}>£{stats.totalBudget.toLocaleString()}</div></div>
-            <div style={{ padding: '0.75rem', backgroundColor: '#dbeafe', borderRadius: '8px' }}><DollarSign size={24} style={{ color: '#3b82f6' }} /></div>
-          </div>
+      {isWidgetVisible('budget-summary') && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div><div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>Total Budget</div><div style={{ fontSize: '2rem', fontWeight: '700', color: '#3b82f6' }}>£{stats.totalBudget.toLocaleString()}</div></div>
+              <div style={{ padding: '0.75rem', backgroundColor: '#dbeafe', borderRadius: '8px' }}><DollarSign size={24} style={{ color: '#3b82f6' }} /></div>
+            </div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -179,8 +218,10 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      )}
 
       {/* PMO Cost Tracking */}
+      {isWidgetVisible('pmo-tracking') && (
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Briefcase size={20} /> PMO Cost Tracking</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -203,16 +244,20 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      )}
 
       {/* Stats Grid */}
+      {isWidgetVisible('stats-grid') && (
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <StatCard icon={Clock} label="Milestones" value={`${stats.completedMilestones} / ${stats.totalMilestones}`} subtext={`${stats.totalMilestones > 0 ? Math.round((stats.completedMilestones / stats.totalMilestones) * 100) : 0}% Complete`} color="#3b82f6" />
         <StatCard icon={Package} label="Deliverables" value={`${stats.deliveredCount} / ${stats.totalDeliverables}`} subtext={`${stats.totalDeliverables > 0 ? Math.round((stats.deliveredCount / stats.totalDeliverables) * 100) : 0}% Delivered`} color="#10b981" />
         <StatCard icon={TrendingUp} label="KPIs" value={`${stats.achievedKPIs} / ${stats.totalKPIs}`} subtext={`${stats.totalKPIs > 0 ? Math.round((stats.achievedKPIs / stats.totalKPIs) * 100) : 0}% Achieved`} color="#3b82f6" />
         <StatCard icon={Award} label="Quality Standards" value={`${stats.achievedQS} / ${stats.totalQS}`} subtext={`${stats.totalQS > 0 ? Math.round((stats.achievedQS / stats.totalQS) * 100) : 0}% Achieved`} color="#8b5cf6" />
       </div>
+      )}
 
       {/* Milestone Certificates */}
+      {isWidgetVisible('certificates') && (
       <div className="card" style={{ marginBottom: '1.5rem', backgroundColor: '#fefce8', borderLeft: '4px solid #eab308' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><FileCheck size={28} style={{ color: '#ca8a04' }} /><div><h4 style={{ margin: 0, color: '#854d0e' }}>Milestone Certificates</h4></div></div>
@@ -250,9 +295,11 @@ export default function Dashboard() {
           })}
         </div>
       </div>
+      )}
 
       {/* KPI & QS Performance */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        {isWidgetVisible('kpis-category') && (
         <div className="card">
           <h3 style={{ marginBottom: '1rem' }}>KPI Performance</h3>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', height: '200px' }}>
@@ -272,6 +319,8 @@ export default function Dashboard() {
             })}
           </div>
         </div>
+        )}
+        {isWidgetVisible('quality-standards') && (
         <div className="card">
           <h3 style={{ marginBottom: '1rem' }}>Quality Standards</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -288,6 +337,7 @@ export default function Dashboard() {
             })}
           </div>
         </div>
+        )}
       </div>
 
       {/* Milestone Summary */}
@@ -323,6 +373,18 @@ export default function Dashboard() {
         <Link to="/quality-standards" className="card" style={{ textDecoration: 'none', padding: '1.5rem', cursor: 'pointer', border: '2px solid #e2e8f0' }}><Award size={32} style={{ color: '#8b5cf6', marginBottom: '0.5rem' }} /><h4 style={{ margin: '0 0 0.25rem 0', color: '#1e293b' }}>Quality</h4></Link>
         <Link to="/reports" className="card" style={{ textDecoration: 'none', padding: '1.5rem', cursor: 'pointer', border: '2px solid #e2e8f0' }}><Target size={32} style={{ color: '#f59e0b', marginBottom: '0.5rem' }} /><h4 style={{ margin: '0 0 0.25rem 0', color: '#1e293b' }}>Reports</h4></Link>
       </div>
+
+      {/* Customization Panel */}
+      <CustomizePanel
+        isOpen={showCustomizePanel}
+        onClose={() => setShowCustomizePanel(false)}
+        layout={layout}
+        role={role}
+        onUpdateVisibility={bulkUpdateVisibility}
+        onReset={resetToDefault}
+        saving={layoutSaving}
+        lastSaved={lastSaved}
+      />
     </div>
   );
 }
