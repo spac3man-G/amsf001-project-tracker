@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { standardsService } from '../services';
 import { LoadingSpinner, PageHeader, StatCard } from '../components/common';
 import { BookOpen, CheckCircle, Clock, FileText } from 'lucide-react';
+import { useProject } from '../contexts/ProjectContext';
 
 export default function Standards() {
+  const { projectId } = useProject();
   const [standards, setStandards] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStandards();
-  }, []);
+    if (projectId) {
+      fetchStandards();
+    }
+  }, [projectId]);
 
   async function fetchStandards() {
     try {
-      const { data, error } = await supabase
-        .from('standards')
-        .select('*')
-        .order('standard_ref');
-
-      if (error) throw error;
+      const data = await standardsService.getAll(projectId);
       setStandards(data || []);
     } catch (error) {
       console.error('Error fetching standards:', error);

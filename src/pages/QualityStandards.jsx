@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { qualityStandardsService } from '../services';
 import { supabase } from '../lib/supabase';
 import { 
   Award, CheckCircle, AlertCircle, Clock, TrendingUp,
@@ -51,16 +52,12 @@ export default function QualityStandards() {
     if (!pid) return;
 
     try {
-      const { data, error } = await supabase
-        .from('quality_standards')
-        .select('*')
-        .eq('project_id', pid)
-        .order('qs_ref');
-
-      if (error) throw error;
+      const data = await qualityStandardsService.getAll(pid, {
+        orderBy: { column: 'qs_ref', ascending: true }
+      });
       setQualityStandards(data || []);
 
-      // Fetch assessment counts for each QS
+      // Fetch assessment counts for each QS (no service method yet for assessments)
       const counts = {};
       for (const qs of (data || [])) {
         const { data: assessments } = await supabase
@@ -86,19 +83,15 @@ export default function QualityStandards() {
     }
 
     try {
-      const { error } = await supabase
-        .from('quality_standards')
-        .insert({
-          project_id: projectId,
-          qs_ref: newQS.qs_ref,
-          name: newQS.name,
-          description: newQS.description,
-          target: parseInt(newQS.target) || 100,
-          current_value: parseInt(newQS.current_value) || 0,
-          created_by: currentUserId
-        });
-
-      if (error) throw error;
+      await qualityStandardsService.create({
+        project_id: projectId,
+        qs_ref: newQS.qs_ref,
+        name: newQS.name,
+        description: newQS.description,
+        target: parseInt(newQS.target) || 100,
+        current_value: parseInt(newQS.current_value) || 0,
+        created_by: currentUserId
+      });
 
       await fetchQualityStandards();
       setShowAddForm(false);
@@ -123,18 +116,13 @@ export default function QualityStandards() {
 
   async function handleSave(id) {
     try {
-      const { error } = await supabase
-        .from('quality_standards')
-        .update({
-          qs_ref: editForm.qs_ref,
-          name: editForm.name,
-          description: editForm.description,
-          target: parseInt(editForm.target) || 100,
-          current_value: parseInt(editForm.current_value) || 0
-        })
-        .eq('id', id);
-
-      if (error) throw error;
+      await qualityStandardsService.update(id, {
+        qs_ref: editForm.qs_ref,
+        name: editForm.name,
+        description: editForm.description,
+        target: parseInt(editForm.target) || 100,
+        current_value: parseInt(editForm.current_value) || 0
+      });
 
       await fetchQualityStandards();
       setEditingId(null);
@@ -155,19 +143,14 @@ export default function QualityStandards() {
 
     setSaving(true);
     try {
-      // First delete assessments
+      // First delete assessments (no service method for junction table)
       await supabase
         .from('deliverable_qs_assessments')
         .delete()
         .eq('quality_standard_id', qs.id);
 
-      // Then delete the QS
-      const { error } = await supabase
-        .from('quality_standards')
-        .delete()
-        .eq('id', qs.id);
-
-      if (error) throw error;
+      // Then delete the QS using service
+      await qualityStandardsService.delete(qs.id);
 
       await fetchQualityStandards();
       setDeleteDialog({ isOpen: false, qs: null });
