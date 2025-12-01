@@ -234,15 +234,22 @@ Each milestone contains deliverables:
 
 ## AI Chat Assistant
 
-### Coming Soon
+### Overview
 
-The AI Chat Assistant will allow you to query your project data using natural language.
+The AI Chat Assistant lets you query your project data using natural language. Click the chat icon in the bottom-right corner to ask questions about timesheets, expenses, milestones, budgets, and more.
 
-### Example Queries (Planned)
+### How to Use
+
+1. Click the **chat icon** (💬) in the bottom-right corner
+2. Type your question in plain English
+3. The AI queries your data in real-time
+4. Responses show a small database icon (🗄️) when data was queried
+
+### Example Queries
 
 **For Resources:**
 - "What timesheets do I need to submit?"
-- "How many hours have I logged this month?"
+- "Show my timesheets this month"
 - "What expenses are waiting for approval?"
 
 **For Partners:**
@@ -253,21 +260,25 @@ The AI Chat Assistant will allow you to query your project data using natural la
 **For Approvers:**
 - "What's waiting for my approval?"
 - "Show me submitted expenses over £100"
+- "How many timesheets are pending?"
 
 **For Project Managers:**
 - "What milestones are at risk?"
 - "What's the project spend to date?"
-- "Which deliverables are overdue?"
+- "What's the budget status?"
 
 **For Everyone:**
-- "What do I need to do next?"
-- "What's my role?"
-- "What can I do in this system?"
+- "What do I need to do next?" - Shows your pending actions
+- "What can my role do?" - Explains your permissions
+- "Show me the KPIs" - Performance indicators
 
-### How It Works (Planned)
-1. Click the chat icon in the bottom-right corner
-2. Type your question in plain English
-3. The AI queries your data (respecting your permissions)
+### Data Privacy
+
+All queries respect your role permissions:
+- **Resources** see only their own timesheets and expenses
+- **Partner users** see only their partner's data
+- **Approvers** see items awaiting their approval
+- Cost prices are only visible to Admin and Supplier PM roles
 4. Receive a clear, conversational response
 
 **Note:** All queries will be scoped to data you have permission to see. Partner users will only see their partner's data, resources will only see their own timesheets and expenses.
@@ -367,7 +378,7 @@ For admins - view all system activity:
 
 ### In-App Support
 - Click the chat icon in the bottom-right corner
-- AI assistant available (coming soon)
+- AI assistant can query your data and answer questions
 
 ### Documentation
 - This user manual

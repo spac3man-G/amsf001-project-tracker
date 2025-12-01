@@ -1,12 +1,78 @@
-# AMSF001 Development Playbook v20
+# AMSF001 Development Playbook v21
 
 **Last Updated:** 1 December 2025  
-**Version:** 20.0  
-**Production Readiness:** 92%
+**Version:** 21.0  
+**Production Readiness:** 94%
 
 ---
 
 ## Recent Updates (1 December 2025)
+
+### ✅ AI Chat Assistant Implementation (COMPLETE & VERIFIED)
+**Duration:** 1.5 hours  
+**Status:** ✅ Deployed to Production ✅ User Tested
+
+#### What Was Built
+
+Full implementation of context-aware AI chat with database query capabilities:
+
+1. **Backend API (api/chat.js v3.0)**
+   - 1,281 lines of code
+   - Claude Haiku 3.5 with function calling
+   - 12 database query tools implemented
+   - Role-based data scoping
+   - Lazy Supabase client initialization
+   - Rate limiting (30 requests/minute)
+
+2. **Tool Functions Implemented**
+   - `getUserProfile` - Current user info
+   - `getMyPendingActions` - Draft items & approval queue
+   - `getRolePermissions` - Explain role capabilities
+   - `getTimesheets` / `getTimesheetSummary` - Time entries
+   - `getExpenses` / `getExpenseSummary` - Expense entries
+   - `getMilestones` / `getDeliverables` - Project progress
+   - `getBudgetSummary` - Budget vs actual
+   - `getResources` - Team members
+   - `getKPIs` - Performance indicators
+
+3. **Frontend Updates**
+   - Simplified ChatContext.jsx (backend now handles data)
+   - Updated welcome message with example queries
+   - Added database query indicator icon
+   - New loading text: "Querying data..."
+
+#### Files Modified
+```
+api/chat.js (rewritten, 1,281 lines)
+src/contexts/ChatContext.jsx (simplified, 139 lines)
+src/components/chat/ChatWidget.jsx (updated)
+src/components/chat/ChatWidget.css (added indicator styles)
+```
+
+#### Environment Variables Added
+```
+SUPABASE_SERVICE_ROLE_KEY - Required for database queries (added to Vercel)
+```
+⚠️ **Critical:** Without this key, chat displays "Database connection not configured" error.
+
+#### Testing Verified
+- ✅ Database connection established
+- ✅ Tool calling working correctly
+- ✅ Data queries returning results
+- ✅ Role-based scoping active
+
+#### Git Commits
+```
+36421851 - chore: trigger redeploy for env var update
+f443f65a - feat: implement AI Chat Assistant with tool calling
+```
+
+#### Deployment
+- Deployment: dpl_HjiHRXSF6rgPEB2ijADoDsZE77nt
+- Status: ✅ READY
+- URL: https://amsf001-project-tracker.vercel.app
+
+---
 
 ### ✅ Partner Invoice UX Improvements (COMPLETE)
 **Duration:** 2 hours  
@@ -68,9 +134,9 @@ b523fc92 - feat: redesign invoice summary with chargeable breakdown
 
 ---
 
-### ✅ AI Chat Assistant Specification (COMPLETE)
+### ✅ AI Chat Assistant Specification (IMPLEMENTED)
 **Duration:** 1.5 hours  
-**Status:** ✅ Specification Approved
+**Status:** ✅ Specification Approved → ✅ Implemented Same Day
 
 #### What Was Created
 

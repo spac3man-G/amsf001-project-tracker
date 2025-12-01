@@ -1,19 +1,19 @@
-# AMSF001 Project Tracker - Master Documentation v4.0
+# AMSF001 Project Tracker - Master Documentation v5.0
 
 **Last Updated:** 1 December 2025  
-**Version:** 4.0  
-**Status:** Production Ready with Enhanced Invoicing & AI Roadmap
+**Version:** 5.0  
+**Status:** Production Ready with AI Chat Assistant & Enhanced Invoicing
 
 ---
 
 ## Executive Summary
 
-The AMSF001 Project Tracker is a production-ready React/Supabase web application for managing the Network Standards and Design Architectural Services project between Government of Jersey and JT Telecom. The application has achieved 92% production readiness with comprehensive partner invoicing capabilities.
+The AMSF001 Project Tracker is a production-ready React/Supabase web application for managing the Network Standards and Design Architectural Services project between Government of Jersey and JT Telecom. The application has achieved 94% production readiness with AI-powered chat assistant and comprehensive partner invoicing capabilities.
 
 ### Recent Major Updates (1 December 2025)
+- ✅ **AI Chat Assistant Live** - Tool-calling with 12 database query functions (verified working)
 - ✅ **Invoice Summary Redesign** - Clear chargeable/non-chargeable expense breakdown
 - ✅ **Print to PDF** - Invoice details exportable to PDF
-- ✅ **AI Chat Assistant Specification** - Requirements approved for development
 - ✅ **Full Drag-and-Drop Dashboard** - React Grid Layout implementation
 - ✅ **Smart Receipt Scanner** - AI-powered expense capture (pending deployment)
 
@@ -260,33 +260,61 @@ Total Chargeable to Customer = Timesheets + Chargeable Partner + Chargeable Supp
 
 ## AI Chat Assistant
 
-### Status: Specification Complete, Approved for Development
+### Status: ✅ Implemented, Deployed & Verified (1 December 2025)
 
 ### Overview
-The AI Chat Assistant enhances the existing chat widget to become a context-aware assistant capable of querying project data, understanding user roles, and providing personalised guidance.
+The AI Chat Assistant is a context-aware assistant that queries project data in real-time, understands user roles, and provides personalised guidance. It uses Claude Haiku 3.5 with function calling to execute database queries.
 
-### Key Capabilities (Planned)
+### Environment Variables Required
+```
+ANTHROPIC_API_KEY        - Claude API key
+SUPABASE_SERVICE_ROLE_KEY - Database access (added 1 Dec 2025)
+```
+⚠️ **Critical:** Without `SUPABASE_SERVICE_ROLE_KEY`, chat displays "Database connection not configured" error.
+
+### Key Capabilities
 
 1. **Data Queries**
    - "How many outstanding timesheets are there?"
    - "What's the spend to date vs budget for Technical Design?"
-   - "Show me expenses submitted by Glenn Nickols"
+   - "Show me expenses submitted this month"
 
 2. **Personal Guidance**
-   - "What do I need to do next?"
+   - "What do I need to do next?" - Shows draft items and pending approvals
    - "What's waiting for my approval?"
-   - "What's my role and what can I do?"
+   - "What can my role do?" - Explains permissions
 
-3. **Role Awareness**
-   - Queries automatically scoped to user's permissions
+3. **Role-Based Scoping**
+   - All queries automatically scoped to user's permissions
    - Partner users only see their partner's data
-   - Resources only see their own timesheets/expenses
+   - Contributors only see their own timesheets/expenses
+   - Cost prices only visible to Admin/Supplier PM
 
-### Technical Approach
-- Claude Haiku 3.5 with function calling
-- 12+ tools for database queries
-- Permission scoping at query level
-- Estimated cost: £0.40/month for 100 queries
+### Technical Implementation
+- **API:** `api/chat.js` - Vercel Edge Function (1,281 lines)
+- **Model:** Claude Haiku 3.5 (`claude-3-5-haiku-20241022`)
+- **Tools:** 12 database query functions
+- **Frontend:** `ChatWidget.jsx` + `ChatContext.jsx`
+
+### Available Tools
+| Tool | Purpose |
+|------|---------|
+| getUserProfile | Current user info and role |
+| getMyPendingActions | Draft items and approval queue |
+| getRolePermissions | Explain role capabilities |
+| getTimesheets | Query timesheet entries |
+| getTimesheetSummary | Aggregate timesheet stats |
+| getExpenses | Query expense entries |
+| getExpenseSummary | Aggregate expense stats |
+| getMilestones | Project milestone status |
+| getDeliverables | Deliverable status |
+| getBudgetSummary | Budget vs actual spend |
+| getResources | Team members and utilisation |
+| getKPIs | Performance indicators |
+
+### Environment Variables Required
+- `ANTHROPIC_API_KEY` - Claude API access
+- `SUPABASE_SERVICE_ROLE_KEY` - Database access for tool queries
 
 ### Full Specification
 See: `AI-CHAT-ASSISTANT-SPEC.md`

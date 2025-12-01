@@ -1,6 +1,6 @@
 # AMSF001 Project Tracker - Configuration Guide
 
-**Version:** 8.0  
+**Version:** 9.0  
 **Last Updated:** 1 December 2025  
 **Security Note:** This file contains references to sensitive credentials. Do not commit actual keys to public repositories.
 
@@ -44,10 +44,10 @@
 
 | Document | Version | File |
 |----------|---------|------|
-| Master Document | 4.0 | AMSF001-Master-Document-v4.md |
+| Master Document | 5.0 | AMSF001-Master-Document-v5.md |
 | User Manual | 7.0 | AMSF001-User-Manual-v7.md |
-| Development Playbook | 20.0 | AMSF001-Development-Playbook-v20.md |
-| Configuration Guide | 8.0 | AMSF001-Configuration-Guide-v8.md |
+| Development Playbook | 21.0 | AMSF001-Development-Playbook-v21.md |
+| Configuration Guide | 9.0 | AMSF001-Configuration-Guide-v9.md |
 | AI Chat Assistant Spec | 1.0 | AI-CHAT-ASSISTANT-SPEC.md |
 | Receipt Scanner Spec | 1.0 | SMART-RECEIPT-SCANNER-SPEC.md |
 
@@ -120,6 +120,9 @@ All tables have Row Level Security enabled:
 | VITE_SUPABASE_URL | Supabase project URL | Yes |
 | VITE_SUPABASE_ANON_KEY | Supabase anonymous key | Yes |
 | ANTHROPIC_API_KEY | Claude AI API key | For AI features |
+| SUPABASE_SERVICE_ROLE_KEY | Service role key for AI Chat queries | For AI Chat |
+
+**Note:** The `SUPABASE_SERVICE_ROLE_KEY` is used by the chat API to query data on behalf of users. It should be kept secret and only used server-side.
 
 ### Build Settings
 
