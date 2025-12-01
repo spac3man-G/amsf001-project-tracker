@@ -1,29 +1,67 @@
 /**
  * Dashboard Layout Presets
  * 
- * Default widget visibility configurations for each user role.
- * Simple version: visibility toggles only (no positioning).
+ * Default widget configurations with positioning and sizing for each user role.
+ * Full version: supports drag-and-drop, resizing, and custom layouts.
  * 
- * @version 1.0
+ * Grid system: 12 columns, auto-rows
+ * - x: column position (0-11)
+ * - y: row position (0+)
+ * - w: width in columns (1-12)
+ * - h: height in row units (1+)
+ * 
+ * @version 2.0
  * @created 1 December 2025
  * @phase Phase 5 - Enhanced UX
  */
 
 /**
- * Admin Preset - Full visibility
- * Admins see all widgets to monitor entire project
+ * Admin Preset - Full visibility with optimal layout
+ * Admins see all widgets in a comprehensive dashboard layout
  */
 export const ADMIN_PRESET = {
-  version: '1.0',
+  version: '2.0',
   widgets: {
-    'progress-hero': { visible: true },
-    'budget-summary': { visible: true },
-    'pmo-tracking': { visible: true },
-    'stats-grid': { visible: true },
-    'certificates': { visible: true },
-    'milestones-list': { visible: true },
-    'kpis-category': { visible: true },
-    'quality-standards': { visible: true }
+    'progress-hero': { 
+      visible: true, 
+      x: 0, y: 0, w: 12, h: 2,
+      minW: 6, minH: 2, maxH: 3
+    },
+    'budget-summary': { 
+      visible: true, 
+      x: 0, y: 2, w: 6, h: 2,
+      minW: 4, minH: 2, maxH: 3
+    },
+    'pmo-tracking': { 
+      visible: true, 
+      x: 6, y: 2, w: 6, h: 2,
+      minW: 6, minH: 2, maxH: 4
+    },
+    'stats-grid': { 
+      visible: true, 
+      x: 0, y: 4, w: 12, h: 2,
+      minW: 8, minH: 2, maxH: 3
+    },
+    'certificates': { 
+      visible: true, 
+      x: 0, y: 6, w: 12, h: 2,
+      minW: 6, minH: 2, maxH: 3
+    },
+    'milestones-list': { 
+      visible: true, 
+      x: 0, y: 8, w: 12, h: 4,
+      minW: 8, minH: 3, maxH: 6
+    },
+    'kpis-category': { 
+      visible: true, 
+      x: 0, y: 12, w: 6, h: 3,
+      minW: 4, minH: 3, maxH: 5
+    },
+    'quality-standards': { 
+      visible: true, 
+      x: 6, y: 12, w: 6, h: 3,
+      minW: 4, minH: 3, maxH: 5
+    }
   }
 };
 
@@ -32,16 +70,48 @@ export const ADMIN_PRESET = {
  * Emphasizes budget tracking, milestones, and resource management
  */
 export const SUPPLIER_PM_PRESET = {
-  version: '1.0',
+  version: '2.0',
   widgets: {
-    'budget-summary': { visible: true },
-    'pmo-tracking': { visible: true },
-    'milestones-list': { visible: true },
-    'progress-hero': { visible: true },
-    'stats-grid': { visible: true },
-    'certificates': { visible: true },
-    'kpis-category': { visible: false }, // Less relevant to supplier
-    'quality-standards': { visible: false } // Customer focus
+    'progress-hero': { 
+      visible: true, 
+      x: 0, y: 0, w: 12, h: 2,
+      minW: 6, minH: 2, maxH: 3
+    },
+    'budget-summary': { 
+      visible: true, 
+      x: 0, y: 2, w: 6, h: 2,
+      minW: 4, minH: 2, maxH: 3
+    },
+    'pmo-tracking': { 
+      visible: true, 
+      x: 6, y: 2, w: 6, h: 2,
+      minW: 6, minH: 2, maxH: 4
+    },
+    'stats-grid': { 
+      visible: true, 
+      x: 0, y: 4, w: 12, h: 2,
+      minW: 8, minH: 2, maxH: 3
+    },
+    'certificates': { 
+      visible: true, 
+      x: 0, y: 6, w: 12, h: 2,
+      minW: 6, minH: 2, maxH: 3
+    },
+    'milestones-list': { 
+      visible: true, 
+      x: 0, y: 8, w: 12, h: 4,
+      minW: 8, minH: 3, maxH: 6
+    },
+    'kpis-category': { 
+      visible: false,
+      x: 0, y: 12, w: 6, h: 3,
+      minW: 4, minH: 3, maxH: 5
+    },
+    'quality-standards': { 
+      visible: false,
+      x: 6, y: 12, w: 6, h: 3,
+      minW: 4, minH: 3, maxH: 5
+    }
   }
 };
 
@@ -50,145 +120,188 @@ export const SUPPLIER_PM_PRESET = {
  * Emphasizes KPIs, quality standards, and deliverable verification
  */
 export const CUSTOMER_PM_PRESET = {
-  version: '1.0',
+  version: '2.0',
   widgets: {
-    'kpis-category': { visible: true },
-    'quality-standards': { visible: true },
-    'progress-hero': { visible: true },
-    'milestones-list': { visible: true },
-    'certificates': { visible: true },
-    'stats-grid': { visible: true },
-    'budget-summary': { visible: false }, // Supplier responsibility
-    'pmo-tracking': { visible: false } // Internal supplier tracking
+    'progress-hero': { 
+      visible: true, 
+      x: 0, y: 0, w: 12, h: 2,
+      minW: 6, minH: 2, maxH: 3
+    },
+    'budget-summary': { 
+      visible: false,
+      x: 0, y: 2, w: 6, h: 2,
+      minW: 4, minH: 2, maxH: 3
+    },
+    'pmo-tracking': { 
+      visible: false,
+      x: 6, y: 2, w: 6, h: 2,
+      minW: 6, minH: 2, maxH: 4
+    },
+    'stats-grid': { 
+      visible: true, 
+      x: 0, y: 2, w: 12, h: 2,
+      minW: 8, minH: 2, maxH: 3
+    },
+    'certificates': { 
+      visible: true, 
+      x: 0, y: 4, w: 12, h: 2,
+      minW: 6, minH: 2, maxH: 3
+    },
+    'milestones-list': { 
+      visible: true, 
+      x: 0, y: 6, w: 12, h: 4,
+      minW: 8, minH: 3, maxH: 6
+    },
+    'kpis-category': { 
+      visible: true, 
+      x: 0, y: 10, w: 6, h: 3,
+      minW: 4, minH: 3, maxH: 5
+    },
+    'quality-standards': { 
+      visible: true, 
+      x: 6, y: 10, w: 6, h: 3,
+      minW: 4, minH: 3, maxH: 5
+    }
   }
 };
 
 /**
- * Contributor Preset - Task-Focused View
- * Simplified view showing project progress and milestones
+ * Contributor Preset - Simplified view
+ * Shows only essential progress tracking widgets
  */
 export const CONTRIBUTOR_PRESET = {
-  version: '1.0',
+  version: '2.0',
   widgets: {
-    'progress-hero': { visible: true },
-    'stats-grid': { visible: true },
-    'milestones-list': { visible: true },
-    'budget-summary': { visible: false },
-    'pmo-tracking': { visible: false },
-    'certificates': { visible: false },
-    'kpis-category': { visible: false },
-    'quality-standards': { visible: false }
+    'progress-hero': { 
+      visible: true, 
+      x: 0, y: 0, w: 12, h: 2,
+      minW: 6, minH: 2, maxH: 3
+    },
+    'budget-summary': { 
+      visible: false,
+      x: 0, y: 2, w: 6, h: 2,
+      minW: 4, minH: 2, maxH: 3
+    },
+    'pmo-tracking': { 
+      visible: false,
+      x: 6, y: 2, w: 6, h: 2,
+      minW: 6, minH: 2, maxH: 4
+    },
+    'stats-grid': { 
+      visible: true, 
+      x: 0, y: 2, w: 12, h: 2,
+      minW: 8, minH: 2, maxH: 3
+    },
+    'certificates': { 
+      visible: false,
+      x: 0, y: 4, w: 12, h: 2,
+      minW: 6, minH: 2, maxH: 3
+    },
+    'milestones-list': { 
+      visible: true, 
+      x: 0, y: 4, w: 12, h: 4,
+      minW: 8, minH: 3, maxH: 6
+    },
+    'kpis-category': { 
+      visible: false,
+      x: 0, y: 8, w: 6, h: 3,
+      minW: 4, minH: 3, maxH: 5
+    },
+    'quality-standards': { 
+      visible: false,
+      x: 6, y: 8, w: 6, h: 3,
+      minW: 4, minH: 3, maxH: 5
+    }
   }
 };
 
 /**
- * Viewer Preset - Read-Only Essentials
- * Minimal view with key metrics only
+ * Viewer Preset - Read-only essentials
+ * Same as contributor - basic progress visibility
  */
 export const VIEWER_PRESET = {
-  version: '1.0',
-  widgets: {
-    'progress-hero': { visible: true },
-    'stats-grid': { visible: true },
-    'milestones-list': { visible: true },
-    'budget-summary': { visible: false },
-    'pmo-tracking': { visible: false },
-    'certificates': { visible: false },
-    'kpis-category': { visible: false },
-    'quality-standards': { visible: false }
-  }
+  ...CONTRIBUTOR_PRESET
 };
 
 /**
- * Get preset configuration for a given role
- * @param {string} role - User role (admin, supplier_pm, customer_pm, contributor, viewer)
- * @returns {Object} Preset configuration object
- */
-export function getPresetForRole(role) {
-  if (!role) return ADMIN_PRESET;
-  
-  const roleLower = role.toLowerCase();
-  
-  switch (roleLower) {
-    case 'admin':
-      return ADMIN_PRESET;
-    case 'supplier_pm':
-      return SUPPLIER_PM_PRESET;
-    case 'customer_pm':
-      return CUSTOMER_PM_PRESET;
-    case 'contributor':
-      return CONTRIBUTOR_PRESET;
-    case 'viewer':
-      return VIEWER_PRESET;
-    default:
-      return CONTRIBUTOR_PRESET; // Safe default
-  }
-}
-
-/**
- * Widget metadata registry
- * Describes available widgets and their characteristics
+ * Widget Registry
+ * Metadata for all available dashboard widgets
  */
 export const WIDGET_REGISTRY = {
   'progress-hero': {
+    id: 'progress-hero',
     title: 'Project Progress',
     description: 'Overall project completion percentage',
-    category: 'overview',
-    requiredRoles: ['admin', 'supplier_pm', 'customer_pm', 'contributor', 'viewer']
+    icon: 'target',
+    category: 'overview'
   },
   'budget-summary': {
+    id: 'budget-summary',
     title: 'Budget Overview',
     description: 'Total budget and spend to date',
-    category: 'financial',
-    requiredRoles: ['admin', 'supplier_pm']
+    icon: 'dollar-sign',
+    category: 'financial'
   },
   'pmo-tracking': {
+    id: 'pmo-tracking',
     title: 'PMO Cost Tracking',
     description: 'PMO vs Non-PMO budget breakdown',
-    category: 'financial',
-    requiredRoles: ['admin', 'supplier_pm']
+    icon: 'briefcase',
+    category: 'financial'
   },
   'stats-grid': {
+    id: 'stats-grid',
     title: 'Key Statistics',
-    description: 'Milestones, deliverables, resources, KPIs, and quality standards',
-    category: 'overview',
-    requiredRoles: ['admin', 'supplier_pm', 'customer_pm', 'contributor', 'viewer']
+    description: 'Milestones, deliverables, resources, KPIs, and quality standards counts',
+    icon: 'bar-chart',
+    category: 'overview'
   },
   'certificates': {
+    id: 'certificates',
     title: 'Milestone Certificates',
-    description: 'Certificate signing status',
-    category: 'delivery',
-    requiredRoles: ['admin', 'supplier_pm', 'customer_pm']
+    description: 'Certificate signing status summary',
+    icon: 'file-check',
+    category: 'compliance'
   },
   'milestones-list': {
+    id: 'milestones-list',
     title: 'Milestones',
-    description: 'Status, progress, and spend by milestone',
-    category: 'delivery',
-    requiredRoles: ['admin', 'supplier_pm', 'customer_pm', 'contributor', 'viewer']
+    description: 'Milestone status, progress, and spend by milestone',
+    icon: 'clock',
+    category: 'delivery'
   },
   'kpis-category': {
+    id: 'kpis-category',
     title: 'KPIs by Category',
-    description: 'Grouped KPI performance metrics',
-    category: 'quality',
-    requiredRoles: ['admin', 'customer_pm']
+    description: 'KPI performance grouped by category',
+    icon: 'trending-up',
+    category: 'performance'
   },
   'quality-standards': {
+    id: 'quality-standards',
     title: 'Quality Standards',
     description: 'Quality standard achievement summary',
-    category: 'quality',
-    requiredRoles: ['admin', 'customer_pm']
+    icon: 'award',
+    category: 'compliance'
   }
 };
 
 /**
- * Get widgets available for a specific role
+ * Get role-based preset
  * @param {string} role - User role
- * @returns {Array} Array of widget IDs available to this role
+ * @returns {object} Layout preset for the role
  */
-export function getAvailableWidgetsForRole(role) {
-  const roleLower = role?.toLowerCase() || 'viewer';
+export function getRolePreset(role) {
+  if (!role) return VIEWER_PRESET;
   
-  return Object.entries(WIDGET_REGISTRY)
-    .filter(([_, widget]) => widget.requiredRoles.includes(roleLower))
-    .map(([id]) => id);
+  const roleUpper = role.toUpperCase();
+  
+  if (roleUpper.includes('ADMIN')) return ADMIN_PRESET;
+  if (roleUpper.includes('SUPPLIER') && roleUpper.includes('PM')) return SUPPLIER_PM_PRESET;
+  if (roleUpper.includes('CUSTOMER') && roleUpper.includes('PM')) return CUSTOMER_PM_PRESET;
+  if (roleUpper.includes('CONTRIBUTOR')) return CONTRIBUTOR_PRESET;
+  if (roleUpper.includes('VIEWER')) return VIEWER_PRESET;
+  
+  // Default to viewer for unknown roles
+  return VIEWER_PRESET;
 }

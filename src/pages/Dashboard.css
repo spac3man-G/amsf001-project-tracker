@@ -1,0 +1,136 @@
+/* Dashboard Grid Layout Styles */
+
+/* Grid container */
+.react-grid-layout {
+  position: relative;
+}
+
+/* Grid item */
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+}
+
+.react-grid-item img {
+  pointer-events: none;
+  user-select: none;
+}
+
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+}
+
+/* Resize handle - bottom right corner */
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #94a3b8;
+  border-bottom: 2px solid #94a3b8;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.react-grid-item:hover > .react-resizable-handle::after {
+  opacity: 1;
+  border-color: #3b82f6;
+}
+
+/* Dragging state */
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 100;
+  will-change: transform;
+  opacity: 0.9;
+}
+
+/* Resizing state */
+.react-grid-item.resizing {
+  transition: none;
+  z-index: 100;
+  will-change: transform;
+  opacity: 0.9;
+}
+
+/* Placeholder while dragging/resizing */
+.react-grid-placeholder {
+  background: #e0e7ff;
+  opacity: 0.3;
+  transition-duration: 100ms;
+  z-index: 2;
+  border-radius: 8px;
+  border: 2px dashed #6366f1;
+}
+
+/* Drag handle hover effect */
+.drag-handle:hover {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.drag-handle:active {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Static (non-draggable) items */
+.react-grid-item.static {
+  cursor: default;
+}
+
+.react-grid-item.static .drag-handle {
+  display: none;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 996px) {
+  .react-grid-item > .react-resizable-handle {
+    display: none;
+  }
+  
+  .drag-handle {
+    display: none !important;
+  }
+}
+
+/* Ensure grid items don't overflow */
+.react-grid-item > div {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Widget cards in grid */
+.react-grid-item .card {
+  height: 100%;
+  margin-bottom: 0;
+}
+
+/* Animation for adding/removing widgets */
+.react-grid-item.react-grid-item-added {
+  animation: fadeInScale 0.3s ease-out;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Ensure proper z-index stacking */
+.react-grid-item.react-draggable-dragging,
+.react-grid-item.resizing {
+  z-index: 1000;
+}
+
+.react-grid-placeholder {
+  z-index: 999;
+}
