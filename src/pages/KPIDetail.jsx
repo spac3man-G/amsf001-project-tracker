@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { kpisService } from '../services';
+import { useProject } from '../contexts/ProjectContext';
 import { 
   TrendingUp, ArrowLeft, Edit2, Save, X, Target, 
   FileText, Info, CheckCircle, AlertTriangle, RefreshCw
@@ -12,6 +13,7 @@ import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 export default function KPIDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { project } = useProject();
   
   // Use AuthContext instead of local auth fetching
   const { role: userRole } = useAuth();
@@ -32,13 +34,14 @@ export default function KPIDetail() {
   async function fetchKPI() {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('kpis')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const data = await kpisService.getById(id);
 
-      if (error) throw error;
+      if (!data) {
+        setKpi(null);
+        setLoading(false);
+        return;
+      }
+      
       setKpi(data);
       setEditForm({
         name: data.name || '',
@@ -63,31 +66,21 @@ export default function KPIDetail() {
   async function handleSave() {
     setSaving(true);
     try {
-      const { data, error } = await supabase
-        .from('kpis')
-        .update({
-          name: editForm.name,
-          category: editForm.category,
-          target: parseFloat(editForm.target) || null,
-          current_value: parseFloat(editForm.current_value) || null,
-          description: editForm.description,
-          measurement_method: editForm.measurement_method,
-          frequency: editForm.frequency,
-          data_source: editForm.data_source,
-          calculation: editForm.calculation,
-          remediation: editForm.remediation,
-          notes: editForm.notes
-        })
-        .eq('id', id)
-        .select();
+      const updatedData = {
+        name: editForm.name,
+        category: editForm.category,
+        target: parseFloat(editForm.target) || null,
+        current_value: parseFloat(editForm.current_value) || null,
+        description: editForm.description,
+        measurement_method: editForm.measurement_method,
+        frequency: editForm.frequency,
+        data_source: editForm.data_source,
+        calculation: editForm.calculation,
+        remediation: editForm.remediation,
+        notes: editForm.notes
+      };
 
-      if (error) throw error;
-      
-      // Check if update actually happened (RLS check)
-      if (!data || data.length === 0) {
-        throw new Error('Update failed - you may not have permission to edit this KPI.');
-      }
-      
+      await kpisService.update(id, updatedData);
       await fetchKPI();
       setEditing(false);
       alert('KPI updated successfully!');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { milestonesService, deliverablesService, timesheetsService } from '../services';
+import { useProject } from '../contexts/ProjectContext';
 import { 
   Target, ArrowLeft, Package, CheckCircle, Clock, 
   AlertCircle, Calendar, DollarSign, Info, TrendingUp, User
@@ -10,6 +11,7 @@ import { LoadingSpinner, StatCard } from '../components/common';
 export default function MilestoneDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { project } = useProject();
   const [milestone, setMilestone] = useState(null);
   const [deliverables, setDeliverables] = useState([]);
   const [timesheets, setTimesheets] = useState([]);
@@ -42,36 +44,34 @@ export default function MilestoneDetail() {
 
   async function fetchMilestoneData() {
     try {
-      // Fetch milestone
-      const { data: milestoneData, error: milestoneError } = await supabase
-        .from('milestones')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (milestoneError) throw milestoneError;
+      // Fetch milestone using service layer
+      const milestoneData = await milestonesService.getById(id);
+      
+      if (!milestoneData) {
+        setMilestone(null);
+        setLoading(false);
+        return;
+      }
+      
       setMilestone(milestoneData);
 
-      // Fetch deliverables for this milestone
-      const { data: deliverablesData, error: deliverablesError } = await supabase
-        .from('deliverables')
-        .select('*, deliverable_kpis(kpi_id, kpis(kpi_ref, name))')
-        .eq('milestone_id', id)
-        .order('deliverable_ref');
-
-      if (deliverablesError) throw deliverablesError;
+      // Fetch deliverables for this milestone using service layer
+      const deliverablesData = await deliverablesService.getAll(project.id, {
+        filters: [{ column: 'milestone_id', operator: 'eq', value: id }],
+        select: '*, deliverable_kpis(kpi_id, kpis(kpi_ref, name))',
+        orderBy: { column: 'deliverable_ref', ascending: true }
+      });
+      
       setDeliverables(deliverablesData || []);
 
-      // Fetch timesheets for this milestone
-      const { data: timesheetsData, error: tsError } = await supabase
-        .from('timesheets')
-        .select('*, resources(id, name, daily_rate, discount_percent)')
-        .eq('milestone_id', id)
-        .order('date', { ascending: false });
-
-      if (!tsError) {
-        setTimesheets(timesheetsData || []);
-      }
+      // Fetch timesheets for this milestone using service layer
+      const timesheetsData = await timesheetsService.getAll(project.id, {
+        filters: [{ column: 'milestone_id', operator: 'eq', value: id }],
+        select: '*, resources(id, name, daily_rate, discount_percent)',
+        orderBy: { column: 'date', ascending: false }
+      });
+      
+      setTimesheets(timesheetsData || []);
     } catch (error) {
       console.error('Error fetching milestone data:', error);
     } finally {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { kpisService } from '../services';
 import { 
   TrendingUp, RefreshCw, CheckCircle, AlertCircle, 
   AlertTriangle, Clock, Edit2, Plus, Trash2, X, Save
@@ -78,19 +78,15 @@ export default function KPIs() {
     if (!pid) return;
 
     try {
-      const { data, error } = await supabase
-        .from('kpis')
-        .select('*')
-        .eq('project_id', pid)
-        .order('kpi_ref');
+      // Use service layer to fetch KPIs
+      const data = await kpisService.getAll(pid, {
+        orderBy: { column: 'kpi_ref', ascending: true }
+      });
 
-      if (error) throw error;
       setKpis(data || []);
 
-      // Fetch assessment counts for each KPI
-      const { data: assessments } = await supabase
-        .from('deliverable_kpi_assessments')
-        .select('kpi_id, criteria_met');
+      // Fetch assessment counts for each KPI using service
+      const assessments = await kpisService.getAssessments(pid);
 
       // Count assessments per KPI
       const counts = {};
@@ -128,26 +124,23 @@ export default function KPIs() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('kpis')
-        .insert({
-          project_id: projectId,
-          kpi_ref: newKPI.kpi_ref.toUpperCase(),
-          name: newKPI.name,
-          category: newKPI.category,
-          target: parseInt(newKPI.target) || 90,
-          unit: '%',
-          description: newKPI.description || null,
-          measurement_method: newKPI.measurement_method || null,
-          frequency: newKPI.frequency || 'Monthly',
-          data_source: newKPI.data_source || null,
-          calculation: newKPI.calculation || null,
-          remediation: newKPI.remediation || null,
-          current_value: 0,
-          created_by: currentUserId
-        });
-
-      if (error) throw error;
+      // Use service layer to create KPI
+      await kpisService.create({
+        project_id: projectId,
+        kpi_ref: newKPI.kpi_ref.toUpperCase(),
+        name: newKPI.name,
+        category: newKPI.category,
+        target: parseInt(newKPI.target) || 90,
+        unit: '%',
+        description: newKPI.description || null,
+        measurement_method: newKPI.measurement_method || null,
+        frequency: newKPI.frequency || 'Monthly',
+        data_source: newKPI.data_source || null,
+        calculation: newKPI.calculation || null,
+        remediation: newKPI.remediation || null,
+        current_value: 0,
+        created_by: currentUserId
+      });
 
       await fetchKPIs();
       setShowAddForm(false);
@@ -212,13 +205,8 @@ export default function KPIs() {
         if (linkError) throw linkError;
       }
 
-      // Delete the KPI
-      const { error } = await supabase
-        .from('kpis')
-        .delete()
-        .eq('id', kpi.id);
-
-      if (error) throw error;
+      // Delete the KPI using service layer (soft delete)
+      await kpisService.delete(kpi.id);
 
       await fetchKPIs();
       setDeleteDialog({ isOpen: false, kpi: null });

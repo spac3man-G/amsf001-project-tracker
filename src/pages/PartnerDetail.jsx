@@ -24,8 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
-import { partnersService, resourcesService, invoicingService } from '../services';
-import { supabase } from '../lib/supabase';
+import { partnersService, resourcesService, invoicingService, timesheetsService, expensesService } from '../services';
 
 export default function PartnerDetail() {
   const { id } = useParams();
@@ -94,23 +93,25 @@ export default function PartnerDetail() {
       const resourceIds = resources.map(r => r.id);
 
       if (resourceIds.length > 0) {
-        // Build timesheet query with optional date filter
-        let tsQuery = supabase
-          .from('timesheets')
-          .select('id, date, hours_worked, hours, status, resource_id, resources(name, cost_price)')
-          .in('resource_id', resourceIds);
+        // Build filters for timesheet query
+        const tsFilters = [
+          { column: 'resource_id', operator: 'in', value: resourceIds }
+        ];
         
-        // Apply date range filter if set
         if (dateRange.start) {
-          tsQuery = tsQuery.gte('date', dateRange.start);
+          tsFilters.push({ column: 'date', operator: 'gte', value: dateRange.start });
         }
         if (dateRange.end) {
-          tsQuery = tsQuery.lte('date', dateRange.end);
+          tsFilters.push({ column: 'date', operator: 'lte', value: dateRange.end });
         }
         
-        const { data: tsData } = await tsQuery
-          .order('date', { ascending: false })
-          .limit(100);
+        // Fetch timesheets using service layer
+        const tsData = await timesheetsService.getAll(projectId, {
+          filters: tsFilters,
+          select: 'id, date, hours_worked, hours, status, resource_id, resources(name, cost_price)',
+          orderBy: { column: 'date', ascending: false },
+          limit: 100
+        });
 
         if (tsData) {
           // Calculate summary - track both approved and pending
@@ -147,23 +148,25 @@ export default function PartnerDetail() {
           });
         }
 
-        // Build expenses query with optional date filter
-        let expQuery = supabase
-          .from('expenses')
-          .select('id, expense_date, category, reason, amount, resource_id, resource_name, status, procurement_method')
-          .in('resource_id', resourceIds);
+        // Build filters for expenses query
+        const expFilters = [
+          { column: 'resource_id', operator: 'in', value: resourceIds }
+        ];
         
-        // Apply date range filter if set
         if (dateRange.start) {
-          expQuery = expQuery.gte('expense_date', dateRange.start);
+          expFilters.push({ column: 'expense_date', operator: 'gte', value: dateRange.start });
         }
         if (dateRange.end) {
-          expQuery = expQuery.lte('expense_date', dateRange.end);
+          expFilters.push({ column: 'expense_date', operator: 'lte', value: dateRange.end });
         }
         
-        const { data: expData } = await expQuery
-          .order('expense_date', { ascending: false })
-          .limit(100);
+        // Fetch expenses using service layer
+        const expData = await expensesService.getAll(projectId, {
+          filters: expFilters,
+          select: 'id, expense_date, category, reason, amount, resource_id, resource_name, status, procurement_method',
+          orderBy: { column: 'expense_date', ascending: false },
+          limit: 100
+        });
 
         if (expData) {
           const totalAmount = expData.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);

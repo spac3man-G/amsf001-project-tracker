@@ -134,6 +134,24 @@ export class KPIsService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Get KPI assessments from deliverable_kpi_assessments table
+   */
+  async getAssessments(projectId) {
+    try {
+      const { data, error } = await supabase
+        .from('deliverable_kpi_assessments')
+        .select('kpi_id, criteria_met')
+        .eq('project_id', projectId);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('KPIsService getAssessments error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

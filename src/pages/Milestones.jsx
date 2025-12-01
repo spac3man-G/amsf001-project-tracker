@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { milestonesService, deliverablesService } from '../services';
 import { supabase } from '../lib/supabase';
 import { Milestone as MilestoneIcon, Plus, Trash2, RefreshCw, Edit2, Save, X, FileCheck, Award, CheckCircle, PenTool } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -105,19 +106,14 @@ export default function Milestones() {
   async function fetchCertificates(projId) {
     const pid = projId || projectId;
     try {
-      const { data, error } = await supabase
-        .from('milestone_certificates')
-        .select('*')
-        .eq('project_id', pid);
-
-      if (!error && data) {
-        // Index by milestone_id for easy lookup
-        const certsMap = {};
-        data.forEach(cert => {
-          certsMap[cert.milestone_id] = cert;
-        });
-        setCertificates(certsMap);
-      }
+      const data = await milestonesService.getCertificates(pid);
+      
+      // Index by milestone_id for easy lookup
+      const certsMap = {};
+      data.forEach(cert => {
+        certsMap[cert.milestone_id] = cert;
+      });
+      setCertificates(certsMap);
     } catch (error) {
       console.error('Error fetching certificates:', error);
     }
@@ -126,24 +122,24 @@ export default function Milestones() {
   async function fetchMilestones(projId) {
     const pid = projId || projectId;
     try {
-      const { data, error } = await supabase
-        .from('milestones')
-        .select('*')
-        .eq('project_id', pid)
-        .order('milestone_ref');
+      // Fetch milestones using service layer
+      const data = await milestonesService.getAll(pid, {
+        orderBy: { column: 'milestone_ref', ascending: true }
+      });
 
-      if (error) throw error;
       setMilestones(data || []);
 
       // Fetch deliverables for all milestones to calculate status
       if (data && data.length > 0) {
         const milestoneIds = data.map(m => m.id);
-        const { data: deliverables, error: delError } = await supabase
-          .from('deliverables')
-          .select('id, milestone_id, status, progress')
-          .in('milestone_id', milestoneIds);
+        
+        // Use deliverables service with filter for milestone IDs
+        const deliverables = await deliverablesService.getAll(pid, {
+          filters: [{ column: 'milestone_id', operator: 'in', value: milestoneIds }],
+          select: 'id, milestone_id, status, progress'
+        });
 
-        if (!delError && deliverables) {
+        if (deliverables) {
           // Group deliverables by milestone_id
           const grouped = {};
           deliverables.forEach(d => {
@@ -157,6 +153,7 @@ export default function Milestones() {
       }
     } catch (error) {
       console.error('Error fetching milestones:', error);
+      showError('Failed to load milestones');
     } finally {
       setLoading(false);
     }
@@ -169,26 +166,23 @@ export default function Milestones() {
     }
 
     try {
-      const { error } = await supabase
-        .from('milestones')
-        .insert({
-          project_id: projectId,
-          milestone_ref: newMilestone.milestone_ref,
-          name: newMilestone.name,
-          description: newMilestone.description,
-          start_date: newMilestone.start_date || newMilestone.baseline_start_date || null,
-          end_date: newMilestone.end_date || newMilestone.baseline_end_date || null,
-          baseline_start_date: newMilestone.baseline_start_date || newMilestone.start_date || null,
-          baseline_end_date: newMilestone.baseline_end_date || newMilestone.end_date || null,
-          actual_start_date: newMilestone.actual_start_date || newMilestone.start_date || null,
-          forecast_end_date: newMilestone.forecast_end_date || newMilestone.end_date || null,
-          budget: parseFloat(newMilestone.budget) || 0,
-          progress: 0,
-          status: 'Not Started',
-          created_by: currentUserId
-        });
-
-      if (error) throw error;
+      // Use service layer to create milestone
+      await milestonesService.create({
+        project_id: projectId,
+        milestone_ref: newMilestone.milestone_ref,
+        name: newMilestone.name,
+        description: newMilestone.description,
+        start_date: newMilestone.start_date || newMilestone.baseline_start_date || null,
+        end_date: newMilestone.end_date || newMilestone.baseline_end_date || null,
+        baseline_start_date: newMilestone.baseline_start_date || newMilestone.start_date || null,
+        baseline_end_date: newMilestone.baseline_end_date || newMilestone.end_date || null,
+        actual_start_date: newMilestone.actual_start_date || newMilestone.start_date || null,
+        forecast_end_date: newMilestone.forecast_end_date || newMilestone.end_date || null,
+        budget: parseFloat(newMilestone.budget) || 0,
+        progress: 0,
+        status: 'Not Started',
+        created_by: currentUserId
+      });
 
       await fetchMilestones();
       setShowAddForm(false);
@@ -221,14 +215,11 @@ export default function Milestones() {
     
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('milestones')
-        .delete()
-        .eq('id', milestone.id);
-
-      if (error) throw error;
+      // Use service layer for soft delete
+      await milestonesService.delete(milestone.id);
       await fetchMilestones();
       setDeleteDialog({ isOpen: false, milestone: null });
+      showSuccess('Milestone deleted successfully!');
     } catch (error) {
       console.error('Error deleting milestone:', error);
       showError('Failed to delete milestone: ' + error.message);
@@ -262,23 +253,19 @@ export default function Milestones() {
 
     try {
       // Note: We don't update status here - it's calculated from deliverables
-      const { error } = await supabase
-        .from('milestones')
-        .update({
-          milestone_ref: editForm.milestone_ref,
-          name: editForm.name,
-          description: editForm.description,
-          start_date: editForm.start_date || editForm.baseline_start_date || null,
-          end_date: editForm.end_date || editForm.baseline_end_date || null,
-          baseline_start_date: editForm.baseline_start_date || null,
-          baseline_end_date: editForm.baseline_end_date || null,
-          actual_start_date: editForm.actual_start_date || null,
-          forecast_end_date: editForm.forecast_end_date || null,
-          budget: parseFloat(editForm.budget) || 0
-        })
-        .eq('id', editForm.id);
-
-      if (error) throw error;
+      // Use service layer to update milestone
+      await milestonesService.update(editForm.id, {
+        milestone_ref: editForm.milestone_ref,
+        name: editForm.name,
+        description: editForm.description,
+        start_date: editForm.start_date || editForm.baseline_start_date || null,
+        end_date: editForm.end_date || editForm.baseline_end_date || null,
+        baseline_start_date: editForm.baseline_start_date || null,
+        baseline_end_date: editForm.baseline_end_date || null,
+        actual_start_date: editForm.actual_start_date || null,
+        forecast_end_date: editForm.forecast_end_date || null,
+        budget: parseFloat(editForm.budget) || 0
+      });
 
       await fetchMilestones();
       setShowEditModal(false);
@@ -333,23 +320,17 @@ export default function Milestones() {
 
       const certificateNumber = `CERT-${milestone.milestone_ref}-${Date.now().toString(36).toUpperCase()}`;
 
-      const { data: cert, error } = await supabase
-        .from('milestone_certificates')
-        .insert({
-          project_id: projectId,
-          milestone_id: milestone.id,
-          certificate_number: certificateNumber,
-          milestone_ref: milestone.milestone_ref,
-          milestone_name: milestone.name,
-          payment_milestone_value: milestone.budget || 0,
-          status: 'Draft',
-          deliverables_snapshot: fullDeliverables || [],
-          generated_by: currentUserId
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const cert = await milestonesService.createCertificate({
+        project_id: projectId,
+        milestone_id: milestone.id,
+        certificate_number: certificateNumber,
+        milestone_ref: milestone.milestone_ref,
+        milestone_name: milestone.name,
+        payment_milestone_value: milestone.budget || 0,
+        status: 'Draft',
+        deliverables_snapshot: fullDeliverables || [],
+        generated_by: currentUserId
+      });
 
       await fetchCertificates();
       openCertificateModal(milestone);
@@ -416,12 +397,7 @@ export default function Milestones() {
 
       updates.status = newStatus;
 
-      const { error } = await supabase
-        .from('milestone_certificates')
-        .update(updates)
-        .eq('id', selectedCertificate.id);
-
-      if (error) throw error;
+      await milestonesService.updateCertificate(selectedCertificate.id, updates);
 
       await fetchCertificates();
       

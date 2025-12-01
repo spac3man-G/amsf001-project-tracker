@@ -13,7 +13,6 @@ import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../contexts/ToastContext';
 import { partnersService } from '../services';
-import { supabase } from '../lib/supabase';
 import { 
   LoadingSpinner, 
   PageHeader, 
@@ -150,48 +149,13 @@ export default function Partners() {
   // Fetch dependent record counts before showing delete dialog
   const handleDeleteClick = async (partner) => {
     try {
-      // Get count of resources linked to this partner
-      const { data: resources, error: resError } = await supabase
-        .from('resources')
-        .select('id')
-        .eq('partner_id', partner.id);
+      // Use service method to get dependency counts
+      const dependents = await partnersService.getDependencyCounts(partner.id);
       
-      if (resError) throw resError;
-
-      const resourceCount = resources?.length || 0;
-      let timesheetCount = 0;
-      let expenseCount = 0;
-      let invoiceCount = 0;
-
-      if (resourceCount > 0) {
-        const resourceIds = resources.map(r => r.id);
-        
-        // Get timesheet count
-        const { count: tsCount } = await supabase
-          .from('timesheets')
-          .select('*', { count: 'exact', head: true })
-          .in('resource_id', resourceIds);
-        timesheetCount = tsCount || 0;
-
-        // Get expense count
-        const { count: expCount } = await supabase
-          .from('expenses')
-          .select('*', { count: 'exact', head: true })
-          .in('resource_id', resourceIds);
-        expenseCount = expCount || 0;
-      }
-
-      // Get invoice count
-      const { count: invCount } = await supabase
-        .from('partner_invoices')
-        .select('*', { count: 'exact', head: true })
-        .eq('partner_id', partner.id);
-      invoiceCount = invCount || 0;
-
       setDeleteConfirm({
         show: true,
         partner,
-        dependents: { resourceCount, timesheetCount, expenseCount, invoiceCount }
+        dependents
       });
     } catch (err) {
       console.error('Error fetching dependents:', err);

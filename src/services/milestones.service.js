@@ -191,6 +191,64 @@ export class MilestonesService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Get all certificates for a project
+   */
+  async getCertificates(projectId) {
+    try {
+      const { data, error } = await supabase
+        .from('milestone_certificates')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('MilestonesService getCertificates error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new milestone certificate
+   */
+  async createCertificate(certificateData) {
+    try {
+      const { data, error } = await supabase
+        .from('milestone_certificates')
+        .insert([certificateData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('MilestonesService createCertificate error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing milestone certificate
+   */
+  async updateCertificate(certificateId, updates) {
+    try {
+      const { data, error } = await supabase
+        .from('milestone_certificates')
+        .update(updates)
+        .eq('id', certificateId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('MilestonesService updateCertificate error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

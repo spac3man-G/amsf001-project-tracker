@@ -211,6 +211,70 @@ class PartnersService extends BaseService {
       label: p.name
     }));
   }
+
+  /**
+   * Get dependency counts before deleting a partner
+   * Returns counts of resources, timesheets, expenses, and invoices
+   * @param {string} partnerId - Partner UUID
+   * @returns {Promise<Object>} Dependency counts and canDelete flag
+   */
+  async getDependencyCounts(partnerId) {
+    try {
+      // Get linked resources
+      const { data: resources, error: resError } = await supabase
+        .from('resources')
+        .select('id')
+        .eq('partner_id', partnerId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+      
+      if (resError) throw resError;
+      
+      const resourceIds = resources?.map(r => r.id) || [];
+      let timesheetCount = 0;
+      let expenseCount = 0;
+      
+      // Count timesheets and expenses if resources exist
+      if (resourceIds.length > 0) {
+        const { count: tsCount, error: tsError } = await supabase
+          .from('timesheets')
+          .select('*', { count: 'exact', head: true })
+          .in('resource_id', resourceIds)
+          .or('is_deleted.is.null,is_deleted.eq.false');
+        
+        if (tsError) throw tsError;
+        timesheetCount = tsCount || 0;
+        
+        const { count: expCount, error: expError } = await supabase
+          .from('expenses')
+          .select('*', { count: 'exact', head: true })
+          .in('resource_id', resourceIds)
+          .or('is_deleted.is.null,is_deleted.eq.false');
+        
+        if (expError) throw expError;
+        expenseCount = expCount || 0;
+      }
+      
+      // Count invoices
+      const { count: invoiceCount, error: invError } = await supabase
+        .from('partner_invoices')
+        .select('*', { count: 'exact', head: true })
+        .eq('partner_id', partnerId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+      
+      if (invError) throw invError;
+      
+      return {
+        resourceCount: resources?.length || 0,
+        timesheetCount,
+        expenseCount,
+        invoiceCount: invoiceCount || 0,
+        canDelete: !resources?.length && !invoiceCount
+      };
+    } catch (error) {
+      console.error('PartnersService getDependencyCounts error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

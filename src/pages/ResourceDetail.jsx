@@ -24,8 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
-import { resourcesService, partnersService } from '../services';
-import { supabase } from '../lib/supabase';
+import { resourcesService, partnersService, timesheetsService, expensesService } from '../services';
 
 export default function ResourceDetail() {
   const { id } = useParams();
@@ -63,18 +62,16 @@ export default function ResourceDetail() {
     async function fetchPartners() {
       if (resource?.project_id && userRole && ['admin', 'supplier_pm'].includes(userRole)) {
         console.log('Fetching partners for project:', resource.project_id);
-        const { data: partnersData, error: partnersError } = await supabase
-          .from('partners')
-          .select('id, name, is_active')
-          .eq('project_id', resource.project_id)
-          .eq('is_active', true)
-          .order('name');
-        
-        if (partnersError) {
-          console.error('Error fetching partners:', partnersError);
-        } else {
+        try {
+          const partnersData = await partnersService.getAll(resource.project_id, {
+            filters: [{ column: 'is_active', operator: 'eq', value: true }],
+            select: 'id, name, is_active',
+            orderBy: { column: 'name', ascending: true }
+          });
           console.log('Partners loaded:', partnersData);
           setPartners(partnersData || []);
+        } catch (error) {
+          console.error('Error fetching partners:', error);
         }
       }
     }
@@ -86,26 +83,25 @@ export default function ResourceDetail() {
       setLoading(true);
       setError(null);
 
-      // Fetch resource directly to ensure we get all fields including project_id
-      const { data: resourceData, error: resourceError } = await supabase
-        .from('resources')
-        .select('*, partner:partners(id, name, contact_name, contact_email, is_active)')
-        .eq('id', id)
-        .single();
+      // Fetch resource using service layer with partner relationship
+      const resourceData = await resourcesService.getById(id, {
+        select: '*, partner:partners(id, name, contact_name, contact_email, is_active)'
+      });
 
-      if (resourceError) {
-        console.error('Error fetching resource:', resourceError);
+      if (!resourceData) {
+        console.error('Error fetching resource: not found');
         setError('Resource not found');
+        setLoading(false);
         return;
       }
       
       console.log('Resource loaded with project_id:', resourceData.project_id);
 
-      // Get timesheet summary for the resource
-      const { data: timesheetsForSummary } = await supabase
-        .from('timesheets')
-        .select('id, hours_worked, hours, status, was_rejected')
-        .eq('resource_id', id);
+      // Get timesheet summary for the resource (all timesheets)
+      const timesheetsForSummary = await timesheetsService.getAll(resourceData.project_id, {
+        filters: [{ column: 'resource_id', operator: 'eq', value: id }],
+        select: 'id, hours_worked, hours, status, was_rejected'
+      });
 
       // Calculate timesheet stats
       let totalHours = 0;
@@ -136,43 +132,43 @@ export default function ResourceDetail() {
         }
       });
 
-      // Fetch timesheets for this resource with optional date filter
-      let tsQuery = supabase
-        .from('timesheets')
-        .select('id, date, hours_worked, hours, status, description, milestone:milestones(milestone_ref, name)')
-        .eq('resource_id', id);
-      
-      // Apply date range filter if set
+      // Build filters for detailed timesheets with optional date range
+      const tsFilters = [{ column: 'resource_id', operator: 'eq', value: id }];
       if (dateRange.start) {
-        tsQuery = tsQuery.gte('date', dateRange.start);
+        tsFilters.push({ column: 'date', operator: 'gte', value: dateRange.start });
       }
       if (dateRange.end) {
-        tsQuery = tsQuery.lte('date', dateRange.end);
+        tsFilters.push({ column: 'date', operator: 'lte', value: dateRange.end });
       }
       
-      const { data: tsData } = await tsQuery
-        .order('date', { ascending: false })
-        .limit(100);
-      setTimesheets(tsData || []);
+      // Fetch detailed timesheets using service layer
+      const tsData = await timesheetsService.getAll(resourceData.project_id, {
+        filters: tsFilters,
+        select: 'id, date, hours_worked, hours, status, description, milestone:milestones(milestone_ref, name)',
+        orderBy: { column: 'date', ascending: false }
+      });
+      
+      // Limit to 100 results
+      setTimesheets((tsData || []).slice(0, 100));
 
-      // Fetch expenses for this resource with optional date filter
-      let expQuery = supabase
-        .from('expenses')
-        .select('id, expense_date, category, reason, amount, chargeable_to_customer, procurement_method, status')
-        .eq('resource_id', id);
-      
-      // Apply date range filter if set
+      // Build filters for expenses with optional date range
+      const expFilters = [{ column: 'resource_id', operator: 'eq', value: id }];
       if (dateRange.start) {
-        expQuery = expQuery.gte('expense_date', dateRange.start);
+        expFilters.push({ column: 'expense_date', operator: 'gte', value: dateRange.start });
       }
       if (dateRange.end) {
-        expQuery = expQuery.lte('expense_date', dateRange.end);
+        expFilters.push({ column: 'expense_date', operator: 'lte', value: dateRange.end });
       }
       
-      const { data: expData } = await expQuery
-        .order('expense_date', { ascending: false })
-        .limit(100);
-      setExpenses(expData || []);
+      // Fetch expenses using service layer
+      const expData = await expensesService.getAll(resourceData.project_id, {
+        filters: expFilters,
+        select: 'id, expense_date, category, reason, amount, chargeable_to_customer, procurement_method, status',
+        orderBy: { column: 'expense_date', ascending: false }
+      });
+      
+      // Limit to 100 results
+      setExpenses((expData || []).slice(0, 100));
 
     } catch (err) {
       console.error('Error fetching resource data:', err);

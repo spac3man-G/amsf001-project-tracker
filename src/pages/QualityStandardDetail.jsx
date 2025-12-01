@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { qualityStandardsService } from '../services';
+import { useProject } from '../contexts/ProjectContext';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft, Award, CheckCircle, AlertCircle, Clock, 
@@ -10,12 +13,13 @@ import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 export default function QualityStandardDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { project } = useProject();
+  const { role: userRole } = useAuth();
   const [qs, setQS] = useState(null);
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
-  const [userRole, setUserRole] = useState('viewer');
 
   useEffect(() => {
     fetchQualityStandard();
@@ -23,27 +27,18 @@ export default function QualityStandardDetail() {
 
   async function fetchQualityStandard() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        if (profile) setUserRole(profile.role);
+      const data = await qualityStandardsService.getById(id);
+
+      if (!data) {
+        setQS(null);
+        setLoading(false);
+        return;
       }
-
-      const { data, error } = await supabase
-        .from('quality_standards')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
+      
       setQS(data);
       setEditForm(data);
 
-      // Fetch assessments with deliverable info
+      // Fetch assessments with deliverable info (no service available for assessments yet)
       const { data: assessmentData } = await supabase
         .from('deliverable_qs_assessments')
         .select(`
@@ -64,18 +59,14 @@ export default function QualityStandardDetail() {
 
   async function handleSave() {
     try {
-      const { error } = await supabase
-        .from('quality_standards')
-        .update({
-          description: editForm.description,
-          measurement_criteria: editForm.measurement_criteria,
-          compliance_expectation: editForm.compliance_expectation,
-          target: parseFloat(editForm.target) || 100,
-          notes: editForm.notes
-        })
-        .eq('id', id);
+      await qualityStandardsService.update(id, {
+        description: editForm.description,
+        measurement_criteria: editForm.measurement_criteria,
+        compliance_expectation: editForm.compliance_expectation,
+        target: parseFloat(editForm.target) || 100,
+        notes: editForm.notes
+      });
 
-      if (error) throw error;
       setQS({ ...qs, ...editForm });
       setEditing(false);
     } catch (error) {
