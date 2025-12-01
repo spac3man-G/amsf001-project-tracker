@@ -2,18 +2,25 @@
  * ReceiptScanner Component
  * 
  * Smart receipt scanning with AI-powered data extraction and classification.
- * Provides an alternative expense entry method using receipt photos.
+ * Supports batch scanning - upload multiple receipts at once.
  * 
- * @version 1.0
- * @created 2 December 2025
+ * @version 2.0
+ * @updated 2 December 2025
  * @phase Phase 2 - Smart Receipt Scanner
+ * 
+ * Features:
+ * - Multi-file upload support
+ * - Batch AI processing with progress
+ * - Step-through review interface
+ * - Individual expense submission
+ * - Learning from user corrections
  */
 
 import React, { useState, useRef, useCallback } from 'react';
 import {
   Camera, Upload, X, Check, AlertCircle, Loader2,
-  Receipt, Edit2, Sparkles, RotateCcw, ZoomIn,
-  Car, Home, Utensils, HelpCircle, ChevronDown
+  Receipt, Sparkles, RotateCcw, ChevronLeft, ChevronRight,
+  Car, Home, Utensils, HelpCircle, Trash2, ImageIcon
 } from 'lucide-react';
 import { receiptScannerService } from '../../services';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,12 +35,20 @@ const CATEGORIES = [
   { id: 'Sustenance', label: 'Sustenance', icon: Utensils, color: '#ea580c', bg: '#ffedd5' }
 ];
 
+// Receipt status
+const RECEIPT_STATUS = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  READY: 'ready',
+  SUBMITTED: 'submitted',
+  ERROR: 'error'
+};
+
 // Processing steps
 const STEPS = {
   UPLOAD: 'upload',
   PROCESSING: 'processing',
-  REVIEW: 'review',
-  COMPLETE: 'complete'
+  REVIEW: 'review'
 };
 
 export default function ReceiptScanner({ 
@@ -44,102 +59,37 @@ export default function ReceiptScanner({
 }) {
   const { user } = useAuth();
   const { projectId } = useProject();
-  const { showSuccess, showError, showWarning } = useToast();
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
   
-  // Component state
+  // Main state
   const [currentStep, setCurrentStep] = useState(STEPS.UPLOAD);
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingMessage, setProcessingMessage] = useState('');
-  const [scanResult, setScanResult] = useState(null);
-  const [scanId, setScanId] = useState(null);
-  
-  // Form state for review/edit
-  const [formData, setFormData] = useState({
-    merchant: '',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    category: '',
-    resource_id: defaultResourceId || '',
-    reason: '',
-    chargeable: true,
-    procurement: 'supplier',
-    notes: ''
-  });
-  
-  // UI state
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [wasEdited, setWasEdited] = useState(false);
+  const [receipts, setReceipts] = useState([]); // Array of receipt objects
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
   
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
-  // =====================================================
-  // IMAGE HANDLING
-  // =====================================================
-
-  const handleFileSelect = useCallback((event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-    if (!allowedTypes.includes(file.type)) {
-      showError('Please upload a JPEG, PNG, or WebP image');
-      return;
-    }
-
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-      showError('Image too large. Maximum size is 10MB');
-      return;
-    }
-
-    setImageFile(file);
-    
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target.result);
-    };
-    reader.readAsDataURL(file);
-  }, [showError]);
-
-  const handleDrop = useCallback((event) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (file) {
-      // Simulate file input event
-      handleFileSelect({ target: { files: [file] } });
-    }
-  }, [handleFileSelect]);
-
-  const handleDragOver = useCallback((event) => {
-    event.preventDefault();
-  }, []);
-
-  const clearImage = useCallback(() => {
-    setImageFile(null);
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
-  }, []);
+  // Get current receipt being reviewed
+  const currentReceipt = receipts[currentIndex];
+  
+  // Count receipts by status
+  const readyCount = receipts.filter(r => r.status === RECEIPT_STATUS.READY).length;
+  const submittedCount = receipts.filter(r => r.status === RECEIPT_STATUS.SUBMITTED).length;
+  const pendingCount = receipts.filter(r => r.status === RECEIPT_STATUS.PENDING || r.status === RECEIPT_STATUS.PROCESSING).length;
 
   // =====================================================
-  // PROCESSING
+  // HELPERS
   // =====================================================
 
-  // Helper to convert file to base64
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        const base64 = reader.result.split(',')[1];
         resolve({
-          data: base64,
-          mediaType: file.type
+          data: reader.result.split(',')[1],
+          mediaType: file.type,
+          preview: reader.result
         });
       };
       reader.onerror = reject;
@@ -147,95 +97,256 @@ export default function ReceiptScanner({
     });
   };
 
-  const processReceipt = useCallback(async () => {
-    if (!imageFile || !projectId || !user?.id) {
-      showError('Missing required data for processing');
+  const createReceiptObject = (file, preview) => ({
+    id: `receipt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    file,
+    preview,
+    status: RECEIPT_STATUS.PENDING,
+    scanResult: null,
+    scanId: null,
+    imageUrl: null,
+    formData: {
+      merchant: '',
+      amount: '',
+      date: new Date().toISOString().split('T')[0],
+      category: '',
+      resource_id: defaultResourceId || '',
+      reason: '',
+      chargeable: true,
+      procurement: 'supplier',
+      notes: ''
+    },
+    wasEdited: false
+  });
+
+  // =====================================================
+  // FILE HANDLING
+  // =====================================================
+
+  const handleFileSelect = useCallback(async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+    const validFiles = [];
+    
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        showWarning(`Skipped ${file.name} - invalid file type`);
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showWarning(`Skipped ${file.name} - file too large (max 10MB)`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
+    // Create receipt objects with previews
+    const newReceipts = await Promise.all(
+      validFiles.map(async (file) => {
+        const { preview } = await fileToBase64(file);
+        return createReceiptObject(file, preview);
+      })
+    );
+
+    setReceipts(prev => [...prev, ...newReceipts]);
+    showInfo(`Added ${newReceipts.length} receipt${newReceipts.length > 1 ? 's' : ''}`);
+  }, [showWarning, showInfo, defaultResourceId]);
+
+  const handleDrop = useCallback((event) => {
+    event.preventDefault();
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect({ target: { files } });
+    }
+  }, [handleFileSelect]);
+
+  const handleDragOver = useCallback((event) => {
+    event.preventDefault();
+  }, []);
+
+  const removeReceipt = useCallback((id) => {
+    setReceipts(prev => {
+      const newReceipts = prev.filter(r => r.id !== id);
+      if (currentIndex >= newReceipts.length && newReceipts.length > 0) {
+        setCurrentIndex(newReceipts.length - 1);
+      }
+      return newReceipts;
+    });
+  }, [currentIndex]);
+
+  const clearAllReceipts = useCallback(() => {
+    setReceipts([]);
+    setCurrentIndex(0);
+    setCurrentStep(STEPS.UPLOAD);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, []);
+
+  // =====================================================
+  // BATCH PROCESSING
+  // =====================================================
+
+  const processAllReceipts = useCallback(async () => {
+    if (receipts.length === 0 || !projectId || !user?.id) {
+      showError('No receipts to process');
       return;
     }
 
     setCurrentStep(STEPS.PROCESSING);
-    setIsProcessing(true);
-    setProcessingMessage('Preparing image...');
+    setProcessingProgress({ current: 0, total: receipts.length });
 
-    try {
-      // Step 1: Convert file to base64 FIRST (before upload)
-      const imageData = await fileToBase64(imageFile);
+    const updatedReceipts = [...receipts];
+
+    for (let i = 0; i < updatedReceipts.length; i++) {
+      const receipt = updatedReceipts[i];
       
-      // Step 2: Upload image to storage (for record keeping)
-      setProcessingMessage('Uploading image...');
-      const { path, url } = await receiptScannerService.uploadImage(imageFile, user.id);
-      
-      // Step 3: Process with AI using base64 data directly
-      setProcessingMessage('Analyzing receipt with AI...');
-      const result = await receiptScannerService.processReceipt(imageData, projectId);
-      setProcessingMessage('Extracting data...');
-
-      // Step 3: Save scan record
-      const scan = await receiptScannerService.createScan({
-        projectId,
-        userId: user.id,
-        imageUrl: url,
-        imagePath: path,
-        ...result
-      });
-
-      setScanId(scan.id);
-      setScanResult(result);
-
-      // Pre-fill form with extracted data
-      setFormData(prev => ({
-        ...prev,
-        merchant: result.merchant || '',
-        amount: result.amount?.toString() || '',
-        date: result.date || new Date().toISOString().split('T')[0],
-        category: result.suggestedCategory || '',
-        reason: result.merchant ? `Receipt from ${result.merchant}` : ''
-      }));
-
-      setCurrentStep(STEPS.REVIEW);
-      
-      if (result.confidence >= 0.8) {
-        showSuccess('Receipt scanned successfully!');
-      } else if (result.confidence >= 0.5) {
-        showWarning('Receipt scanned - please verify the details');
-      } else {
-        showWarning('Could not extract all data - please fill in missing fields');
+      // Skip already processed
+      if (receipt.status === RECEIPT_STATUS.READY || receipt.status === RECEIPT_STATUS.SUBMITTED) {
+        setProcessingProgress({ current: i + 1, total: receipts.length });
+        continue;
       }
 
-    } catch (error) {
-      console.error('Error processing receipt:', error);
-      showError('Failed to process receipt: ' + error.message);
-      setCurrentStep(STEPS.UPLOAD);
-    } finally {
-      setIsProcessing(false);
-      setProcessingMessage('');
+      // Update status to processing
+      updatedReceipts[i] = { ...receipt, status: RECEIPT_STATUS.PROCESSING };
+      setReceipts([...updatedReceipts]);
+
+      try {
+        // Convert to base64
+        const imageData = await fileToBase64(receipt.file);
+        
+        // Upload image
+        const { path, url } = await receiptScannerService.uploadImage(receipt.file, user.id);
+        
+        // Process with AI
+        const result = await receiptScannerService.processReceipt(imageData, projectId);
+        
+        // Save scan record
+        const scan = await receiptScannerService.createScan({
+          projectId,
+          userId: user.id,
+          imageUrl: url,
+          imagePath: path,
+          ...result
+        });
+
+        // Update receipt with results
+        updatedReceipts[i] = {
+          ...updatedReceipts[i],
+          status: RECEIPT_STATUS.READY,
+          scanResult: result,
+          scanId: scan.id,
+          imageUrl: url,
+          formData: {
+            ...updatedReceipts[i].formData,
+            merchant: result.merchant || '',
+            amount: result.amount?.toString() || '',
+            date: result.date || new Date().toISOString().split('T')[0],
+            category: result.suggestedCategory || '',
+            reason: result.merchant ? `Receipt from ${result.merchant}` : ''
+          }
+        };
+
+      } catch (error) {
+        console.error(`Error processing receipt ${i + 1}:`, error);
+        updatedReceipts[i] = {
+          ...updatedReceipts[i],
+          status: RECEIPT_STATUS.ERROR,
+          error: error.message
+        };
+      }
+
+      setReceipts([...updatedReceipts]);
+      setProcessingProgress({ current: i + 1, total: receipts.length });
     }
-  }, [imageFile, projectId, user, showError, showSuccess, showWarning]);
+
+    // Move to review step
+    setCurrentStep(STEPS.REVIEW);
+    
+    // Find first receipt that needs review
+    const firstReadyIndex = updatedReceipts.findIndex(r => r.status === RECEIPT_STATUS.READY);
+    if (firstReadyIndex >= 0) {
+      setCurrentIndex(firstReadyIndex);
+    }
+
+    const successCount = updatedReceipts.filter(r => r.status === RECEIPT_STATUS.READY).length;
+    const errorCount = updatedReceipts.filter(r => r.status === RECEIPT_STATUS.ERROR).length;
+    
+    if (errorCount > 0) {
+      showWarning(`Processed ${successCount} receipts, ${errorCount} failed`);
+    } else {
+      showSuccess(`Successfully scanned ${successCount} receipt${successCount > 1 ? 's' : ''}!`);
+    }
+  }, [receipts, projectId, user, showError, showSuccess, showWarning]);
 
   // =====================================================
   // FORM HANDLING
   // =====================================================
 
-  const handleFormChange = useCallback((field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setWasEdited(true);
-    
-    // Track if category was changed from AI suggestion
-    if (field === 'category' && value !== scanResult?.suggestedCategory) {
-      setIsEditing(true);
-    }
-  }, [scanResult]);
+  const updateCurrentReceipt = useCallback((field, value) => {
+    setReceipts(prev => {
+      const updated = [...prev];
+      updated[currentIndex] = {
+        ...updated[currentIndex],
+        formData: {
+          ...updated[currentIndex].formData,
+          [field]: value
+        },
+        wasEdited: true
+      };
+      return updated;
+    });
+  }, [currentIndex]);
 
   const selectCategory = useCallback((categoryId) => {
-    handleFormChange('category', categoryId);
-    setShowCategoryDropdown(false);
-  }, [handleFormChange]);
+    updateCurrentReceipt('category', categoryId);
+  }, [updateCurrentReceipt]);
+
+  // =====================================================
+  // NAVIGATION
+  // =====================================================
+
+  const goToReceipt = useCallback((index) => {
+    if (index >= 0 && index < receipts.length) {
+      setCurrentIndex(index);
+    }
+  }, [receipts.length]);
+
+  const goToPrevious = useCallback(() => {
+    // Find previous receipt that's ready for review
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      if (receipts[i].status === RECEIPT_STATUS.READY) {
+        setCurrentIndex(i);
+        return;
+      }
+    }
+  }, [currentIndex, receipts]);
+
+  const goToNext = useCallback(() => {
+    // Find next receipt that's ready for review
+    for (let i = currentIndex + 1; i < receipts.length; i++) {
+      if (receipts[i].status === RECEIPT_STATUS.READY) {
+        setCurrentIndex(i);
+        return;
+      }
+    }
+  }, [currentIndex, receipts]);
+
+  const hasPrevious = receipts.slice(0, currentIndex).some(r => r.status === RECEIPT_STATUS.READY);
+  const hasNext = receipts.slice(currentIndex + 1).some(r => r.status === RECEIPT_STATUS.READY);
 
   // =====================================================
   // SUBMISSION
   // =====================================================
 
-  const handleSubmit = useCallback(async () => {
+  const submitCurrentReceipt = useCallback(async () => {
+    const receipt = currentReceipt;
+    if (!receipt || receipt.status !== RECEIPT_STATUS.READY) return;
+
+    const { formData } = receipt;
+
     // Validation
     if (!formData.resource_id) {
       showWarning('Please select a resource');
@@ -257,7 +368,7 @@ export default function ReceiptScanner({
     try {
       // Learn from user's category selection
       if (formData.merchant && formData.category) {
-        const wasCorrection = isEditing && scanResult?.suggestedCategory !== formData.category;
+        const wasCorrection = receipt.wasEdited && receipt.scanResult?.suggestedCategory !== formData.category;
         await receiptScannerService.learnFromCorrection(
           projectId,
           formData.merchant,
@@ -268,15 +379,15 @@ export default function ReceiptScanner({
       }
 
       // Update scan with final classification
-      if (scanId) {
+      if (receipt.scanId) {
         await receiptScannerService.updateScanClassification(
-          scanId,
+          receipt.scanId,
           formData.category,
-          isEditing
+          receipt.wasEdited
         );
       }
 
-      // Prepare expense data for parent component
+      // Prepare expense data
       const expenseData = {
         category: formData.category,
         resource_id: formData.resource_id,
@@ -287,93 +398,100 @@ export default function ReceiptScanner({
         notes: formData.notes,
         chargeable_to_customer: formData.chargeable,
         procurement_method: formData.procurement,
-        // Link to receipt scan
-        receipt_scan_id: scanId,
-        receipt_image_url: scanResult?.imageUrl
+        receipt_scan_id: receipt.scanId,
+        receipt_image_url: receipt.imageUrl
       };
 
-      setCurrentStep(STEPS.COMPLETE);
-      
-      // Callback to parent to create expense
+      // Mark as submitted
+      setReceipts(prev => {
+        const updated = [...prev];
+        updated[currentIndex] = { ...updated[currentIndex], status: RECEIPT_STATUS.SUBMITTED };
+        return updated;
+      });
+
+      // Callback to parent
       if (onExpenseCreated) {
         onExpenseCreated(expenseData);
       }
 
-      showSuccess('Expense created from receipt!');
+      showSuccess(`Expense created: ${formData.merchant || 'Receipt'} - £${formData.amount}`);
+
+      // Auto-advance to next unsubmitted receipt
+      const nextReadyIndex = receipts.findIndex((r, i) => 
+        i > currentIndex && r.status === RECEIPT_STATUS.READY
+      );
+      if (nextReadyIndex >= 0) {
+        setCurrentIndex(nextReadyIndex);
+      }
 
     } catch (error) {
       console.error('Error submitting expense:', error);
       showError('Failed to create expense: ' + error.message);
     }
-  }, [formData, scanId, scanResult, projectId, user, resources, isEditing, onExpenseCreated, showSuccess, showError, showWarning]);
-
-  const handleReset = useCallback(() => {
-    setCurrentStep(STEPS.UPLOAD);
-    setImageFile(null);
-    setImagePreview(null);
-    setScanResult(null);
-    setScanId(null);
-    setFormData({
-      merchant: '',
-      amount: '',
-      date: new Date().toISOString().split('T')[0],
-      category: '',
-      resource_id: defaultResourceId || '',
-      reason: '',
-      chargeable: true,
-      procurement: 'supplier',
-      notes: ''
-    });
-    setWasEdited(false);
-    setIsEditing(false);
-  }, [defaultResourceId]);
+  }, [currentReceipt, currentIndex, receipts, projectId, user, resources, onExpenseCreated, showSuccess, showError, showWarning]);
 
   // =====================================================
   // RENDER HELPERS
   // =====================================================
 
-  const getCategoryConfig = (categoryId) => {
-    return CATEGORIES.find(c => c.id === categoryId) || null;
-  };
-
-  const renderConfidenceBadge = () => {
-    if (!scanResult?.confidence) return null;
+  const renderConfidenceBadge = (confidence) => {
+    if (!confidence) return null;
     
-    const confidence = scanResult.confidence;
     let color, label;
-    
     if (confidence >= 0.8) {
       color = '#10b981';
-      label = 'High confidence';
+      label = 'High';
     } else if (confidence >= 0.5) {
       color = '#f59e0b';
-      label = 'Medium confidence';
+      label = 'Medium';
     } else {
       color = '#ef4444';
-      label = 'Low confidence';
+      label = 'Low';
     }
 
     return (
       <div className="confidence-badge" style={{ color, borderColor: color }}>
         <Sparkles size={14} />
-        {label} ({Math.round(confidence * 100)}%)
+        {label} confidence ({Math.round(confidence * 100)}%)
       </div>
     );
   };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case RECEIPT_STATUS.PENDING:
+        return <div className="status-dot pending" />;
+      case RECEIPT_STATUS.PROCESSING:
+        return <Loader2 size={14} className="spinner" />;
+      case RECEIPT_STATUS.READY:
+        return <div className="status-dot ready" />;
+      case RECEIPT_STATUS.SUBMITTED:
+        return <Check size={14} className="status-check" />;
+      case RECEIPT_STATUS.ERROR:
+        return <AlertCircle size={14} className="status-error" />;
+      default:
+        return null;
+    }
+  };
+
 
   // =====================================================
   // RENDER
   // =====================================================
 
   return (
-    <div className="receipt-scanner">
+    <div className="receipt-scanner batch-mode">
       {/* Header */}
       <div className="scanner-header">
         <div className="scanner-title">
           <Receipt size={24} />
           <div>
             <h3>Smart Receipt Scanner</h3>
-            <p>Upload a receipt photo to auto-fill expense details</p>
+            <p>
+              {currentStep === STEPS.UPLOAD && 'Upload one or more receipt photos'}
+              {currentStep === STEPS.PROCESSING && `Processing ${processingProgress.current} of ${processingProgress.total}...`}
+              {currentStep === STEPS.REVIEW && `Reviewing ${currentIndex + 1} of ${receipts.length} receipts`}
+            </p>
           </div>
         </div>
         {onCancel && (
@@ -390,112 +508,121 @@ export default function ReceiptScanner({
           <span>Upload</span>
         </div>
         <div className="step-line" />
-        <div className={`step ${currentStep === STEPS.PROCESSING ? 'active' : [STEPS.REVIEW, STEPS.COMPLETE].includes(currentStep) ? 'complete' : ''}`}>
+        <div className={`step ${currentStep === STEPS.PROCESSING ? 'active' : currentStep === STEPS.REVIEW ? 'complete' : ''}`}>
           <div className="step-dot">2</div>
-          <span>Scan</span>
+          <span>Scan All</span>
         </div>
         <div className="step-line" />
-        <div className={`step ${currentStep === STEPS.REVIEW ? 'active' : currentStep === STEPS.COMPLETE ? 'complete' : ''}`}>
+        <div className={`step ${currentStep === STEPS.REVIEW ? 'active' : ''}`}>
           <div className="step-dot">3</div>
           <span>Review</span>
         </div>
       </div>
 
-      {/* Content based on step */}
       <div className="scanner-content">
         
         {/* STEP 1: Upload */}
         {currentStep === STEPS.UPLOAD && (
           <div className="upload-section">
-            {!imagePreview ? (
-              <div 
-                className="drop-zone"
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload size={48} className="drop-icon" />
-                <p className="drop-text">Drag & drop a receipt image</p>
-                <p className="drop-subtext">or click to browse</p>
-                
-                <div className="upload-buttons">
-                  <button 
-                    className="btn btn-primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
-                  >
-                    <Upload size={18} /> Choose File
-                  </button>
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      cameraInputRef.current?.click();
-                    }}
-                  >
-                    <Camera size={18} /> Take Photo
-                  </button>
-                </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/heic"
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                />
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                />
+            <div 
+              className="drop-zone"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload size={48} className="drop-icon" />
+              <p className="drop-text">Drag & drop receipt images</p>
+              <p className="drop-subtext">or click to browse (select multiple)</p>
+              
+              <div className="upload-buttons">
+                <button 
+                  className="btn btn-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  <Upload size={18} /> Choose Files
+                </button>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    cameraInputRef.current?.click();
+                  }}
+                >
+                  <Camera size={18} /> Take Photo
+                </button>
               </div>
-            ) : (
-              <div className="image-preview-section">
-                <div className="image-preview-container">
-                  <img 
-                    src={imagePreview} 
-                    alt="Receipt preview" 
-                    className="image-preview"
-                  />
-                  <button 
-                    className="clear-image-btn"
-                    onClick={clearImage}
-                    title="Remove image"
-                  >
-                    <X size={20} />
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                multiple
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+            </div>
+
+            {/* Queued receipts */}
+            {receipts.length > 0 && (
+              <div className="receipt-queue">
+                <div className="queue-header">
+                  <h4><ImageIcon size={18} /> {receipts.length} Receipt{receipts.length > 1 ? 's' : ''} Ready</h4>
+                  <button className="btn btn-ghost btn-sm" onClick={clearAllReceipts}>
+                    <Trash2 size={16} /> Clear All
                   </button>
+                </div>
+                <div className="queue-grid">
+                  {receipts.map((receipt, index) => (
+                    <div key={receipt.id} className="queue-item">
+                      <img src={receipt.preview} alt={`Receipt ${index + 1}`} />
+                      <button 
+                        className="remove-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeReceipt(receipt.id);
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                      <span className="queue-number">{index + 1}</span>
+                    </div>
+                  ))}
+                  <div 
+                    className="queue-item add-more"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload size={24} />
+                    <span>Add More</span>
+                  </div>
                 </div>
                 
-                <div className="preview-actions">
-                  <button 
-                    className="btn btn-primary btn-lg"
-                    onClick={processReceipt}
-                  >
-                    <Sparkles size={20} /> Scan Receipt
-                  </button>
-                  <button 
-                    className="btn btn-ghost"
-                    onClick={clearImage}
-                  >
-                    Choose Different Image
-                  </button>
-                </div>
+                <button 
+                  className="btn btn-primary btn-lg scan-all-btn"
+                  onClick={processAllReceipts}
+                >
+                  <Sparkles size={20} /> Scan All {receipts.length} Receipt{receipts.length > 1 ? 's' : ''}
+                </button>
               </div>
             )}
 
             <div className="scanner-tips">
               <h4><HelpCircle size={16} /> Tips for best results</h4>
               <ul>
-                <li>Ensure the receipt is flat and well-lit</li>
+                <li>Ensure receipts are flat and well-lit</li>
                 <li>Include the full receipt in frame</li>
                 <li>Avoid shadows and glare</li>
-                <li>Text should be clearly readable</li>
+                <li>You can select multiple files at once</li>
               </ul>
             </div>
           </div>
@@ -503,201 +630,290 @@ export default function ReceiptScanner({
 
         {/* STEP 2: Processing */}
         {currentStep === STEPS.PROCESSING && (
-          <div className="processing-section">
-            <div className="processing-animation">
-              <Loader2 size={48} className="spinner" />
-            </div>
-            <p className="processing-message">{processingMessage}</p>
-            <p className="processing-subtext">This usually takes a few seconds...</p>
-            
-            {imagePreview && (
-              <div className="processing-preview">
-                <img src={imagePreview} alt="Processing" />
-                <div className="scan-overlay" />
+          <div className="processing-section batch-processing">
+            <div className="processing-progress">
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill" 
+                  style={{ width: `${(processingProgress.current / processingProgress.total) * 100}%` }}
+                />
               </div>
-            )}
+              <span className="progress-text">
+                Processing receipt {processingProgress.current} of {processingProgress.total}
+              </span>
+            </div>
+
+            <div className="processing-grid">
+              {receipts.map((receipt, index) => (
+                <div 
+                  key={receipt.id} 
+                  className={`processing-item ${receipt.status}`}
+                >
+                  <img src={receipt.preview} alt={`Receipt ${index + 1}`} />
+                  <div className="processing-overlay">
+                    {receipt.status === RECEIPT_STATUS.PROCESSING && (
+                      <Loader2 size={24} className="spinner" />
+                    )}
+                    {receipt.status === RECEIPT_STATUS.READY && (
+                      <Check size={24} className="success-icon" />
+                    )}
+                    {receipt.status === RECEIPT_STATUS.ERROR && (
+                      <AlertCircle size={24} className="error-icon" />
+                    )}
+                  </div>
+                  <span className="item-number">{index + 1}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* STEP 3: Review */}
-        {currentStep === STEPS.REVIEW && (
-          <div className="review-section">
-            {/* Extracted data summary */}
-            <div className="extraction-summary">
-              <div className="summary-header">
-                <h4>Extracted Information</h4>
-                {renderConfidenceBadge()}
+        {currentStep === STEPS.REVIEW && currentReceipt && (
+          <div className="review-section batch-review">
+            {/* Receipt sidebar */}
+            <div className="receipt-sidebar">
+              <div className="sidebar-header">
+                <h4>Receipts</h4>
+                <span className="sidebar-count">
+                  {submittedCount}/{receipts.length} submitted
+                </span>
               </div>
-
-              {scanResult?.ruleBasedClassification && (
-                <div className="rule-notice">
-                  <Sparkles size={14} />
-                  Category auto-selected based on previous {formData.merchant} receipts
-                </div>
-              )}
-            </div>
-
-            {/* Form */}
-            <div className="review-form">
-              {/* Resource selector */}
-              <div className="form-group">
-                <label className="form-label">Resource *</label>
-                <select
-                  className="form-input"
-                  value={formData.resource_id}
-                  onChange={(e) => handleFormChange('resource_id', e.target.value)}
-                >
-                  <option value="">Select resource...</option>
-                  {resources.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Category selector */}
-              <div className="form-group">
-                <label className="form-label">Category *</label>
-                <div className="category-selector">
-                  {CATEGORIES.map(cat => {
-                    const Icon = cat.icon;
-                    const isSelected = formData.category === cat.id;
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        className={`category-btn ${isSelected ? 'selected' : ''}`}
-                        style={{
-                          '--cat-color': cat.color,
-                          '--cat-bg': cat.bg
-                        }}
-                        onClick={() => selectCategory(cat.id)}
-                      >
-                        <Icon size={20} />
-                        {cat.label}
-                        {isSelected && <Check size={16} className="check-icon" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Merchant & Amount row */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Merchant</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.merchant}
-                    onChange={(e) => handleFormChange('merchant', e.target.value)}
-                    placeholder="Store/vendor name"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Amount (£) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-input"
-                    value={formData.amount}
-                    onChange={(e) => handleFormChange('amount', e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-
-              {/* Date & Reason row */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Date *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={formData.date}
-                    onChange={(e) => handleFormChange('date', e.target.value)}
-                  />
-                </div>
-                <div className="form-group" style={{ flex: 2 }}>
-                  <label className="form-label">Reason/Description *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.reason}
-                    onChange={(e) => handleFormChange('reason', e.target.value)}
-                    placeholder="Brief description of expense"
-                  />
-                </div>
-              </div>
-
-              {/* Options row */}
-              <div className="form-row options-row">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.chargeable}
-                    onChange={(e) => handleFormChange('chargeable', e.target.checked)}
-                  />
-                  <span>Chargeable to Customer</span>
-                </label>
-
-                <div className="procurement-toggle">
-                  <span>Paid by:</span>
-                  <select
-                    className="form-input-sm"
-                    value={formData.procurement}
-                    onChange={(e) => handleFormChange('procurement', e.target.value)}
+              <div className="sidebar-list">
+                {receipts.map((receipt, index) => (
+                  <div
+                    key={receipt.id}
+                    className={`sidebar-item ${index === currentIndex ? 'active' : ''} ${receipt.status}`}
+                    onClick={() => receipt.status === RECEIPT_STATUS.READY && goToReceipt(index)}
                   >
-                    <option value="supplier">Supplier (JT)</option>
-                    <option value="partner">Partner</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div className="form-group">
-                <label className="form-label">Additional Notes</label>
-                <textarea
-                  className="form-input"
-                  rows={2}
-                  value={formData.notes}
-                  onChange={(e) => handleFormChange('notes', e.target.value)}
-                  placeholder="Any additional information..."
-                />
+                    <img src={receipt.preview} alt={`Receipt ${index + 1}`} />
+                    <div className="sidebar-item-info">
+                      <span className="item-merchant">
+                        {receipt.formData.merchant || `Receipt ${index + 1}`}
+                      </span>
+                      <span className="item-amount">
+                        {receipt.formData.amount ? `£${receipt.formData.amount}` : '—'}
+                      </span>
+                    </div>
+                    <div className="sidebar-item-status">
+                      {getStatusIcon(receipt.status)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Receipt preview thumbnail */}
-            {imagePreview && (
-              <div className="receipt-thumbnail">
-                <img src={imagePreview} alt="Receipt" />
-                <span>Receipt attached</span>
-              </div>
-            )}
+            {/* Main review panel */}
+            <div className="review-main">
+              {currentReceipt.status === RECEIPT_STATUS.READY ? (
+                <>
+                  {/* Header with navigation */}
+                  <div className="review-header">
+                    <button 
+                      className="btn btn-ghost"
+                      onClick={goToPrevious}
+                      disabled={!hasPrevious}
+                    >
+                      <ChevronLeft size={20} /> Previous
+                    </button>
+                    <div className="review-position">
+                      Receipt {currentIndex + 1} of {receipts.length}
+                    </div>
+                    <button 
+                      className="btn btn-ghost"
+                      onClick={goToNext}
+                      disabled={!hasNext}
+                    >
+                      Next <ChevronRight size={20} />
+                    </button>
+                  </div>
 
-            {/* Action buttons */}
-            <div className="review-actions">
-              <button className="btn btn-secondary" onClick={handleReset}>
-                <RotateCcw size={18} /> Start Over
-              </button>
-              <button className="btn btn-primary btn-lg" onClick={handleSubmit}>
-                <Check size={18} /> Create Expense
-              </button>
+                  {/* Extraction summary */}
+                  <div className="extraction-summary">
+                    <div className="summary-header">
+                      <h4>Extracted Information</h4>
+                      {renderConfidenceBadge(currentReceipt.scanResult?.confidence)}
+                    </div>
+                    {currentReceipt.scanResult?.ruleBasedClassification && (
+                      <div className="rule-notice">
+                        <Sparkles size={14} />
+                        Category auto-selected based on previous receipts
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Form */}
+                  <div className="review-form">
+                    <div className="form-group">
+                      <label className="form-label">Resource *</label>
+                      <select
+                        className="form-input"
+                        value={currentReceipt.formData.resource_id}
+                        onChange={(e) => updateCurrentReceipt('resource_id', e.target.value)}
+                      >
+                        <option value="">Select resource...</option>
+                        {resources.map(r => (
+                          <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Category *</label>
+                      <div className="category-selector">
+                        {CATEGORIES.map(cat => {
+                          const Icon = cat.icon;
+                          const isSelected = currentReceipt.formData.category === cat.id;
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              className={`category-btn ${isSelected ? 'selected' : ''}`}
+                              style={{ '--cat-color': cat.color, '--cat-bg': cat.bg }}
+                              onClick={() => selectCategory(cat.id)}
+                            >
+                              <Icon size={20} />
+                              {cat.label}
+                              {isSelected && <Check size={16} className="check-icon" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Merchant</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={currentReceipt.formData.merchant}
+                          onChange={(e) => updateCurrentReceipt('merchant', e.target.value)}
+                          placeholder="Store/vendor name"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Amount (£) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="form-input"
+                          value={currentReceipt.formData.amount}
+                          onChange={(e) => updateCurrentReceipt('amount', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Date *</label>
+                        <input
+                          type="date"
+                          className="form-input"
+                          value={currentReceipt.formData.date}
+                          onChange={(e) => updateCurrentReceipt('date', e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group" style={{ flex: 2 }}>
+                        <label className="form-label">Reason/Description *</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={currentReceipt.formData.reason}
+                          onChange={(e) => updateCurrentReceipt('reason', e.target.value)}
+                          placeholder="Brief description of expense"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-row options-row">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={currentReceipt.formData.chargeable}
+                          onChange={(e) => updateCurrentReceipt('chargeable', e.target.checked)}
+                        />
+                        <span>Chargeable to Customer</span>
+                      </label>
+                      <div className="procurement-toggle">
+                        <span>Paid by:</span>
+                        <select
+                          className="form-input-sm"
+                          value={currentReceipt.formData.procurement}
+                          onChange={(e) => updateCurrentReceipt('procurement', e.target.value)}
+                        >
+                          <option value="supplier">Supplier (JT)</option>
+                          <option value="partner">Partner</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Additional Notes</label>
+                      <textarea
+                        className="form-input"
+                        rows={2}
+                        value={currentReceipt.formData.notes}
+                        onChange={(e) => updateCurrentReceipt('notes', e.target.value)}
+                        placeholder="Any additional information..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* Receipt thumbnail */}
+                  <div className="receipt-thumbnail">
+                    <img src={currentReceipt.preview} alt="Receipt" />
+                    <span>Receipt attached</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="review-actions">
+                    <button className="btn btn-secondary" onClick={() => setCurrentStep(STEPS.UPLOAD)}>
+                      <RotateCcw size={18} /> Back to Upload
+                    </button>
+                    <button className="btn btn-primary btn-lg" onClick={submitCurrentReceipt}>
+                      <Check size={18} /> Submit Expense
+                      {hasNext && ' & Next'}
+                    </button>
+                  </div>
+                </>
+              ) : currentReceipt.status === RECEIPT_STATUS.SUBMITTED ? (
+                <div className="submitted-message">
+                  <div className="success-icon-large">
+                    <Check size={48} />
+                  </div>
+                  <h3>Expense Submitted</h3>
+                  <p>{currentReceipt.formData.merchant} - £{currentReceipt.formData.amount}</p>
+                  {hasNext && (
+                    <button className="btn btn-primary" onClick={goToNext}>
+                      Review Next Receipt <ChevronRight size={18} />
+                    </button>
+                  )}
+                </div>
+              ) : currentReceipt.status === RECEIPT_STATUS.ERROR ? (
+                <div className="error-message">
+                  <AlertCircle size={48} className="error-icon" />
+                  <h3>Processing Failed</h3>
+                  <p>{currentReceipt.error || 'Unable to process this receipt'}</p>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
 
-        {/* STEP 4: Complete */}
-        {currentStep === STEPS.COMPLETE && (
+        {/* All done state */}
+        {currentStep === STEPS.REVIEW && submittedCount === receipts.length && receipts.length > 0 && (
           <div className="complete-section">
             <div className="success-icon">
               <Check size={48} />
             </div>
-            <h3>Expense Created!</h3>
-            <p>Your expense has been saved successfully.</p>
+            <h3>All Receipts Submitted!</h3>
+            <p>{submittedCount} expense{submittedCount > 1 ? 's' : ''} created successfully.</p>
             
             <div className="complete-actions">
-              <button className="btn btn-primary" onClick={handleReset}>
-                <Camera size={18} /> Scan Another Receipt
+              <button className="btn btn-primary" onClick={clearAllReceipts}>
+                <Camera size={18} /> Scan More Receipts
               </button>
               {onCancel && (
                 <button className="btn btn-secondary" onClick={onCancel}>
