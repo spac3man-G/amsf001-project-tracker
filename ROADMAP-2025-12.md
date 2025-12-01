@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - Development Roadmap
 
 **Created:** 1 December 2025  
-**Current Production Readiness:** 94%  
+**Current Production Readiness:** 96%  
 **Target Production Readiness:** 98%
 
 ---
@@ -12,31 +12,20 @@ This roadmap outlines technical debt, improvements, and pending features for the
 
 ---
 
-## 🔴 Priority 1: Pending Deployments (Immediate)
+## ~~🔴 Priority 1: Pending Deployments (Immediate)~~ ✅ COMPLETE
 
 ### 1.1 Smart Receipt Scanner Database Migration
-**Status:** Code complete, awaiting database setup  
-**Effort:** 30 minutes  
-**Business Value:** High - enables AI expense capture
+**Status:** ✅ Deployed and Verified (1 December 2025)  
+**Evidence:** 
+- `receipt_scans` table exists with data
+- `classification_rules` table exists with 5 learned patterns
+- Learning system actively capturing user corrections
 
-**Steps Required:**
-```bash
-# 1. Run SQL migration in Supabase SQL Editor
-# File: sql/P7-receipt-scanner.sql
-
-# 2. Create storage bucket
-# Supabase Dashboard → Storage → New Bucket
-# Name: receipt-scans
-# Public: No (private)
-
-# 3. Verify ANTHROPIC_API_KEY in Vercel (already present)
-
-# 4. Test in production
-```
-
-**Tables Created:**
-- `receipt_scans` - Stores scanned receipt data and AI extraction results
-- `classification_rules` - Stores learned patterns from user corrections
+**Verified Working:**
+- Receipt image upload and storage
+- AI-powered data extraction
+- Category classification
+- Learning from corrections (Guernsey Airport → Travel, Nomu Restaurant → Sustenance, etc.)
 
 ---
 
@@ -307,9 +296,8 @@ These can be done anytime to improve quality:
 ## Next Actions
 
 **Immediate (this week):**
-1. Deploy Smart Receipt Scanner (run P7 SQL migration)
-2. Test receipt scanning in production
-3. Update documentation with deployment confirmation
+1. ✅ ~~Deploy Smart Receipt Scanner~~ - Already deployed and working!
+2. Begin PartnerDetail.jsx refactoring (extract InvoiceModal)
 
 **Short-term (this month):**
 1. Extract InvoiceModal from PartnerDetail.jsx
