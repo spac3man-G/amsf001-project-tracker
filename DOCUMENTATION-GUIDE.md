@@ -1,326 +1,497 @@
-# 📚 DOCUMENTATION UPDATE - QUICK REFERENCE
+# AMSF001 Project Tracker - Documentation Navigation Guide
 
-**Date:** 1 December 2025  
-**Status:** ✅ Complete  
-**Commit:** 800bf276
+**Last Updated:** 1 December 2025  
+**Version:** 2.0  
+**Purpose:** Central index for all project documentation
 
 ---
 
-## 🎯 WHAT'S NEW
+## 📚 Core Documents
 
-### Single Master Document Created
-
-**Location:** `/AMSF001-Master-Document-v2.md`
-
-**Size:** 2,185 lines (complete consolidation)
+### 1. Master Document (v3.0) ⭐ **LATEST**
+**File:** `AMSF001-Master-Document-v3.md`  
+**Size:** 922 lines  
+**Status:** Production-Ready Documentation  
+**Use When:** Need complete technical overview
 
 **What's Inside:**
-✅ Executive Summary & Production Status (91%)  
-✅ Complete Technical Architecture  
-✅ Configuration & Setup Guide  
-✅ Development Workflow & Git Standards  
-✅ Feature Documentation (All Features)  
-✅ Development Roadmap (All Phases)  
-✅ Lessons Learned & Best Practices  
-✅ Complete User Manual  
-✅ Quick Reference Guide  
-✅ Change Log  
+✅ System architecture with react-grid-layout  
+✅ Technology stack (updated bundle sizes)  
+✅ Database schema (35+ tables + dashboard_layouts)  
+✅ Complete feature inventory  
+✅ Full dashboard drag-and-drop documentation  
+✅ Service layer (100% coverage)  
+✅ Deployment configuration  
+✅ Production readiness (91%)  
+✅ Complete work log (1 December 2025)  
+
+**Recent Updates (v3.0):**
+- Full drag-and-drop dashboard implementation details
+- Widget resizing with constraints guide
+- Auto-save layout architecture
+- Build troubleshooting (3 fixes documented)
+- Complete 6-hour work timeline
+
+**Target Audience:** Developers, architects, technical stakeholders
+
+**Quick Jumps:**
+- System Architecture → Section 2
+- Dashboard Customization → Section 5
+- Service Layer → Section 6
+- Production Readiness → Section 8
+- Development Roadmap → Section 9
+- Today's Work Log → Appendix B
 
 ---
 
-## 📋 WHAT'S BEEN CONSOLIDATED
+### 2. Development Playbook (v18.0) ⭐ **LATEST**
+**File:** `AMSF001-Development-Playbook-v18.md`  
+**Size:** 921 lines  
+**Status:** Developer Quick Reference  
+**Use When:** Building features, debugging, deploying
 
-### Merged Documents
+**What's Inside:**
+✅ Quick start guide  
+✅ Dashboard drag-and-drop patterns  
+✅ Widget creation guide  
+✅ Service layer patterns  
+✅ Development workflows  
+✅ Troubleshooting (with build fixes)  
+✅ Code style guide  
+✅ Performance optimization  
+✅ Complete work log (1 December 2025)  
 
-| Old Document | Status | Now In |
-|-------------|---------|--------|
-| Development Playbook v17 | ✅ Merged | Master Doc Part 4 |
-| Configuration Guide v6 | ✅ Merged | Master Doc Part 3 |
-| User Manual v5 | ✅ Merged | Master Doc Appendix A |
-| Master Document v1 | ✅ Updated | Master Doc v2.0 |
+**Recent Updates (v18.0):**
+- Drag-and-drop implementation guide
+- Widget creation step-by-step
+- Grid layout configuration
+- Build error solutions
+- Auto-save implementation
+- Performance tips
+
+**Target Audience:** Developers
+
+**Quick Jumps:**
+- Starting Development → Quick Reference
+- Add New Widget → Common Tasks
+- Service Layer Pattern → Architecture Patterns
+- Dashboard State → Dashboard State Management
+- Build Errors → Troubleshooting
+- Today's Work → Appendix (Timeline)
+
+---
+
+### 3. User Manual (v6.0) ⭐ **LATEST**
+**File:** `AMSF001-User-Manual-v6.md`  
+**Size:** 806 lines  
+**Status:** End-User Guide  
+**Use When:** Learning to use the application
+
+**What's Inside:**
+✅ Getting started guide  
+✅ Dashboard overview (v4.0 features)  
+✅ Complete drag-and-drop tutorial  
+✅ Widget moving instructions  
+✅ Widget resizing guide  
+✅ Auto-save behavior explained  
+✅ Role-based defaults  
+✅ Mobile experience  
+✅ Feature walkthroughs  
+✅ Troubleshooting FAQs  
+
+**Recent Updates (v6.0):**
+- Complete drag-and-drop instructions
+- Step-by-step widget moving guide
+- Widget resizing tutorial
+- Visual feedback explanations
+- Mobile experience details
+- Dashboard quick reference card
+
+**Target Audience:** End users, project managers, admins
+
+**Quick Jumps:**
+- Dashboard → Section 2
+- Customization → Section 3
+- Drag-and-Drop → Section 3.3
+- Resizing → Section 3.4
+- Quick Reference → End of document
+
+---
+
+### 4. Configuration Guide (v6.0)
+**File:** `AMSF001-Configuration-Guide-v6.md`  
+**Size:** 8,984 bytes  
+**Status:** Setup & Deployment Guide  
+**Use When:** Setting up environments, configuring services
+
+**What's Inside:**
+✅ Environment setup  
+✅ Supabase configuration  
+✅ Vercel deployment  
+✅ Environment variables  
+✅ Security setup  
+✅ Database migrations  
+
+**Target Audience:** DevOps, system administrators
+
+---
+
+### 5. Dashboard Customization Spec
+**File:** `DASHBOARD-CUSTOMIZATION-SPEC.md`  
+**Size:** 9,908 bytes  
+**Status:** Feature Specification  
+**Use When:** Understanding dashboard customization architecture
+
+**What's Inside:**
+✅ Feature overview  
+✅ Technical architecture (simple version)  
+✅ Implementation plan  
+✅ Database schema  
+✅ User flows  
+
+**Note:** This spec covers the simple version (visibility toggles only). For full drag-and-drop documentation, see Master Document v3.0 or Development Playbook v18.0.
+
+**Target Audience:** Product managers, developers
+
+---
+
+## 🎯 What Changed Today (1 December 2025)
+
+### Documentation Updates
+
+| Document | Old Version | New Version | Lines Changed |
+|----------|-------------|-------------|---------------|
+| Master Document | v2.0 | v3.0 | +922 lines (rewrite) |
+| Development Playbook | v17.0 | v18.0 | +921 lines (rewrite) |
+| User Manual | v5.0 | v6.0 | +806 lines (rewrite) |
+| Documentation Guide | v1.0 | v2.0 | Updated references |
 
 ### New Content Added
 
-1. **Service Layer Documentation**
-   - 100% coverage achieved
-   - Migration timeline
-   - Service architecture patterns
-   - All 15 migrated pages listed
+1. **Full Drag-and-Drop Implementation**
+   - react-grid-layout integration
+   - Complete component architecture
+   - Grid positioning system (x, y, w, h)
+   - Auto-save with debounce
 
-2. **Dashboard Customization**
-   - Complete feature documentation
-   - Implementation details
-   - Role-based presets
-   - Technical architecture
-   - User workflow guide
+2. **Widget Resizing**
+   - Resize handle styling
+   - Min/max constraints per widget
+   - Visual feedback system
+   - Performance optimization
 
-3. **File Structure Map**
-   - Exact file locations for everything
-   - Component directory structure
-   - Service layer organization
-   - Config file locations
-   - Migration scripts location
+3. **Build Troubleshooting**
+   - Missing export: getPresetForRole
+   - Missing export: getAvailableWidgetsForRole
+   - Syntax error fix
+   - 3 Vercel deployments documented
 
-4. **Lessons Learned Section**
-   - Import/export pattern issues (critical!)
-   - Service migration insights
-   - Dashboard customization lessons
-   - React patterns that work
-   - Performance optimization strategies
+4. **Complete Work Log**
+   - 6-hour implementation timeline
+   - 4 git commits documented
+   - Files modified/created list
+   - Challenges and solutions
 
 5. **Updated Metrics**
-   - Production Readiness: 87% → 91%
-   - Service Layer: 85% → 100%
-   - Code Quality: 82% → 85%
+   - Production Readiness: 91% (maintained)
+   - Bundle Size: 495KB gzipped (+50KB for react-grid-layout)
+   - Phase 2 progress: 15% (from dashboard work)
 
 ---
 
-## 📖 QUICK NAVIGATION
+## 🔍 Finding Specific Information
 
-### Need to find something? Jump to these sections:
+### By Topic
 
-**Setup & Configuration:**
-- Part 3: Configuration & Setup (env variables, deployment)
-- Section 3.2: Installation & Setup
-- Section 3.3: Deployment to Vercel
-- Section 3.4: Supabase Configuration
+**Setup & Installation**
+→ Configuration Guide v6.0, Section 2-3
 
-**Architecture & Code:**
-- Part 2: Technical Architecture
-- Section 2.1: Project Structure (complete file tree)
-- Section 2.2: Service Layer (100% coverage details)
-- Section 2.3: Component Architecture
-- Section 2.6: Database Schema
+**Dashboard Features**
+→ Master Document v3.0, Section 5  
+→ User Manual v6.0, Section 2-3
 
-**Development:**
-- Part 4: Development Workflow
-- Section 4.1: Git Workflow
-- Section 4.2: Code Quality Standards
-- Appendix B: Quick Reference (commands, SQL)
+**Drag-and-Drop Implementation**
+→ Development Playbook v18.0, Common Tasks  
+→ Master Document v3.0, Section 5.2-5.4
 
-**Features:**
-- Part 5: Feature Documentation
-- Section 5.1: Dashboard Customization (NEW)
-- Section 5.2: Service Layer (NEW)
-- Sections 5.3-5.6: All other features
+**Widget Creation**
+→ Development Playbook v18.0, Add New Widget  
+→ Master Document v3.0, Section 5.2
 
-**User Guide:**
-- Appendix A: User Manual
-- Sections A.1-A.12: Complete end-user guide
-- Section A.3: Dashboard customization for users
+**Service Layer**
+→ Master Document v3.0, Section 6  
+→ Development Playbook v18.0, Service Layer Pattern
 
-**Lessons Learned:**
-- Part 7: Lessons Learned
-- Section 7.1: Import/Export Patterns (CRITICAL)
-- Section 7.2: Service Layer Migration
-- Section 7.3: Dashboard Customization
-- Section 7.4-7.7: React patterns, database design, etc.
+**Deployment**
+→ Configuration Guide v6.0, Section 4  
+→ Master Document v3.0, Section 7
 
-**Roadmap:**
-- Part 6: Development Roadmap
-- Section 6.1: Phase Status Overview
-- Section 6.3: Priority Task List
-- Section 6.4: Known Technical Debt
+**Troubleshooting**
+→ Development Playbook v18.0, Troubleshooting  
+→ User Manual v6.0, Troubleshooting section
 
----
+**Today's Work**
+→ Master Document v3.0, Appendix B  
+→ Development Playbook v18.0, Appendix
 
-## 🔍 FINDING SPECIFIC INFORMATION
+### By File Type
 
-### Code Locations
+**Components**
+→ `/src/components/`  
+→ Master Document v3.0, System Architecture
 
-**Need to find a file?** See Section 2.1 (complete directory tree)
+**Services**
+→ `/src/services/`  
+→ Master Document v3.0, Section 6
 
-**Key File Locations:**
-```
-Pages:          /src/pages/
-Services:       /src/services/
-Components:     /src/components/
-Hooks:          /src/hooks/
-Contexts:       /src/contexts/
-Config:         /src/config/
-Migrations:     /supabase/migrations/
-```
+**Hooks**
+→ `/src/hooks/`  
+→ Development Playbook v18.0, Dashboard State
 
-### Import Patterns
+**Configuration**
+→ `/src/config/`  
+→ Master Document v3.0, Section 5.2
 
-**Having import issues?** See Section 7.1 (Lessons Learned - Import/Export)
+**Pages**
+→ `/src/pages/`  
+→ Master Document v3.0, System Architecture
 
-**Quick Rule:**
-- Default export = `import Thing from './thing'` (no braces)
-- Named export = `import { Thing } from './thing'` (with braces)
+### By User Role
 
-### Service Usage
+**Developers**
+→ Development Playbook v18.0 (primary)  
+→ Master Document v3.0 (reference)
 
-**Need to use a service?** See Section 2.2 (Service Layer Architecture)
+**End Users**
+→ User Manual v6.0 (primary)  
+→ Quick Reference Card at end
 
-**Pattern:**
-```javascript
-import { milestonesService } from '../services';
-const data = await milestonesService.getAll(projectId);
-```
+**DevOps/Admins**
+→ Configuration Guide v6.0 (primary)  
+→ Master Document v3.0, Section 7
 
-### Database Queries
+**Project Managers**
+→ User Manual v6.0 (primary)  
+→ Master Document v3.0, Executive Summary
 
-**Need SQL?** See Appendix B.2 (Database Quick Reference)
-
-**Common queries included for:**
-- Viewing projects
-- Counting records
-- Audit log entries
-- Soft-deleted items
+**Architects**
+→ Master Document v3.0 (primary)  
+→ Development Playbook v18.0 (patterns)
 
 ---
 
-## 📊 CURRENT PROJECT STATUS (1 December 2025)
+## 📊 Current Project Status
 
 ### Production Readiness: 91%
 
-| Category | Score | Change |
+| Category | Score | Status |
 |----------|-------|--------|
-| Overall | 91% | +4% |
-| Service Layer | 100% | +15% |
-| Code Quality | 85% | +3% |
-| UX Features | 90% | +10% |
+| Overall | 91% | ✅ Production Ready |
+| Service Layer | 100% | ✅ Complete |
+| Dashboard UX | 95% | ✅ Drag-and-drop live |
+| Code Quality | 85% | 🟡 Good |
+| Testing | 0% | 🔴 Critical Gap |
+| Documentation | 100% | ✅ Comprehensive |
 
-### Recent Achievements
+### Recent Achievements (1 December 2025)
 
-✅ Service layer migration complete (100%)  
-✅ Dashboard customization implemented  
-✅ Comprehensive documentation consolidated  
-✅ Import/export issues documented  
-✅ File structure fully mapped  
+✅ Full drag-and-drop dashboard  
+✅ Widget resizing with constraints  
+✅ Auto-save layout positions  
+✅ All build issues resolved  
+✅ Production deployment successful  
+✅ Documentation fully updated  
 
-### Critical Gaps Remaining
+### Phase Progress
 
-🔴 Testing: 0% coverage (35 hour effort)  
-🔴 Hardcoded Project ID: Blocks multi-tenant (4 hours)  
-🟡 Project Selector UI: Needed for multi-tenant (6 hours)  
-
----
-
-## 🚀 NEXT STEPS
-
-### Immediate Actions
-
-1. **Review Master Document** (~30 minutes)
-   - Read Part 1: Executive Summary
-   - Skim table of contents
-   - Bookmark key sections you'll need
-
-2. **Test Dashboard Customization** (~5 minutes)
-   - Hard refresh browser (Cmd+Shift+R)
-   - Click "Customize" button
-   - Try hiding/showing widgets
-   - Test "Reset to Default"
-
-3. **Verify Everything Works** (~10 minutes)
-   - Check all main pages load
-   - Test a few CRUD operations
-   - Verify no console errors
-
-### Recommended Priorities (This Month)
-
-1. **Testing Foundation** (35 hours) - CRITICAL
-2. **Remove Hardcoded Project ID** (4 hours) - BLOCKS MULTI-TENANT
-3. **Project Selector UI** (6 hours) - ENABLES MULTI-TENANT
-4. **CSV Export** (8 hours) - PHASE 2 REQUIREMENT
+**Phase 1: Stabilization** - ✅ 100% Complete  
+**Phase 2: Multi-Tenant & Reporting** - 🔄 15% Complete  
+- Dashboard customization: ✅ Complete
+- Multi-tenant architecture: 📋 Planned
+- Advanced reporting: 📋 Planned
 
 ---
 
-## 📝 DOCUMENT MAINTENANCE
+## 🚀 Quick Actions
+
+### For Developers
+
+**Start Development:**
+```bash
+git clone repo
+cd amsf001-project-tracker
+npm install
+npm run dev
+```
+→ See Development Playbook v18.0, Quick Reference
+
+**Add New Widget:**
+1. Update WIDGET_REGISTRY (dashboardPresets.js)
+2. Add to presets (dashboardPresets.js)
+3. Add to renderWidget() (Dashboard.jsx)
+
+→ See Development Playbook v18.0, Common Tasks
+
+**Fix Build Error:**
+1. Check Vercel logs
+2. Test locally: `npm run build`
+3. See Troubleshooting section
+
+→ See Development Playbook v18.0, Troubleshooting
+
+### For End Users
+
+**Customize Dashboard:**
+1. Click "Customize" button
+2. Toggle widget visibility
+3. Click "Apply Changes"
+
+→ See User Manual v6.0, Section 3
+
+**Drag Widgets:**
+1. Hover over widget
+2. Grab drag handle (⋮⋮ icon)
+3. Drag to new position
+4. Auto-saves after 1 second
+
+→ See User Manual v6.0, Section 3.3
+
+**Resize Widgets:**
+1. Hover over bottom-right corner
+2. Grab resize handle
+3. Drag to resize
+4. Auto-saves after 1 second
+
+→ See User Manual v6.0, Section 3.4
+
+### For Admins
+
+**Deploy to Production:**
+```bash
+git push origin main
+```
+→ Vercel auto-deploys
+
+→ See Configuration Guide v6.0, Section 4
+
+**Manage Users:**
+Settings → Users → Invite User
+
+→ See User Manual v6.0, Section 8
+
+---
+
+## 🆘 Common Questions
+
+### Q: Where's the complete technical overview?
+**A:** Master Document v3.0 (922 lines, comprehensive)
+
+### Q: How do I implement drag-and-drop?
+**A:** Development Playbook v18.0, Section "Dashboard Drag-and-Drop Implementation"
+
+### Q: How do I use the dashboard as an end user?
+**A:** User Manual v6.0, Sections 2-3 (Dashboard and Customization)
+
+### Q: What changed today?
+**A:** See "What Changed Today" section above, or Master Document v3.0 Appendix B
+
+### Q: Where are the file locations?
+**A:** Master Document v3.0, System Architecture section
+
+### Q: How do I troubleshoot build errors?
+**A:** Development Playbook v18.0, Troubleshooting → Build Errors
+
+### Q: What's the auto-save behavior?
+**A:** User Manual v6.0, Section 3.6 or Development Playbook v18.0, Dashboard State Management
+
+### Q: What are the role-based presets?
+**A:** User Manual v6.0, Section 3.7 or Master Document v3.0, Section 5.3
+
+### Q: How do I add a new service?
+**A:** Development Playbook v18.0, Common Tasks → Create New Service
+
+### Q: What's next on the roadmap?
+**A:** Master Document v3.0, Section 9 (Development Roadmap)
+
+---
+
+## 📝 Document Maintenance
 
 ### When to Update
 
-Update the master document when:
-- New features added (immediately)
-- Architecture changes (immediately)
-- Lessons learned (as they happen)
-- Production readiness changes (monthly)
-- Dependencies change (as needed)
+Update documentation when:
+- ✅ New features added (immediately)
+- ✅ Architecture changes (immediately)
+- ✅ Major work completed (same day)
+- 🔄 Lessons learned (as they happen)
+- 📅 Monthly reviews (production readiness)
 
-### How to Update
+### Version Numbering
 
-1. Open `/AMSF001-Master-Document-v2.md`
-2. Find relevant section
-3. Add/update content
-4. Update version history at bottom
-5. Commit with descriptive message
+**Major version (v3.0 → v4.0):**
+- Complete rewrites
+- Major feature additions
+- Architecture changes
 
-### Version History
+**Minor version (v3.0 → v3.1):**
+- New sections added
+- Significant updates
+- Multiple changes
 
-- v1.0: 30 November 2025 - Initial comprehensive document
-- v2.0: 1 December 2025 - Added service layer + dashboard customization
+**Patch version (v3.1 → v3.1.1):**
+- Typo fixes
+- Minor clarifications
+- Link updates
 
----
+### Update Process
 
-## 🆘 COMMON QUESTIONS
-
-### Q: Where do I find the environment setup guide?
-**A:** Part 3, Section 3.1 (Environment Variables) and 3.2 (Installation & Setup)
-
-### Q: How do I deploy to Vercel?
-**A:** Part 3, Section 3.3 (Deployment to Vercel)
-
-### Q: What's the import/export pattern for components?
-**A:** Part 7, Section 7.1 (Lessons Learned - Import/Export Patterns)
-
-### Q: Where are all the file locations?
-**A:** Part 2, Section 2.1 (Project Structure) - complete directory tree
-
-### Q: How do I use the service layer?
-**A:** Part 2, Section 2.2 (Service Layer Architecture)
-
-### Q: What are the role-based dashboard presets?
-**A:** Part 5, Section 5.1 (Dashboard Customization)
-
-### Q: What's the current development priority?
-**A:** Part 6, Section 6.3 (Priority Task List)
-
-### Q: How do I customize my dashboard as a user?
-**A:** Appendix A, Section A.2 (Dashboard Overview) - "Customizing Your Dashboard"
-
-### Q: What are the known technical debt items?
-**A:** Part 6, Section 6.4 (Known Technical Debt)
-
-### Q: Where's the user manual?
-**A:** Appendix A (Complete User Manual, sections A.1-A.12)
+1. Identify which documents need updates
+2. Open each document
+3. Update relevant sections
+4. Bump version number
+5. Update "Last Updated" date
+6. Update this guide if needed
+7. Commit with clear message
 
 ---
 
-## ✅ VERIFICATION CHECKLIST
+## ✅ Verification Checklist
 
-- [x] Master document created (2,185 lines)
-- [x] All previous documentation consolidated
-- [x] Service layer completion documented
-- [x] Dashboard customization documented
-- [x] File structure fully mapped
-- [x] Lessons learned captured
-- [x] Import/export patterns documented
-- [x] User manual included
-- [x] Quick reference guide included
-- [x] Change log updated
-- [x] Committed and pushed to GitHub
+Today's documentation update checklist:
 
----
-
-## 🎉 SUMMARY
-
-**You now have a single, comprehensive master document** that contains:
-
-1. ✅ Everything from Development Playbook v17
-2. ✅ Everything from Configuration Guide v6
-3. ✅ Everything from User Manual v5
-4. ✅ Everything from Master Document v1
-5. ✅ All recent work (service layer, dashboard)
-6. ✅ Lessons learned and best practices
-7. ✅ Complete file structure map
-8. ✅ Up-to-date metrics and roadmap
-
-**File:** `/AMSF001-Master-Document-v2.md`  
-**Lines:** 2,185  
-**Status:** Production-ready documentation  
-**Next Review:** 1 January 2026
+- [x] Master Document v3.0 created (922 lines)
+- [x] Development Playbook v18.0 created (921 lines)
+- [x] User Manual v6.0 created (806 lines)
+- [x] Documentation Guide updated (this file)
+- [x] All drag-and-drop features documented
+- [x] Build fixes documented
+- [x] Work log completed
+- [x] Version numbers updated
+- [x] All cross-references updated
+- [x] Ready to commit
 
 ---
 
-**Questions?** All answers are in the master document. Use Cmd+F to search!
+## 🎉 Summary
+
+**All documentation is now fully up to date** with today's work:
+
+| Document | Version | Status | Primary Use |
+|----------|---------|--------|-------------|
+| Master Document | v3.0 | ✅ Current | Technical reference |
+| Development Playbook | v18.0 | ✅ Current | Developer guide |
+| User Manual | v6.0 | ✅ Current | End-user guide |
+| Configuration Guide | v6.0 | ✅ Current | Setup guide |
+| Dashboard Spec | v1.0 | 📋 Historical | Feature spec |
+
+**Next Update:** 8 December 2025 (weekly review)
+
+---
+
+**Document Version:** 2.0  
+**Last Updated:** 1 December 2025  
+**Maintained By:** Development Team
+
+---
+
+*End of Documentation Guide*
