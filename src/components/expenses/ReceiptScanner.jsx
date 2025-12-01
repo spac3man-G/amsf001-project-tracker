@@ -82,18 +82,68 @@ export default function ReceiptScanner({
   // HELPERS
   // =====================================================
 
-  const fileToBase64 = (file) => {
+  // Compress image to reduce payload size (max 1500px, quality 0.8)
+  const compressImage = (file, maxSize = 1500, quality = 0.8) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Calculate new dimensions
+          let { width, height } = img;
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            } else {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+          }
+
+          // Create canvas and draw resized image
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to blob
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to compress image'));
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const fileToBase64 = async (file) => {
+    // Compress image first to avoid 413 Payload Too Large errors
+    const compressedBlob = await compressImage(file);
+    
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         resolve({
           data: reader.result.split(',')[1],
-          mediaType: file.type,
+          mediaType: 'image/jpeg', // Always JPEG after compression
           preview: reader.result
         });
       };
       reader.onerror = reject;
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(compressedBlob);
     });
   };
 
