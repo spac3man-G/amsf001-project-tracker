@@ -328,6 +328,19 @@ export default function PartnerDetail() {
     const printContent = document.getElementById('invoice-print-content');
     if (!printContent) return;
 
+    // Clone and process HTML to remove scroll constraints
+    const clone = printContent.cloneNode(true);
+    
+    // Remove maxHeight and overflow from all elements
+    clone.querySelectorAll('*').forEach(el => {
+      if (el.style) {
+        el.style.maxHeight = 'none';
+        el.style.overflow = 'visible';
+        el.style.overflowY = 'visible';
+        el.style.overflowX = 'visible';
+      }
+    });
+
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -336,39 +349,28 @@ export default function PartnerDetail() {
         <title>Invoice ${generatedInvoice?.invoice_number || ''}</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 2rem; color: #1e293b; }
-          h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-          h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; color: #475569; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #e2e8f0; }
-          .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-          .summary-card { padding: 1rem; border-radius: 8px; text-align: center; }
-          .summary-card.blue { background: #dbeafe; color: #1e40af; }
-          .summary-card.green { background: #dcfce7; color: #16a34a; }
-          .summary-card.red { background: #fee2e2; color: #dc2626; }
-          .summary-card.purple { background: #7c3aed; color: white; }
-          .summary-card .label { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; }
-          .summary-card .value { font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem; }
-          .breakdown { background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; }
-          .breakdown-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-top: 0.5rem; }
-          .breakdown-item { text-align: center; padding: 0.5rem; border-radius: 6px; background: #e2e8f0; }
-          .breakdown-item .label { font-size: 0.65rem; color: #64748b; }
-          .breakdown-item .value { font-weight: 700; font-size: 0.9rem; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.85rem; }
-          th { background: #f1f5f9; padding: 0.5rem; text-align: left; font-weight: 600; }
-          td { padding: 0.5rem; border-bottom: 1px solid #e2e8f0; }
-          .text-right { text-align: right; }
-          .text-center { text-align: center; }
-          .total-row { background: #f1f5f9; font-weight: 600; }
-          .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; }
-          .badge-green { background: #dcfce7; color: #16a34a; }
-          .badge-red { background: #fee2e2; color: #dc2626; }
-          .badge-amber { background: #fef3c7; color: #92400e; }
-          .supplier-section { background: #fef3c7; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px dashed #f59e0b; }
-          @media print { body { padding: 1rem; } }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 1.5rem; color: #1e293b; font-size: 11px; }
+          h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+          h2 { font-size: 1.1rem; margin: 1rem 0 0.5rem; color: #475569; }
+          h4 { font-size: 0.9rem; margin: 0.75rem 0 0.5rem; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 10px; }
+          thead { display: table-header-group; }
+          tbody { display: table-row-group; }
+          tr { page-break-inside: avoid; }
+          th { background: #f1f5f9; padding: 5px 6px; text-align: left; font-weight: 600; border: 1px solid #cbd5e1; font-size: 9px; }
+          td { padding: 5px 6px; border: 1px solid #e2e8f0; font-size: 10px; }
+          
+          .supplier-section { background: #fef3c7; padding: 0.75rem; border-radius: 6px; margin: 1rem 0; border: 1px dashed #f59e0b; }
+          
+          @media print { 
+            body { padding: 0.5cm; }
+            @page { margin: 0.75cm; size: A4; }
+          }
         </style>
       </head>
       <body>
-        ${printContent.innerHTML}
+        ${clone.innerHTML}
       </body>
       </html>
     `);
