@@ -17,8 +17,8 @@ import { TrendingUp, Clock, Package, Users, Target, Award, DollarSign, Briefcase
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useDashboardLayout } from '../hooks/useDashboardLayout';
-import { CustomizePanel } from '../components/dashboard/CustomizePanel';
+import useDashboardLayout from '../hooks/useDashboardLayout';
+import CustomizePanel from '../components/dashboard/CustomizePanel';
 import { LoadingSpinner, PageHeader, StatCard, StatusBadge } from '../components/common';
 
 function isPMORole(role) {
