@@ -8,23 +8,32 @@
  * - Timesheet and expense summaries
  * - Margin calculations (admin/supplier PM only)
  * 
- * @version 1.0
- * @created 30 November 2025
+ * @version 2.0
+ * @refactored 1 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  User, ArrowLeft, Save, X, Building2, Link2, 
-  Clock, DollarSign, Award, TrendingUp, TrendingDown, 
-  Minus, Mail, Briefcase, Calendar, AlertCircle,
-  FileText, Receipt, Edit2, CheckCircle
+  User, ArrowLeft, Building2, Link2, 
+  Clock, DollarSign, TrendingUp, TrendingDown, 
+  Minus, AlertCircle, X, Edit2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
+import { LoadingSpinner, StatCard } from '../components/common';
 import { resourcesService, partnersService, timesheetsService, expensesService } from '../services';
+
+// Extracted components
+import {
+  ResourceEditForm,
+  ResourceDateFilter,
+  ResourceDetailsDisplay,
+  AllocationCard,
+  TimesheetsCard,
+  ExpensesCard
+} from '../components/resources';
 
 export default function ResourceDetail() {
   const { id } = useParams();
@@ -50,25 +59,19 @@ export default function ResourceDetail() {
   // Edit form state
   const [editForm, setEditForm] = useState({});
 
-  // Fetch all data on mount and when date range changes
   useEffect(() => {
-    if (id) {
-      fetchResourceData();
-    }
+    if (id) fetchResourceData();
   }, [id, dateRange.start, dateRange.end]);
 
-  // Fetch partners when we have a resource with project_id and user role is known
   useEffect(() => {
     async function fetchPartners() {
       if (resource?.project_id && userRole && ['admin', 'supplier_pm'].includes(userRole)) {
-        console.log('Fetching partners for project:', resource.project_id);
         try {
           const partnersData = await partnersService.getAll(resource.project_id, {
             filters: [{ column: 'is_active', operator: 'eq', value: true }],
             select: 'id, name, is_active',
             orderBy: { column: 'name', ascending: true }
           });
-          console.log('Partners loaded:', partnersData);
           setPartners(partnersData || []);
         } catch (error) {
           console.error('Error fetching partners:', error);
@@ -83,91 +86,58 @@ export default function ResourceDetail() {
       setLoading(true);
       setError(null);
 
-      // Fetch resource using service layer with partner relationship
       const resourceData = await resourcesService.getById(id, {
         select: '*, partner:partners(id, name, contact_name, contact_email, is_active)'
       });
 
       if (!resourceData) {
-        console.error('Error fetching resource: not found');
         setError('Resource not found');
         setLoading(false);
         return;
       }
-      
-      console.log('Resource loaded with project_id:', resourceData.project_id);
 
-      // Get timesheet summary for the resource (all timesheets)
       const timesheetsForSummary = await timesheetsService.getAll(resourceData.project_id, {
         filters: [{ column: 'resource_id', operator: 'eq', value: id }],
         select: 'id, hours_worked, hours, status, was_rejected'
       });
 
-      // Calculate timesheet stats
-      let totalHours = 0;
-      let approvedHours = 0;
-      let pendingHours = 0;
-
+      let totalHours = 0, approvedHours = 0, pendingHours = 0;
       if (timesheetsForSummary) {
         timesheetsForSummary.forEach(ts => {
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           totalHours += hours;
-          if (ts.status === 'Approved') {
-            approvedHours += hours;
-          } else if (ts.status === 'Submitted' && !ts.was_rejected) {
-            pendingHours += hours;
-          }
+          if (ts.status === 'Approved') approvedHours += hours;
+          else if (ts.status === 'Submitted' && !ts.was_rejected) pendingHours += hours;
         });
       }
 
-      // Set resource with timesheet summary
       setResource({
         ...resourceData,
-        timesheetSummary: {
-          totalEntries: timesheetsForSummary?.length || 0,
-          totalHours,
-          approvedHours,
-          pendingHours,
-          daysWorked: totalHours / 8
-        }
+        timesheetSummary: { totalEntries: timesheetsForSummary?.length || 0, totalHours, approvedHours, pendingHours, daysWorked: totalHours / 8 }
       });
 
-      // Build filters for detailed timesheets with optional date range
+      // Fetch filtered timesheets
       const tsFilters = [{ column: 'resource_id', operator: 'eq', value: id }];
-      if (dateRange.start) {
-        tsFilters.push({ column: 'date', operator: 'gte', value: dateRange.start });
-      }
-      if (dateRange.end) {
-        tsFilters.push({ column: 'date', operator: 'lte', value: dateRange.end });
-      }
+      if (dateRange.start) tsFilters.push({ column: 'date', operator: 'gte', value: dateRange.start });
+      if (dateRange.end) tsFilters.push({ column: 'date', operator: 'lte', value: dateRange.end });
       
-      // Fetch detailed timesheets using service layer
       const tsData = await timesheetsService.getAll(resourceData.project_id, {
         filters: tsFilters,
         select: 'id, date, hours_worked, hours, status, description, milestone:milestones(milestone_ref, name)',
         orderBy: { column: 'date', ascending: false }
       });
-      
-      // Limit to 100 results
       setTimesheets((tsData || []).slice(0, 100));
 
-      // Build filters for expenses with optional date range
+      // Fetch filtered expenses
       const expFilters = [{ column: 'resource_id', operator: 'eq', value: id }];
-      if (dateRange.start) {
-        expFilters.push({ column: 'expense_date', operator: 'gte', value: dateRange.start });
-      }
-      if (dateRange.end) {
-        expFilters.push({ column: 'expense_date', operator: 'lte', value: dateRange.end });
-      }
+      if (dateRange.start) expFilters.push({ column: 'expense_date', operator: 'gte', value: dateRange.start });
+      if (dateRange.end) expFilters.push({ column: 'expense_date', operator: 'lte', value: dateRange.end });
       
-      // Fetch expenses using service layer
       const expData = await expensesService.getAll(resourceData.project_id, {
         filters: expFilters,
         select: 'id, expense_date, category, reason, amount, chargeable_to_customer, procurement_method, status',
         orderBy: { column: 'expense_date', ascending: false }
       });
-      
-      // Limit to 100 results
       setExpenses((expData || []).slice(0, 100));
 
     } catch (err) {
@@ -178,36 +148,21 @@ export default function ResourceDetail() {
     }
   }
 
-  // Date range handling functions
-  function getMonthOptions() {
-    const options = [];
-    const today = new Date();
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-      options.push({ value, label });
-    }
-    return options;
-  }
-
+  // Date range handling
   function handleMonthChange(monthValue) {
     setSelectedMonth(monthValue);
     if (monthValue) {
       const [year, month] = monthValue.split('-').map(Number);
       const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0); // Last day of month
-      setDateRange({
-        start: startDate.toISOString().split('T')[0],
-        end: endDate.toISOString().split('T')[0]
-      });
+      const endDate = new Date(year, month, 0);
+      setDateRange({ start: startDate.toISOString().split('T')[0], end: endDate.toISOString().split('T')[0] });
     } else {
       setDateRange({ start: null, end: null });
     }
   }
 
   function handleCustomDateChange(field, value) {
-    setSelectedMonth(''); // Clear month selector when using custom dates
+    setSelectedMonth('');
     setDateRange(prev => ({ ...prev, [field]: value }));
   }
 
@@ -228,6 +183,20 @@ export default function ResourceDetail() {
     if (dateRange.start) return `From ${new Date(dateRange.start).toLocaleDateString('en-GB')}`;
     if (dateRange.end) return `Until ${new Date(dateRange.end).toLocaleDateString('en-GB')}`;
     return 'All Time';
+  }
+
+  // Edit handling
+  function sfiaToDisplay(level) {
+    if (!level) return 'L4';
+    if (typeof level === 'string' && level.startsWith('L')) return level;
+    return `L${level}`;
+  }
+
+  function sfiaToDatabase(level) {
+    if (!level) return 4;
+    if (typeof level === 'number') return level;
+    if (typeof level === 'string' && level.startsWith('L')) return parseInt(level.substring(1)) || 4;
+    return parseInt(level) || 4;
   }
 
   function startEditing() {
@@ -265,7 +234,6 @@ export default function ResourceDetail() {
         partner_id: editForm.resource_type === 'third_party' ? (editForm.partner_id || null) : null
       };
 
-      // Only include cost_price if user can edit it
       if (canSeeCostPrice) {
         updates.cost_price = editForm.cost_price === '' ? null : parseFloat(editForm.cost_price);
       }
@@ -281,79 +249,23 @@ export default function ResourceDetail() {
     }
   }
 
-  function cancelEditing() {
-    setIsEditing(false);
-    setEditForm({});
-  }
-
   // Helper functions
-  function sfiaToDisplay(level) {
-    if (!level) return 'L4';
-    if (typeof level === 'string' && level.startsWith('L')) return level;
-    return `L${level}`;
-  }
-
-  function sfiaToDatabase(level) {
-    if (!level) return 4;
-    if (typeof level === 'number') return level;
-    if (typeof level === 'string' && level.startsWith('L')) {
-      return parseInt(level.substring(1)) || 4;
-    }
-    return parseInt(level) || 4;
-  }
-
   function getMarginStyle(marginPercent) {
     if (marginPercent === null || marginPercent === undefined) {
       return { color: '#9ca3af', bg: '#f1f5f9', label: 'N/A', icon: Minus };
     }
-    if (marginPercent >= 25) {
-      return { color: '#16a34a', bg: '#dcfce7', label: 'Good', icon: TrendingUp };
-    }
-    if (marginPercent >= 10) {
-      return { color: '#d97706', bg: '#fef3c7', label: 'Low', icon: Minus };
-    }
+    if (marginPercent >= 25) return { color: '#16a34a', bg: '#dcfce7', label: 'Good', icon: TrendingUp };
+    if (marginPercent >= 10) return { color: '#d97706', bg: '#fef3c7', label: 'Low', icon: Minus };
     return { color: '#dc2626', bg: '#fee2e2', label: 'Critical', icon: TrendingDown };
   }
 
   function getResourceTypeStyle(type) {
-    if (type === 'third_party') {
-      return { bg: '#fef3c7', color: '#92400e', icon: Link2, label: 'Third-Party Partner' };
-    }
+    if (type === 'third_party') return { bg: '#fef3c7', color: '#92400e', icon: Link2, label: 'Third-Party Partner' };
     return { bg: '#dbeafe', color: '#1e40af', icon: Building2, label: 'Internal Supplier' };
   }
 
-  function getSfiaColor(level) {
-    const displayLevel = sfiaToDisplay(level);
-    switch(displayLevel) {
-      case 'L6': return { bg: '#fef3c7', color: '#92400e' };
-      case 'L5': return { bg: '#dcfce7', color: '#166534' };
-      case 'L4': return { bg: '#dbeafe', color: '#1e40af' };
-      case 'L3': return { bg: '#f1f5f9', color: '#475569' };
-      default: return { bg: '#f1f5f9', color: '#475569' };
-    }
-  }
+  if (loading) return <LoadingSpinner message="Loading resource..." size="large" fullPage />;
 
-  function getStatusStyle(status) {
-    switch (status) {
-      case 'Approved':
-        return { bg: '#dcfce7', color: '#16a34a' };
-      case 'Submitted':
-        return { bg: '#fef3c7', color: '#d97706' };
-      case 'Rejected':
-        return { bg: '#fee2e2', color: '#dc2626' };
-      case 'Validated':
-        return { bg: '#dcfce7', color: '#16a34a' };
-      default:
-        return { bg: '#f1f5f9', color: '#64748b' };
-    }
-  }
-
-  // Loading state
-  if (loading) {
-    return <LoadingSpinner message="Loading resource..." size="large" fullPage />;
-  }
-
-  // Error state
   if (error && !resource) {
     return (
       <div className="page-container">
@@ -375,11 +287,9 @@ export default function ResourceDetail() {
   const MarginIcon = marginStyle.icon;
   const typeStyle = getResourceTypeStyle(resource.resource_type);
   const TypeIcon = typeStyle.icon;
-  const sfiaStyle = getSfiaColor(resource.sfia_level);
   
   const daysAllocated = resource.days_allocated || 0;
   const daysUsed = resource.timesheetSummary?.daysWorked || 0;
-  const remaining = Math.max(0, daysAllocated - daysUsed);
   const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
   const totalValue = (resource.daily_rate || 0) * daysAllocated;
 
@@ -388,11 +298,7 @@ export default function ResourceDetail() {
       {/* Header */}
       <div className="page-header">
         <div className="page-title">
-          <button 
-            onClick={() => navigate('/resources')} 
-            className="btn btn-secondary"
-            style={{ marginRight: '1rem', padding: '0.5rem' }}
-          >
+          <button onClick={() => navigate('/resources')} className="btn btn-secondary" style={{ marginRight: '1rem', padding: '0.5rem' }}>
             <ArrowLeft size={20} />
           </button>
           <User size={28} />
@@ -401,15 +307,9 @@ export default function ResourceDetail() {
               <h1>{resource.name}</h1>
               {canSeeResourceType && (
                 <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.35rem 0.75rem',
-                  backgroundColor: typeStyle.bg,
-                  color: typeStyle.color,
-                  borderRadius: '6px',
-                  fontSize: '0.85rem',
-                  fontWeight: '500'
+                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.35rem 0.75rem', backgroundColor: typeStyle.bg, color: typeStyle.color,
+                  borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500'
                 }}>
                   <TypeIcon size={14} />
                   {typeStyle.label}
@@ -428,22 +328,10 @@ export default function ResourceDetail() {
 
       {/* Error message */}
       {error && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#fee2e2',
-          color: '#dc2626',
-          borderRadius: '8px',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}>
+        <div style={{ padding: '1rem', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <AlertCircle size={18} />
           {error}
-          <button 
-            onClick={() => setError(null)}
-            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
+          <button onClick={() => setError(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         </div>
@@ -451,21 +339,9 @@ export default function ResourceDetail() {
 
       {/* Stats Row */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <StatCard
-          icon={DollarSign}
-          label="Daily Rate"
-          value={`£${resource.daily_rate || 0}`}
-          subtext="Customer rate"
-          color="#10b981"
-        />
+        <StatCard icon={DollarSign} label="Daily Rate" value={`£${resource.daily_rate || 0}`} subtext="Customer rate" color="#10b981" />
         {canSeeCostPrice && (
-          <StatCard
-            icon={DollarSign}
-            label="Cost Price"
-            value={resource.cost_price ? `£${resource.cost_price}` : 'Not set'}
-            subtext="Internal cost"
-            color="#3b82f6"
-          />
+          <StatCard icon={DollarSign} label="Cost Price" value={resource.cost_price ? `£${resource.cost_price}` : 'Not set'} subtext="Internal cost" color="#3b82f6" />
         )}
         {canSeeCostPrice && (
           <div className="stat-card" style={{ borderLeft: `4px solid ${marginStyle.color}` }}>
@@ -477,111 +353,22 @@ export default function ResourceDetail() {
               {margin.percent !== null ? `${margin.percent.toFixed(1)}%` : 'N/A'}
             </div>
             {margin.amount !== null && (
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                £{margin.amount.toFixed(0)} per day
-              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>£{margin.amount.toFixed(0)} per day</div>
             )}
           </div>
         )}
-        <StatCard
-          icon={Clock}
-          label="Utilization"
-          value={`${Math.round(utilization)}%`}
-          subtext={`${daysUsed.toFixed(1)} / ${daysAllocated} days`}
-          color={utilization > 80 ? '#10b981' : utilization > 0 ? '#3b82f6' : '#64748b'}
-        />
+        <StatCard icon={Clock} label="Utilization" value={`${Math.round(utilization)}%`} subtext={`${daysUsed.toFixed(1)} / ${daysAllocated} days`} color={utilization > 80 ? '#10b981' : utilization > 0 ? '#3b82f6' : '#64748b'} />
       </div>
 
       {/* Date Range Filter */}
-      <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Calendar size={18} style={{ color: '#3b82f6' }} />
-            <span style={{ fontWeight: '500' }}>Period:</span>
-          </div>
-          
-          {/* Month Quick Select */}
-          <select
-            value={selectedMonth}
-            onChange={(e) => handleMonthChange(e.target.value)}
-            style={{
-              padding: '0.5rem',
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-              fontSize: '0.875rem',
-              minWidth: '160px'
-            }}
-          >
-            <option value="">Select Month...</option>
-            {getMonthOptions().map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          
-          <span style={{ color: '#64748b' }}>or</span>
-          
-          {/* Custom Date Range */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <input
-              type="date"
-              value={dateRange.start || ''}
-              onChange={(e) => handleCustomDateChange('start', e.target.value)}
-              style={{
-                padding: '0.5rem',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0',
-                fontSize: '0.875rem'
-              }}
-            />
-            <span style={{ color: '#64748b' }}>to</span>
-            <input
-              type="date"
-              value={dateRange.end || ''}
-              onChange={(e) => handleCustomDateChange('end', e.target.value)}
-              style={{
-                padding: '0.5rem',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0',
-                fontSize: '0.875rem'
-              }}
-            />
-          </div>
-          
-          {/* Clear Button */}
-          {(dateRange.start || dateRange.end) && (
-            <button
-              onClick={clearDateFilter}
-              style={{
-                padding: '0.5rem 0.75rem',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem'
-              }}
-            >
-              <X size={14} />
-              Clear
-            </button>
-          )}
-          
-          {/* Current Selection Display */}
-          <div style={{
-            marginLeft: 'auto',
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#dbeafe',
-            color: '#1e40af',
-            borderRadius: '6px',
-            fontSize: '0.875rem',
-            fontWeight: '500'
-          }}>
-            Showing: {getDateRangeLabel()}
-          </div>
-        </div>
-      </div>
+      <ResourceDateFilter
+        selectedMonth={selectedMonth}
+        dateRange={dateRange}
+        onMonthChange={handleMonthChange}
+        onDateChange={handleCustomDateChange}
+        onClear={clearDateFilter}
+        dateRangeLabel={getDateRangeLabel()}
+      />
 
       {/* Main Content Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: isEditing ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
@@ -589,529 +376,48 @@ export default function ResourceDetail() {
         {/* Resource Details Card */}
         <div className="card">
           <div className="card-header">
-            <h2 className="card-title">
-              {isEditing ? 'Edit Resource Details' : 'Resource Details'}
-            </h2>
+            <h2 className="card-title">{isEditing ? 'Edit Resource Details' : 'Resource Details'}</h2>
           </div>
           
           {isEditing ? (
-            /* Edit Form */
-            <div style={{ padding: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                {/* Name */}
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    className="input-field"
-                    value={editForm.email}
-                    onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Role */}
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Role
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={editForm.role}
-                    onChange={(e) => setEditForm({...editForm, role: e.target.value})}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Resource Ref */}
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Reference
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={editForm.resource_ref}
-                    onChange={(e) => setEditForm({...editForm, resource_ref: e.target.value})}
-                    placeholder="e.g., R01"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* SFIA Level */}
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    SFIA Level
-                  </label>
-                  <select
-                    className="input-field"
-                    value={editForm.sfia_level}
-                    onChange={(e) => setEditForm({...editForm, sfia_level: e.target.value})}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="L3">Level 3</option>
-                    <option value="L4">Level 4</option>
-                    <option value="L5">Level 5</option>
-                    <option value="L6">Level 6</option>
-                  </select>
-                </div>
-
-                {/* Days Allocated */}
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Days Allocated
-                  </label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={editForm.days_allocated}
-                    onChange={(e) => setEditForm({...editForm, days_allocated: e.target.value})}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Daily Rate */}
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Daily Rate (£) - Customer
-                  </label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={editForm.daily_rate}
-                    onChange={(e) => setEditForm({...editForm, daily_rate: e.target.value})}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Cost Price - Admin/Supplier PM only */}
-                {canSeeCostPrice && (
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                      Cost Price (£) - Internal
-                    </label>
-                    <input
-                      type="number"
-                      className="input-field"
-                      value={editForm.cost_price}
-                      onChange={(e) => setEditForm({...editForm, cost_price: e.target.value})}
-                      placeholder="Optional"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                )}
-
-                {/* Discount */}
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Discount %
-                  </label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={editForm.discount_percent}
-                    onChange={(e) => setEditForm({...editForm, discount_percent: e.target.value})}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Resource Type - Admin/Supplier PM only */}
-                {canSeeResourceType && (
-                  <>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                        Resource Type
-                      </label>
-                      <select
-                        className="input-field"
-                        value={editForm.resource_type}
-                        onChange={(e) => setEditForm({
-                          ...editForm, 
-                          resource_type: e.target.value,
-                          partner_id: e.target.value === 'internal' ? '' : editForm.partner_id
-                        })}
-                        style={{ width: '100%' }}
-                      >
-                        <option value="internal">Internal Supplier Resource</option>
-                        <option value="third_party">Third-Party Partner</option>
-                      </select>
-                    </div>
-
-                    {/* Partner Selection - only when third_party */}
-                    {editForm.resource_type === 'third_party' && (
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                          Partner
-                        </label>
-                        <select
-                          className="input-field"
-                          value={editForm.partner_id}
-                          onChange={(e) => setEditForm({...editForm, partner_id: e.target.value})}
-                          style={{ width: '100%' }}
-                        >
-                          <option value="">-- Select Partner --</option>
-                          {partners.map(partner => (
-                            <option key={partner.id} value={partner.id}>
-                              {partner.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Save/Cancel buttons */}
-              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={handleSave}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <>Saving...</>
-                  ) : (
-                    <><Save size={16} /> Save Changes</>
-                  )}
-                </button>
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={cancelEditing}
-                  disabled={saving}
-                >
-                  <X size={16} /> Cancel
-                </button>
-              </div>
-            </div>
+            <ResourceEditForm
+              form={editForm}
+              onFormChange={setEditForm}
+              onSave={handleSave}
+              onCancel={() => setIsEditing(false)}
+              saving={saving}
+              partners={partners}
+              canSeeCostPrice={canSeeCostPrice}
+              canSeeResourceType={canSeeResourceType}
+            />
           ) : (
-            /* Display Mode */
-            <div style={{ padding: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                {/* Left column */}
-                <div>
-                  <DetailRow 
-                    icon={<User size={16} />} 
-                    label="Name" 
-                    value={resource.name} 
-                  />
-                  <DetailRow 
-                    icon={<Mail size={16} />} 
-                    label="Email" 
-                    value={resource.email} 
-                  />
-                  <DetailRow 
-                    icon={<Briefcase size={16} />} 
-                    label="Role" 
-                    value={resource.role} 
-                  />
-                  <DetailRow 
-                    icon={<FileText size={16} />} 
-                    label="Reference" 
-                    value={resource.resource_ref || 'Not set'} 
-                  />
-                </div>
-
-                {/* Right column */}
-                <div>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Award size={14} /> SFIA Level
-                    </span>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '0.25rem 0.5rem',
-                      backgroundColor: sfiaStyle.bg,
-                      color: sfiaStyle.color,
-                      borderRadius: '4px',
-                      fontWeight: '500',
-                      marginTop: '0.25rem'
-                    }}>
-                      {sfiaToDisplay(resource.sfia_level)}
-                    </span>
-                  </div>
-
-                  <DetailRow 
-                    icon={<Calendar size={16} />} 
-                    label="Days Allocated" 
-                    value={`${daysAllocated} days`} 
-                  />
-                  <DetailRow 
-                    icon={<DollarSign size={16} />} 
-                    label="Total Value" 
-                    value={`£${totalValue.toLocaleString()}`} 
-                  />
-
-                  {/* Partner info - only show if third_party and has partner */}
-                  {canSeeResourceType && resource.resource_type === 'third_party' && (
-                    <div style={{ marginBottom: '1rem' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <Link2 size={14} /> Partner
-                      </span>
-                      <span style={{ fontWeight: '500', marginTop: '0.25rem', display: 'block' }}>
-                        {resource.partner?.name || 'Not assigned'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <ResourceDetailsDisplay
+              resource={resource}
+              daysAllocated={daysAllocated}
+              totalValue={totalValue}
+              canSeeResourceType={canSeeResourceType}
+            />
           )}
         </div>
 
         {/* Right Column - only shown when not editing */}
         {!isEditing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
-            {/* Allocation Summary */}
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">Allocation</h3>
-              </div>
-              <div style={{ padding: '1rem' }}>
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span>{daysUsed.toFixed(1)} days used</span>
-                    <span>{remaining.toFixed(1)} remaining</span>
-                  </div>
-                  <div style={{ 
-                    width: '100%', 
-                    height: '8px', 
-                    backgroundColor: '#e2e8f0', 
-                    borderRadius: '4px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      width: `${Math.min(utilization, 100)}%`,
-                      height: '100%',
-                      backgroundColor: utilization > 100 ? '#dc2626' : utilization > 80 ? '#10b981' : '#3b82f6',
-                      borderRadius: '4px',
-                      transition: 'width 0.3s ease'
-                    }} />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
-                  <div>
-                    <span style={{ color: '#64748b' }}>Hours Logged</span>
-                    <div style={{ fontWeight: '600' }}>{resource.timesheetSummary?.totalHours?.toFixed(1) || 0}h</div>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>Approved Hours</span>
-                    <div style={{ fontWeight: '600', color: '#10b981' }}>{resource.timesheetSummary?.approvedHours?.toFixed(1) || 0}h</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Timesheets */}
-            <div className="card">
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 className="card-title">Timesheets</h3>
-                <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                  {timesheets.length} entries
-                  {dateRange.start || dateRange.end ? ` (${getDateRangeLabel()})` : ''}
-                </span>
-              </div>
-              {timesheets.length > 0 ? (
-                <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                  <table style={{ width: '100%', fontSize: '0.875rem' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Date</th>
-                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Hours</th>
-                        <th style={{ padding: '0.5rem', textAlign: 'left' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {timesheets.map(ts => {
-                        const statusStyle = getStatusStyle(ts.status);
-                        return (
-                          <tr key={ts.id}>
-                            <td style={{ padding: '0.5rem' }}>
-                              {new Date(ts.date).toLocaleDateString('en-GB')}
-                            </td>
-                            <td style={{ padding: '0.5rem' }}>
-                              {parseFloat(ts.hours_worked || ts.hours || 0).toFixed(1)}h
-                            </td>
-                            <td style={{ padding: '0.5rem' }}>
-                              <span style={{
-                                padding: '0.15rem 0.5rem',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                backgroundColor: statusStyle.bg,
-                                color: statusStyle.color
-                              }}>
-                                {ts.status}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                  <Clock size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                  <p>No timesheets {dateRange.start || dateRange.end ? 'in selected period' : 'recorded'}</p>
-                </div>
-              )}
-            </div>
+            <AllocationCard
+              daysUsed={daysUsed}
+              daysAllocated={daysAllocated}
+              totalHours={resource.timesheetSummary?.totalHours}
+              approvedHours={resource.timesheetSummary?.approvedHours}
+            />
+            <TimesheetsCard timesheets={timesheets} dateRangeLabel={getDateRangeLabel()} />
           </div>
         )}
       </div>
 
       {/* Expenses - full width below */}
       {!isEditing && (
-        <div className="card" style={{ marginTop: '1.5rem' }}>
-          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 className="card-title">Expenses</h3>
-            <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
-              {expenses.length} entries
-              {dateRange.start || dateRange.end ? ` (${getDateRangeLabel()})` : ''}
-            </span>
-          </div>
-          {expenses.length > 0 ? (
-            <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', fontSize: '0.875rem' }}>
-                <thead style={{ position: 'sticky', top: 0, backgroundColor: '#fff' }}>
-                  <tr>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Date</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Category</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Reason</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Amount</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Chargeable</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Paid By</th>
-                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map(exp => {
-                    const amount = parseFloat(exp.amount) || 0;
-                    const statusStyle = getStatusStyle(exp.status);
-                    const categoryColors = {
-                      'Travel': { bg: '#dbeafe', color: '#1e40af' },
-                      'Accommodation': { bg: '#f3e8ff', color: '#7c3aed' },
-                      'Sustenance': { bg: '#fef3c7', color: '#92400e' }
-                    };
-                    const catStyle = categoryColors[exp.category] || { bg: '#f1f5f9', color: '#475569' };
-                    return (
-                      <tr key={exp.id}>
-                        <td style={{ padding: '0.75rem' }}>
-                          {new Date(exp.expense_date).toLocaleDateString('en-GB')}
-                        </td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span style={{
-                            padding: '0.15rem 0.5rem',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            backgroundColor: catStyle.bg,
-                            color: catStyle.color
-                          }}>
-                            {exp.category}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.75rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {exp.reason || '-'}
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '600' }}>
-                          £{amount.toFixed(2)}
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                          {exp.chargeable_to_customer ? (
-                            <CheckCircle size={16} style={{ color: '#10b981' }} />
-                          ) : (
-                            <X size={16} style={{ color: '#94a3b8' }} />
-                          )}
-                        </td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span style={{
-                            padding: '0.15rem 0.5rem',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            backgroundColor: exp.procurement_method === 'partner' ? '#fef3c7' : '#e0f2fe',
-                            color: exp.procurement_method === 'partner' ? '#92400e' : '#0369a1'
-                          }}>
-                            {exp.procurement_method === 'partner' ? 'Partner' : 'Supplier'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span style={{
-                            padding: '0.15rem 0.5rem',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            backgroundColor: statusStyle.bg,
-                            color: statusStyle.color
-                          }}>
-                            {exp.status || 'Draft'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              <Receipt size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-              <p>No expenses {dateRange.start || dateRange.end ? 'in selected period' : 'recorded'}</p>
-            </div>
-          )}
-        </div>
+        <ExpensesCard expenses={expenses} dateRangeLabel={getDateRangeLabel()} />
       )}
-
-      <style jsx>{`
-        .input-field {
-          padding: 0.5rem 0.75rem;
-          border: 1px solid #d1d5db;
-          border-radius: 6px;
-          font-size: 0.875rem;
-        }
-        .input-field:focus {
-          outline: none;
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-      `}</style>
-    </div>
-  );
-}
-
-// Helper component for detail rows
-function DetailRow({ icon, label, value }) {
-  return (
-    <div style={{ marginBottom: '1rem' }}>
-      <span style={{ 
-        fontSize: '0.75rem', 
-        color: '#64748b', 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '0.25rem' 
-      }}>
-        {icon} {label}
-      </span>
-      <span style={{ fontWeight: '500', marginTop: '0.25rem', display: 'block' }}>
-        {value}
-      </span>
     </div>
   );
 }
