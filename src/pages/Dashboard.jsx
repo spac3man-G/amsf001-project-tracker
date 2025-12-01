@@ -173,22 +173,21 @@ export default function Dashboard() {
         icon={Target} 
         title={`${projectRef || 'Project'} Dashboard`} 
         subtitle={projectName || 'Project Tracker'}
-        action={
-          <button
-            onClick={() => setShowCustomizePanel(true)}
-            className="btn-primary"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.625rem 1rem'
-            }}
-          >
-            <Settings size={18} />
-            Customize
-          </button>
-        }
-      />
+      >
+        <button
+          onClick={() => setShowCustomizePanel(true)}
+          className="btn-primary"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.625rem 1rem'
+          }}
+        >
+          <Settings size={18} />
+          Customize
+        </button>
+      </PageHeader>
 
       {/* Project Progress Hero */}
       {isWidgetVisible('progress-hero') && (
