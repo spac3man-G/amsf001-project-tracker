@@ -1045,60 +1045,128 @@ export default function PartnerDetail() {
               </div>
             </div>
 
-            {/* Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ backgroundColor: '#dbeafe', borderRadius: '8px', padding: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: '#1e40af' }}>Timesheets</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e40af' }}>
-                  £{parseFloat(generatedInvoice.timesheet_total || 0).toFixed(2)}
-                </div>
-              </div>
-              <div style={{ backgroundColor: '#f3e8ff', borderRadius: '8px', padding: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Partner Expenses</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#7c3aed' }}>
-                  £{parseFloat(generatedInvoice.expense_total || 0).toFixed(2)}
-                </div>
-              </div>
-              <div style={{ backgroundColor: '#fef3c7', borderRadius: '8px', padding: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: '#92400e' }}>Supplier Expenses</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#92400e' }}>
-                  £{parseFloat(generatedInvoice.supplier_expense_total || 0).toFixed(2)}
-                </div>
-                <div style={{ fontSize: '0.65rem', color: '#92400e', marginTop: '0.25rem' }}>Not on this invoice</div>
-              </div>
-              <div style={{ backgroundColor: '#dcfce7', borderRadius: '8px', padding: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>Invoice Total</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
-                  £{parseFloat(generatedInvoice.invoice_total || 0).toFixed(2)}
-                </div>
-              </div>
-            </div>
+            {/* Calculate chargeable/non-chargeable from expenses */}
+            {(() => {
+              const timesheetTotal = parseFloat(generatedInvoice.timesheet_total || 0);
+              const partnerExpenses = generatedInvoice.groupedLines?.partnerExpenses || [];
+              const supplierExpenses = generatedInvoice.groupedLines?.supplierExpenses || [];
+              
+              const chargeablePartnerExpenses = partnerExpenses
+                .filter(e => e.chargeable_to_customer)
+                .reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
+              const nonChargeablePartnerExpenses = partnerExpenses
+                .filter(e => !e.chargeable_to_customer)
+                .reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
+              
+              const chargeableSupplierExpenses = supplierExpenses
+                .filter(e => e.chargeable_to_customer)
+                .reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
+              const nonChargeableSupplierExpenses = supplierExpenses
+                .filter(e => !e.chargeable_to_customer)
+                .reduce((sum, e) => sum + parseFloat(e.line_total || 0), 0);
+              
+              const totalChargeableToCustomer = timesheetTotal + chargeablePartnerExpenses + chargeableSupplierExpenses;
+              const invoiceTotal = timesheetTotal + chargeablePartnerExpenses + nonChargeablePartnerExpenses;
 
-            {/* Chargeable Summary */}
-            <div style={{ 
-              backgroundColor: '#f0fdf4', 
-              borderRadius: '8px', 
-              padding: '1rem', 
-              marginBottom: '1.5rem',
-              border: '1px solid #bbf7d0'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontWeight: '600', color: '#166534' }}>Chargeable to Customer:</span>
-                  <span style={{ marginLeft: '0.5rem', fontSize: '1.1rem', fontWeight: '700', color: '#166534' }}>
-                    £{parseFloat(generatedInvoice.chargeable_total || generatedInvoice.invoice_total || 0).toFixed(2)}
-                  </span>
-                </div>
-                {(generatedInvoice.non_chargeable_total || 0) > 0 && (
-                  <div>
-                    <span style={{ color: '#dc2626', fontSize: '0.85rem' }}>Non-chargeable:</span>
-                    <span style={{ marginLeft: '0.5rem', fontWeight: '600', color: '#dc2626' }}>
-                      £{parseFloat(generatedInvoice.non_chargeable_total || 0).toFixed(2)}
-                    </span>
+              return (
+                <>
+                  {/* Summary Cards - Row 1: Invoice Components */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ backgroundColor: '#dbeafe', borderRadius: '8px', padding: '1rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#1e40af' }}>Timesheets</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e40af' }}>
+                        £{timesheetTotal.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: '#1e40af', marginTop: '0.25rem' }}>100% chargeable</div>
+                    </div>
+                    <div style={{ backgroundColor: '#dcfce7', borderRadius: '8px', padding: '1rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>Chargeable Expenses</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>
+                        £{chargeablePartnerExpenses.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: '#16a34a', marginTop: '0.25rem' }}>Partner-procured, billable</div>
+                    </div>
+                    <div style={{ backgroundColor: '#fee2e2', borderRadius: '8px', padding: '1rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#dc2626' }}>Non-Chargeable Expenses</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#dc2626' }}>
+                        £{nonChargeablePartnerExpenses.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: '#dc2626', marginTop: '0.25rem' }}>Partner-procured, not billable</div>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
+
+                  {/* Summary Cards - Row 2: Totals */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                    {/* Total Chargeable to Customer - prominent */}
+                    <div style={{ 
+                      backgroundColor: '#166534', 
+                      borderRadius: '8px', 
+                      padding: '1.25rem',
+                      color: 'white'
+                    }}>
+                      <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.25rem' }}>
+                        Total Chargeable to Customer
+                      </div>
+                      <div style={{ fontSize: '1.75rem', fontWeight: '700' }}>
+                        £{totalChargeableToCustomer.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: '0.5rem' }}>
+                        Timesheets (£{timesheetTotal.toFixed(2)}) + Chargeable Expenses (£{chargeablePartnerExpenses.toFixed(2)})
+                        {chargeableSupplierExpenses > 0 && ` + Supplier Chargeable (£${chargeableSupplierExpenses.toFixed(2)})`}
+                      </div>
+                    </div>
+                    
+                    {/* Invoice Total (what partner pays) */}
+                    <div style={{ 
+                      backgroundColor: '#7c3aed', 
+                      borderRadius: '8px', 
+                      padding: '1.25rem',
+                      color: 'white'
+                    }}>
+                      <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.25rem' }}>
+                        Invoice Total (Partner Pays)
+                      </div>
+                      <div style={{ fontSize: '1.75rem', fontWeight: '700' }}>
+                        £{invoiceTotal.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: '0.5rem' }}>
+                        Timesheets + All Partner Expenses
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Supplier Expenses Summary (if any) */}
+                  {(chargeableSupplierExpenses > 0 || nonChargeableSupplierExpenses > 0) && (
+                    <div style={{ 
+                      backgroundColor: '#fef3c7', 
+                      borderRadius: '8px', 
+                      padding: '1rem', 
+                      marginBottom: '1.5rem',
+                      border: '1px dashed #f59e0b'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Building2 size={16} style={{ color: '#92400e' }} />
+                          <span style={{ fontWeight: '600', color: '#92400e' }}>Supplier Expenses (for separate billing):</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '1.5rem' }}>
+                          {chargeableSupplierExpenses > 0 && (
+                            <span style={{ color: '#16a34a', fontSize: '0.9rem' }}>
+                              Chargeable: <strong>£{chargeableSupplierExpenses.toFixed(2)}</strong>
+                            </span>
+                          )}
+                          {nonChargeableSupplierExpenses > 0 && (
+                            <span style={{ color: '#dc2626', fontSize: '0.9rem' }}>
+                              Non-chargeable: <strong>£{nonChargeableSupplierExpenses.toFixed(2)}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Timesheet Lines */}
             {generatedInvoice.groupedLines?.timesheets?.length > 0 && (
