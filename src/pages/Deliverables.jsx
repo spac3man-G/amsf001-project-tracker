@@ -271,8 +271,8 @@ export default function Deliverables() {
         </div>
       )}
 
-      <div className="card">
-        <table>
+      <div className="table-container">
+        <table className="table">
           <thead><tr><th>Ref</th><th>Name</th><th>Milestone</th><th>Status</th><th>Progress</th><th>KPIs</th><th>QS</th><th>Due</th><th>Actions</th></tr></thead>
           <tbody>
             {filteredDeliverables.length === 0 ? <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No deliverables found</td></tr> : filteredDeliverables.map(d => {
@@ -305,56 +305,64 @@ export default function Deliverables() {
       </div>
 
       {showEditModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px', maxWidth: '800px', width: '90%', maxHeight: '90vh', overflow: 'auto' }}>
-            <h3><Edit2 size={20} /> Edit {editForm.deliverable_ref}</h3>
+        <div className="modal-overlay">
+          <div className="modal modal-lg">
+            <div className="modal-header">
+              <h3 className="modal-title"><Edit2 size={20} /> Edit {editForm.deliverable_ref}</h3>
+            </div>
+            <div className="modal-body">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-              <div><label>Ref</label><input type="text" value={editForm.deliverable_ref} disabled style={{ backgroundColor: '#f1f5f9' }} /></div>
-              <div><label>Name *</label><input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">Ref</label><input type="text" value={editForm.deliverable_ref} disabled style={{ backgroundColor: 'var(--color-bg-secondary)' }} /></div>
+              <div className="form-group"><label className="form-label">Name *</label><input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
             </div>
-            <div style={{ marginTop: '1rem' }}><label>Description</label><textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-              <div><label>Milestone</label><select value={editForm.milestone_id} onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}><option value="">Select</option>{milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}</select></div>
-              <div><label>Assigned To</label><input type="text" value={editForm.assigned_to} onChange={(e) => setEditForm({ ...editForm, assigned_to: e.target.value })} /></div>
-              <div><label>Due Date</label><input type="date" value={editForm.due_date} onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Description</label><textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+              <div className="form-group"><label className="form-label">Milestone</label><select value={editForm.milestone_id} onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}><option value="">Select</option>{milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}</select></div>
+              <div className="form-group"><label className="form-label">Assigned To</label><input type="text" value={editForm.assigned_to} onChange={(e) => setEditForm({ ...editForm, assigned_to: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">Due Date</label><input type="date" value={editForm.due_date} onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })} /></div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-              <div><label>Status</label><select value={editForm.status} onChange={(e) => { const s = e.target.value; let p = editForm.progress; if (s === 'Not Started') p = 0; else if (['Submitted for Review', 'Review Complete', 'Delivered'].includes(s)) p = 100; else if (s === 'Returned for More Work') p = 50; setEditForm({ ...editForm, status: s, progress: p }); }}>{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-              <div><label>Progress: {editForm.progress}%</label><input type="range" min="0" max="100" value={editForm.progress} onChange={(e) => setEditForm({ ...editForm, progress: parseInt(e.target.value) })} style={{ width: '100%' }} disabled={['Delivered', 'Submitted for Review', 'Review Complete'].includes(editForm.status)} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group"><label className="form-label">Status</label><select value={editForm.status} onChange={(e) => { const s = e.target.value; let p = editForm.progress; if (s === 'Not Started') p = 0; else if (['Submitted for Review', 'Review Complete', 'Delivered'].includes(s)) p = 100; else if (s === 'Returned for More Work') p = 50; setEditForm({ ...editForm, status: s, progress: p }); }}>{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+              <div className="form-group"><label className="form-label">Progress: {editForm.progress}%</label><input type="range" min="0" max="100" value={editForm.progress} onChange={(e) => setEditForm({ ...editForm, progress: parseInt(e.target.value) })} style={{ width: '100%' }} disabled={['Delivered', 'Submitted for Review', 'Review Complete'].includes(editForm.status)} /></div>
             </div>
             <KPISelector kpis={kpis} selectedIds={editForm.kpi_ids} onChange={(ids) => setEditForm({ ...editForm, kpi_ids: ids })} />
             <QSSelector qualityStandards={qualityStandards} selectedIds={editForm.qs_ids} onChange={(ids) => setEditForm({ ...editForm, qs_ids: ids })} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}><button className="btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button><button className="btn-primary" onClick={handleSaveEdit}><Save size={16} /> Save</button></div>
+            </div>
+            <div className="modal-footer"><button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button><button className="btn btn-primary" onClick={handleSaveEdit}><Save size={16} /> Save</button></div>
           </div>
         </div>
       )}
 
       {showCompletionModal && completingDeliverable && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px', maxWidth: '700px', width: '90%', maxHeight: '90vh', overflow: 'auto' }}>
-            <h3><CheckCircle size={20} style={{ color: '#16a34a' }} /> Mark as Delivered</h3>
-            <p style={{ color: '#64748b' }}>{completingDeliverable.deliverable_ref} - {completingDeliverable.name}</p>
+        <div className="modal-overlay">
+          <div className="modal modal-lg">
+            <div className="modal-header">
+              <h3 className="modal-title"><CheckCircle size={20} style={{ color: 'var(--color-success)' }} /> Mark as Delivered</h3>
+            </div>
+            <div className="modal-body">
+            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-lg)' }}>{completingDeliverable.deliverable_ref} - {completingDeliverable.name}</p>
             {completingDeliverable.deliverable_kpis?.length > 0 && (
               <>
-                <div style={{ padding: '0.75rem', backgroundColor: '#fef3c7', borderLeft: '4px solid #f59e0b', borderRadius: '4px', marginBottom: '1rem' }}><strong style={{ color: '#92400e' }}>KPI Assessment Required</strong></div>
+                <div style={{ padding: 'var(--space-md)', backgroundColor: 'var(--color-warning-light)', borderLeft: '4px solid var(--color-warning)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-md)' }}><strong style={{ color: '#92400e' }}>KPI Assessment Required</strong></div>
                 {completingDeliverable.deliverable_kpis.map(dk => {
                   const kpi = kpis.find(k => k.id === dk.kpi_id);
                   if (!kpi) return null;
-                  return <div key={dk.kpi_id} style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><span style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.125rem 0.375rem', borderRadius: '4px', fontSize: '0.75rem', marginRight: '0.5rem' }}>{kpi.kpi_ref}</span><strong>{kpi.name}</strong></div><div style={{ display: 'flex', gap: '0.5rem' }}><button onClick={() => setKpiAssessments({ ...kpiAssessments, [dk.kpi_id]: true })} style={{ padding: '0.5rem 1rem', backgroundColor: kpiAssessments[dk.kpi_id] === true ? '#16a34a' : '#f1f5f9', color: kpiAssessments[dk.kpi_id] === true ? 'white' : '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>✓ Yes</button><button onClick={() => setKpiAssessments({ ...kpiAssessments, [dk.kpi_id]: false })} style={{ padding: '0.5rem 1rem', backgroundColor: kpiAssessments[dk.kpi_id] === false ? '#dc2626' : '#f1f5f9', color: kpiAssessments[dk.kpi_id] === false ? 'white' : '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>✗ No</button></div></div>;
+                  return <div key={dk.kpi_id} style={{ padding: 'var(--space-md)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><span className="badge badge-info">{kpi.kpi_ref}</span> <strong style={{ marginLeft: 'var(--space-sm)' }}>{kpi.name}</strong></div><div style={{ display: 'flex', gap: 'var(--space-sm)' }}><button onClick={() => setKpiAssessments({ ...kpiAssessments, [dk.kpi_id]: true })} className={`btn btn-sm ${kpiAssessments[dk.kpi_id] === true ? 'btn-success' : 'btn-secondary'}`}>✓ Yes</button><button onClick={() => setKpiAssessments({ ...kpiAssessments, [dk.kpi_id]: false })} className={`btn btn-sm ${kpiAssessments[dk.kpi_id] === false ? 'btn-danger' : 'btn-secondary'}`}>✗ No</button></div></div>;
                 })}
               </>
             )}
             {completingDeliverable.deliverable_quality_standards?.length > 0 && (
               <>
-                <div style={{ padding: '0.75rem', backgroundColor: '#f3e8ff', borderLeft: '4px solid #8b5cf6', borderRadius: '4px', marginBottom: '1rem', marginTop: '1rem' }}><strong style={{ color: '#6b21a8' }}>Quality Standards Assessment</strong></div>
+                <div style={{ padding: 'var(--space-md)', backgroundColor: 'var(--color-purple-light)', borderLeft: '4px solid var(--color-purple)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-md)', marginTop: 'var(--space-lg)' }}><strong style={{ color: '#6b21a8' }}>Quality Standards Assessment</strong></div>
                 {completingDeliverable.deliverable_quality_standards.map(dqs => {
                   const qs = qualityStandards.find(q => q.id === dqs.quality_standard_id);
                   if (!qs) return null;
-                  return <div key={dqs.quality_standard_id} style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><span style={{ backgroundColor: '#8b5cf6', color: 'white', padding: '0.125rem 0.375rem', borderRadius: '4px', fontSize: '0.75rem', marginRight: '0.5rem' }}>{qs.qs_ref}</span><strong>{qs.name}</strong></div><div style={{ display: 'flex', gap: '0.5rem' }}><button onClick={() => setQsAssessments({ ...qsAssessments, [dqs.quality_standard_id]: true })} style={{ padding: '0.5rem 1rem', backgroundColor: qsAssessments[dqs.quality_standard_id] === true ? '#16a34a' : '#f1f5f9', color: qsAssessments[dqs.quality_standard_id] === true ? 'white' : '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>✓ Yes</button><button onClick={() => setQsAssessments({ ...qsAssessments, [dqs.quality_standard_id]: false })} style={{ padding: '0.5rem 1rem', backgroundColor: qsAssessments[dqs.quality_standard_id] === false ? '#dc2626' : '#f1f5f9', color: qsAssessments[dqs.quality_standard_id] === false ? 'white' : '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>✗ No</button></div></div>;
+                  return <div key={dqs.quality_standard_id} style={{ padding: 'var(--space-md)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><span className="badge badge-purple">{qs.qs_ref}</span> <strong style={{ marginLeft: 'var(--space-sm)' }}>{qs.name}</strong></div><div style={{ display: 'flex', gap: 'var(--space-sm)' }}><button onClick={() => setQsAssessments({ ...qsAssessments, [dqs.quality_standard_id]: true })} className={`btn btn-sm ${qsAssessments[dqs.quality_standard_id] === true ? 'btn-success' : 'btn-secondary'}`}>✓ Yes</button><button onClick={() => setQsAssessments({ ...qsAssessments, [dqs.quality_standard_id]: false })} className={`btn btn-sm ${qsAssessments[dqs.quality_standard_id] === false ? 'btn-danger' : 'btn-secondary'}`}>✗ No</button></div></div>;
                 })}
               </>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}><button className="btn-secondary" onClick={() => setShowCompletionModal(false)}>Cancel</button><button className="btn-primary" onClick={handleMarkAsDelivered} style={{ backgroundColor: '#16a34a' }}><CheckCircle size={16} /> Mark Delivered</button></div>
+            </div>
+            <div className="modal-footer"><button className="btn btn-secondary" onClick={() => setShowCompletionModal(false)}>Cancel</button><button className="btn btn-success" onClick={handleMarkAsDelivered}><CheckCircle size={16} /> Mark Delivered</button></div>
           </div>
         </div>
       )}

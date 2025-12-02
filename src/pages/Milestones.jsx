@@ -359,16 +359,16 @@ export default function Milestones() {
       </PageHeader>
 
       {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <StatCard icon={MilestoneIcon} label="Total Milestones" value={milestones.length} color="#3b82f6" />
-        <StatCard icon={CheckCircle} label="Completed" value={completedCount} color="#10b981" />
-        <StatCard label="Average Progress" value={`${avgProgress}%`} color="#3b82f6" />
-        <StatCard label="Total Billable" value={`£${totalBudget.toLocaleString()}`} subtext="on completion" color="#10b981" />
+      <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
+        <StatCard icon={MilestoneIcon} label="Total Milestones" value={milestones.length} variant="accent" />
+        <StatCard icon={CheckCircle} label="Completed" value={completedCount} variant="success" />
+        <StatCard label="Average Progress" value={`${avgProgress}%`} variant="primary" />
+        <StatCard label="Total Billable" value={`£${totalBudget.toLocaleString()}`} subtext="on completion" variant="success" />
       </div>
 
       {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <Link to="/gantt" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-xl)' }}>
+        <Link to="/gantt" className="btn btn-secondary">
           📊 View Gantt Chart
         </Link>
       </div>
