@@ -214,17 +214,17 @@ export class DeliverablesService extends BaseService {
   }
 
   /**
-   * Get deliverables with relations (milestones, users, test filtering)
+   * Get deliverables with relations (milestones, KPIs, QS, test filtering)
    */
   async getAllWithRelations(projectId, showTestUsers = false) {
     try {
-      let query = this.supabase
+      let query = supabase
         .from('deliverables')
         .select(`
           *,
-          milestone:milestones(milestone_ref, name),
-          assigned_user:profiles!deliverables_assigned_to_fkey(full_name),
-          creator:profiles!deliverables_created_by_fkey(full_name)
+          milestones(milestone_ref, name),
+          deliverable_kpis(kpi_id, kpis(kpi_ref, name)),
+          deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name))
         `)
         .eq('project_id', projectId)
         .or('is_deleted.is.null,is_deleted.eq.false')
@@ -235,7 +235,10 @@ export class DeliverablesService extends BaseService {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('getAllWithRelations query error:', error);
+        throw error;
+      }
 
       return data || [];
     } catch (error) {
@@ -251,7 +254,7 @@ export class DeliverablesService extends BaseService {
   async syncKPILinks(deliverableId, kpiIds = []) {
     try {
       // Delete existing links
-      const { error: deleteError } = await this.supabase
+      const { error: deleteError } = await supabase
         .from('deliverable_kpis')
         .delete()
         .eq('deliverable_id', deliverableId);
@@ -265,7 +268,7 @@ export class DeliverablesService extends BaseService {
           kpi_id: kpiId
         }));
 
-        const { error: insertError } = await this.supabase
+        const { error: insertError } = await supabase
           .from('deliverable_kpis')
           .insert(links);
 
@@ -286,7 +289,7 @@ export class DeliverablesService extends BaseService {
   async syncQSLinks(deliverableId, qsIds = []) {
     try {
       // Delete existing links
-      const { error: deleteError } = await this.supabase
+      const { error: deleteError } = await supabase
         .from('deliverable_quality_standards')
         .delete()
         .eq('deliverable_id', deliverableId);
@@ -300,7 +303,7 @@ export class DeliverablesService extends BaseService {
           quality_standard_id: qsId
         }));
 
-        const { error: insertError } = await this.supabase
+        const { error: insertError } = await supabase
           .from('deliverable_quality_standards')
           .insert(links);
 
@@ -328,7 +331,7 @@ export class DeliverablesService extends BaseService {
         assessed_by: assessedBy
       }));
 
-      const { error } = await this.supabase
+      const { error } = await supabase
         .from('deliverable_kpi_assessments')
         .upsert(upserts, { onConflict: 'deliverable_id,kpi_id' });
 
@@ -354,7 +357,7 @@ export class DeliverablesService extends BaseService {
         assessed_by: assessedBy
       }));
 
-      const { error } = await this.supabase
+      const { error } = await supabase
         .from('deliverable_qs_assessments')
         .upsert(upserts, { onConflict: 'deliverable_id,quality_standard_id' });
 
