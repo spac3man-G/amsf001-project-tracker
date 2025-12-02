@@ -1,0 +1,25 @@
+/* AMSF001 Modern Minimalist Design System v1.0 */
+:root {
+  --color-primary: #0EA5A5;
+  --color-primary-hover: rgba(14, 165, 165, 0.9);
+  --color-primary-light: rgba(14, 165, 165, 0.1);
+  --color-text-primary: #2C2C2C;
+  --color-text-secondary: #666666;
+  --color-text-inverse: #FFFFFF;
+  --color-bg-primary: #FFFFFF;
+  --color-bg-secondary: #F8F8F8;
+  --color-bg-tertiary: #F0F0F0;
+  --color-border: #EEEEEE;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #3B82F6;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --radius: 4px;
+  --radius-md: 6px;
+  --shadow-hover: 0 2px 8px rgba(0,0,0,0.05);
+}

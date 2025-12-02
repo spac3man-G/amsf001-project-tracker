@@ -73,3 +73,36 @@ ALTER TABLE timesheets DROP COLUMN IF EXISTS is_deleted, DROP COLUMN IF EXISTS d
 - Soft delete is already integrated in the service layer
 - Existing data will have `is_deleted = NULL` which is treated as FALSE
 - Audit logging starts from deployment - no historical data
+
+---
+
+## Pending Migration: P8 - Deliverables Contributor Access
+
+### Step 3: Contributor Edit Access
+File: `P8-deliverables-contributor-access.sql`
+
+This adds:
+- Updated RLS policies for `deliverables` table
+- Contributors can now edit deliverables (SELECT, INSERT, UPDATE)
+- Delete remains restricted to Admin and Supplier PM
+
+### How to Deploy P8
+
+1. Go to Supabase Dashboard → SQL Editor
+2. Create a new query
+3. Paste the contents of `P8-deliverables-contributor-access.sql`
+4. Click "Run"
+5. Verify the output shows policies created
+
+### Verification for P8
+
+Query to check policies:
+```sql
+SELECT policyname, cmd FROM pg_policies WHERE tablename = 'deliverables';
+```
+
+Expected output should show:
+- `deliverables_select` (SELECT)
+- `deliverables_insert` (INSERT)
+- `deliverables_update` (UPDATE) - Now includes contributor role
+- `deliverables_delete` (DELETE)

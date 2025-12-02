@@ -1,7 +1,7 @@
 /**
  * AMSF001 Project Tracker - usePermissions Hook
  * Location: src/hooks/usePermissions.js
- * Version 1.0
+ * Version 2.0 - Permission Matrix Integration
  * 
  * This hook provides pre-bound permission functions that automatically
  * inject the current user's role and ID.
@@ -10,19 +10,20 @@
  * - Eliminates need for local wrapper functions in pages
  * - Eliminates confusing import aliases (e.g., "as canEditExpensePerm")
  * - Cleaner, more readable code in components
- * - Single source of truth for permission logic
+ * - Single source of truth for permission logic (Permission Matrix)
  * - Automatically gets role/userId from AuthContext
  * 
  * Usage:
  *   import { usePermissions } from '../hooks/usePermissions';
  *   
  *   function MyComponent() {
- *     const { canEditExpense, canDeleteExpense, canAddTimesheet } = usePermissions();
+ *     const { canEditExpense, canDeleteExpense, canAddTimesheet, can } = usePermissions();
  *     
  *     return (
  *       <>
  *         {canAddTimesheet && <button>Add Timesheet</button>}
  *         {canEditExpense(expense) && <button>Edit</button>}
+ *         {can('deliverables', 'edit') && <button>Edit Deliverable</button>}
  *       </>
  *     );
  *   }
@@ -36,6 +37,23 @@ export function usePermissions() {
   const currentUserId = user?.id || null;
 
   // ============================================
+  // DIRECT MATRIX ACCESS
+  // Use this for simple permission checks
+  // ============================================
+
+  /**
+   * Check permission directly from the matrix
+   * @param {string} entity - Entity name (e.g., 'deliverables', 'timesheets')
+   * @param {string} action - Action name (e.g., 'edit', 'delete', 'view')
+   * @returns {boolean}
+   * 
+   * @example
+   * const { can } = usePermissions();
+   * if (can('deliverables', 'edit')) { ... }
+   */
+  const can = (entity, action) => perms.hasPermission(userRole, entity, action);
+
+  // ============================================
   // SIMPLE ROLE-BASED PERMISSIONS (no object needed)
   // These return boolean values directly
   // ============================================
@@ -44,6 +62,11 @@ export function usePermissions() {
     // Role info
     userRole,
     currentUserId,
+    
+    // Direct matrix access
+    can,
+    hasPermission: can,
+    PERMISSION_MATRIX: perms.PERMISSION_MATRIX,
     
     // Timesheet permissions (simple)
     canAddTimesheet: perms.canAddTimesheet(userRole),

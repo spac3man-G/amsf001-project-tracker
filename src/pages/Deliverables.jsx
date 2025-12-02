@@ -75,7 +75,7 @@ export default function Deliverables() {
   const { showSuccess, showError, showWarning } = useToast();
   const { showTestUsers } = useTestUsers();
   const currentUserId = user?.id || null;
-  const { canEditDeliverable, canReviewDeliverable } = usePermissions();
+  const { canEditDeliverable, canReviewDeliverable, canDeleteDeliverable } = usePermissions();
 
   const [deliverables, setDeliverables] = useState([]);
   const [milestones, setMilestones] = useState([]);
@@ -227,6 +227,7 @@ export default function Deliverables() {
 
   const canEdit = canEditDeliverable;
   const canReview = canReviewDeliverable;
+  const canDelete = canDeleteDeliverable;
 
   if (loading) return <LoadingSpinner message="Loading deliverables..." size="large" fullPage />;
 
@@ -293,7 +294,7 @@ export default function Deliverables() {
                       {canEdit && ['In Progress', 'Returned for More Work'].includes(d.status) && <button onClick={() => handleStatusChange(d, 'Submitted for Review')} title="Submit" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#d97706' }}><Send size={16} /></button>}
                       {canReview && d.status === 'Submitted for Review' && <><button onClick={() => handleStatusChange(d, 'Review Complete')} title="Accept" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb' }}><ThumbsUp size={16} /></button><button onClick={() => handleStatusChange(d, 'Returned for More Work')} title="Return" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}><RotateCcw size={16} /></button></>}
                       {canReview && d.status === 'Review Complete' && <button onClick={() => openCompletionModal(d)} title="Deliver" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a' }}><CheckCircle size={16} /></button>}
-                      {canEdit && <button onClick={() => handleDelete(d.id)} title="Delete" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}><Trash2 size={16} /></button>}
+                      {canDelete && <button onClick={() => handleDelete(d.id)} title="Delete" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}><Trash2 size={16} /></button>}
                     </div>
                   </td>
                 </tr>

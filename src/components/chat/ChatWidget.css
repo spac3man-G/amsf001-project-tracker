@@ -13,21 +13,21 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  background: var(--color-primary);
   border: none;
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
+  box-shadow: 0 4px 12px rgba(14, 165, 165, 0.4);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
 }
 
 .chat-toggle-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.5);
+  box-shadow: 0 6px 20px rgba(14, 165, 165, 0.5);
 }
 
 .chat-toggle-btn.chat-open {
@@ -91,7 +91,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  background: var(--color-primary);
   color: white;
 }
 
@@ -183,7 +183,7 @@
 }
 
 .chat-message-user .chat-message-avatar {
-  background: #0ea5e9;
+  background: var(--color-primary);
   color: white;
 }
 
@@ -201,7 +201,7 @@
 }
 
 .chat-message-user .chat-message-content {
-  background: #0ea5e9;
+  background: var(--color-primary);
   color: white;
   border-bottom-right-radius: 4px;
 }
@@ -234,7 +234,7 @@
 }
 
 .chat-bullet-dot {
-  color: #0ea5e9;
+  color: var(--color-primary);
   font-weight: bold;
 }
 
@@ -305,7 +305,7 @@
 }
 
 .chat-tools-indicator svg {
-  color: #0ea5e9;
+  color: var(--color-primary);
 }
 
 /* Typing indicator */
@@ -401,8 +401,8 @@
 }
 
 .chat-input:focus {
-  border-color: #0ea5e9;
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .chat-input:disabled {
@@ -418,7 +418,7 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: #0ea5e9;
+  background: var(--color-primary);
   border: none;
   color: white;
   cursor: pointer;
@@ -429,7 +429,7 @@
 }
 
 .chat-send-btn:hover:not(:disabled) {
-  background: #0284c7;
+  background: var(--color-primary-hover);
 }
 
 .chat-send-btn:active:not(:disabled) {

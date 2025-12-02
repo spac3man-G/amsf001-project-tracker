@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - Configuration Guide
 
-**Version:** 9.0  
-**Last Updated:** 1 December 2025  
+**Version:** 9.1  
+**Last Updated:** 2 December 2025  
 **Security Note:** This file contains references to sensitive credentials. Do not commit actual keys to public repositories.
 
 ---
@@ -99,6 +99,29 @@ All tables have Row Level Security enabled:
 - Partner users only see their partner's data
 - Resources only see their own timesheets/expenses
 - Admins have full access
+
+### Permission Matrix Architecture
+
+The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.js`) as the **single source of truth** for role-based access control.
+
+**Key Files:**
+- `src/lib/permissionMatrix.js` - Defines all permissions in one matrix
+- `src/lib/permissions.js` - Backward-compatible function exports
+- `src/hooks/usePermissions.js` - React hook for component use
+
+**Role Hierarchy:**
+| Role | Level | Description |
+|------|-------|-------------|
+| admin | 5 | Full system access |
+| supplier_pm | 4 | Supplier project management |
+| customer_pm | 3 | Customer-side approval authority |
+| contributor | 2 | Can add timesheets, expenses, edit deliverables |
+| viewer | 1 | Read-only access |
+
+**Updating Permissions:**
+1. Modify the `PERMISSION_MATRIX` in `permissionMatrix.js`
+2. Create corresponding SQL migration for RLS policies
+3. Deploy SQL to Supabase
 
 ---
 
@@ -286,6 +309,7 @@ Previous versions retained in repository root:
 | P5b-partner-invoices-rls.sql | Invoice RLS policies | ✅ Deployed |
 | P6-enhanced-invoice-lines.sql | Invoice line items | ✅ Deployed |
 | P7-receipt-scanner.sql | Receipt scanner tables | ⏳ Pending |
+| P8-deliverables-contributor-access.sql | Allow contributors to edit deliverables | ⏳ Pending |
 | audit-triggers.sql | Audit logging triggers | ✅ Deployed |
 | soft-delete-implementation.sql | Soft delete system | ✅ Deployed |
 | data-integrity-constraints.sql | Data validation | ✅ Deployed |
