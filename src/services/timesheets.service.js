@@ -304,11 +304,18 @@ export class TimesheetsService extends BaseService {
   }
 
   /**
-   * Approve timesheet
+   * Validate timesheet
    * @param {string} id - Timesheet UUID
    */
-  async approve(id) {
+  async validate(id) {
     return this.update(id, { status: 'Approved' });
+  }
+
+  /**
+   * @deprecated Use validate() instead
+   */
+  async approve(id) {
+    return this.validate(id);
   }
 
   /**

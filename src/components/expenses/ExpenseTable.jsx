@@ -72,7 +72,7 @@ function ExpenseRow({
   handleEdit, 
   handleSave, 
   handleSubmit, 
-  handleApprove, 
+  handleValidate, 
   handleReject, 
   handleDeleteClick, 
   downloadFile, 
@@ -186,7 +186,7 @@ function ExpenseRow({
             {canSubmitExpense(expense) && <button className="btn-icon" onClick={() => handleSubmit(expense.id)} title="Submit for Validation" style={{ color: '#3b82f6' }}><Send size={16} /></button>}
             {canValidateExpense(expense) && (
               <>
-                <button className="btn-icon btn-success" onClick={() => handleApprove(expense.id)} title="Validate"><CheckCircle size={16} /></button>
+                <button className="btn-icon btn-success" onClick={() => handleValidate(expense.id)} title="Validate"><CheckCircle size={16} /></button>
                 <button className="btn-icon btn-danger" onClick={() => handleReject(expense.id)} title="Reject"><X size={16} /></button>
               </>
             )}
@@ -217,7 +217,7 @@ export default function ExpenseTable({
   handleEdit,
   handleSave,
   handleSubmit,
-  handleApprove,
+  handleValidate,
   handleReject,
   handleDeleteClick,
   downloadFile,
@@ -269,7 +269,7 @@ export default function ExpenseTable({
                 handleEdit={handleEdit}
                 handleSave={handleSave}
                 handleSubmit={handleSubmit}
-                handleApprove={handleApprove}
+                handleValidate={handleValidate}
                 handleReject={handleReject}
                 handleDeleteClick={handleDeleteClick}
                 downloadFile={downloadFile}

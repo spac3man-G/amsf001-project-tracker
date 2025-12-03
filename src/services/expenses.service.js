@@ -311,11 +311,18 @@ export class ExpensesService extends BaseService {
   }
 
   /**
-   * Approve/validate expense
+   * Validate expense
    * @param {string} id - Expense UUID
    */
-  async approve(id) {
+  async validate(id) {
     return this.update(id, { status: 'Approved' });
+  }
+
+  /**
+   * @deprecated Use validate() instead
+   */
+  async approve(id) {
+    return this.validate(id);
   }
 
   /**

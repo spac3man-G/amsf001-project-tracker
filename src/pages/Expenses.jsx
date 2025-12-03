@@ -28,7 +28,8 @@ import {
   ResourceBreakdown,
   ExpenseGuidelines,
   ExpenseAddForm,
-  ExpenseTable
+  ExpenseTable,
+  ExpenseDetailModal
 } from '../components/expenses';
 
 // Constants
@@ -230,8 +231,8 @@ export default function Expenses() {
     try { await expensesService.submit(id); await fetchData(); showSuccess('Expense submitted for validation!'); } catch (error) { console.error('Error submitting expense:', error); showError('Failed to submit: ' + error.message); }
   }
 
-  async function handleApprove(id) {
-    try { await expensesService.approve(id); await fetchData(); showSuccess('Expense validated!'); } catch (error) { console.error('Error validating expense:', error); showError('Failed to validate: ' + error.message); }
+  async function handleValidate(id) {
+    try { await expensesService.validate(id); await fetchData(); showSuccess('Expense validated!'); } catch (error) { console.error('Error validating expense:', error); showError('Failed to validate: ' + error.message); }
   }
 
   async function handleReject(id) {
@@ -317,7 +318,7 @@ export default function Expenses() {
       </div>
 
       <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <StatCard label="Validated/Paid" value={`£${approvedSpent.toLocaleString()}`} color="#10b981" />
+        <StatCard label="Validated / Paid" value={`£${approvedSpent.toLocaleString()}`} color="#10b981" />
         <StatCard label="Remaining Budget" value={`£${remaining.toLocaleString()}`} color={remaining < BUDGET * 0.2 ? '#ef4444' : '#10b981'} />
         <StatCard label="Pending Validation" value={pendingCount} color="#f59e0b" />
       </div>
@@ -366,7 +367,7 @@ export default function Expenses() {
         canSubmitExpense={canSubmitExpense} canValidateExpense={canValidateExpense}
         canEditExpense={canEditExpense} canDeleteExpense={canDeleteExpense}
         handleEdit={handleEdit} handleSave={handleSave} handleSubmit={handleSubmit}
-        handleApprove={handleApprove} handleReject={handleReject} handleDeleteClick={handleDeleteClick}
+        handleValidate={handleValidate} handleReject={handleReject} handleDeleteClick={handleDeleteClick}
         downloadFile={downloadFile} setEditingId={setEditingId} setDetailModal={setDetailModal}
       />
 
@@ -393,6 +394,42 @@ export default function Expenses() {
           </div>
         ) : 'Are you sure you want to delete this expense?'}
         confirmText="Delete" cancelText="Cancel" variant="danger"
+      />
+
+      {/* Expense Detail Modal */}
+      <ExpenseDetailModal
+        isOpen={detailModal.isOpen}
+        expense={detailModal.expense}
+        resources={resources}
+        hasRole={hasRole}
+        canEditChargeable={canEditChargeable}
+        canSubmitExpense={canSubmitExpense}
+        canValidateExpense={canValidateExpense}
+        canEditExpense={canEditExpense}
+        canDeleteExpense={canDeleteExpense}
+        onClose={() => setDetailModal({ isOpen: false, expense: null })}
+        onSave={async (id, formData) => {
+          const resourceName = resources.find(r => r.id === formData.resource_id)?.name || formData.resource_name;
+          await expensesService.update(id, {
+            category: formData.category,
+            resource_id: formData.resource_id,
+            resource_name: resourceName,
+            expense_date: formData.expense_date,
+            reason: formData.reason,
+            amount: parseFloat(formData.amount),
+            notes: formData.notes,
+            status: formData.status,
+            chargeable_to_customer: formData.chargeable_to_customer,
+            procurement_method: formData.procurement_method
+          });
+          await fetchData();
+          showSuccess('Expense updated!');
+        }}
+        onSubmit={handleSubmit}
+        onValidate={handleValidate}
+        onReject={handleReject}
+        onDelete={handleDeleteClick}
+        onDownloadFile={downloadFile}
       />
     </div>
   );

@@ -12,3 +12,4 @@ export { default as ExpenseFilters } from './ExpenseFilters';
 export { CategoryBreakdown, ResourceBreakdown, ExpenseGuidelines } from './ExpenseBreakdowns';
 export { default as ExpenseAddForm } from './ExpenseAddForm';
 export { default as ExpenseTable } from './ExpenseTable';
+export { default as ExpenseDetailModal } from './ExpenseDetailModal';

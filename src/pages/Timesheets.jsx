@@ -2,10 +2,11 @@
  * Timesheets Page
  * 
  * Track time spent on project activities with daily/weekly entry modes.
+ * Includes clickable rows for detail view with edit/validate capabilities.
  * 
- * @version 2.0
- * @updated 30 November 2025
- * @phase Production Hardening - Service Layer Adoption
+ * @version 3.0
+ * @updated 3 December 2025
+ * @phase Production - Validate Terminology & Detail Modal
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -20,8 +21,15 @@ import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
+import { TimesheetDetailModal } from '../components/timesheets';
 
 const STATUSES = ['Draft', 'Submitted', 'Approved', 'Rejected'];
+const STATUS_DISPLAY_NAMES = {
+  'Draft': 'Draft',
+  'Submitted': 'Submitted',
+  'Approved': 'Validated',
+  'Rejected': 'Rejected'
+};
 
 function getNextSunday() {
   const today = new Date();
@@ -51,6 +59,7 @@ export default function Timesheets() {
   const [filterResource, setFilterResource] = useState('all');
   const [entryMode, setEntryMode] = useState('daily');
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, timesheetId: null, timesheetData: null });
+  const [detailModal, setDetailModal] = useState({ isOpen: false, timesheet: null });
 
   const [newTimesheet, setNewTimesheet] = useState({
     resource_id: '', milestone_id: '', work_date: new Date().toISOString().split('T')[0],
@@ -107,11 +116,28 @@ export default function Timesheets() {
     setEditForm({ resource_id: ts.resource_id, milestone_id: ts.milestone_id || '', work_date: ts.work_date || ts.date || '', week_ending: ts.week_ending || '', hours_worked: ts.hours_worked || ts.hours || 0, description: ts.description || ts.comments || '', status: ts.status, entry_type: ts.entry_type || 'daily' });
   }
 
-  async function handleSave(id) {
+  async function handleSave(id, formData = null) {
+    const form = formData || editForm;
     try {
-      await timesheetsService.update(id, { resource_id: editForm.resource_id, milestone_id: editForm.milestone_id || null, date: editForm.work_date, work_date: editForm.work_date, week_ending: editForm.week_ending || null, hours: parseFloat(editForm.hours_worked), hours_worked: parseFloat(editForm.hours_worked), comments: editForm.description, description: editForm.description, status: editForm.status });
-      await fetchData(); setEditingId(null); showSuccess('Timesheet updated!');
-    } catch (error) { console.error('Error updating timesheet:', error); showError('Failed to update: ' + error.message); }
+      await timesheetsService.update(id, { 
+        resource_id: form.resource_id, 
+        milestone_id: form.milestone_id || null, 
+        date: form.work_date, 
+        work_date: form.work_date, 
+        week_ending: form.week_ending || null, 
+        hours: parseFloat(form.hours_worked), 
+        hours_worked: parseFloat(form.hours_worked), 
+        comments: form.description, 
+        description: form.description, 
+        status: form.status 
+      });
+      await fetchData(); 
+      setEditingId(null); 
+      showSuccess('Timesheet updated!');
+    } catch (error) { 
+      console.error('Error updating timesheet:', error); 
+      showError('Failed to update: ' + error.message); 
+    }
   }
 
   function handleDeleteClick(ts) {
@@ -126,15 +152,22 @@ export default function Timesheets() {
     catch (error) { console.error('Error deleting timesheet:', error); showError('Failed to delete: ' + error.message); }
   }
 
-  async function handleSubmit(id) { try { await timesheetsService.submit(id); await fetchData(); showSuccess('Timesheet submitted!'); } catch (error) { showError('Failed to submit: ' + error.message); } }
-  async function handleApprove(id) { try { await timesheetsService.approve(id); await fetchData(); showSuccess('Timesheet approved!'); } catch (error) { showError('Failed to approve: ' + error.message); } }
+  async function handleSubmit(id) { try { await timesheetsService.submit(id); await fetchData(); showSuccess('Timesheet submitted for validation!'); } catch (error) { showError('Failed to submit: ' + error.message); } }
+  async function handleValidate(id) { try { await timesheetsService.validate(id); await fetchData(); showSuccess('Timesheet validated!'); } catch (error) { showError('Failed to validate: ' + error.message); } }
   async function handleReject(id) { const reason = prompt('Rejection reason (optional):'); try { await timesheetsService.reject(id, reason); await fetchData(); showWarning('Timesheet rejected'); } catch (error) { showError('Failed to reject: ' + error.message); } }
 
-  function getStatusColor(status) { switch (status) { case 'Approved': return 'status-approved'; case 'Submitted': return 'status-submitted'; case 'Rejected': return 'status-rejected'; default: return 'status-draft'; } }
+  function getStatusColor(status) { 
+    switch (status) { 
+      case 'Approved': return 'status-approved'; 
+      case 'Submitted': return 'status-submitted'; 
+      case 'Rejected': return 'status-rejected'; 
+      default: return 'status-draft'; 
+    } 
+  }
 
   const filteredTimesheets = timesheets.filter(ts => filterResource === 'all' || ts.resource_id === filterResource);
   const totalHours = filteredTimesheets.reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
-  const approvedHours = filteredTimesheets.filter(ts => ts.status === 'Approved').reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
+  const validatedHours = filteredTimesheets.filter(ts => ts.status === 'Approved').reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0);
   const pendingCount = filteredTimesheets.filter(ts => ts.status === 'Submitted').length;
   const hoursByResource = resources.map(r => ({ name: r.name, hours: filteredTimesheets.filter(ts => ts.resource_id === r.id).reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0) })).filter(r => r.hours > 0);
   const availableResources = getAvailableResources(resources);
@@ -150,8 +183,8 @@ export default function Timesheets() {
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <StatCard icon={Calendar} label="Total Entries" value={filteredTimesheets.length} color="#3b82f6" />
         <StatCard icon={Clock} label="Total Hours" value={totalHours.toFixed(1)} color="#3b82f6" />
-        <StatCard icon={CheckCircle} label="Approved Hours" value={approvedHours.toFixed(1)} color="#10b981" />
-        <StatCard icon={AlertCircle} label="Pending Approval" value={pendingCount} color="#f59e0b" />
+        <StatCard icon={CheckCircle} label="Validated Hours" value={validatedHours.toFixed(1)} color="#10b981" />
+        <StatCard icon={AlertCircle} label="Pending Validation" value={pendingCount} color="#f59e0b" />
       </div>
 
       {hoursByResource.length > 0 && (
@@ -205,21 +238,44 @@ export default function Timesheets() {
           <thead><tr><th>Resource</th><th>Date</th><th>Milestone</th><th style={{ textAlign: 'right' }}>Hours</th><th>Description</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             {filteredTimesheets.length === 0 ? <tr><td colSpan={7} style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No timesheets found.</td></tr> : filteredTimesheets.map(ts => (
-              <tr key={ts.id}>
-                <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><User size={16} style={{ color: '#64748b' }} />{editingId === ts.id ? <select className="form-input" value={editForm.resource_id} onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })} disabled={userRole !== 'admin'}>{resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select> : <span style={{ fontWeight: '500' }}>{ts.resources?.name || 'Unknown'}</span>}</div></td>
-                <td>{editingId === ts.id ? <input type="date" className="form-input" value={editForm.work_date} onChange={(e) => setEditForm({ ...editForm, work_date: e.target.value })} /> : <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={14} style={{ color: '#64748b' }} />{(ts.work_date || ts.date) ? new Date(ts.work_date || ts.date).toLocaleDateString('en-GB') : '-'}</div>}</td>
-                <td>{editingId === ts.id ? <select className="form-input" value={editForm.milestone_id} onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}><option value="">None</option>{milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}</select> : ts.milestones?.milestone_ref || '-'}</td>
-                <td style={{ textAlign: 'right', fontWeight: '600' }}>{editingId === ts.id ? <input type="number" step="0.5" className="form-input" value={editForm.hours_worked} onChange={(e) => setEditForm({ ...editForm, hours_worked: e.target.value })} style={{ width: '80px', textAlign: 'right' }} /> : `${parseFloat(ts.hours_worked || ts.hours || 0).toFixed(1)}h`}</td>
-                <td style={{ maxWidth: '200px' }}>{editingId === ts.id ? <input type="text" className="form-input" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /> : <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ts.description || ts.comments || 'No description'}</div>}</td>
-                <td>{editingId === ts.id && userRole === 'admin' ? <select className="form-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>{STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select> : <span className={`status-badge ${getStatusColor(ts.status)}`}>{ts.status}</span>}</td>
-                <td>{editingId === ts.id ? <div className="action-buttons"><button className="btn-icon btn-success" onClick={() => handleSave(ts.id)}><Save size={16} /></button><button className="btn-icon btn-secondary" onClick={() => setEditingId(null)}><X size={16} /></button></div> : <div className="action-buttons">{canSubmitTimesheet(ts) && <button className="btn-icon" onClick={() => handleSubmit(ts.id)} title="Submit" style={{ color: '#3b82f6' }}><Send size={16} /></button>}{canValidateTimesheet(ts) && <><button className="btn-icon btn-success" onClick={() => handleApprove(ts.id)} title="Approve"><CheckCircle size={16} /></button><button className="btn-icon btn-danger" onClick={() => handleReject(ts.id)} title="Reject"><X size={16} /></button></>}{canEditTimesheet(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}{canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDeleteClick(ts)} title="Delete"><Trash2 size={16} /></button>}</div>}</td>
+              <tr 
+                key={ts.id} 
+                style={{ cursor: editingId === ts.id ? 'default' : 'pointer' }}
+                onClick={() => editingId !== ts.id && setDetailModal({ isOpen: true, timesheet: ts })}
+              >
+                <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><User size={16} style={{ color: '#64748b' }} />{editingId === ts.id ? <select className="form-input" value={editForm.resource_id} onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })} disabled={userRole !== 'admin'} onClick={(e) => e.stopPropagation()}>{resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select> : <span style={{ fontWeight: '500' }}>{ts.resources?.name || 'Unknown'}</span>}</div></td>
+                <td>{editingId === ts.id ? <input type="date" className="form-input" value={editForm.work_date} onChange={(e) => setEditForm({ ...editForm, work_date: e.target.value })} onClick={(e) => e.stopPropagation()} /> : <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={14} style={{ color: '#64748b' }} />{(ts.work_date || ts.date) ? new Date(ts.work_date || ts.date).toLocaleDateString('en-GB') : '-'}</div>}</td>
+                <td>{editingId === ts.id ? <select className="form-input" value={editForm.milestone_id} onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })} onClick={(e) => e.stopPropagation()}><option value="">None</option>{milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}</select> : ts.milestones?.milestone_ref || '-'}</td>
+                <td style={{ textAlign: 'right', fontWeight: '600' }}>{editingId === ts.id ? <input type="number" step="0.5" className="form-input" value={editForm.hours_worked} onChange={(e) => setEditForm({ ...editForm, hours_worked: e.target.value })} style={{ width: '80px', textAlign: 'right' }} onClick={(e) => e.stopPropagation()} /> : `${parseFloat(ts.hours_worked || ts.hours || 0).toFixed(1)}h`}</td>
+                <td style={{ maxWidth: '200px' }}>{editingId === ts.id ? <input type="text" className="form-input" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} onClick={(e) => e.stopPropagation()} /> : <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ts.description || ts.comments || 'No description'}</div>}</td>
+                <td>{editingId === ts.id && userRole === 'admin' ? <select className="form-input" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} onClick={(e) => e.stopPropagation()}>{STATUSES.map(s => <option key={s} value={s}>{STATUS_DISPLAY_NAMES[s] || s}</option>)}</select> : <span className={`status-badge ${getStatusColor(ts.status)}`}>{STATUS_DISPLAY_NAMES[ts.status] || ts.status}</span>}</td>
+                <td onClick={(e) => e.stopPropagation()}>{editingId === ts.id ? <div className="action-buttons"><button className="btn-icon btn-success" onClick={() => handleSave(ts.id)}><Save size={16} /></button><button className="btn-icon btn-secondary" onClick={() => setEditingId(null)}><X size={16} /></button></div> : <div className="action-buttons">{canSubmitTimesheet(ts) && <button className="btn-icon" onClick={() => handleSubmit(ts.id)} title="Submit for Validation" style={{ color: '#3b82f6' }}><Send size={16} /></button>}{canValidateTimesheet(ts) && <><button className="btn-icon btn-success" onClick={() => handleValidate(ts.id)} title="Validate"><CheckCircle size={16} /></button><button className="btn-icon btn-danger" onClick={() => handleReject(ts.id)} title="Reject"><X size={16} /></button></>}{canEditTimesheet(ts) && <button className="btn-icon" onClick={() => handleEdit(ts)} title="Edit"><Edit2 size={16} /></button>}{canDeleteTimesheet(ts) && <button className="btn-icon btn-danger" onClick={() => handleDeleteClick(ts)} title="Delete"><Trash2 size={16} /></button>}</div>}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <ConfirmDialog isOpen={deleteDialog.isOpen} onClose={() => setDeleteDialog({ isOpen: false, timesheetId: null, timesheetData: null })} onConfirm={confirmDelete} title="Delete Timesheet" message={deleteDialog.timesheetData ? <div><p>Delete this timesheet entry?</p><div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', padding: '0.75rem', marginTop: '0.75rem' }}><ul style={{ margin: '0', paddingLeft: '1.25rem', color: '#92400e', fontSize: '0.9rem' }}><li>Resource: {deleteDialog.timesheetData.resourceName}</li><li>Hours: {deleteDialog.timesheetData.hours}h</li><li>Status: {deleteDialog.timesheetData.status}</li></ul></div></div> : 'Delete this timesheet?'} confirmText="Delete" cancelText="Cancel" variant="danger" />
+      <ConfirmDialog isOpen={deleteDialog.isOpen} onClose={() => setDeleteDialog({ isOpen: false, timesheetId: null, timesheetData: null })} onConfirm={confirmDelete} title="Delete Timesheet" message={deleteDialog.timesheetData ? <div><p>Delete this timesheet entry?</p><div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', padding: '0.75rem', marginTop: '0.75rem' }}><ul style={{ margin: '0', paddingLeft: '1.25rem', color: '#92400e', fontSize: '0.9rem' }}><li>Resource: {deleteDialog.timesheetData.resourceName}</li><li>Hours: {deleteDialog.timesheetData.hours}h</li><li>Status: {STATUS_DISPLAY_NAMES[deleteDialog.timesheetData.status] || deleteDialog.timesheetData.status}</li></ul></div></div> : 'Delete this timesheet?'} confirmText="Delete" cancelText="Cancel" variant="danger" />
+
+      {/* Detail Modal */}
+      <TimesheetDetailModal
+        isOpen={detailModal.isOpen}
+        timesheet={detailModal.timesheet}
+        resources={resources}
+        milestones={milestones}
+        userRole={userRole}
+        canSubmitTimesheet={canSubmitTimesheet}
+        canValidateTimesheet={canValidateTimesheet}
+        canEditTimesheet={canEditTimesheet}
+        canDeleteTimesheet={canDeleteTimesheet}
+        onClose={() => setDetailModal({ isOpen: false, timesheet: null })}
+        onSave={handleSave}
+        onSubmit={handleSubmit}
+        onValidate={handleValidate}
+        onReject={handleReject}
+        onDelete={handleDeleteClick}
+      />
     </div>
   );
 }

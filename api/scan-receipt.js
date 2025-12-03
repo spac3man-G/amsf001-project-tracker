@@ -1,7 +1,7 @@
 // Vercel Edge Function for Receipt Scanning
 // Uses Claude Vision API for intelligent receipt processing
 // Extracts merchant, amount, date, and suggests category
-// Version 1.0 - Initial implementation
+// Version 1.1 - Upgraded to Sonnet
 
 export const config = {
   runtime: 'edge',
@@ -173,7 +173,7 @@ export default async function handler(req) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001', // Cost-effective vision model (Claude 4.5 Haiku)
+        model: 'claude-sonnet-4-5-20250929', // High-quality vision model (Claude 4.5 Sonnet)
         max_tokens: 1024,
         messages: [
           {

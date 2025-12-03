@@ -1,6 +1,6 @@
 // Vercel Edge Function for AI Chat Assistant
-// Version 3.1 - Enhanced error handling, retry logic, and cost monitoring
-// Uses Claude Haiku with function calling for database queries
+// Version 3.2 - Upgraded to Sonnet, validation terminology
+// Uses Claude Sonnet with function calling for database queries
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -36,10 +36,10 @@ const supabase = {
 // COST MONITORING - Token Usage Logging
 // ============================================
 
-// Claude Haiku pricing (per 1M tokens, as of Dec 2024)
+// Claude Sonnet pricing (per 1M tokens, as of Dec 2024)
 const TOKEN_COSTS = {
-  input: 0.25,   // $0.25 per 1M input tokens
-  output: 1.25,  // $1.25 per 1M output tokens
+  input: 3.00,   // $3.00 per 1M input tokens
+  output: 15.00, // $15.00 per 1M output tokens
 };
 
 // In-memory usage stats (resets on cold start)
@@ -313,7 +313,7 @@ const TOOLS = [
   },
   {
     name: "getMyPendingActions",
-    description: "Get items requiring the current user's attention: draft timesheets to submit, draft expenses to submit, items awaiting their approval (if they're an approver), and summary counts. Use this for 'what do I need to do' or 'what's pending' queries.",
+    description: "Get items requiring the current user's attention: draft timesheets to submit, draft expenses to submit, items awaiting their validation (if they're a validator), and summary counts. Use this for 'what do I need to do' or 'what's pending' queries.",
     input_schema: {
       type: "object",
       properties: {},
@@ -344,7 +344,7 @@ const TOOLS = [
         status: {
           type: "string",
           enum: ["Draft", "Submitted", "Approved", "Rejected", "all"],
-          description: "Filter by approval status. Default is 'all'."
+          description: "Filter by validation status. Default is 'all'."
         },
         dateRange: {
           type: "string",
@@ -384,7 +384,7 @@ const TOOLS = [
   },
   {
     name: "getExpenses",
-    description: "Query expense entries. Returns expenses with dates, amounts, categories, and approval status. Automatically scoped to user's permissions.",
+    description: "Query expense entries. Returns expenses with dates, amounts, categories, and validation status. Automatically scoped to user's permissions.",
     input_schema: {
       type: "object",
       properties: {
@@ -584,7 +584,7 @@ function getRoleDescription(role) {
   const descriptions = {
     'admin': 'Full system access including user management and settings',
     'supplier_pm': 'Project management, partner invoicing, full data visibility',
-    'customer_pm': 'Timesheet approval, expense validation, deliverable review',
+    'customer_pm': 'Timesheet validation, expense validation, deliverable review',
     'partner_admin': 'Partner data management and team oversight',
     'partner_user': 'View partner data, submit timesheets and expenses',
     'contributor': 'Submit own timesheets and expenses only'
@@ -602,7 +602,7 @@ async function executeGetRolePermissions(params, context) {
         'Configure project settings',
         'View and edit all project data',
         'Manage partners and generate invoices',
-        'Approve/reject all timesheets and expenses',
+        'Validate/reject all timesheets and expenses',
         'View cost prices and margins',
         'Access audit logs and deleted items'
       ],
@@ -613,7 +613,7 @@ async function executeGetRolePermissions(params, context) {
         'Manage partners and generate invoices',
         'View and edit most project data',
         'See cost prices and margins',
-        'Approve partner-related timesheets',
+        'Validate partner-related timesheets',
         'Validate non-chargeable expenses',
         'Manage milestones and deliverables'
       ],
@@ -624,7 +624,7 @@ async function executeGetRolePermissions(params, context) {
     },
     'customer_pm': {
       canDo: [
-        'Approve/reject submitted timesheets',
+        'Validate/reject submitted timesheets',
         'Validate chargeable expenses',
         'Review and accept deliverables',
         'View project progress and budgets'
@@ -643,7 +643,7 @@ async function executeGetRolePermissions(params, context) {
       ],
       cannotDo: [
         'See other partners\' data',
-        'Approve timesheets or expenses',
+        'Validate timesheets or expenses',
         'View cost prices'
       ]
     },
@@ -654,7 +654,7 @@ async function executeGetRolePermissions(params, context) {
       ],
       cannotDo: [
         'See other partners\' data',
-        'Approve anything',
+        'Validate anything',
         'View financial details'
       ]
     },
@@ -666,7 +666,7 @@ async function executeGetRolePermissions(params, context) {
       ],
       cannotDo: [
         'See other users\' data',
-        'Approve anything',
+        'Validate anything',
         'View project financials',
         'Access partner information'
       ]
@@ -684,7 +684,7 @@ async function executeGetMyPendingActions(context) {
   const result = {
     draftTimesheets: [],
     draftExpenses: [],
-    awaitingMyApproval: { timesheets: 0, expenses: 0 },
+    awaitingMyValidation: { timesheets: 0, expenses: 0 },
     summary: ''
   };
   
@@ -725,7 +725,7 @@ async function executeGetMyPendingActions(context) {
     }
   }
   
-  // Get items awaiting approval (if user is an approver)
+  // Get items awaiting validation (if user is a validator)
   if (['admin', 'supplier_pm', 'customer_pm'].includes(userContext.role)) {
     const { count: tsCount } = await supabase
       .from('timesheets')
@@ -739,8 +739,8 @@ async function executeGetMyPendingActions(context) {
       .eq('project_id', projectId)
       .eq('status', 'Submitted');
     
-    result.awaitingMyApproval.timesheets = tsCount || 0;
-    result.awaitingMyApproval.expenses = expCount || 0;
+    result.awaitingMyValidation.timesheets = tsCount || 0;
+    result.awaitingMyValidation.expenses = expCount || 0;
   }
   
   // Build summary
@@ -753,11 +753,11 @@ async function executeGetMyPendingActions(context) {
     const totalAmount = result.draftExpenses.reduce((sum, e) => sum + e.amount, 0);
     parts.push(`${result.draftExpenses.length} draft expense(s) (£${totalAmount.toFixed(2)}) to submit`);
   }
-  if (result.awaitingMyApproval.timesheets > 0) {
-    parts.push(`${result.awaitingMyApproval.timesheets} timesheet(s) awaiting your approval`);
+  if (result.awaitingMyValidation.timesheets > 0) {
+    parts.push(`${result.awaitingMyValidation.timesheets} timesheet(s) awaiting your validation`);
   }
-  if (result.awaitingMyApproval.expenses > 0) {
-    parts.push(`${result.awaitingMyApproval.expenses} expense(s) awaiting your approval`);
+  if (result.awaitingMyValidation.expenses > 0) {
+    parts.push(`${result.awaitingMyValidation.expenses} expense(s) awaiting your validation`);
   }
   
   result.summary = parts.length > 0 ? parts.join('; ') : 'No pending actions';
@@ -1501,7 +1501,7 @@ export default async function handler(req) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-haiku-20241022',
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: 2048,
           system: systemPrompt,
           tools: TOOLS,
