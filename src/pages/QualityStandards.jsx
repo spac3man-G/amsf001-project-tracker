@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { qualityStandardsService } from '../services';
 import { supabase } from '../lib/supabase';
 import { 
@@ -12,6 +12,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function QualityStandards() {
+  const navigate = useNavigate();
+  
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
@@ -373,8 +375,13 @@ export default function QualityStandards() {
                 const isEditing = editingId === qs.id;
 
                 return (
-                  <tr key={qs.id}>
-                    <td>
+                  <tr 
+                    key={qs.id}
+                    onClick={() => !isEditing && navigate(`/quality-standards/${qs.id}`)}
+                    style={{ cursor: isEditing ? 'default' : 'pointer' }}
+                    className={isEditing ? '' : 'table-row-clickable'}
+                  >
+                    <td onClick={(e) => isEditing && e.stopPropagation()}>
                       {isEditing ? (
                         <input 
                           type="text"
@@ -384,20 +391,16 @@ export default function QualityStandards() {
                           style={{ width: '80px' }}
                         />
                       ) : (
-                        <Link 
-                          to={`/quality-standards/${qs.id}`}
-                          style={{ 
-                            fontFamily: 'monospace', 
-                            fontWeight: '600',
-                            color: '#8b5cf6',
-                            textDecoration: 'none'
-                          }}
-                        >
+                        <span style={{ 
+                          fontFamily: 'monospace', 
+                          fontWeight: '600',
+                          color: '#8b5cf6'
+                        }}>
                           {qs.qs_ref}
-                        </Link>
+                        </span>
                       )}
                     </td>
-                    <td>
+                    <td onClick={(e) => isEditing && e.stopPropagation()}>
                       {isEditing ? (
                         <input 
                           type="text"
@@ -406,16 +409,7 @@ export default function QualityStandards() {
                           onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         />
                       ) : (
-                        <Link 
-                          to={`/quality-standards/${qs.id}`}
-                          style={{ 
-                            fontWeight: '500',
-                            color: '#3b82f6',
-                            textDecoration: 'none'
-                          }}
-                        >
-                          {qs.name}
-                        </Link>
+                        <span style={{ fontWeight: '500' }}>{qs.name}</span>
                       )}
                     </td>
                     <td style={{ textAlign: 'center' }}>
@@ -481,7 +475,7 @@ export default function QualityStandards() {
                       </span>
                     </td>
                     {canEdit && (
-                      <td>
+                      <td onClick={(e) => e.stopPropagation()}>
                         {isEditing ? (
                           <div className="action-buttons">
                             <button 

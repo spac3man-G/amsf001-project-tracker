@@ -1,32 +1,47 @@
+/**
+ * Network Standards Page
+ * 
+ * Track progress on network standards documentation.
+ * Click on any standard to view details and update status.
+ * 
+ * @version 2.0
+ * @updated 3 December 2025
+ * @phase Production - Detail Modal Integration
+ */
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
-import { FileText, Edit2, Save, X, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { LoadingSpinner, PageHeader } from '../components/common';
+import { FileText, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
+import { NetworkStandardDetailModal } from '../components/networkstandards';
+
+const categories = [
+  'Core Networks Infrastructure',
+  'Connectivity Networks',
+  'Security Networks',
+  'Operations & Management'
+];
+
+const statuses = [
+  'Not Started',
+  'In Progress',
+  'Draft Complete',
+  'Under Review',
+  'Approved',
+  'Published'
+];
 
 export default function NetworkStandards() {
   const [standards, setStandards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('viewer');
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const { showSuccess, showError } = useToast();
 
-  const categories = [
-    'Core Networks Infrastructure',
-    'Connectivity Networks',
-    'Security Networks',
-    'Operations & Management'
-  ];
-
-  const statuses = [
-    'Not Started',
-    'In Progress',
-    'Draft Complete',
-    'Under Review',
-    'Approved',
-    'Published'
-  ];
+  // Detail modal state
+  const [detailModal, setDetailModal] = useState({ isOpen: false, standard: null });
 
   useEffect(() => {
     fetchStandards();
@@ -61,41 +76,36 @@ export default function NetworkStandards() {
     }
   }
 
-  async function handleEdit(standard) {
-    setEditingId(standard.id);
-    setEditForm({
-      status: standard.status,
-      percent_complete: standard.percent_complete,
-      assigned_to: standard.assigned_to || '',
-      draft_date: standard.draft_date || '',
-      review_date: standard.review_date || '',
-      approval_date: standard.approval_date || '',
-      document_url: standard.document_url || '',
-      comments: standard.comments || ''
-    });
-  }
-
-  async function handleSave(id) {
+  // Save from detail modal
+  async function handleSaveFromModal(id, editForm) {
     try {
       const { error } = await supabase
         .from('network_standards')
-        .update(editForm)
+        .update({
+          status: editForm.status,
+          percent_complete: editForm.percent_complete,
+          assigned_to: editForm.assigned_to || null,
+          draft_date: editForm.draft_date || null,
+          review_date: editForm.review_date || null,
+          approval_date: editForm.approval_date || null,
+          document_url: editForm.document_url || null,
+          comments: editForm.comments || null
+        })
         .eq('id', id);
 
       if (error) throw error;
       
       await fetchStandards();
-      setEditingId(null);
-      alert('Standard updated successfully!');
+      showSuccess('Standard updated successfully!');
     } catch (error) {
       console.error('Error updating standard:', error);
-      alert('Failed to update standard');
+      showError('Failed to update standard');
     }
   }
 
-  function handleCancel() {
-    setEditingId(null);
-    setEditForm({});
+  // Open detail modal on row click
+  function handleRowClick(standard) {
+    setDetailModal({ isOpen: true, standard });
   }
 
   function getStatusColor(status) {
@@ -163,6 +173,9 @@ export default function NetworkStandards() {
         : 0
     };
   });
+
+  // Can edit check
+  const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor';
 
   if (loading) {
     return <LoadingSpinner message="Loading network standards..." size="large" fullPage />;
@@ -285,12 +298,16 @@ export default function NetworkStandards() {
                 <th>Progress</th>
                 <th>Assigned To</th>
                 <th>Target</th>
-                {(userRole === 'admin' || userRole === 'contributor') && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {filteredStandards.map(standard => (
-                <tr key={standard.id}>
+                <tr 
+                  key={standard.id}
+                  onClick={() => handleRowClick(standard)}
+                  style={{ cursor: 'pointer' }}
+                  className="table-row-clickable"
+                >
                   <td style={{ fontWeight: '600', fontFamily: 'monospace' }}>{standard.standard_ref}</td>
                   <td>
                     <span style={{ 
@@ -314,107 +331,52 @@ export default function NetworkStandards() {
                     )}
                   </td>
                   <td>
-                    {editingId === standard.id ? (
-                      <select
-                        value={editForm.status}
-                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                        className="form-input"
-                      >
-                        {statuses.map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span className={`status-badge ${getStatusColor(standard.status)}`}>
-                        {getStatusIcon(standard.status)}
-                        {standard.status}
-                      </span>
-                    )}
+                    <span className={`status-badge ${getStatusColor(standard.status)}`}>
+                      {getStatusIcon(standard.status)}
+                      {standard.status}
+                    </span>
                   </td>
                   <td>
-                    {editingId === standard.id ? (
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={editForm.percent_complete}
-                        onChange={(e) => setEditForm({ ...editForm, percent_complete: parseInt(e.target.value) || 0 })}
-                        className="form-input"
-                        style={{ width: '70px' }}
-                      />
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ 
+                        width: '60px', 
+                        height: '8px', 
+                        backgroundColor: '#e2e8f0', 
+                        borderRadius: '4px',
+                        overflow: 'hidden'
+                      }}>
                         <div style={{ 
-                          width: '60px', 
-                          height: '8px', 
-                          backgroundColor: '#e2e8f0', 
-                          borderRadius: '4px',
-                          overflow: 'hidden'
-                        }}>
-                          <div style={{ 
-                            width: `${standard.percent_complete || 0}%`, 
-                            height: '100%', 
-                            backgroundColor: standard.percent_complete >= 100 ? '#10b981' : '#3b82f6'
-                          }} />
-                        </div>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>{standard.percent_complete || 0}%</span>
+                          width: `${standard.percent_complete || 0}%`, 
+                          height: '100%', 
+                          backgroundColor: standard.percent_complete >= 100 ? '#10b981' : '#3b82f6'
+                        }} />
                       </div>
-                    )}
+                      <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>{standard.percent_complete || 0}%</span>
+                    </div>
                   </td>
                   <td>
-                    {editingId === standard.id ? (
-                      <input
-                        type="text"
-                        value={editForm.assigned_to}
-                        onChange={(e) => setEditForm({ ...editForm, assigned_to: e.target.value })}
-                        className="form-input"
-                        placeholder="Name"
-                      />
-                    ) : (
-                      <span style={{ color: standard.assigned_to ? 'inherit' : '#9ca3af' }}>
-                        {standard.assigned_to || 'Unassigned'}
-                      </span>
-                    )}
+                    <span style={{ color: standard.assigned_to ? 'inherit' : '#9ca3af' }}>
+                      {standard.assigned_to || 'Unassigned'}
+                    </span>
                   </td>
                   <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
                     {standard.target_milestone}
                   </td>
-                  {(userRole === 'admin' || userRole === 'contributor') && (
-                    <td>
-                      {editingId === standard.id ? (
-                        <div className="action-buttons">
-                          <button
-                            className="btn-icon btn-success"
-                            onClick={() => handleSave(standard.id)}
-                            title="Save"
-                          >
-                            <Save size={16} />
-                          </button>
-                          <button
-                            className="btn-icon btn-secondary"
-                            onClick={handleCancel}
-                            title="Cancel"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          className="btn-icon"
-                          onClick={() => handleEdit(standard)}
-                          title="Edit"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                      )}
-                    </td>
-                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Detail Modal */}
+      <NetworkStandardDetailModal
+        isOpen={detailModal.isOpen}
+        standard={detailModal.standard}
+        canEdit={canEdit}
+        onClose={() => setDetailModal({ isOpen: false, standard: null })}
+        onSave={handleSaveFromModal}
+      />
 
       {/* Legend */}
       <div className="card" style={{ marginTop: '1.5rem' }}>

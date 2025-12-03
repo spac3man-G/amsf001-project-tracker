@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { kpisService } from '../services';
 import { 
   TrendingUp, RefreshCw, CheckCircle, AlertCircle, 
@@ -11,6 +11,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
 
 export default function KPIs() {
+  const navigate = useNavigate();
+  
   // Use shared contexts instead of local state for auth and project
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
@@ -656,16 +658,14 @@ export default function KPIs() {
                 const StatusIcon = status.icon;
 
                 return (
-                  <tr key={kpi.id}>
-                    <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{kpi.kpi_ref}</td>
-                    <td>
-                      <Link 
-                        to={`/kpis/${kpi.id}`}
-                        style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '500' }}
-                      >
-                        {kpi.name}
-                      </Link>
-                    </td>
+                  <tr 
+                    key={kpi.id}
+                    onClick={() => navigate(`/kpis/${kpi.id}`)}
+                    style={{ cursor: 'pointer' }}
+                    className="table-row-clickable"
+                  >
+                    <td style={{ fontFamily: 'monospace', fontWeight: '600', color: '#3b82f6' }}>{kpi.kpi_ref}</td>
+                    <td style={{ fontWeight: '500' }}>{kpi.name}</td>
                     <td>
                       <span style={{
                         padding: '0.25rem 0.5rem',
@@ -715,10 +715,10 @@ export default function KPIs() {
                         {status.label}
                       </span>
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        <Link 
-                          to={`/kpis/${kpi.id}`}
+                        <button
+                          onClick={() => navigate(`/kpis/${kpi.id}`)}
                           style={{
                             padding: '0.5rem',
                             backgroundColor: '#f1f5f9',
@@ -732,7 +732,7 @@ export default function KPIs() {
                           title="View/Edit"
                         >
                           <Edit2 size={16} />
-                        </Link>
+                        </button>
                         {canEdit && (
                           <button
                             onClick={() => handleDeleteClick(kpi)}

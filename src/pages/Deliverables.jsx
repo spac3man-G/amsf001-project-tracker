@@ -2,22 +2,24 @@
  * Deliverables Page
  * 
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
+ * Click on any deliverable to view details and perform workflow actions.
  * 
- * @version 2.0
- * @updated 30 November 2025
- * @phase Production Hardening - Service Layer Adoption
+ * @version 3.0
+ * @updated 3 December 2025
+ * @phase Production - Detail Modal Integration
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService } from '../services';
-import { Package, Plus, X, Edit2, Trash2, Save, CheckCircle, Clock, AlertCircle, Send, ThumbsUp, RotateCcw, Info } from 'lucide-react';
+import { Package, Plus, X, Save, CheckCircle, Clock, AlertCircle, Send, ThumbsUp, RotateCcw } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader } from '../components/common';
+import { DeliverableDetailModal } from '../components/deliverables';
 
 const STATUS_OPTIONS = ['Not Started', 'In Progress', 'Submitted for Review', 'Returned for More Work', 'Review Complete', 'Delivered'];
 const STATUS_COLORS = {
@@ -83,7 +85,6 @@ export default function Deliverables() {
   const [qualityStandards, setQualityStandards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completingDeliverable, setCompletingDeliverable] = useState(null);
   const [kpiAssessments, setKpiAssessments] = useState({});
@@ -92,26 +93,24 @@ export default function Deliverables() {
   const [filterStatus, setFilterStatus] = useState('');
   const [showAwaitingReview, setShowAwaitingReview] = useState(false);
 
+  // Detail modal state
+  const [detailModal, setDetailModal] = useState({ isOpen: false, deliverable: null });
+
   const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
-  const [editForm, setEditForm] = useState({ id: '', deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
     try {
-      // Use service layer for milestones
       const milestonesData = await milestonesService.getAll(projectId, { orderBy: { column: 'milestone_ref', ascending: true } });
       setMilestones(milestonesData);
 
-      // Use service layer for KPIs
       const kpisData = await kpisService.getAll(projectId, { orderBy: { column: 'kpi_ref', ascending: true } });
       setKpis(kpisData);
 
-      // Use service layer for Quality Standards
       const qsData = await qualityStandardsService.getAll(projectId, { orderBy: { column: 'qs_ref', ascending: true } });
       setQualityStandards(qsData);
 
-      // Fetch deliverables with relations using service
       const deliverablesData = await deliverablesService.getAllWithRelations(projectId, showTestUsers);
       setDeliverables(deliverablesData || []);
     } catch (error) { console.error('Error:', error); showError('Failed to load deliverables'); }
@@ -130,7 +129,6 @@ export default function Deliverables() {
         assigned_to: newDeliverable.assigned_to, due_date: newDeliverable.due_date || null, created_by: currentUserId
       });
 
-      // Sync KPI and QS links using service
       await deliverablesService.syncKPILinks(data.id, newDeliverable.kpi_ids);
       await deliverablesService.syncQSLinks(data.id, newDeliverable.qs_ids);
 
@@ -141,20 +139,22 @@ export default function Deliverables() {
     } catch (error) { showError('Failed: ' + error.message); }
   }
 
-  function openEditModal(d) {
-    setEditForm({ id: d.id, deliverable_ref: d.deliverable_ref, name: d.name, description: d.description || '', milestone_id: d.milestone_id || '', status: d.status, progress: d.progress || 0, assigned_to: d.assigned_to || '', due_date: d.due_date || '', kpi_ids: d.deliverable_kpis?.map(dk => dk.kpi_id) || [], qs_ids: d.deliverable_quality_standards?.map(dqs => dqs.quality_standard_id) || [] });
-    setShowEditModal(true);
-  }
-
-  async function handleSaveEdit() {
+  // Save from detail modal
+  async function handleSaveFromModal(id, editForm) {
     try {
-      await deliverablesService.update(editForm.id, { name: editForm.name, description: editForm.description, milestone_id: editForm.milestone_id || null, status: editForm.status, progress: parseInt(editForm.progress) || 0, assigned_to: editForm.assigned_to, due_date: editForm.due_date || null });
+      await deliverablesService.update(id, { 
+        name: editForm.name, 
+        description: editForm.description, 
+        milestone_id: editForm.milestone_id || null, 
+        status: editForm.status, 
+        progress: parseInt(editForm.progress) || 0, 
+        assigned_to: editForm.assigned_to, 
+        due_date: editForm.due_date || null 
+      });
 
-      // Sync KPI and QS links using service
-      await deliverablesService.syncKPILinks(editForm.id, editForm.kpi_ids);
-      await deliverablesService.syncQSLinks(editForm.id, editForm.qs_ids);
+      if (editForm.kpi_ids) await deliverablesService.syncKPILinks(id, editForm.kpi_ids);
+      if (editForm.qs_ids) await deliverablesService.syncQSLinks(id, editForm.qs_ids);
 
-      setShowEditModal(false);
       fetchData();
       showSuccess('Deliverable updated!');
     } catch (error) { showError('Failed: ' + error.message); }
@@ -169,10 +169,16 @@ export default function Deliverables() {
 
       await deliverablesService.update(d.id, { status: newStatus, progress: newProgress });
       fetchData();
+      showSuccess(`Status changed to ${newStatus}`);
     } catch (error) { showError('Failed: ' + error.message); }
   }
 
-  function openCompletionModal(d) { setCompletingDeliverable(d); setKpiAssessments({}); setQsAssessments({}); setShowCompletionModal(true); }
+  function openCompletionModal(d) { 
+    setCompletingDeliverable(d); 
+    setKpiAssessments({}); 
+    setQsAssessments({}); 
+    setShowCompletionModal(true); 
+  }
 
   async function handleMarkAsDelivered() {
     if (!completingDeliverable) return;
@@ -185,7 +191,6 @@ export default function Deliverables() {
     try {
       await deliverablesService.update(completingDeliverable.id, { status: 'Delivered', progress: 100 });
 
-      // Upsert KPI assessments using service
       if (linkedKPIs.length > 0) {
         const kpiAssessmentData = linkedKPIs.map(dk => ({
           kpiId: dk.kpi_id,
@@ -194,7 +199,6 @@ export default function Deliverables() {
         await deliverablesService.upsertKPIAssessments(completingDeliverable.id, kpiAssessmentData, currentUserId);
       }
 
-      // Upsert QS assessments using service
       if (linkedQS.length > 0) {
         const qsAssessmentData = linkedQS.map(dqs => ({
           qsId: dqs.quality_standard_id,
@@ -211,8 +215,17 @@ export default function Deliverables() {
 
   async function handleDelete(id) {
     if (!confirm('Delete this deliverable?')) return;
-    try { await deliverablesService.delete(id, currentUserId); fetchData(); showSuccess('Deleted'); }
+    try { 
+      await deliverablesService.delete(id, currentUserId); 
+      fetchData(); 
+      showSuccess('Deleted'); 
+    }
     catch (error) { showError('Failed: ' + error.message); }
+  }
+
+  // Open detail modal on row click
+  function handleRowClick(d) {
+    setDetailModal({ isOpen: true, deliverable: d });
   }
 
   let filteredDeliverables = deliverables;
@@ -273,30 +286,26 @@ export default function Deliverables() {
 
       <div className="table-container">
         <table className="table">
-          <thead><tr><th>Ref</th><th>Name</th><th>Milestone</th><th>Status</th><th>Progress</th><th>KPIs</th><th>QS</th><th>Due</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Ref</th><th>Name</th><th>Milestone</th><th>Status</th><th>Progress</th><th>KPIs</th><th>QS</th><th>Due</th></tr></thead>
           <tbody>
-            {filteredDeliverables.length === 0 ? <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No deliverables found</td></tr> : filteredDeliverables.map(d => {
+            {filteredDeliverables.length === 0 ? <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No deliverables found</td></tr> : filteredDeliverables.map(d => {
               const statusInfo = STATUS_COLORS[d.status] || STATUS_COLORS['Not Started'];
               const StatusIcon = statusInfo.icon;
               return (
-                <tr key={d.id}>
+                <tr 
+                  key={d.id}
+                  onClick={() => handleRowClick(d)}
+                  style={{ cursor: 'pointer' }}
+                  className="table-row-clickable"
+                >
                   <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{d.deliverable_ref}</td>
                   <td style={{ fontWeight: '500' }}>{d.name}</td>
-                  <td>{d.milestones ? <Link to={`/milestones/${d.milestone_id}`} style={{ color: '#3b82f6' }}>{d.milestones.milestone_ref}</Link> : '-'}</td>
+                  <td>{d.milestones ? <span style={{ color: '#3b82f6' }}>{d.milestones.milestone_ref}</span> : '-'}</td>
                   <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem', backgroundColor: statusInfo.bg, color: statusInfo.color }}><StatusIcon size={14} />{d.status}</span></td>
                   <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '60px', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}><div style={{ width: `${d.progress || 0}%`, height: '100%', backgroundColor: d.status === 'Delivered' ? '#16a34a' : '#4f46e5' }} /></div><span style={{ fontSize: '0.85rem' }}>{d.progress || 0}%</span></div></td>
-                  <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{d.deliverable_kpis?.map(dk => <span key={dk.kpi_id} style={{ padding: '0.125rem 0.375rem', backgroundColor: '#dbeafe', color: '#2563eb', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>{dk.kpis?.kpi_ref}</span>)}</div></td>
-                  <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{d.deliverable_quality_standards?.map(dqs => <span key={dqs.quality_standard_id} style={{ padding: '0.125rem 0.375rem', backgroundColor: '#f3e8ff', color: '#7c3aed', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>{dqs.quality_standards?.qs_ref}</span>)}</div></td>
+                  <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{d.deliverable_kpis?.slice(0, 3).map(dk => <span key={dk.kpi_id} style={{ padding: '0.125rem 0.375rem', backgroundColor: '#dbeafe', color: '#2563eb', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>{dk.kpis?.kpi_ref}</span>)}{d.deliverable_kpis?.length > 3 && <span style={{ padding: '0.125rem 0.375rem', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', fontSize: '0.75rem' }}>+{d.deliverable_kpis.length - 3}</span>}</div></td>
+                  <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{d.deliverable_quality_standards?.slice(0, 3).map(dqs => <span key={dqs.quality_standard_id} style={{ padding: '0.125rem 0.375rem', backgroundColor: '#f3e8ff', color: '#7c3aed', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>{dqs.quality_standards?.qs_ref}</span>)}{d.deliverable_quality_standards?.length > 3 && <span style={{ padding: '0.125rem 0.375rem', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', fontSize: '0.75rem' }}>+{d.deliverable_quality_standards.length - 3}</span>}</div></td>
                   <td>{d.due_date ? new Date(d.due_date).toLocaleDateString('en-GB') : '-'}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      {canEdit && <button onClick={() => openEditModal(d)} title="Edit" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><Edit2 size={16} /></button>}
-                      {canEdit && ['In Progress', 'Returned for More Work'].includes(d.status) && <button onClick={() => handleStatusChange(d, 'Submitted for Review')} title="Submit" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#d97706' }}><Send size={16} /></button>}
-                      {canReview && d.status === 'Submitted for Review' && <><button onClick={() => handleStatusChange(d, 'Review Complete')} title="Accept" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb' }}><ThumbsUp size={16} /></button><button onClick={() => handleStatusChange(d, 'Returned for More Work')} title="Return" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}><RotateCcw size={16} /></button></>}
-                      {canReview && d.status === 'Review Complete' && <button onClick={() => openCompletionModal(d)} title="Deliver" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a' }}><CheckCircle size={16} /></button>}
-                      {canDelete && <button onClick={() => handleDelete(d.id)} title="Delete" style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}><Trash2 size={16} /></button>}
-                    </div>
-                  </td>
                 </tr>
               );
             })}
@@ -304,35 +313,24 @@ export default function Deliverables() {
         </table>
       </div>
 
-      {showEditModal && (
-        <div className="modal-overlay">
-          <div className="modal modal-lg">
-            <div className="modal-header">
-              <h3 className="modal-title"><Edit2 size={20} /> Edit {editForm.deliverable_ref}</h3>
-            </div>
-            <div className="modal-body">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-              <div className="form-group"><label className="form-label">Ref</label><input type="text" value={editForm.deliverable_ref} disabled style={{ backgroundColor: 'var(--color-bg-secondary)' }} /></div>
-              <div className="form-group"><label className="form-label">Name *</label><input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
-            </div>
-            <div className="form-group"><label className="form-label">Description</label><textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-              <div className="form-group"><label className="form-label">Milestone</label><select value={editForm.milestone_id} onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}><option value="">Select</option>{milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}</select></div>
-              <div className="form-group"><label className="form-label">Assigned To</label><input type="text" value={editForm.assigned_to} onChange={(e) => setEditForm({ ...editForm, assigned_to: e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Due Date</label><input type="date" value={editForm.due_date} onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })} /></div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="form-group"><label className="form-label">Status</label><select value={editForm.status} onChange={(e) => { const s = e.target.value; let p = editForm.progress; if (s === 'Not Started') p = 0; else if (['Submitted for Review', 'Review Complete', 'Delivered'].includes(s)) p = 100; else if (s === 'Returned for More Work') p = 50; setEditForm({ ...editForm, status: s, progress: p }); }}>{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-              <div className="form-group"><label className="form-label">Progress: {editForm.progress}%</label><input type="range" min="0" max="100" value={editForm.progress} onChange={(e) => setEditForm({ ...editForm, progress: parseInt(e.target.value) })} style={{ width: '100%' }} disabled={['Delivered', 'Submitted for Review', 'Review Complete'].includes(editForm.status)} /></div>
-            </div>
-            <KPISelector kpis={kpis} selectedIds={editForm.kpi_ids} onChange={(ids) => setEditForm({ ...editForm, kpi_ids: ids })} />
-            <QSSelector qualityStandards={qualityStandards} selectedIds={editForm.qs_ids} onChange={(ids) => setEditForm({ ...editForm, qs_ids: ids })} />
-            </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button><button className="btn btn-primary" onClick={handleSaveEdit}><Save size={16} /> Save</button></div>
-          </div>
-        </div>
-      )}
+      {/* Detail Modal */}
+      <DeliverableDetailModal
+        isOpen={detailModal.isOpen}
+        deliverable={detailModal.deliverable}
+        milestones={milestones}
+        kpis={kpis}
+        qualityStandards={qualityStandards}
+        canEdit={canEdit}
+        canReview={canReview}
+        canDelete={canDelete}
+        onClose={() => setDetailModal({ isOpen: false, deliverable: null })}
+        onSave={handleSaveFromModal}
+        onStatusChange={handleStatusChange}
+        onDelete={handleDelete}
+        onOpenCompletion={openCompletionModal}
+      />
 
+      {/* Completion Modal (KPI/QS Assessment) */}
       {showCompletionModal && completingDeliverable && (
         <div className="modal-overlay">
           <div className="modal modal-lg">

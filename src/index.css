@@ -1277,3 +1277,18 @@ textarea::placeholder {
     justify-content: center;
   }
 }
+
+/* ==============================================
+   Clickable Table Rows
+   ============================================== */
+.table-row-clickable {
+  transition: background-color 0.15s ease;
+}
+
+.table-row-clickable:hover {
+  background-color: var(--color-bg-hover, #f1f5f9);
+}
+
+.table-row-clickable:active {
+  background-color: var(--color-bg-secondary, #e2e8f0);
+}

@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Edit2, Trash2, FileCheck, Award } from 'lucide-react';
 
 function getStatusColor(status) {
@@ -43,6 +43,7 @@ export default function MilestoneTable({
   onGenerateCertificate,
   onViewCertificate
 }) {
+  const navigate = useNavigate();
   return (
     <div className="card">
       <h3 style={{ marginBottom: '1rem' }}>Project Milestones</h3>
@@ -74,21 +75,14 @@ export default function MilestoneTable({
               const deliverableCount = milestoneDeliverables[milestone.id]?.length || 0;
               
               return (
-                <tr key={milestone.id}>
-                  <td>
-                    <Link 
-                      to={`/milestones/${milestone.id}`}
-                      style={{ 
-                        fontFamily: 'monospace', 
-                        fontWeight: '600',
-                        color: '#3b82f6',
-                        textDecoration: 'none'
-                      }}
-                      onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-                      onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
-                    >
-                      {milestone.milestone_ref}
-                    </Link>
+                <tr 
+                  key={milestone.id}
+                  onClick={() => navigate(`/milestones/${milestone.id}`)}
+                  style={{ cursor: 'pointer' }}
+                  className="table-row-clickable"
+                >
+                  <td style={{ fontFamily: 'monospace', fontWeight: '600', color: '#3b82f6' }}>
+                    {milestone.milestone_ref}
                   </td>
                   <td style={{ fontWeight: '500' }}>{milestone.name}</td>
                   <td>
@@ -125,7 +119,7 @@ export default function MilestoneTable({
                       : '-'}
                   </td>
                   <td title="Invoiced on completion">£{(milestone.budget || 0).toLocaleString()}</td>
-                  <td>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <CertificateCell
                       milestone={milestone}
                       certificate={cert}
@@ -135,7 +129,7 @@ export default function MilestoneTable({
                     />
                   </td>
                   {canEdit && (
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: '0.25rem' }}>
                         <button 
                           onClick={() => onEdit(milestone)}

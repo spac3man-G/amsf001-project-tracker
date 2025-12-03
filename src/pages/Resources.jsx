@@ -330,7 +330,12 @@ export default function Resources() {
                 const MarginIcon = marginStyle.icon;
                 
                 return (
-                  <tr key={resource.id}>
+                  <tr 
+                    key={resource.id}
+                    onClick={() => editingId !== resource.id && navigate(`/resources/${resource.id}`)}
+                    style={{ cursor: editingId === resource.id ? 'default' : 'pointer' }}
+                    className={editingId === resource.id ? '' : 'table-row-clickable'}
+                  >
                     {editingId === resource.id ? (
                       <>
                         <td><input className="input-field" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} /></td>
@@ -347,8 +352,8 @@ export default function Resources() {
                     ) : (
                       <>
                         <td>
-                          <div onClick={() => navigate(`/resources/${resource.id}`)} style={{ cursor: 'pointer' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><strong style={{ color: '#2563eb' }}>{resource.name}</strong><ExternalLink size={14} style={{ color: '#9ca3af' }} /></div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><strong style={{ color: '#2563eb' }}>{resource.name}</strong></div>
                             <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>{resource.email}</div>
                           </div>
                         </td>
@@ -362,7 +367,7 @@ export default function Resources() {
                         <td><div><div style={{ width: '60px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${Math.min(utilization, 100)}%`, height: '100%', backgroundColor: utilization > 100 ? '#dc2626' : '#3b82f6' }} /></div><span style={{ fontSize: '0.875rem' }}>{Math.round(utilization)}%</span></div></td>
                         <td><strong>£{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong></td>
                         {canManageResources && (
-                          <td>
+                          <td onClick={(e) => e.stopPropagation()}>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                               <button className="btn btn-sm btn-secondary" onClick={() => handleEdit(resource)}><Edit2 size={16} /></button>
                               {userRole === 'admin' && <button className="btn btn-sm btn-danger" onClick={() => handleDelete(resource)}><Trash2 size={16} /></button>}

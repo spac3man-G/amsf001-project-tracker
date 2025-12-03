@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Pencil, Trash2, Mail, User, FileText, ToggleLeft, ToggleRight, ExternalLink } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Mail, User, FileText, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -389,20 +389,20 @@ export default function Partners() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {partners.map((partner) => (
-                <tr key={partner.id} className="hover:bg-gray-50">
+                <tr 
+                  key={partner.id} 
+                  className="table-row-clickable hover:bg-gray-50"
+                  onClick={() => navigate(`/partners/${partner.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div 
-                      className="flex items-center gap-3 cursor-pointer"
-                      onClick={() => navigate(`/partners/${partner.id}`)}
-                      title="Click to view details"
-                    >
+                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                         <Building2 className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900 flex items-center gap-2">
+                        <div className="font-medium flex items-center gap-2">
                           <span style={{ color: '#2563eb' }}>{partner.name}</span>
-                          <ExternalLink size={14} style={{ color: '#9ca3af' }} />
                         </div>
                         {partner.notes && (
                           <div className="text-sm text-gray-500 truncate max-w-xs" title={partner.notes}>
@@ -423,7 +423,11 @@ export default function Partners() {
                       {partner.contact_email && (
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Mail className="w-4 h-4 text-gray-400" />
-                          <a href={`mailto:${partner.contact_email}`} className="hover:text-blue-600">
+                          <a 
+                            href={`mailto:${partner.contact_email}`} 
+                            className="hover:text-blue-600"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {partner.contact_email}
                           </a>
                         </div>
@@ -439,7 +443,7 @@ export default function Partners() {
                       {partner.payment_terms}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handleToggleActive(partner)}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
@@ -461,7 +465,7 @@ export default function Partners() {
                       )}
                     </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                  <td className="px-6 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleEdit(partner)}
