@@ -169,18 +169,16 @@ export class BaseService {
         query = query.or(this.getSoftDeleteFilter());
       }
 
-      const { data, error } = await query.single();
+      // Use .limit(1) instead of .single() to avoid "Cannot coerce" errors
+      const { data, error } = await query.limit(1);
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No rows returned
-          return null;
-        }
         console.error(`${this.tableName} getById error:`, error);
         throw error;
       }
 
-      return data;
+      // Return the first result or null if not found
+      return data && data.length > 0 ? data[0] : null;
     } catch (error) {
       console.error(`${this.tableName} getById failed:`, error);
       throw error;
@@ -211,18 +209,23 @@ export class BaseService {
         delete sanitizedRecord.deleted_by;
       }
 
+      // Use .select() without .single() to avoid "Cannot coerce" errors
       const { data, error } = await supabase
         .from(this.tableName)
         .insert(sanitizedRecord)
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error(`${this.tableName} create error:`, error);
         throw error;
       }
 
-      return data;
+      // Return the first (and should be only) result
+      if (!data || data.length === 0) {
+        throw new Error('Failed to create record - no data returned');
+      }
+
+      return data[0];
     } catch (error) {
       console.error(`${this.tableName} create failed:`, error);
       throw error;
@@ -254,19 +257,25 @@ export class BaseService {
       delete updateData.deleted_at;
       delete updateData.deleted_by;
 
+      // Use .select() without .single() to avoid "Cannot coerce" errors
+      // when RLS policies affect the returned rows
       const { data, error } = await supabase
         .from(this.tableName)
         .update(updateData)
         .eq('id', id)
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error(`${this.tableName} update error:`, error);
         throw error;
       }
 
-      return data;
+      // Return the first (and should be only) result
+      if (!data || data.length === 0) {
+        throw new Error(`No record found with id: ${id}`);
+      }
+
+      return data[0];
     } catch (error) {
       console.error(`${this.tableName} update failed:`, error);
       throw error;
@@ -351,6 +360,7 @@ export class BaseService {
     }
 
     try {
+      // Use .select() without .single() to avoid "Cannot coerce" errors
       const { data, error } = await supabase
         .from(this.tableName)
         .update({
@@ -359,15 +369,19 @@ export class BaseService {
           deleted_by: null
         })
         .eq('id', id)
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error(`${this.tableName} restore error:`, error);
         throw error;
       }
 
-      return data;
+      // Return the first (and should be only) result
+      if (!data || data.length === 0) {
+        throw new Error(`No record found with id: ${id}`);
+      }
+
+      return data[0];
     } catch (error) {
       console.error(`${this.tableName} restore failed:`, error);
       throw error;

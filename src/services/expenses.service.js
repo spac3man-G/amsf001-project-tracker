@@ -355,6 +355,7 @@ export class ExpensesService extends BaseService {
 
       if (uploadError) throw uploadError;
 
+      // Use .select() without .single() to avoid "Cannot coerce" errors
       const { data, error } = await supabase
         .from('expense_files')
         .insert({
@@ -365,11 +366,10 @@ export class ExpensesService extends BaseService {
           file_type: file.type,
           uploaded_by: userId
         })
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return data;
+      return data?.[0];
     } catch (error) {
       console.error('ExpensesService uploadReceipt error:', error);
       throw error;

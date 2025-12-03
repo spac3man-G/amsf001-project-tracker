@@ -63,13 +63,15 @@ export class InvoicingService extends BaseService {
    */
   async getWithLines(invoiceId) {
     try {
-      const { data: invoice, error: invError } = await supabase
+      // Use .limit(1) instead of .single() to avoid "Cannot coerce" errors
+      const { data: invoiceData, error: invError } = await supabase
         .from(this.tableName)
         .select('*, partners(name, contact_name, contact_email, payment_terms)')
         .eq('id', invoiceId)
-        .single();
+        .limit(1);
 
       if (invError) throw invError;
+      const invoice = invoiceData?.[0];
       if (!invoice) return null;
 
       const { data: lines, error: linesError } = await supabase

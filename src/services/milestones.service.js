@@ -59,14 +59,17 @@ export class MilestonesService extends BaseService {
    */
   async getWithDeliverables(milestoneId) {
     try {
-      const { data: milestone, error: mError } = await supabase
+      // Use .limit(1) instead of .single() to avoid "Cannot coerce" errors
+      const { data: milestoneData, error: mError } = await supabase
         .from(this.tableName)
         .select('*')
         .eq('id', milestoneId)
         .or(this.getSoftDeleteFilter())
-        .single();
+        .limit(1);
 
       if (mError) throw mError;
+      
+      const milestone = milestoneData?.[0];
 
       const { data: deliverables, error: dError } = await supabase
         .from('deliverables')
@@ -216,14 +219,14 @@ export class MilestonesService extends BaseService {
    */
   async createCertificate(certificateData) {
     try {
+      // Use .select() without .single() to avoid "Cannot coerce" errors
       const { data, error } = await supabase
         .from('milestone_certificates')
         .insert([certificateData])
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return data;
+      return data?.[0];
     } catch (error) {
       console.error('MilestonesService createCertificate error:', error);
       throw error;
@@ -235,15 +238,15 @@ export class MilestonesService extends BaseService {
    */
   async updateCertificate(certificateId, updates) {
     try {
+      // Use .select() without .single() to avoid "Cannot coerce" errors
       const { data, error } = await supabase
         .from('milestone_certificates')
         .update(updates)
         .eq('id', certificateId)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return data;
+      return data?.[0];
     } catch (error) {
       console.error('MilestonesService updateCertificate error:', error);
       throw error;

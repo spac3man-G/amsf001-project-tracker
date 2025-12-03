@@ -50,6 +50,7 @@ class PartnersService extends BaseService {
    */
   async getWithResources(partnerId) {
     try {
+      // Use .limit(1) instead of .single() to avoid "Cannot coerce" errors
       const { data, error } = await supabase
         .from('partners')
         .select(`
@@ -63,17 +64,14 @@ class PartnersService extends BaseService {
           )
         `)
         .eq('id', partnerId)
-        .single();
+        .limit(1);
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          return null;
-        }
         console.error('Partners getWithResources error:', error);
         throw error;
       }
 
-      return data;
+      return data?.[0] || null;
     } catch (error) {
       console.error('Partners getWithResources failed:', error);
       throw error;
@@ -155,25 +153,20 @@ class PartnersService extends BaseService {
    */
   async findByName(projectId, name) {
     try {
+      // Use .limit(1) instead of .single() to avoid "Cannot coerce" errors
       const { data, error } = await supabase
         .from('partners')
         .select('*')
         .eq('project_id', projectId)
         .ilike('name', name.trim())
-        .single();
+        .limit(1);
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          return null;
-        }
         throw error;
       }
 
-      return data;
+      return data?.[0] || null;
     } catch (error) {
-      if (error.code === 'PGRST116') {
-        return null;
-      }
       console.error('Partners findByName failed:', error);
       throw error;
     }

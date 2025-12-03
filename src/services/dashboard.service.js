@@ -65,6 +65,7 @@ export class DashboardService {
    */
   async saveLayout(userId, projectId, layoutConfig) {
     try {
+      // Use .select() without .single() to avoid "Cannot coerce" errors
       const { data, error } = await supabase
         .from(this.tableName)
         .upsert(
@@ -78,15 +79,14 @@ export class DashboardService {
             onConflict: 'user_id,project_id'
           }
         )
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error('DashboardService.saveLayout error:', error);
         throw error;
       }
 
-      return data;
+      return data?.[0];
     } catch (error) {
       console.error('DashboardService.saveLayout error:', error);
       throw error;
