@@ -752,6 +752,7 @@ async function executeGetMyPendingActions(context) {
       .eq('project_id', projectId)
       .eq('resource_id', userContext.linkedResourceId)
       .eq('status', 'Draft')
+      .or('is_deleted.is.null,is_deleted.eq.false')
       .order('work_date', { ascending: false })
       .limit(10);
     
@@ -769,6 +770,7 @@ async function executeGetMyPendingActions(context) {
       .eq('project_id', projectId)
       .eq('resource_id', userContext.linkedResourceId)
       .eq('status', 'Draft')
+      .or('is_deleted.is.null,is_deleted.eq.false')
       .order('expense_date', { ascending: false })
       .limit(10);
     
@@ -787,13 +789,15 @@ async function executeGetMyPendingActions(context) {
       .from('timesheets')
       .select('*', { count: 'exact', head: true })
       .eq('project_id', projectId)
-      .eq('status', 'Submitted');
+      .eq('status', 'Submitted')
+      .or('is_deleted.is.null,is_deleted.eq.false');
     
     const { count: expCount } = await supabase
       .from('expenses')
       .select('*', { count: 'exact', head: true })
       .eq('project_id', projectId)
-      .eq('status', 'Submitted');
+      .eq('status', 'Submitted')
+      .or('is_deleted.is.null,is_deleted.eq.false');
     
     result.awaitingMyValidation.timesheets = tsCount || 0;
     result.awaitingMyValidation.expenses = expCount || 0;
@@ -832,6 +836,7 @@ async function executeGetTimesheets(params, context) {
       resources(id, name, daily_rate, partner_id)
     `)
     .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
     .order('work_date', { ascending: false })
     .limit(50);
   
@@ -900,7 +905,8 @@ async function executeGetTimesheetSummary(params, context) {
       id, work_date, hours_worked, status, resource_id,
       resources(id, name, daily_rate, partner_id)
     `)
-    .eq('project_id', projectId);
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false');
   
   // Apply permission scoping based on role
   if (userContext.role === 'contributor' && userContext.linkedResourceId) {
@@ -977,10 +983,11 @@ async function executeGetExpenses(params, context) {
     .from('expenses')
     .select(`
       id, expense_date, amount, category, description, status, 
-      is_chargeable, procurement_method, resource_id,
+      chargeable_to_customer, procurement_method, resource_id,
       resources(id, name, partner_id)
     `)
     .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
     .order('expense_date', { ascending: false })
     .limit(50);
   
@@ -1000,7 +1007,7 @@ async function executeGetExpenses(params, context) {
     query = query.eq('category', params.category);
   }
   if (params.chargeableOnly) {
-    query = query.eq('is_chargeable', true);
+    query = query.eq('chargeable_to_customer', true);
   }
   if (params.mine && userContext.linkedResourceId) {
     query = query.eq('resource_id', userContext.linkedResourceId);
@@ -1032,7 +1039,7 @@ async function executeGetExpenses(params, context) {
     category: e.category,
     amount: e.amount,
     status: e.status,
-    chargeable: e.is_chargeable,
+    chargeable: e.chargeable_to_customer !== false,
     paidBy: e.procurement_method === 'supplier' ? 'Supplier' : 'Partner',
     description: e.description
   }));
@@ -1056,10 +1063,11 @@ async function executeGetExpenseSummary(params, context) {
   let query = supabase
     .from('expenses')
     .select(`
-      id, expense_date, amount, category, status, is_chargeable, resource_id,
+      id, expense_date, amount, category, status, chargeable_to_customer, resource_id,
       resources(id, name, partner_id)
     `)
-    .eq('project_id', projectId);
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false');
   
   // Apply permission scoping based on role
   // supplier_pm, admin, customer_pm see all expenses
@@ -1112,7 +1120,7 @@ async function executeGetExpenseSummary(params, context) {
       groups[key] = { amount: 0, chargeable: 0, count: 0 };
     }
     groups[key].amount += e.amount;
-    if (e.is_chargeable) groups[key].chargeable += e.amount;
+    if (e.chargeable_to_customer !== false) groups[key].chargeable += e.amount;
     groups[key].count += 1;
   });
   
@@ -1136,6 +1144,7 @@ async function executeGetMilestones(params, context) {
     .from('milestones')
     .select('id, name, status, progress_percent, planned_start_date, planned_end_date, billable_amount, actual_spend')
     .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
     .order('planned_end_date', { ascending: true });
   
   if (params.status && params.status !== 'all') {
@@ -1183,6 +1192,7 @@ async function executeGetDeliverables(params, context) {
       milestones(id, name)
     `)
     .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
     .order('due_date', { ascending: true });
   
   if (params.status && params.status !== 'all') {
@@ -1232,6 +1242,7 @@ async function executeGetBudgetSummary(params, context) {
     .from('milestones')
     .select('name, billable_amount, actual_spend, status')
     .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
     .order('planned_end_date');
   
   const totalBudget = project?.total_budget || 0;
@@ -1271,6 +1282,7 @@ async function executeGetResources(params, context) {
       partners(id, name)
     `)
     .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
     .order('name');
   
   // Permission scoping for partner users
@@ -1312,6 +1324,7 @@ async function executeGetKPIs(params, context) {
     .from('kpis')
     .select('id, name, category, current_value, target_value, unit, status')
     .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
     .order('category, name');
   
   if (params.category) {

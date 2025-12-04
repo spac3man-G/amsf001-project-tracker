@@ -203,7 +203,7 @@ async function fetchWithMultipleQueries(supabase, projectId, userContext) {
     withTimeout(
       supabase
         .from('expenses')
-        .select('id, amount, status, is_chargeable')
+        .select('id, amount, status, chargeable_to_customer')
         .eq('project_id', projectId)
         .or('is_deleted.is.null,is_deleted.eq.false')
         .in('status', ['Submitted', 'Validated', 'Approved'])
@@ -298,7 +298,7 @@ async function fetchWithMultipleQueries(supabase, projectId, userContext) {
   if (queries[4].status === 'fulfilled' && queries[4].value.data) {
     const expenses = queries[4].value.data;
     const totalAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const chargeableAmount = expenses.filter(e => e.is_chargeable).reduce((sum, e) => sum + (e.amount || 0), 0);
+    const chargeableAmount = expenses.filter(e => e.chargeable_to_customer !== false).reduce((sum, e) => sum + (e.amount || 0), 0);
     
     results.expenseSummary = {
       totalEntries: expenses.length,
