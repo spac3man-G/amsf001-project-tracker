@@ -230,6 +230,15 @@
   text-align: right;
 }
 
+.widget-row-secondary {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+  font-family: var(--ds-font-mono);
+  min-width: 70px;
+  text-align: right;
+}
+
 /* -----------------------------------------------------------------------------
    Responsive Design
    ----------------------------------------------------------------------------- */

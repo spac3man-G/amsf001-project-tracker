@@ -11,7 +11,7 @@ import React from 'react';
 import './Dashboard.css';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
-import { MilestonesWidget, DeliverablesWidget } from '../components/dashboard';
+import { MilestonesWidget, DeliverablesWidget, TimesheetsWidget, ExpensesWidget } from '../components/dashboard';
 
 export default function Dashboard() {
   const { projectName, projectRef } = useProject();
@@ -41,6 +41,8 @@ export default function Dashboard() {
         <div className="dashboard-widgets">
           <MilestonesWidget />
           <DeliverablesWidget />
+          <TimesheetsWidget />
+          <ExpensesWidget />
         </div>
       </div>
     </div>
