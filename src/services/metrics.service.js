@@ -295,7 +295,7 @@ class MetricsService {
       // Get all Quality Standards - simple query, filter client-side
       const { data: rawStandards, error: qsError } = await supabase
         .from('quality_standards')
-        .select('id, qs_ref, name, category, target, current_value, is_deleted')
+        .select('id, qs_ref, name, target, current_value, is_deleted')
         .eq('project_id', projectId)
         .order('qs_ref');
 
@@ -484,7 +484,7 @@ class MetricsService {
       // Simple query without complex filters - filter client-side
       const { data: rawExpenses, error } = await supabase
         .from('expenses')
-        .select('id, date, amount, status, category, milestone_id, chargeable_to_customer, procurement_method, is_deleted')
+        .select('id, expense_date, amount, status, category, chargeable_to_customer, procurement_method, is_deleted')
         .eq('project_id', projectId);
 
       if (error) throw error;
@@ -496,7 +496,6 @@ class MetricsService {
       let chargeableAmount = 0;
       let nonChargeableAmount = 0;
       const byCategory = {};
-      const byMilestone = {};
 
       expenses.forEach(exp => {
         const amount = parseFloat(exp.amount || 0);
@@ -514,11 +513,6 @@ class MetricsService {
           // By category
           const category = exp.category || 'Other';
           byCategory[category] = (byCategory[category] || 0) + amount;
-
-          // By milestone
-          if (exp.milestone_id) {
-            byMilestone[exp.milestone_id] = (byMilestone[exp.milestone_id] || 0) + amount;
-          }
         }
       });
 
@@ -530,8 +524,7 @@ class MetricsService {
         totalAmount,
         chargeableAmount,
         nonChargeableAmount,
-        byCategory,
-        byMilestone
+        byCategory
       };
 
       this.setCache(cacheKey, metrics);
