@@ -261,4 +261,48 @@ User Question
 
 ---
 
+## Session Update: Chat API Field Name Audit
+
+**Commit:** `26a93a62`  
+**Focus:** Chat API data integrity - field name corrections
+
+### Issues Discovered
+
+The Chat API (`api/chat.js`) was using incorrect field names that didn't match the actual database schema, causing queries to return null/undefined values.
+
+### Fixes Applied
+
+#### 1. Milestones Query (executeGetMilestones)
+| Before (Wrong) | After (Correct) |
+|----------------|-----------------|
+| `planned_start_date` | `start_date` |
+| `planned_end_date` | `end_date` |
+| `billable_amount` | `billable` |
+| `actual_spend` | *Removed - field doesn't exist* |
+
+**Additional changes:**
+- Added `forecast_end_date` to query
+- Removed invalid `atRisk` status from summary counts
+
+#### 2. Resources Query (executeGetResources)
+| Before (Wrong) | After (Correct) |
+|----------------|-----------------|
+| `daily_rate` | `sell_price` |
+
+#### 3. Timesheets Queries (executeGetTimesheets, executeGetTimesheetSummary)
+| Before (Wrong) | After (Correct) |
+|----------------|-----------------|
+| `resources.daily_rate` | `resources.sell_price` |
+
+Value calculations now correctly use `sell_price` for billable value.
+
+### Verification
+
+All `daily_rate` and `planned_*` references removed from chat.js. Queries now match:
+- Database schema (`database-schema.sql`)
+- Service layer (`src/services/*.service.js`)
+- UI components (`src/pages/*.jsx`)
+
+---
+
 *Session Summary | 5 December 2025*
