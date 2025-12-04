@@ -15,7 +15,7 @@ import { deliverablesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { useTestUsers } from '../../contexts/TestUserContext';
 
-export default function DeliverablesWidget() {
+export default function DeliverablesWidget({ refreshTrigger }) {
   const navigate = useNavigate();
   const { projectId } = useProject();
   const { showTestUsers } = useTestUsers();
@@ -88,7 +88,7 @@ export default function DeliverablesWidget() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshTrigger]);
 
   const handleClick = () => {
     navigate('/deliverables');

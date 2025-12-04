@@ -14,7 +14,7 @@ import { Milestone, CheckCircle, Clock, FileText, Circle } from 'lucide-react';
 import { milestonesService, deliverablesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 
-export default function MilestonesWidget() {
+export default function MilestonesWidget({ refreshTrigger }) {
   const navigate = useNavigate();
   const { projectId } = useProject();
   
@@ -104,7 +104,7 @@ export default function MilestonesWidget() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshTrigger]);
 
   const handleClick = () => {
     navigate('/milestones');

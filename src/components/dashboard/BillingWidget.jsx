@@ -20,7 +20,7 @@ import { useProject } from '../../contexts/ProjectContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../contexts/ToastContext';
 
-export default function BillingWidget({ editable = false, fullPage = false }) {
+export default function BillingWidget({ editable = false, fullPage = false, refreshTrigger }) {
   const navigate = useNavigate();
   const { projectId } = useProject();
   const { canEditBilling } = usePermissions();
@@ -50,7 +50,7 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshTrigger]);
 
   const handleWidgetClick = (e) => {
     // Only navigate on dashboard (not full page), and only if not clicking an interactive element

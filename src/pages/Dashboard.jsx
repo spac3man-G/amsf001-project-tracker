@@ -1,21 +1,33 @@
 /**
  * Dashboard Page
  * 
- * Dashboard with milestone, deliverables, billing, and other widgets.
+ * Dashboard with milestone, deliverables, billing, KPI/QS metrics widgets.
+ * Includes refresh button to reload all widget data.
  * 
- * @version 7.3
+ * @version 7.4
  * @updated 6 December 2025
  */
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+import { RefreshCw } from 'lucide-react';
 import './Dashboard.css';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
-import { MilestonesWidget, DeliverablesWidget, TimesheetsWidget, ExpensesWidget, BillingWidget } from '../components/dashboard';
+import { 
+  MilestonesWidget, 
+  DeliverablesWidget, 
+  TimesheetsWidget, 
+  ExpensesWidget, 
+  BillingWidget,
+  KPICardsRow,
+  QSCardsRow
+} from '../components/dashboard';
 
 export default function Dashboard() {
   const { projectName, projectRef } = useProject();
   const { user } = useAuth();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Get greeting based on time
   const getGreeting = () => {
@@ -24,6 +36,13 @@ export default function Dashboard() {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setRefreshTrigger(prev => prev + 1);
+    // Reset spinning after animation
+    setTimeout(() => setIsRefreshing(false), 1000);
+  }, []);
 
   return (
     <div className="dashboard">
@@ -34,17 +53,33 @@ export default function Dashboard() {
             <h1 className="dashboard-title">{getGreeting()}</h1>
             <p className="dashboard-subtitle">{projectRef} • {projectName}</p>
           </div>
+          <button 
+            className="dashboard-refresh-btn"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh all data"
+          >
+            <RefreshCw size={18} className={isRefreshing ? 'spinning' : ''} />
+            Refresh
+          </button>
         </div>
       </div>
 
       <div className="dashboard-content">
+        {/* Main Widgets Grid */}
         <div className="dashboard-widgets">
-          <MilestonesWidget />
-          <DeliverablesWidget />
-          <TimesheetsWidget />
-          <ExpensesWidget />
-          <BillingWidget editable={false} />
+          <MilestonesWidget refreshTrigger={refreshTrigger} />
+          <DeliverablesWidget refreshTrigger={refreshTrigger} />
+          <TimesheetsWidget refreshTrigger={refreshTrigger} />
+          <ExpensesWidget refreshTrigger={refreshTrigger} />
+          <BillingWidget editable={false} refreshTrigger={refreshTrigger} />
         </div>
+
+        {/* KPI Metrics Row */}
+        <KPICardsRow refreshTrigger={refreshTrigger} />
+
+        {/* QS Metrics Row */}
+        <QSCardsRow refreshTrigger={refreshTrigger} />
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ import { Receipt, Clock, CheckCircle, CreditCard, Building2 } from 'lucide-react
 import { expensesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 
-export default function ExpensesWidget() {
+export default function ExpensesWidget({ refreshTrigger }) {
   const navigate = useNavigate();
   const { projectId } = useProject();
   
@@ -80,7 +80,7 @@ export default function ExpensesWidget() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshTrigger]);
 
   const handleClick = () => {
     navigate('/expenses');

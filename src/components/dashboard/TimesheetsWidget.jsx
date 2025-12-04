@@ -16,7 +16,7 @@ import { timesheetsService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { calculateBillableValue } from '../../config/metricsConfig';
 
-export default function TimesheetsWidget() {
+export default function TimesheetsWidget({ refreshTrigger }) {
   const navigate = useNavigate();
   const { projectId } = useProject();
   
@@ -83,7 +83,7 @@ export default function TimesheetsWidget() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshTrigger]);
 
   const handleClick = () => {
     navigate('/timesheets');

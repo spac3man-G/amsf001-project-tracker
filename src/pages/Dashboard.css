@@ -257,3 +257,244 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* -----------------------------------------------------------------------------
+   Refresh Button
+   ----------------------------------------------------------------------------- */
+.dashboard-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--ds-bg-secondary);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--ds-transition);
+}
+
+.dashboard-refresh-btn:hover {
+  background: var(--ds-bg-primary);
+  border-color: var(--ds-teal);
+  color: var(--ds-teal);
+}
+
+.dashboard-refresh-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.dashboard-refresh-btn .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* -----------------------------------------------------------------------------
+   Metrics Cards Row (KPIs & QS)
+   ----------------------------------------------------------------------------- */
+.metrics-cards-row {
+  margin-top: 24px;
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--ds-shadow-card);
+  border: 1px solid var(--ds-border);
+}
+
+.metrics-cards-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.metrics-cards-header svg {
+  color: var(--ds-teal);
+}
+
+.metrics-cards-loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--ds-text-secondary);
+  font-size: 14px;
+}
+
+.metrics-cards-container {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ds-border) transparent;
+}
+
+.metrics-cards-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.metrics-cards-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.metrics-cards-container::-webkit-scrollbar-thumb {
+  background: var(--ds-border);
+  border-radius: 3px;
+}
+
+.metrics-card {
+  flex: 0 0 auto;
+  min-width: 180px;
+  max-width: 220px;
+  padding: 16px;
+  background: var(--ds-bg-tertiary);
+  border-radius: var(--ds-radius-md);
+  border: 1px solid var(--ds-border-subtle);
+  cursor: pointer;
+  transition: all var(--ds-transition);
+}
+
+.metrics-card:hover {
+  border-color: var(--ds-teal);
+  transform: translateY(-2px);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.metrics-card.kpi-card {
+  border-left: 3px solid #3b82f6;
+}
+
+.metrics-card.qs-card {
+  border-left: 3px solid #8b5cf6;
+}
+
+.metrics-card-header {
+  margin-bottom: 12px;
+}
+
+.metrics-card-ref {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--ds-bg-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ds-text-secondary);
+  font-family: var(--ds-font-mono);
+  margin-bottom: 4px;
+}
+
+.kpi-card .metrics-card-ref {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.qs-card .metrics-card-ref {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.metrics-card-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metrics-card-stats {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.metrics-stat {
+  flex: 1;
+  text-align: center;
+}
+
+.metrics-stat-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-mono);
+  line-height: 1.2;
+}
+
+.metrics-stat-label {
+  display: block;
+  font-size: 10px;
+  color: var(--ds-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.metrics-card-passrate {
+  border-top: 1px solid var(--ds-border-subtle);
+  padding-top: 10px;
+}
+
+.passrate-bar {
+  height: 6px;
+  border-radius: 3px;
+  margin-bottom: 6px;
+}
+
+.passrate-values {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.passrate-pass {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.passrate-percent {
+  font-weight: 700;
+  color: var(--ds-text-primary);
+  font-size: 13px;
+}
+
+.passrate-fail {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.passrate-none {
+  font-size: 11px;
+  color: var(--ds-text-secondary);
+  text-align: center;
+  font-style: italic;
+}
+
+/* Responsive for metrics cards */
+@media (max-width: 768px) {
+  .metrics-cards-container {
+    flex-wrap: wrap;
+  }
+  
+  .metrics-card {
+    min-width: calc(50% - 8px);
+    max-width: none;
+    flex: 1 1 calc(50% - 8px);
+  }
+}
