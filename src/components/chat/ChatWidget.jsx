@@ -1,11 +1,11 @@
 // src/components/chat/ChatWidget.jsx
 // Floating AI chat widget with expandable panel
-// Version 3.2 - Added copy, export, and token stats
+// Version 3.3 - Added context loading indicator
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   MessageCircle, X, Send, Trash2, Bot, User, Loader2, Sparkles, 
-  Database, RefreshCw, XCircle, Copy, Check, Download, BarChart3 
+  Database, RefreshCw, XCircle, Copy, Check, Download, BarChart3, Zap 
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import './ChatWidget.css';
@@ -16,6 +16,7 @@ export default function ChatWidget() {
     toggleChat,
     messages,
     isLoading,
+    isLoadingContext,
     error,
     retryCount,
     tokenUsage,
@@ -274,8 +275,16 @@ All data is scoped to your role, so just ask naturally!`,
               <span className="chat-stats-divider">•</span>
               <span title="Estimated cost">${estimatedCost}</span>
             </div>
+          ) : isLoadingContext ? (
+            <span className="chat-context-loading">
+              <Loader2 size={12} className="chat-context-spinner" />
+              Loading context...
+            </span>
           ) : (
-            <span>Powered by Claude AI</span>
+            <span className="chat-context-ready" title="Project data pre-loaded for faster responses">
+              <Zap size={12} />
+              Powered by Claude AI
+            </span>
           )}
         </div>
       </div>

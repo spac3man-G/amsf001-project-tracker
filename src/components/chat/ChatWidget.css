@@ -532,3 +532,34 @@
 .chat-messages::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ========================================
+   Context Loading State
+   ======================================== */
+
+.chat-context-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+}
+
+.chat-context-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.chat-context-ready {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #059669;
+}
+
+.chat-context-ready svg {
+  color: #10b981;
+}
