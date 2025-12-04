@@ -5,3 +5,4 @@
  */
 
 export { default as MilestonesWidget } from './MilestonesWidget';
+export { default as DeliverablesWidget } from './DeliverablesWidget';

@@ -1,9 +1,9 @@
 /**
- * Dashboard Page - Clean Slate
+ * Dashboard Page
  * 
- * Dashboard with milestone progress widget.
+ * Dashboard with milestone and deliverables widgets.
  * 
- * @version 7.1
+ * @version 7.2
  * @updated 4 December 2025
  */
 
@@ -11,7 +11,7 @@ import React from 'react';
 import './Dashboard.css';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
-import { MilestonesWidget } from '../components/dashboard';
+import { MilestonesWidget, DeliverablesWidget } from '../components/dashboard';
 
 export default function Dashboard() {
   const { projectName, projectRef } = useProject();
@@ -40,6 +40,7 @@ export default function Dashboard() {
       <div className="dashboard-content">
         <div className="dashboard-widgets">
           <MilestonesWidget />
+          <DeliverablesWidget />
         </div>
       </div>
     </div>
