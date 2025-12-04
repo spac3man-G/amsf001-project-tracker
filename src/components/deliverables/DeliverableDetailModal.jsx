@@ -4,8 +4,9 @@
  * Full-screen modal for viewing, editing, and managing deliverable workflow.
  * Includes view/edit modes and workflow actions.
  * 
- * @version 1.0
- * @created 3 December 2025
+ * @version 1.1
+ * @updated 4 December 2025
+ * @change Auto-transition status to "In Progress" when progress slider moves above 0%
  */
 
 import React, { useState, useEffect } from 'react';
@@ -252,7 +253,19 @@ export default function DeliverableDetailModal({
                     min="0"
                     max="100"
                     value={editForm.progress}
-                    onChange={(e) => setEditForm({ ...editForm, progress: parseInt(e.target.value) })}
+                    onChange={(e) => {
+                      const newProgress = parseInt(e.target.value);
+                      const updates = { progress: newProgress };
+                      
+                      // Auto-transition status based on progress
+                      if (newProgress > 0 && editForm.status === 'Not Started') {
+                        updates.status = 'In Progress';
+                      } else if (newProgress === 0 && editForm.status === 'In Progress') {
+                        updates.status = 'Not Started';
+                      }
+                      
+                      setEditForm({ ...editForm, ...updates });
+                    }}
                     style={{ width: '100%' }}
                     disabled={['Delivered', 'Submitted for Review', 'Review Complete'].includes(editForm.status)}
                   />
