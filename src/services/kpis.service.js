@@ -145,25 +145,30 @@ export class KPIsService extends BaseService {
    */
   async getAssessments(projectId) {
     try {
-      // Join with deliverables to filter by status and is_deleted
-      const { data, error } = await supabase
+      // Fetch all assessments with deliverable data, filter client-side
+      // (Supabase doesn't support .or() or .in() on joined table columns)
+      const { data: rawAssessments, error } = await supabase
         .from('deliverable_kpi_assessments')
         .select(`
           kpi_id,
           criteria_met,
           deliverables!inner(id, status, is_deleted, project_id)
         `)
-        .eq('deliverables.project_id', projectId)
-        .or('deliverables.is_deleted.is.null,deliverables.is_deleted.eq.false')
-        .in('deliverables.status', VALID_STATUSES.deliverables.contributeToKPIs);
+        .eq('deliverables.project_id', projectId);
 
       if (error) {
         console.warn('KPIsService getAssessments warning:', error.message);
-        // Try fallback query without the complex filter
+        // Try fallback query
         return await this.getAssessmentsFallback(projectId);
       }
       
-      return data || [];
+      // Filter client-side for valid deliverables (not deleted + correct status)
+      const assessments = (rawAssessments || []).filter(a => 
+        a.deliverables?.is_deleted !== true &&
+        VALID_STATUSES.deliverables.contributeToKPIs.includes(a.deliverables?.status)
+      );
+      
+      return assessments;
     } catch (error) {
       console.error('KPIsService getAssessments error:', error);
       return [];
@@ -171,7 +176,7 @@ export class KPIsService extends BaseService {
   }
 
   /**
-   * Fallback method if the complex join doesn't work
+   * Fallback method if the join query doesn't work
    * Fetches assessments and filters client-side
    */
   async getAssessmentsFallback(projectId) {
@@ -183,18 +188,21 @@ export class KPIsService extends BaseService {
 
       if (assError) throw assError;
 
-      // Get valid deliverables (not deleted, correct status)
-      const { data: deliverables, error: delError } = await supabase
+      // Get all deliverables for this project - filter client-side
+      const { data: rawDeliverables, error: delError } = await supabase
         .from('deliverables')
         .select('id, status, is_deleted')
-        .eq('project_id', projectId)
-        .or('is_deleted.is.null,is_deleted.eq.false')
-        .in('status', VALID_STATUSES.deliverables.contributeToKPIs);
+        .eq('project_id', projectId);
 
       if (delError) throw delError;
 
-      // Create set of valid deliverable IDs
-      const validDeliverableIds = new Set(deliverables?.map(d => d.id) || []);
+      // Filter client-side: not deleted + valid status
+      const validDeliverableIds = new Set(
+        (rawDeliverables || []).filter(d => 
+          d.is_deleted !== true &&
+          VALID_STATUSES.deliverables.contributeToKPIs.includes(d.status)
+        ).map(d => d.id)
+      );
 
       // Filter assessments to only include those from valid deliverables
       const filteredAssessments = (assessments || []).filter(a => 
