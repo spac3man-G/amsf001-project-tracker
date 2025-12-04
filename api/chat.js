@@ -1388,9 +1388,9 @@ async function executeTool(toolName, toolInput, context) {
 // ============================================
 
 function buildSystemPrompt(context) {
-  const { userContext, projectContext } = context;
+  const { userContext, projectContext, prefetchedContext } = context;
   
-  return `You are an AI assistant for the AMSF001 Project Tracker application. You help users query their project data, understand their pending actions, and navigate the system.
+  let prompt = `You are an AI assistant for the AMSF001 Project Tracker application. You help users query their project data, understand their pending actions, and navigate the system.
 
 ## Your Capabilities
 You have access to tools that query the project database. Use them to answer questions about:
@@ -1408,26 +1408,74 @@ You have access to tools that query the project database. Use them to answer que
 - Role: ${userContext?.role || 'Unknown'}
 - Project: ${projectContext?.name || 'AMSF001'} (${projectContext?.reference || 'Unknown'})
 ${userContext?.linkedResourceName ? `- Linked Resource: ${userContext.linkedResourceName}` : ''}
-${userContext?.partnerName ? `- Partner: ${userContext.partnerName}` : ''}
+${userContext?.partnerName ? `- Partner: ${userContext.partnerName}` : ''}`;
+
+  // Add pre-fetched context if available (allows instant responses without tool calls)
+  if (prefetchedContext) {
+    prompt += `
+
+## Current Project Data (Pre-loaded)
+This data was just fetched and is current. Use it to answer questions directly without calling tools when possible.
+
+### Budget Summary
+- Project Budget: £${(prefetchedContext.budgetSummary?.projectBudget || 0).toLocaleString()}
+- Milestone Billable Total: £${(prefetchedContext.budgetSummary?.milestoneBillable || 0).toLocaleString()}
+- Actual Spend: £${(prefetchedContext.budgetSummary?.actualSpend || 0).toLocaleString()}
+- Variance: £${(prefetchedContext.budgetSummary?.variance || 0).toLocaleString()}
+- Budget Used: ${prefetchedContext.budgetSummary?.percentUsed || 0}%
+
+### Milestones (${prefetchedContext.milestoneSummary?.total || 0} total)
+- Completed: ${prefetchedContext.milestoneSummary?.byStatus?.completed || 0}
+- In Progress: ${prefetchedContext.milestoneSummary?.byStatus?.inProgress || 0}
+- Not Started: ${prefetchedContext.milestoneSummary?.byStatus?.notStarted || 0}
+- At Risk: ${prefetchedContext.milestoneSummary?.byStatus?.atRisk || 0}
+
+### Deliverables (${prefetchedContext.deliverableSummary?.total || 0} total)
+- Delivered: ${prefetchedContext.deliverableSummary?.byStatus?.delivered || 0}
+- Review Complete: ${prefetchedContext.deliverableSummary?.byStatus?.reviewComplete || 0}
+- Awaiting Review: ${prefetchedContext.deliverableSummary?.byStatus?.awaitingReview || 0}
+- In Progress: ${prefetchedContext.deliverableSummary?.byStatus?.inProgress || 0}
+- Not Started: ${prefetchedContext.deliverableSummary?.byStatus?.notStarted || 0}
+
+### Timesheets
+- Total Entries: ${prefetchedContext.timesheetSummary?.totalEntries || 0}
+- Total Hours: ${prefetchedContext.timesheetSummary?.totalHours || 0}
+- Submitted: ${prefetchedContext.timesheetSummary?.byStatus?.submitted || 0}
+- Validated: ${prefetchedContext.timesheetSummary?.byStatus?.validated || 0}
+
+### Expenses
+- Total Amount: £${(prefetchedContext.expenseSummary?.totalAmount || 0).toLocaleString()}
+- Chargeable: £${(prefetchedContext.expenseSummary?.chargeableAmount || 0).toLocaleString()}
+- Non-Chargeable: £${(prefetchedContext.expenseSummary?.nonChargeableAmount || 0).toLocaleString()}
+
+### Pending Actions
+- Draft Timesheets: ${prefetchedContext.pendingActions?.draftTimesheets || 0}
+- Awaiting Validation: ${prefetchedContext.pendingActions?.awaitingValidation || 0}`;
+  }
+
+  prompt += `
 
 ## Response Guidelines
 1. Be concise and helpful - get to the point quickly
 2. Use UK date format (DD/MM/YYYY) and GBP currency (£)
 3. When showing financial data, always be precise with figures
-4. If you need to query data, use the appropriate tool
-5. For "what do I need to do" questions, use getMyPendingActions
-6. Respect the user's role - all data is automatically scoped to their permissions
-7. If a query returns no results, say so clearly and suggest alternatives
-8. Offer to drill down into details when appropriate
-9. Don't repeat tool results verbatim - synthesise them into a helpful response
-10. If some data queries fail but others succeed, provide what information you have and note what couldn't be retrieved
+4. If pre-loaded data can answer the question, use it directly without calling tools
+5. Only use tools when you need more specific details not in the pre-loaded data
+6. For "what do I need to do" questions, check pending actions first
+7. Respect the user's role - all data is automatically scoped to their permissions
+8. If a query returns no results, say so clearly and suggest alternatives
+9. Offer to drill down into details when appropriate
+10. Don't repeat tool results verbatim - synthesise them into a helpful response
+11. If some data queries fail but others succeed, provide what information you have and note what couldn't be retrieved
 
 ## Important Notes
 - All queries are automatically filtered based on the user's role and permissions
 - Partner users only see their own partner's data
 - Contributors only see their own timesheets and expenses
 - Cost prices are only visible to Admin and Supplier PM roles
-- Always use tools to get current data rather than making assumptions`;
+- Use pre-loaded data for general questions; use tools for specific details or filtering`;
+
+  return prompt;
 }
 
 // ============================================
@@ -1487,7 +1535,7 @@ export default async function handler(req) {
 
   try {
     const body = await req.json();
-    const { messages, userContext, projectContext, projectId } = body;
+    const { messages, userContext, projectContext, projectId, prefetchedContext } = body;
 
     // Rate limiting
     const userId = userContext?.email || req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
@@ -1512,15 +1560,21 @@ export default async function handler(req) {
       });
     }
 
-    // Build context for tool execution
+    // Build context for tool execution and system prompt
     const context = {
       projectId: projectId || projectContext?.id,
       userContext: userContext || {},
-      projectContext: projectContext || {}
+      projectContext: projectContext || {},
+      prefetchedContext: prefetchedContext || null,
     };
 
-    // Build system prompt
+    // Build system prompt (includes pre-fetched data if available)
     const systemPrompt = buildSystemPrompt(context);
+    
+    // Log if we have pre-fetched context
+    if (prefetchedContext) {
+      console.log('[Chat] Using pre-fetched context for faster response');
+    }
 
     // Initial API call with tools
     let apiMessages = sanitizedMessages;

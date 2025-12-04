@@ -1,6 +1,6 @@
 // src/contexts/ChatContext.jsx
 // Provides AI chat state and functionality to the application
-// Version 3.2 - Added persistence, token tracking, and export
+// Version 3.3 - Added context pre-fetching for instant responses
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from './AuthContext';
@@ -64,7 +64,10 @@ export function ChatProvider({ children }) {
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const [tokenUsage, setTokenUsage] = useState(initialState.tokenUsage);
+  const [prefetchedContext, setPrefetchedContext] = useState(null);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
   const abortControllerRef = useRef(null);
+  const contextFetchedForProject = useRef(null);
 
   // Save to localStorage when messages or token usage change
   useEffect(() => {
@@ -72,6 +75,46 @@ export function ChatProvider({ children }) {
       saveChatHistory(messages, tokenUsage);
     }
   }, [messages, tokenUsage]);
+
+  // Pre-fetch context when chat opens (for instant responses)
+  useEffect(() => {
+    // Only fetch if chat is open, we have a project, and haven't fetched for this project yet
+    if (!isOpen || !projectId || contextFetchedForProject.current === projectId) {
+      return;
+    }
+
+    const fetchContext = async () => {
+      setIsLoadingContext(true);
+      try {
+        const userContext = {
+          email: user?.email,
+          role: role || profile?.role,
+          linkedResourceId: linkedResource?.id,
+          partnerId: linkedResource?.partner_id,
+        };
+
+        const response = await fetch('/api/chat-context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, userContext }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPrefetchedContext(data.context);
+          contextFetchedForProject.current = projectId;
+          console.log(`[Chat] Context pre-fetched in ${data.duration}ms`);
+        }
+      } catch (err) {
+        console.warn('[Chat] Failed to pre-fetch context:', err.message);
+        // Non-critical - chat will still work via tool calls
+      } finally {
+        setIsLoadingContext(false);
+      }
+    };
+
+    fetchContext();
+  }, [isOpen, projectId, user?.email, role, profile?.role, linkedResource?.id, linkedResource?.partner_id]);
 
   // Build project context for the AI
   const getProjectContext = useCallback(() => {
@@ -182,6 +225,7 @@ export function ChatProvider({ children }) {
         projectContext,
         userContext,
         projectId,
+        prefetchedContext, // Include pre-fetched data for instant responses
       });
 
       // Track token usage
@@ -226,7 +270,7 @@ export function ChatProvider({ children }) {
       setIsLoading(false);
       setRetryCount(0);
     }
-  }, [messages, isLoading, getProjectContext, getUserContext, projectId]);
+  }, [messages, isLoading, getProjectContext, getUserContext, projectId, prefetchedContext]);
 
   // Cancel pending request
   const cancelRequest = useCallback(() => {
@@ -331,6 +375,7 @@ export function ChatProvider({ children }) {
     toggleChat,
     messages,
     isLoading,
+    isLoadingContext,
     error,
     retryCount,
     tokenUsage,
