@@ -47,15 +47,22 @@ export class BaseService {
    */
   async getAll(projectId, options = {}) {
     try {
+      // Build select to include is_deleted if we need to filter client-side
+      let selectClause = options.select || '*';
+      const needsSoftDeleteFilter = this.supportsSoftDelete && !options.includeDeleted;
+      
+      // Ensure is_deleted is included for client-side filtering
+      if (needsSoftDeleteFilter && selectClause !== '*' && !selectClause.includes('is_deleted')) {
+        selectClause = `${selectClause}, is_deleted`;
+      }
+
       let query = supabase
         .from(this.tableName)
-        .select(options.select || '*')
+        .select(selectClause)
         .eq('project_id', projectId);
 
-      // Apply soft delete filter unless explicitly including deleted
-      if (this.supportsSoftDelete && !options.includeDeleted) {
-        query = query.or(this.getSoftDeleteFilter());
-      }
+      // Note: Soft delete filtering is now done client-side to avoid
+      // Supabase PostgREST .or() issues that cause 400 Bad Request errors
 
       // Apply additional filters
       if (options.filters && Array.isArray(options.filters)) {
@@ -112,7 +119,14 @@ export class BaseService {
         throw error;
       }
 
-      return data || [];
+      // Apply soft delete filter client-side
+      // Using !== true to include both NULL and false values
+      let result = data || [];
+      if (needsSoftDeleteFilter) {
+        result = result.filter(record => record.is_deleted !== true);
+      }
+
+      return result;
     } catch (error) {
       console.error(`${this.tableName} getAll failed:`, error);
       throw error;
@@ -159,15 +173,21 @@ export class BaseService {
    */
   async getById(id, options = {}) {
     try {
+      // Build select to include is_deleted if we need to filter client-side
+      let selectClause = options.select || '*';
+      const needsSoftDeleteFilter = this.supportsSoftDelete && !options.includeDeleted;
+      
+      // Ensure is_deleted is included for client-side filtering
+      if (needsSoftDeleteFilter && selectClause !== '*' && !selectClause.includes('is_deleted')) {
+        selectClause = `${selectClause}, is_deleted`;
+      }
+
       let query = supabase
         .from(this.tableName)
-        .select(options.select || '*')
+        .select(selectClause)
         .eq('id', id);
 
-      // Apply soft delete filter unless explicitly including deleted
-      if (this.supportsSoftDelete && !options.includeDeleted) {
-        query = query.or(this.getSoftDeleteFilter());
-      }
+      // Note: Soft delete filtering is now done client-side
 
       // Use .limit(1) instead of .single() to avoid "Cannot coerce" errors
       const { data, error } = await query.limit(1);
@@ -178,7 +198,14 @@ export class BaseService {
       }
 
       // Return the first result or null if not found
-      return data && data.length > 0 ? data[0] : null;
+      const record = data && data.length > 0 ? data[0] : null;
+      
+      // Apply soft delete filter client-side
+      if (record && needsSoftDeleteFilter && record.is_deleted === true) {
+        return null;
+      }
+      
+      return record;
     } catch (error) {
       console.error(`${this.tableName} getById failed:`, error);
       throw error;
@@ -395,23 +422,29 @@ export class BaseService {
    */
   async exists(id) {
     try {
-      let query = supabase
+      // Fetch the record with is_deleted to check client-side
+      const { data, error } = await supabase
         .from(this.tableName)
-        .select('id', { count: 'exact', head: true })
-        .eq('id', id);
-
-      if (this.supportsSoftDelete) {
-        query = query.or(this.getSoftDeleteFilter());
-      }
-
-      const { count, error } = await query;
+        .select('id, is_deleted')
+        .eq('id', id)
+        .limit(1);
 
       if (error) {
         console.error(`${this.tableName} exists error:`, error);
         throw error;
       }
 
-      return count > 0;
+      // Check if record exists and is not soft-deleted
+      if (!data || data.length === 0) {
+        return false;
+      }
+      
+      const record = data[0];
+      if (this.supportsSoftDelete && record.is_deleted === true) {
+        return false;
+      }
+
+      return true;
     } catch (error) {
       console.error(`${this.tableName} exists failed:`, error);
       throw error;
@@ -426,15 +459,13 @@ export class BaseService {
    */
   async count(projectId, filters = []) {
     try {
+      // Fetch records with is_deleted to filter client-side
       let query = supabase
         .from(this.tableName)
-        .select('id', { count: 'exact', head: true })
+        .select('id, is_deleted')
         .eq('project_id', projectId);
 
-      if (this.supportsSoftDelete) {
-        query = query.or(this.getSoftDeleteFilter());
-      }
-
+      // Apply filters
       filters.forEach(filter => {
         const { column, operator, value } = filter;
         if (operator === 'eq') {
@@ -444,14 +475,20 @@ export class BaseService {
         }
       });
 
-      const { count, error } = await query;
+      const { data, error } = await query;
 
       if (error) {
         console.error(`${this.tableName} count error:`, error);
         throw error;
       }
 
-      return count || 0;
+      // Filter out soft-deleted records client-side
+      let records = data || [];
+      if (this.supportsSoftDelete) {
+        records = records.filter(r => r.is_deleted !== true);
+      }
+
+      return records.length;
     } catch (error) {
       console.error(`${this.tableName} count failed:`, error);
       throw error;
