@@ -399,7 +399,7 @@ const TOOLS = [
       properties: {
         status: {
           type: "string",
-          enum: ["Draft", "Submitted", "Approved", "Rejected", "all"],
+          enum: ["Draft", "Submitted", "Validated", "Approved", "Rejected", "all"],
           description: "Filter by validation status. Default is 'all'."
         },
         dateRange: {
@@ -446,7 +446,7 @@ const TOOLS = [
       properties: {
         status: {
           type: "string",
-          enum: ["Draft", "Submitted", "Approved", "Rejected", "Paid", "all"],
+          enum: ["Draft", "Submitted", "Validated", "Approved", "Rejected", "Paid", "all"],
           description: "Filter by status"
         },
         dateRange: {
@@ -455,7 +455,7 @@ const TOOLS = [
         },
         category: {
           type: "string",
-          enum: ["Travel", "Sustenance", "Equipment", "Materials", "Other"],
+          enum: ["Travel", "Accommodation", "Sustenance"],
           description: "Filter by expense category"
         },
         resourceName: {
@@ -501,7 +501,7 @@ const TOOLS = [
       properties: {
         status: {
           type: "string",
-          enum: ["Not Started", "In Progress", "Completed", "At Risk", "all"]
+          enum: ["Not Started", "In Progress", "Completed", "all"]
         },
         overdueOnly: {
           type: "boolean",
@@ -519,7 +519,7 @@ const TOOLS = [
       properties: {
         status: {
           type: "string",
-          enum: ["Not Started", "In Progress", "Completed", "Blocked", "all"]
+          enum: ["Not Started", "In Progress", "Submitted for Review", "Returned for More Work", "Review Complete", "Delivered", "all"]
         },
         milestoneName: {
           type: "string",
@@ -833,7 +833,7 @@ async function executeGetTimesheets(params, context) {
     .from('timesheets')
     .select(`
       id, work_date, hours_worked, status, description, resource_id,
-      resources(id, name, daily_rate, partner_id)
+      resources(id, name, sell_price, partner_id)
     `)
     .eq('project_id', projectId)
     .or('is_deleted.is.null,is_deleted.eq.false')
@@ -878,8 +878,8 @@ async function executeGetTimesheets(params, context) {
     resource: t.resources?.name,
     hours: t.hours_worked,
     status: t.status,
-    dailyRate: t.resources?.daily_rate,
-    total: (t.hours_worked / 8) * (t.resources?.daily_rate || 0),
+    dailyRate: t.resources?.sell_price,
+    total: (t.hours_worked / 8) * (t.resources?.sell_price || 0),
     description: t.description
   }));
   
@@ -903,7 +903,7 @@ async function executeGetTimesheetSummary(params, context) {
     .from('timesheets')
     .select(`
       id, work_date, hours_worked, status, resource_id,
-      resources(id, name, daily_rate, partner_id)
+      resources(id, name, sell_price, partner_id)
     `)
     .eq('project_id', projectId)
     .or('is_deleted.is.null,is_deleted.eq.false');
@@ -956,7 +956,7 @@ async function executeGetTimesheetSummary(params, context) {
       groups[key] = { hours: 0, value: 0, count: 0 };
     }
     groups[key].hours += t.hours_worked;
-    groups[key].value += (t.hours_worked / 8) * (t.resources?.daily_rate || 0);
+    groups[key].value += (t.hours_worked / 8) * (t.resources?.sell_price || 0);
     groups[key].count += 1;
   });
   
@@ -1142,10 +1142,10 @@ async function executeGetMilestones(params, context) {
   
   let query = supabase
     .from('milestones')
-    .select('id, name, status, progress_percent, planned_start_date, planned_end_date, billable_amount, actual_spend')
+    .select('id, name, status, progress_percent, start_date, end_date, forecast_end_date, billable')
     .eq('project_id', projectId)
     .or('is_deleted.is.null,is_deleted.eq.false')
-    .order('planned_end_date', { ascending: true });
+    .order('end_date', { ascending: true });
   
   if (params.status && params.status !== 'all') {
     query = query.eq('status', params.status);
@@ -1158,11 +1158,10 @@ async function executeGetMilestones(params, context) {
     name: m.name,
     status: m.status,
     progress: m.progress_percent,
-    startDate: m.planned_start_date,
-    endDate: m.planned_end_date,
-    budget: m.billable_amount,
-    spent: m.actual_spend,
-    variance: (m.billable_amount || 0) - (m.actual_spend || 0)
+    startDate: m.start_date,
+    endDate: m.end_date,
+    forecastEndDate: m.forecast_end_date,
+    budget: m.billable
   }));
   
   if (params.overdueOnly) {
@@ -1176,7 +1175,6 @@ async function executeGetMilestones(params, context) {
     summary: {
       completed: milestones.filter(m => m.status === 'Completed').length,
       inProgress: milestones.filter(m => m.status === 'In Progress').length,
-      atRisk: milestones.filter(m => m.status === 'At Risk').length,
       notStarted: milestones.filter(m => m.status === 'Not Started').length
     }
   };
@@ -1278,7 +1276,7 @@ async function executeGetResources(params, context) {
   let query = supabase
     .from('resources')
     .select(`
-      id, name, role, daily_rate, days_allocated, days_used,
+      id, name, role, sell_price, days_allocated, days_used,
       partners(id, name)
     `)
     .eq('project_id', projectId)
@@ -1296,7 +1294,7 @@ async function executeGetResources(params, context) {
   let resources = (data || []).map(r => ({
     name: r.name,
     role: r.role,
-    dailyRate: ['admin', 'supplier_pm'].includes(userContext.role) ? r.daily_rate : null,
+    dailyRate: ['admin', 'supplier_pm'].includes(userContext.role) ? r.sell_price : null,
     daysAllocated: r.days_allocated,
     daysUsed: r.days_used,
     utilisation: r.days_allocated ? Math.round((r.days_used || 0) / r.days_allocated * 100) : 0,
