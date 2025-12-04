@@ -85,6 +85,7 @@ export function usePermissions() {
     canEditMilestone: perms.canEditMilestone(userRole),
     canDeleteMilestone: perms.canDeleteMilestone(userRole),
     canUseGantt: perms.canUseGantt(userRole),
+    canEditBilling: perms.canEditBilling(userRole),
     
     // Deliverable permissions (simple)
     canCreateDeliverable: perms.canCreateDeliverable(userRole),

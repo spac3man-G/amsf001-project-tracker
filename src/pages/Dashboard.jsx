@@ -1,17 +1,17 @@
 /**
  * Dashboard Page
  * 
- * Dashboard with milestone and deliverables widgets.
+ * Dashboard with milestone, deliverables, billing, and other widgets.
  * 
- * @version 7.2
- * @updated 4 December 2025
+ * @version 7.3
+ * @updated 6 December 2025
  */
 
 import React from 'react';
 import './Dashboard.css';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
-import { MilestonesWidget, DeliverablesWidget, TimesheetsWidget, ExpensesWidget } from '../components/dashboard';
+import { MilestonesWidget, DeliverablesWidget, TimesheetsWidget, ExpensesWidget, BillingWidget } from '../components/dashboard';
 
 export default function Dashboard() {
   const { projectName, projectRef } = useProject();
@@ -43,6 +43,7 @@ export default function Dashboard() {
           <DeliverablesWidget />
           <TimesheetsWidget />
           <ExpensesWidget />
+          <BillingWidget />
         </div>
       </div>
     </div>

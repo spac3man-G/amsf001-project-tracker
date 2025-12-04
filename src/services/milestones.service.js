@@ -253,6 +253,57 @@ export class MilestonesService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Get billable milestones with expected completion dates
+   * Expected date is MAX of linked deliverables' due_dates, 
+   * falling back to milestone's forecast_end_date
+   */
+  async getBillableMilestones(projectId) {
+    try {
+      // Get milestones with billable amount > 0
+      const milestones = await this.getAll(projectId, {
+        filters: [{ column: 'billable', operator: 'gt', value: 0 }],
+        orderBy: { column: 'milestone_ref', ascending: true }
+      });
+
+      // Get all deliverables for these milestones to find max due_date
+      const milestoneIds = milestones.map(m => m.id);
+      
+      if (milestoneIds.length > 0) {
+        const { data: deliverables } = await supabase
+          .from('deliverables')
+          .select('milestone_id, due_date')
+          .in('milestone_id', milestoneIds)
+          .or('is_deleted.is.null,is_deleted.eq.false');
+
+        // Calculate max due_date per milestone
+        const maxDates = {};
+        (deliverables || []).forEach(d => {
+          if (d.due_date) {
+            if (!maxDates[d.milestone_id] || d.due_date > maxDates[d.milestone_id]) {
+              maxDates[d.milestone_id] = d.due_date;
+            }
+          }
+        });
+
+        // Add expected_date to each milestone
+        return milestones.map(m => ({
+          ...m,
+          expected_date: maxDates[m.id] || m.forecast_end_date || m.end_date
+        }));
+      }
+
+      // No deliverables - use milestone dates directly
+      return milestones.map(m => ({
+        ...m,
+        expected_date: m.forecast_end_date || m.end_date
+      }));
+    } catch (error) {
+      console.error('MilestonesService getBillableMilestones error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

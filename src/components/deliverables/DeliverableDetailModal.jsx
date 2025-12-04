@@ -223,12 +223,26 @@ export default function DeliverableDetailModal({
                   <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
                     Due Date
                   </label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={editForm.due_date}
-                    onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
-                  />
+                  <div 
+                    className="form-input" 
+                    style={{ 
+                      backgroundColor: '#f1f5f9', 
+                      color: '#64748b',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    {(() => {
+                      const selectedMilestone = milestones?.find(m => m.id === editForm.milestone_id);
+                      const dueDate = selectedMilestone?.forecast_end_date || selectedMilestone?.end_date;
+                      return dueDate 
+                        ? new Date(dueDate).toLocaleDateString('en-GB')
+                        : 'Set by milestone';
+                    })()}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                    Derived from milestone forecast date
+                  </div>
                 </div>
               </div>
 
@@ -309,8 +323,8 @@ export default function DeliverableDetailModal({
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Due Date</div>
                     <div style={{ fontWeight: '500' }}>
-                      {deliverable.due_date 
-                        ? new Date(deliverable.due_date).toLocaleDateString('en-GB')
+                      {milestone?.forecast_end_date || milestone?.end_date
+                        ? new Date(milestone?.forecast_end_date || milestone?.end_date).toLocaleDateString('en-GB')
                         : 'Not set'}
                     </div>
                   </div>

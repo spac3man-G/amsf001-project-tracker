@@ -98,7 +98,7 @@ export default function Deliverables() {
   // Detail modal state
   const [detailModal, setDetailModal] = useState({ isOpen: false, deliverable: null });
 
-  const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
+  const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', kpi_ids: [], qs_ids: [] });
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
@@ -128,13 +128,13 @@ export default function Deliverables() {
         project_id: projectId, deliverable_ref: newDeliverable.deliverable_ref, name: newDeliverable.name,
         description: newDeliverable.description, milestone_id: newDeliverable.milestone_id || null,
         status: newDeliverable.status, progress: parseInt(newDeliverable.progress) || 0,
-        assigned_to: newDeliverable.assigned_to, due_date: newDeliverable.due_date || null, created_by: currentUserId
+        assigned_to: newDeliverable.assigned_to, created_by: currentUserId
       });
 
       await deliverablesService.syncKPILinks(data.id, newDeliverable.kpi_ids);
       await deliverablesService.syncQSLinks(data.id, newDeliverable.qs_ids);
 
-      setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
+      setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', kpi_ids: [], qs_ids: [] });
       setShowAddForm(false);
       fetchData();
       refreshMetrics(); // Update dashboard metrics
@@ -151,8 +151,7 @@ export default function Deliverables() {
         milestone_id: editForm.milestone_id || null, 
         status: editForm.status, 
         progress: parseInt(editForm.progress) || 0, 
-        assigned_to: editForm.assigned_to, 
-        due_date: editForm.due_date || null 
+        assigned_to: editForm.assigned_to
       });
 
       if (editForm.kpi_ids) await deliverablesService.syncKPILinks(id, editForm.kpi_ids);
@@ -280,7 +279,7 @@ export default function Deliverables() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
               <div><label>Milestone *</label><select value={newDeliverable.milestone_id} onChange={(e) => setNewDeliverable({ ...newDeliverable, milestone_id: e.target.value })} required><option value="">Select</option>{milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}</select></div>
               <div><label>Assigned To</label><input type="text" value={newDeliverable.assigned_to} onChange={(e) => setNewDeliverable({ ...newDeliverable, assigned_to: e.target.value })} /></div>
-              <div><label>Due Date</label><input type="date" value={newDeliverable.due_date} onChange={(e) => setNewDeliverable({ ...newDeliverable, due_date: e.target.value })} /></div>
+              <div><label>Due Date</label><div style={{ padding: '0.5rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '6px', color: '#64748b', fontSize: '0.875rem' }}>{(() => { const m = milestones.find(m => m.id === newDeliverable.milestone_id); return m?.forecast_end_date ? new Date(m.forecast_end_date).toLocaleDateString('en-GB') : 'Select milestone'; })()}</div></div>
             </div>
             <KPISelector kpis={kpis} selectedIds={newDeliverable.kpi_ids} onChange={(ids) => setNewDeliverable({ ...newDeliverable, kpi_ids: ids })} />
             <QSSelector qualityStandards={qualityStandards} selectedIds={newDeliverable.qs_ids} onChange={(ids) => setNewDeliverable({ ...newDeliverable, qs_ids: ids })} />
@@ -291,9 +290,9 @@ export default function Deliverables() {
 
       <div className="table-container">
         <table className="table">
-          <thead><tr><th>Ref</th><th>Name</th><th>Milestone</th><th>Status</th><th>Progress</th><th>KPIs</th><th>QS</th><th>Due</th></tr></thead>
+          <thead><tr><th>Ref</th><th>Name</th><th>Milestone</th><th>Status</th><th>Progress</th><th>KPIs</th><th>QS</th></tr></thead>
           <tbody>
-            {filteredDeliverables.length === 0 ? <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No deliverables found</td></tr> : filteredDeliverables.map(d => {
+            {filteredDeliverables.length === 0 ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No deliverables found</td></tr> : filteredDeliverables.map(d => {
               const statusInfo = STATUS_COLORS[d.status] || STATUS_COLORS['Not Started'];
               const StatusIcon = statusInfo.icon;
               return (
@@ -310,7 +309,6 @@ export default function Deliverables() {
                   <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '60px', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}><div style={{ width: `${d.progress || 0}%`, height: '100%', backgroundColor: d.status === 'Delivered' ? '#16a34a' : '#4f46e5' }} /></div><span style={{ fontSize: '0.85rem' }}>{d.progress || 0}%</span></div></td>
                   <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{d.deliverable_kpis?.slice(0, 3).map(dk => <span key={dk.kpi_id} style={{ padding: '0.125rem 0.375rem', backgroundColor: '#dbeafe', color: '#2563eb', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>{dk.kpis?.kpi_ref}</span>)}{d.deliverable_kpis?.length > 3 && <span style={{ padding: '0.125rem 0.375rem', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', fontSize: '0.75rem' }}>+{d.deliverable_kpis.length - 3}</span>}</div></td>
                   <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{d.deliverable_quality_standards?.slice(0, 3).map(dqs => <span key={dqs.quality_standard_id} style={{ padding: '0.125rem 0.375rem', backgroundColor: '#f3e8ff', color: '#7c3aed', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>{dqs.quality_standards?.qs_ref}</span>)}{d.deliverable_quality_standards?.length > 3 && <span style={{ padding: '0.125rem 0.375rem', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', fontSize: '0.75rem' }}>+{d.deliverable_quality_standards.length - 3}</span>}</div></td>
-                  <td>{d.due_date ? new Date(d.due_date).toLocaleDateString('en-GB') : '-'}</td>
                 </tr>
               );
             })}

@@ -262,6 +262,10 @@ export function canUseGantt(userRole) {
 
 export const canUseGanttChart = canUseGantt;
 
+export function canEditBilling(userRole) {
+  return hasPermission(userRole, 'milestones', 'editBilling');
+}
+
 // ============================================
 // DELIVERABLE PERMISSIONS
 // ============================================

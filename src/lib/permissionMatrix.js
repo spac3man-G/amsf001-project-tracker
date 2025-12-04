@@ -78,6 +78,7 @@ export const PERMISSION_MATRIX = {
     edit: SUPPLIER_SIDE,
     delete: ADMIN_ONLY,                       // Destructive - admin only
     useGantt: SUPPLIER_SIDE,
+    editBilling: SUPPLIER_SIDE,               // Edit billing status (billed, received, PO)
   },
 
   // ----------------------------------------
