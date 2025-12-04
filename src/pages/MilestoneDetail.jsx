@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { milestonesService, deliverablesService, timesheetsService } from '../services';
 import { useProject } from '../contexts/ProjectContext';
-import { VALID_STATUSES, timesheetContributesToSpend } from '../config/metricsConfig';
+import { VALID_STATUSES, timesheetContributesToSpend, calculateBillableValue, hoursToDays } from '../config/metricsConfig';
 import { 
   Target, ArrowLeft, Package, CheckCircle, Clock, 
   AlertCircle, Calendar, DollarSign, Info, TrendingUp, User
@@ -291,7 +291,7 @@ export default function MilestoneDetail() {
           const resource = ts.resources;
           if (resource) {
             const dailyRate = resource.daily_rate || 0;
-            return sum + (hours / 8) * dailyRate;
+            return sum + calculateBillableValue(hours, dailyRate);
           }
           return sum;
         }, 0);
@@ -308,7 +308,7 @@ export default function MilestoneDetail() {
           let cost = 0;
           if (resource) {
             const dailyRate = resource.daily_rate || 0;
-            cost = (hours / 8) * dailyRate;
+            cost = calculateBillableValue(hours, dailyRate);
           }
           if (!spendByResource[resourceName]) {
             spendByResource[resourceName] = { hours: 0, cost: 0 };
@@ -342,7 +342,7 @@ export default function MilestoneDetail() {
                   {totalHours.toFixed(1)}h
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                  ({(totalHours / 8).toFixed(1)} days)
+                  ({hoursToDays(totalHours).toFixed(1)} days)
                 </div>
               </div>
               <div style={{ padding: '1rem', backgroundColor: spendPercent > 80 ? '#fef3c7' : '#f1f5f9', borderRadius: '8px' }}>

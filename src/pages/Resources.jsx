@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resourcesService, timesheetsService } from '../services';
-import { timesheetContributesToSpend } from '../config/metricsConfig';
+import { timesheetContributesToSpend, hoursToDays } from '../config/metricsConfig';
 import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -216,7 +216,7 @@ export default function Resources() {
   const totalBudget = filteredResources.reduce((sum, r) => sum + ((r.daily_rate || 0) * (r.days_allocated || 0)), 0);
   const totalDaysAllocated = filteredResources.reduce((sum, r) => sum + (r.days_allocated || 0), 0);
   const totalHoursWorked = filteredResources.reduce((sum, r) => sum + (timesheetHours[r.id] || 0), 0);
-  const totalDaysUsed = totalHoursWorked / 8;
+  const totalDaysUsed = hoursToDays(totalHoursWorked);
   const overallUtilization = totalDaysAllocated > 0 ? Math.round((totalDaysUsed / totalDaysAllocated) * 100) : 0;
 
   const internalCount = resources.filter(r => (r.resource_type || 'internal') === 'internal').length;
@@ -322,7 +322,7 @@ export default function Resources() {
             <tbody>
               {filteredResources.map(resource => {
                 const hoursWorked = timesheetHours[resource.id] || 0;
-                const daysUsed = hoursWorked / 8;
+                const daysUsed = hoursToDays(hoursWorked);
                 const daysAllocated = resource.days_allocated || 0;
                 const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
                 const typeStyle = getResourceTypeStyle(resource.resource_type);

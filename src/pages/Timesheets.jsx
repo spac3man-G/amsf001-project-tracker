@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { timesheetsService, milestonesService, resourcesService } from '../services';
-import { VALID_STATUSES, timesheetContributesToSpend } from '../config/metricsConfig';
+import { VALID_STATUSES, timesheetContributesToSpend, calculateCostValue } from '../config/metricsConfig';
 import { 
   Clock, Plus, Edit2, Save, X, Trash2, Calendar,
   CheckCircle, AlertCircle, User, CalendarDays, Send
@@ -144,7 +144,7 @@ export default function Timesheets() {
   function handleDeleteClick(ts) {
     const resource = resources.find(r => r.id === ts.resource_id);
     const hours = parseFloat(ts.hours_worked) || 0;
-    setDeleteDialog({ isOpen: true, timesheetId: ts.id, timesheetData: { resourceName: ts.resources?.name || resource?.name || 'Unknown', date: ts.work_date || ts.date, hours, costImpact: (hours / 8) * (resource?.cost_price || 0), status: ts.status } });
+    setDeleteDialog({ isOpen: true, timesheetId: ts.id, timesheetData: { resourceName: ts.resources?.name || resource?.name || 'Unknown', date: ts.work_date || ts.date, hours, costImpact: calculateCostValue(hours, resource?.cost_price), status: ts.status } });
   }
 
   async function confirmDelete() {

@@ -12,6 +12,7 @@
 import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
 import { sanitizeSingleLine, sanitizeMultiLine, sanitizeEmail } from '../lib/sanitize';
+import { hoursToDays } from '../config/metricsConfig';
 
 export class ResourcesService extends BaseService {
   constructor() {
@@ -175,7 +176,7 @@ export class ResourcesService extends BaseService {
         totalHours,
         approvedHours,
         pendingHours,
-        daysWorked: totalHours / 8
+        daysWorked: hoursToDays(totalHours)
       }
     };
   }

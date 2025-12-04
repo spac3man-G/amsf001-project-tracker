@@ -23,7 +23,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { VALID_STATUSES, timesheetContributesToSpend } from '../config/metricsConfig';
+import { VALID_STATUSES, timesheetContributesToSpend, calculateCostValue, hoursToDays } from '../config/metricsConfig';
 import { LoadingSpinner, PageHeader, StatCard } from '../components/common';
 import { partnersService, resourcesService, invoicingService, timesheetsService, expensesService } from '../services';
 
@@ -123,7 +123,7 @@ export default function PartnerDetail() {
           tsData.forEach(ts => {
             const hours = parseFloat(ts.hours_worked || ts.hours || 0);
             const costPrice = ts.resources?.cost_price || 0;
-            const dailyValue = (hours / 8) * costPrice;
+            const dailyValue = calculateCostValue(hours, costPrice);
             totalHours += hours;
             // Use centralized config for status checking
             if (VALID_STATUSES.timesheets.completed.includes(ts.status)) { 
@@ -344,7 +344,7 @@ export default function PartnerDetail() {
   }
 
   const totalSpend = timesheetSummary.totalValue + expenseSummary.totalAmount;
-  const daysWorked = timesheetSummary.totalHours / 8;
+  const daysWorked = hoursToDays(timesheetSummary.totalHours);
 
   return (
     <div className="page-container">

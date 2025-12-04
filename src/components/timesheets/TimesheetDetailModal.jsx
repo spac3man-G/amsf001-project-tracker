@@ -13,6 +13,7 @@ import {
   X, Save, Send, CheckCircle, Trash2, Edit2,
   Clock, Calendar, User, FileText, Briefcase
 } from 'lucide-react';
+import { calculateBillableValue } from '../../config/metricsConfig';
 
 const STATUSES = ['Draft', 'Submitted', 'Approved', 'Rejected'];
 const STATUS_DISPLAY_NAMES = {
@@ -72,7 +73,7 @@ export default function TimesheetDetailModal({
   const milestone = milestones?.find(m => m.id === timesheet.milestone_id);
   const hours = parseFloat(timesheet.hours_worked || timesheet.hours || 0);
   const dailyRate = resource?.daily_rate || timesheet.resources?.daily_rate || 0;
-  const totalValue = (hours / 8) * dailyRate;
+  const totalValue = calculateBillableValue(hours, dailyRate);
 
   async function handleSave() {
     await onSave(timesheet.id, editForm);

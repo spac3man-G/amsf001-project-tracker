@@ -167,9 +167,53 @@ export const BUDGET_CONFIG = {
   hoursPerDay: 8,
   // Currency symbol
   currency: '£',
+  // Currency code
+  currencyCode: 'GBP',
   // Decimal places for display
   decimalPlaces: 2
 };
+
+// ============================================================
+// FINANCE UTILITY FUNCTIONS
+// ============================================================
+
+/**
+ * Convert hours to days using central HOURS_PER_DAY config
+ * @param {number} hours - Number of hours
+ * @returns {number} - Number of days
+ */
+export function hoursToDays(hours) {
+  return (parseFloat(hours) || 0) / BUDGET_CONFIG.hoursPerDay;
+}
+
+/**
+ * Convert days to hours using central HOURS_PER_DAY config
+ * @param {number} days - Number of days
+ * @returns {number} - Number of hours
+ */
+export function daysToHours(days) {
+  return (parseFloat(days) || 0) * BUDGET_CONFIG.hoursPerDay;
+}
+
+/**
+ * Calculate billable value (what you charge the customer)
+ * @param {number} hours - Hours worked
+ * @param {number} dailyRate - Daily sell rate (daily_rate column)
+ * @returns {number} - Billable value
+ */
+export function calculateBillableValue(hours, dailyRate) {
+  return hoursToDays(hours) * (parseFloat(dailyRate) || 0);
+}
+
+/**
+ * Calculate cost value (what you pay the supplier)
+ * @param {number} hours - Hours worked
+ * @param {number} costPrice - Daily cost price (cost_price column)
+ * @returns {number} - Cost value
+ */
+export function calculateCostValue(hours, costPrice) {
+  return hoursToDays(hours) * (parseFloat(costPrice) || 0);
+}
 
 /**
  * Metric refresh configuration
@@ -195,5 +239,9 @@ export default {
   expenseContributesToSpend,
   deliverableContributesToKPIs,
   deliverableContributesToQS,
-  milestoneIsCompleted
+  milestoneIsCompleted,
+  hoursToDays,
+  daysToHours,
+  calculateBillableValue,
+  calculateCostValue
 };

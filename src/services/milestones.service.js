@@ -10,6 +10,7 @@
 
 import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
+import { hoursToDays } from '../config/metricsConfig';
 
 export class MilestonesService extends BaseService {
   constructor() {
@@ -46,7 +47,7 @@ export class MilestonesService extends BaseService {
       return milestones.map(m => ({
         ...m,
         logged_hours: hoursMap[m.id] || 0,
-        logged_days: (hoursMap[m.id] || 0) / 8
+        logged_days: hoursToDays(hoursMap[m.id] || 0)
       }));
     } catch (error) {
       console.error('MilestonesService getAllWithStats error:', error);

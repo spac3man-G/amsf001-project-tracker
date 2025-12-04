@@ -15,6 +15,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, ExternalLink, Clock, Receipt, FileText } from 'lucide-react';
+import { calculateCostValue } from '../../config/metricsConfig';
 
 // Helper function for status styling
 function getStatusStyle(status) {
@@ -119,7 +120,7 @@ export function RecentTimesheetsCard({ timesheets, limit = 10 }) {
             {timesheets.slice(0, limit).map(ts => {
               const hours = parseFloat(ts.hours_worked || ts.hours || 0);
               const costPrice = ts.resources?.cost_price || 0;
-              const value = (hours / 8) * costPrice;
+              const value = calculateCostValue(hours, costPrice);
               const statusStyle = getStatusStyle(ts.status);
               
               return (

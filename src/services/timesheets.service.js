@@ -11,6 +11,7 @@
 
 import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
+import { calculateCostValue, calculateBillableValue, hoursToDays } from '../config/metricsConfig';
 
 export class TimesheetsService extends BaseService {
   constructor() {
@@ -208,7 +209,7 @@ export class TimesheetsService extends BaseService {
       timesheets.forEach(ts => {
         const hours = parseFloat(ts.hours_worked || ts.hours || 0);
         const costPrice = ts.resources?.cost_price || 0;
-        const cost = (hours / 8) * costPrice;
+        const cost = calculateCostValue(hours, costPrice);
         
         summary.totalHours += hours;
         summary.totalCost += cost;
@@ -254,7 +255,7 @@ export class TimesheetsService extends BaseService {
         }
       });
 
-      summary.totalDays = summary.totalHours / 8;
+      summary.totalDays = hoursToDays(summary.totalHours);
 
       return summary;
     } catch (error) {
@@ -341,7 +342,7 @@ export class TimesheetsService extends BaseService {
    * @returns {number} Cost amount
    */
   calculateCost(hours, costPrice) {
-    return (hours / 8) * costPrice;
+    return calculateCostValue(hours, costPrice);
   }
 
   /**
@@ -351,7 +352,7 @@ export class TimesheetsService extends BaseService {
    * @returns {number} Billable amount
    */
   calculateBillable(hours, dailyRate) {
-    return (hours / 8) * dailyRate;
+    return calculateBillableValue(hours, dailyRate);
   }
 }
 

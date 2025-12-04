@@ -17,6 +17,7 @@
 
 import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
+import { hoursToDays } from '../config/metricsConfig';
 
 export class InvoicingService extends BaseService {
   constructor() {
@@ -231,7 +232,7 @@ export class InvoicingService extends BaseService {
         resourceTimesheets.forEach(ts => {
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           const costPrice = resource?.cost_price || 0;
-          const days = hours / 8;
+          const days = hoursToDays(hours);
           const lineTotal = days * costPrice;
           
           timesheetTotal += lineTotal;

@@ -22,7 +22,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { VALID_STATUSES, timesheetContributesToSpend } from '../config/metricsConfig';
+import { VALID_STATUSES, timesheetContributesToSpend, hoursToDays } from '../config/metricsConfig';
 import { LoadingSpinner, StatCard } from '../components/common';
 import { resourcesService, partnersService, timesheetsService, expensesService } from '../services';
 
@@ -118,7 +118,7 @@ export default function ResourceDetail() {
 
       setResource({
         ...resourceData,
-        timesheetSummary: { totalEntries: timesheetsForSummary?.length || 0, totalHours, approvedHours, pendingHours, daysWorked: totalHours / 8 }
+        timesheetSummary: { totalEntries: timesheetsForSummary?.length || 0, totalHours, approvedHours, pendingHours, daysWorked: hoursToDays(totalHours) }
       });
 
       // Fetch filtered timesheets
