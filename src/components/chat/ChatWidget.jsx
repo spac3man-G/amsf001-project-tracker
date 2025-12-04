@@ -158,7 +158,7 @@ All data is scoped to your role, so just ask naturally!`,
           {displayMessages.map((msg, index) => (
             <div
               key={index}
-              className={`chat-message ${msg.role === 'user' ? 'chat-message-user' : 'chat-message-assistant'}`}
+              className={`chat-message ${msg.role === 'user' ? 'chat-message-user' : 'chat-message-assistant'} ${msg.streaming ? 'chat-message-streaming' : ''}`}
             >
               <div className="chat-message-avatar">
                 {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}

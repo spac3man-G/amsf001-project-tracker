@@ -1,6 +1,6 @@
 // src/contexts/ChatContext.jsx
 // Provides AI chat state and functionality to the application
-// Version 3.4 - Added local response generation for instant answers
+// Version 3.5 - Added streaming responses for Haiku-eligible queries
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from './AuthContext';
@@ -294,6 +294,81 @@ Need more details on any of these? Just ask!`;
     }
   };
 
+  // Patterns that are Haiku-eligible (simple queries not needing tools)
+  // These will use streaming for better UX
+  const STREAMING_PATTERNS = [
+    /budget|spend|cost|variance/i,
+    /milestone.*(status|progress|summary|count|how many)/i,
+    /deliverable.*(status|progress|summary|count|how many)/i,
+    /timesheet.*(summary|total|hours|count|how many)/i,
+    /expense.*(summary|total|amount|count|how many)/i,
+    /pending|action|todo|to do|what.*(do|need)/i,
+    /overview|summary|status|dashboard/i,
+    /how.*(doing|going|progress)/i,
+  ];
+
+  // Patterns that need tools (complex queries)
+  const COMPLEX_PATTERNS = [
+    /specific|detail|list|show me|find|search/i,
+    /filter|between|from|to|date|week|month|year/i,
+    /resource|person|team member|who/i,
+    /partner|supplier/i,
+    /compare|versus|vs/i,
+    /kpi|quality|standard/i,
+    /\d+/,  // Contains numbers
+  ];
+
+  const shouldUseStreaming = (message) => {
+    if (!prefetchedContext) return false;
+    
+    // Check for complex patterns first
+    for (const pattern of COMPLEX_PATTERNS) {
+      if (pattern.test(message)) return false;
+    }
+    
+    // Check for streaming-eligible patterns
+    for (const pattern of STREAMING_PATTERNS) {
+      if (pattern.test(message)) return true;
+    }
+    
+    return false;
+  };
+
+  // Make a streaming request to the Haiku endpoint
+  const makeStreamingRequest = async (body, onTextUpdate) => {
+    abortControllerRef.current = new AbortController();
+    
+    const response = await fetch('/api/chat-stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: abortControllerRef.current.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error('Streaming request failed');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+        onTextUpdate(fullText);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    return fullText;
+  };
+
   // Send a message to the AI
   const sendMessage = useCallback(async (content) => {
     if (!content.trim() || isLoading) return;
@@ -334,10 +409,76 @@ Need more details on any of these? Just ask!`;
         return;
       }
 
-      // API PATH: Get contexts and make request
+      // Get contexts
       const projectContext = getProjectContext();
       const userContext = getUserContext();
 
+      // STREAMING PATH: Use streaming for Haiku-eligible queries
+      if (shouldUseStreaming(content)) {
+        console.log('[Chat] Using streaming Haiku path');
+        
+        // Add placeholder message that will be updated with streamed content
+        const assistantMsgIndex = messages.length + 1;
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '',
+          toolsUsed: false,
+          streaming: true,
+          timestamp: new Date().toISOString(),
+        }]);
+
+        try {
+          const recentMessages = [...messages.slice(-9), userMessage].map(m => ({
+            role: m.role,
+            content: m.content,
+          }));
+
+          await makeStreamingRequest(
+            {
+              messages: recentMessages,
+              userContext,
+              projectContext,
+              prefetchedContext,
+            },
+            (partialText) => {
+              // Update the assistant message with streamed content
+              setMessages(prev => {
+                const updated = [...prev];
+                const lastIdx = updated.length - 1;
+                if (updated[lastIdx]?.role === 'assistant') {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    content: partialText,
+                  };
+                }
+                return updated;
+              });
+            }
+          );
+
+          // Mark streaming as complete
+          setMessages(prev => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (updated[lastIdx]?.role === 'assistant') {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                streaming: false,
+              };
+            }
+            return updated;
+          });
+
+          setIsLoading(false);
+          return;
+        } catch (err) {
+          console.warn('[Chat] Streaming failed, falling back to standard path:', err.message);
+          // Remove the placeholder message and fall through to standard path
+          setMessages(prev => prev.slice(0, -1));
+        }
+      }
+
+      // STANDARD API PATH: For complex queries needing tools
       // Prepare messages for API (last 10 messages for context)
       const recentMessages = [...messages.slice(-9), userMessage].map(m => ({
         role: m.role,
