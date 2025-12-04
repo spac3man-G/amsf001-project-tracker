@@ -1,6 +1,6 @@
 // src/contexts/ChatContext.jsx
 // Provides AI chat state and functionality to the application
-// Version 3.3 - Added context pre-fetching for instant responses
+// Version 3.4 - Added local response generation for instant answers
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from './AuthContext';
@@ -140,6 +140,112 @@ export function ChatProvider({ children }) {
     };
   }, [user, profile, linkedResource, role]);
 
+  // ============================================
+  // LOCAL RESPONSE GENERATION (Hybrid Architecture)
+  // For instant answers without API calls
+  // ============================================
+
+  // Patterns that can be answered locally from pre-fetched context
+  const LOCAL_RESPONSE_PATTERNS = [
+    { pattern: /^(what'?s?|how'?s?).*(budget|spend)/i, type: 'budget' },
+    { pattern: /budget.*(status|summary|overview)/i, type: 'budget' },
+    { pattern: /how much.*(spent|spend)/i, type: 'budget' },
+    { pattern: /^how many milestones/i, type: 'milestoneCount' },
+    { pattern: /milestone.*(count|total|how many)/i, type: 'milestoneCount' },
+    { pattern: /^how many deliverables/i, type: 'deliverableCount' },
+    { pattern: /deliverable.*(count|total|how many)/i, type: 'deliverableCount' },
+    { pattern: /^(what'?s?|how'?s?).*(pending|to.?do|actions?)/i, type: 'pending' },
+    { pattern: /what.*(need|should).*(do|action)/i, type: 'pending' },
+    { pattern: /^(project )?(status|overview|summary)$/i, type: 'overview' },
+    { pattern: /^how.*(project|things).*(going|doing)/i, type: 'overview' },
+  ];
+
+  // Generate a local response without calling the API
+  const generateLocalResponse = useCallback((message) => {
+    if (!prefetchedContext) return null;
+
+    const lowerMessage = message.toLowerCase().trim();
+    
+    // Find matching pattern
+    let responseType = null;
+    for (const { pattern, type } of LOCAL_RESPONSE_PATTERNS) {
+      if (pattern.test(lowerMessage)) {
+        responseType = type;
+        break;
+      }
+    }
+
+    if (!responseType) return null;
+
+    const budget = prefetchedContext.budgetSummary;
+    const milestones = prefetchedContext.milestoneSummary;
+    const deliverables = prefetchedContext.deliverableSummary;
+    const pending = prefetchedContext.pendingActions;
+    const timesheets = prefetchedContext.timesheetSummary;
+
+    const formatCurrency = (val) => `£${(val || 0).toLocaleString()}`;
+
+    switch (responseType) {
+      case 'budget':
+        return `**Project Budget Overview:**
+
+• **Total Budget:** ${formatCurrency(budget?.projectBudget)}
+• **Milestone Billable:** ${formatCurrency(budget?.milestoneBillable)}
+• **Actual Spend:** ${formatCurrency(budget?.actualSpend)}
+• **Variance:** ${formatCurrency(budget?.variance)}
+• **Budget Used:** ${budget?.percentUsed || 0}%
+
+${budget?.percentUsed > 80 ? '⚠️ Budget utilisation is over 80%.' : budget?.percentUsed > 50 ? 'Budget is tracking normally.' : 'Budget utilisation is healthy.'}`;
+
+      case 'milestoneCount':
+        return `There are **${milestones?.total || 0} milestones** in total:
+
+• Completed: ${milestones?.byStatus?.completed || 0}
+• In Progress: ${milestones?.byStatus?.inProgress || 0}
+• At Risk: ${milestones?.byStatus?.atRisk || 0}
+• Not Started: ${milestones?.byStatus?.notStarted || 0}`;
+
+      case 'deliverableCount':
+        return `There are **${deliverables?.total || 0} deliverables** in total:
+
+• Delivered: ${deliverables?.byStatus?.delivered || 0}
+• Review Complete: ${deliverables?.byStatus?.reviewComplete || 0}
+• Awaiting Review: ${deliverables?.byStatus?.awaitingReview || 0}
+• In Progress: ${deliverables?.byStatus?.inProgress || 0}
+• Not Started: ${deliverables?.byStatus?.notStarted || 0}`;
+
+      case 'pending':
+        const hasPending = (pending?.draftTimesheets || 0) > 0 || (pending?.awaitingValidation || 0) > 0;
+        if (!hasPending) {
+          return `✅ **No pending actions!** You're all caught up.`;
+        }
+        let pendingMsg = `**Your Pending Actions:**\n\n`;
+        if (pending?.draftTimesheets > 0) {
+          pendingMsg += `• **${pending.draftTimesheets}** draft timesheet(s) to submit\n`;
+        }
+        if (pending?.awaitingValidation > 0) {
+          pendingMsg += `• **${pending.awaitingValidation}** item(s) awaiting your validation\n`;
+        }
+        return pendingMsg;
+
+      case 'overview':
+        return `**Project Overview:**
+
+**Budget:** ${formatCurrency(budget?.actualSpend)} of ${formatCurrency(budget?.milestoneBillable)} spent (${budget?.percentUsed || 0}%)
+
+**Milestones:** ${milestones?.byStatus?.completed || 0} completed, ${milestones?.byStatus?.inProgress || 0} in progress${milestones?.byStatus?.atRisk > 0 ? `, ${milestones.byStatus.atRisk} at risk` : ''}
+
+**Deliverables:** ${deliverables?.byStatus?.delivered || 0} delivered, ${deliverables?.byStatus?.awaitingReview || 0} awaiting review
+
+**Timesheets:** ${timesheets?.totalHours || 0} hours logged
+
+Need more details on any of these? Just ask!`;
+
+      default:
+        return null;
+    }
+  }, [prefetchedContext]);
+
   // Helper to make API request with retry logic
   const makeRequest = async (body, attempt = 1) => {
     // Create abort controller for this request
@@ -209,7 +315,26 @@ export function ChatProvider({ children }) {
     setRetryCount(0);
 
     try {
-      // Get contexts
+      // INSTANT PATH: Try to answer locally from pre-fetched context
+      const localResponse = generateLocalResponse(content.trim());
+      if (localResponse) {
+        console.log('[Chat] Using local response (instant, no API call)');
+        // Simulate minimal delay for natural UX
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: localResponse,
+          toolsUsed: false,
+          cached: false,
+          local: true, // Mark as locally generated
+          timestamp: new Date().toISOString(),
+        }]);
+        setIsLoading(false);
+        return;
+      }
+
+      // API PATH: Get contexts and make request
       const projectContext = getProjectContext();
       const userContext = getUserContext();
 

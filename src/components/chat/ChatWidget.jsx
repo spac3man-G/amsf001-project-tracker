@@ -166,6 +166,11 @@ All data is scoped to your role, so just ask naturally!`,
               <div className="chat-message-content">
                 <MessageContent content={msg.content} />
                 <div className="chat-message-actions">
+                  {msg.local && (
+                    <span className="chat-local-indicator" title="Instant response from cached data">
+                      <Zap size={12} />
+                    </span>
+                  )}
                   {msg.toolsUsed && (
                     <span className="chat-tools-indicator" title="Queried project data">
                       <Database size={12} />

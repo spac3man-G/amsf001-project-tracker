@@ -563,3 +563,14 @@
 .chat-context-ready svg {
   color: #10b981;
 }
+
+.chat-local-indicator {
+  display: flex;
+  align-items: center;
+  color: #10b981;
+  font-size: 0.7rem;
+}
+
+.chat-local-indicator svg {
+  color: #10b981;
+}
