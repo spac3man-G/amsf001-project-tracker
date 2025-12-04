@@ -43,23 +43,29 @@ export class ExpensesService extends BaseService {
     try {
       let query = supabase
         .from(this.tableName)
-        .select('*, expense_files(*)')
+        .select('*, expense_files(*), is_deleted, is_test_content')
         .eq('project_id', projectId)
         .order('expense_date', { ascending: false });
 
-      // Apply soft delete filter
-      if (this.supportsSoftDelete) {
-        query = query.or(this.getSoftDeleteFilter());
-      }
-
-      // Filter out test content unless enabled
-      if (!showTestContent) {
-        query = query.or('is_test_content.is.null,is_test_content.eq.false');
-      }
+      // Note: Filtering is now done client-side to avoid PostgREST .or() issues
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      // Apply filters client-side
+      let result = data || [];
+      
+      // Soft delete filter
+      if (this.supportsSoftDelete) {
+        result = result.filter(r => r.is_deleted !== true);
+      }
+      
+      // Test content filter
+      if (!showTestContent) {
+        result = result.filter(r => r.is_test_content !== true);
+      }
+      
+      return result;
     } catch (error) {
       console.error('ExpensesService getAllFiltered error:', error);
       throw error;
@@ -75,14 +81,11 @@ export class ExpensesService extends BaseService {
     try {
       let query = supabase
         .from(this.tableName)
-        .select('*, expense_files(*)')
+        .select('*, expense_files(*), is_deleted')
         .eq('resource_id', resourceId)
         .order('expense_date', { ascending: false });
 
-      // Apply soft delete filter
-      if (this.supportsSoftDelete) {
-        query = query.or(this.getSoftDeleteFilter());
-      }
+      // Note: Soft delete filtering is done client-side
 
       if (options.start) {
         query = query.gte('expense_date', options.start);
@@ -93,7 +96,14 @@ export class ExpensesService extends BaseService {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      // Apply soft delete filter client-side
+      let result = data || [];
+      if (this.supportsSoftDelete) {
+        result = result.filter(r => r.is_deleted !== true);
+      }
+      
+      return result;
     } catch (error) {
       console.error('ExpensesService getByResource error:', error);
       throw error;
@@ -121,14 +131,11 @@ export class ExpensesService extends BaseService {
 
       let query = supabase
         .from(this.tableName)
-        .select('*, expense_files(*)')
+        .select('*, expense_files(*), is_deleted')
         .in('resource_id', resourceIds)
         .order('expense_date', { ascending: false });
 
-      // Apply soft delete filter
-      if (this.supportsSoftDelete) {
-        query = query.or(this.getSoftDeleteFilter());
-      }
+      // Note: Soft delete filtering is done client-side
 
       if (options.start) {
         query = query.gte('expense_date', options.start);
@@ -142,7 +149,14 @@ export class ExpensesService extends BaseService {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      // Apply soft delete filter client-side
+      let result = data || [];
+      if (this.supportsSoftDelete) {
+        result = result.filter(r => r.is_deleted !== true);
+      }
+      
+      return result;
     } catch (error) {
       console.error('ExpensesService getByPartner error:', error);
       throw error;
