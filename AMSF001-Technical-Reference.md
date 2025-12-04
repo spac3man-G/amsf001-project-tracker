@@ -1,6 +1,6 @@
 # AMSF001 Project Tracker - Technical Reference
 
-**Last Updated:** 3 December 2025  
+**Last Updated:** 4 December 2025  
 **Version:** 1.0  
 **Production Readiness:** 98%
 
@@ -369,6 +369,22 @@ npm run dev
 ---
 
 ## 9. Recent Changes
+
+### 4 December 2025
+
+**Phase I-III: Financial Calculations Refactoring**
+- Centralized all `/ 8` hour-to-day calculations into `metricsConfig.js`
+- Added utility functions: `hoursToDays()`, `daysToHours()`, `calculateBillableValue()`, `calculateCostValue()`
+- Renamed database columns: `resources.daily_rate` → `sell_price`, `milestones.budget` → `billable`
+- Removed unused columns: `discount_percent`, `discounted_rate`, `payment_percent`
+- Commits: `55fc0976`, `65d99432`
+
+**Dashboard Widgets**
+- Added TimesheetsWidget (Submitted/Validated counts + £ values)
+- Added ExpensesWidget (Awaiting/Validated totals, Chargeable/Non-Chargeable breakdown)
+- Updated grid from 3 to 4 columns
+- All widgets exclude deleted and rejected items
+- Commits: `973d604a`, `c789bdc8`
 
 ### 3 December 2025
 

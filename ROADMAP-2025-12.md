@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - Development Roadmap
 
 **Version:** 2.0  
-**Last Updated:** 3 December 2025  
+**Last Updated:** 4 December 2025  
 **Current Production Readiness:** 97%  
 **Target Production Readiness:** 98%
 
@@ -35,6 +35,36 @@ This roadmap outlines technical debt, improvements, and pending features for the
 ### 1.2 P8: Deliverables Contributor Access
 **Status:** SQL Created - Pending Deployment  
 **Purpose:** Allow contributors to edit deliverables assigned to them
+
+---
+
+## ✅ Recently Completed (4 December 2025)
+
+### Financial Calculations Refactoring (Phase I-III)
+**Status:** ✅ Deployed to Production
+
+**Phase I - Centralized Calculations:**
+- Created utility functions in `metricsConfig.js`: `hoursToDays()`, `daysToHours()`, `calculateBillableValue()`, `calculateCostValue()`
+- Replaced 17 hardcoded `/ 8` patterns across 12 files
+- Single source of truth: `BUDGET_CONFIG.hoursPerDay`
+
+**Phase II - Database Column Renames:**
+- `resources.daily_rate` → `resources.sell_price`
+- `milestones.budget` → `milestones.billable`
+- Updated 54 code references across 15+ files
+
+**Phase III - Removed Unused Columns:**
+- `resources.discount_percent` (0 references)
+- `resources.discounted_rate` (0 references)
+- `milestones.payment_percent` (0 references)
+
+### Dashboard Widgets
+**Status:** ✅ Deployed to Production
+
+- **TimesheetsWidget:** Shows Submitted/Validated counts with £ values
+- **ExpensesWidget:** Shows Awaiting/Validated totals with Chargeable/Non-Chargeable breakdown
+- **4-column grid:** All widgets display in single row on desktop
+- **Live data:** Excludes deleted and rejected items
 
 ---
 

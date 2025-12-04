@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - Claude AI Session Prompt
 
-**Version:** 2.0  
-**Last Updated:** 29 November 2025
+**Version:** 3.0  
+**Last Updated:** 4 December 2025
 
 ---
 
@@ -61,7 +61,20 @@ The playbook contains:
 
 ---
 
-## Current Project Status (as of 29 Nov 2025)
+## Current Project Status (as of 4 December 2025)
+
+### ✅ Recently Completed
+
+| Date | Work Completed |
+|------|----------------|
+| 4 Dec | Financial calculations refactoring (Phase I-III) |
+| 4 Dec | Dashboard widgets: Timesheets + Expenses |
+| 4 Dec | Database column renames (daily_rate→sell_price, budget→billable) |
+| 3 Dec | Supabase .single() error fix across all services |
+| 3 Dec | UI consistency - full row clickability |
+| 3 Dec | Detail modals for timesheets, expenses, deliverables |
+| 2 Dec | Apple Design System implementation |
+| 1 Dec | AI Chat Assistant + Smart Receipt Scanner |
 
 ### ✅ Completed Phases
 
@@ -73,20 +86,16 @@ The playbook contains:
 | Phase 4.3 | Settings page rebuilt and functional |
 | Phase 5.1 | KPI Add/Delete UI |
 | Phase 5.2 | Cost price and margins UI on Resources page |
-| **Phase F1** | **Code cleanup: ProtectedRoute uses AuthContext, Layout uses centralized permissions** |
+| Phase F1 | Code cleanup: ProtectedRoute uses AuthContext |
+| Phase I-III | Financial calculations centralization + DB renames |
 
-### ❌ Next Phases (Choose One)
+### ❌ Pending Tasks
 
-**Option A - Phase F2: Shared Components** (Infrastructure)
-- Create reusable UI components (ErrorBoundary, LoadingSpinner, StatCard, etc.)
-- Reduces code duplication across pages
-- Better long-term maintainability
-
-**Option B - Phase F4: Feature Development** (Visible Features)
-- F4.1: Margin Dashboard Card
-- F4.2: Reports Page (functional)
-- F4.3: Project Members Table (multi-tenancy)
-- F4.4: PDF Invoice Generation
+| Priority | Task | Notes |
+|----------|------|-------|
+| ⚠️ URGENT | P9: Milestone RLS Policies | SQL ready in `sql/P9-milestone-update-rls.sql` |
+| Medium | P8: Deliverables Contributor Access | SQL ready |
+| Low | Additional dashboard widgets | KPIs, Quality Standards, Partners |
 
 ---
 
@@ -150,5 +159,16 @@ Read the playbook and continue with the next task in the current phase.
 
 - **Credentials:** Stored in Claude Project Knowledge (AMSF001-Configuration-Guide.md)
 - **Playbook Location:** `/Users/glennnickols/Projects/amsf001-project-tracker/AMSF001-Development-Playbook-v6.md`
+- **Session Summaries:** Check `SESSION-SUMMARY-2025-12-*.md` files for recent work history
 - **Testing:** Deploy to Vercel and test on live site (no local dev server)
 - **Git:** Always use AppleScript shell commands, not GitHub API
+
+## Key Documentation Files
+
+| File | Purpose |
+|------|---------|
+| `AMSF001-Technical-Reference.md` | Architecture, services, troubleshooting |
+| `ROADMAP-2025-12.md` | Development priorities and status |
+| `SESSION-SUMMARY-2025-12-04.md` | Most recent session work (4 Dec 2025) |
+| `src/config/metricsConfig.js` | Financial calculation utilities |
+| `src/components/dashboard/` | Dashboard widgets (Milestones, Deliverables, Timesheets, Expenses) |
