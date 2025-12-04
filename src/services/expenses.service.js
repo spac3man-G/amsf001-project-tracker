@@ -43,7 +43,7 @@ export class ExpensesService extends BaseService {
     try {
       let query = supabase
         .from(this.tableName)
-        .select('*, expense_files(*), is_deleted, is_test_content')
+        .select('*, expense_files(*)')
         .eq('project_id', projectId)
         .order('expense_date', { ascending: false });
 
@@ -60,7 +60,7 @@ export class ExpensesService extends BaseService {
         result = result.filter(r => r.is_deleted !== true);
       }
       
-      // Test content filter
+      // Test content filter (only if column exists)
       if (!showTestContent) {
         result = result.filter(r => r.is_test_content !== true);
       }
@@ -81,7 +81,7 @@ export class ExpensesService extends BaseService {
     try {
       let query = supabase
         .from(this.tableName)
-        .select('*, expense_files(*), is_deleted')
+        .select('*, expense_files(*)')
         .eq('resource_id', resourceId)
         .order('expense_date', { ascending: false });
 
@@ -131,7 +131,7 @@ export class ExpensesService extends BaseService {
 
       let query = supabase
         .from(this.tableName)
-        .select('*, expense_files(*), is_deleted')
+        .select('*, expense_files(*)')
         .in('resource_id', resourceIds)
         .order('expense_date', { ascending: false });
 
