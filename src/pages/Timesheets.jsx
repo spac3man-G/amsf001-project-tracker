@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { timesheetsService, milestonesService, resourcesService } from '../services';
+import { VALID_STATUSES, timesheetContributesToSpend } from '../config/metricsConfig';
 import { 
   Clock, Plus, Edit2, Save, X, Trash2, Calendar,
   CheckCircle, AlertCircle, User, CalendarDays, Send

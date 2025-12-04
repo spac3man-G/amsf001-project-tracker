@@ -17,6 +17,7 @@ import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
+import { useMetrics } from '../contexts/MetricsContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader } from '../components/common';
 import { DeliverableDetailModal } from '../components/deliverables';
@@ -78,6 +79,7 @@ export default function Deliverables() {
   const { showTestUsers } = useTestUsers();
   const currentUserId = user?.id || null;
   const { canEditDeliverable, canReviewDeliverable, canDeleteDeliverable } = usePermissions();
+  const { refreshMetrics } = useMetrics();
 
   const [deliverables, setDeliverables] = useState([]);
   const [milestones, setMilestones] = useState([]);
@@ -135,6 +137,7 @@ export default function Deliverables() {
       setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', due_date: '', kpi_ids: [], qs_ids: [] });
       setShowAddForm(false);
       fetchData();
+      refreshMetrics(); // Update dashboard metrics
       showSuccess('Deliverable added!');
     } catch (error) { showError('Failed: ' + error.message); }
   }
@@ -156,6 +159,7 @@ export default function Deliverables() {
       if (editForm.qs_ids) await deliverablesService.syncQSLinks(id, editForm.qs_ids);
 
       fetchData();
+      refreshMetrics(); // Update dashboard metrics
       showSuccess('Deliverable updated!');
     } catch (error) { showError('Failed: ' + error.message); }
   }
@@ -169,6 +173,7 @@ export default function Deliverables() {
 
       await deliverablesService.update(d.id, { status: newStatus, progress: newProgress });
       fetchData();
+      refreshMetrics(); // Update dashboard metrics
       showSuccess(`Status changed to ${newStatus}`);
     } catch (error) { showError('Failed: ' + error.message); }
   }

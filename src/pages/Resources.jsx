@@ -11,6 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resourcesService, timesheetsService } from '../services';
+import { timesheetContributesToSpend } from '../config/metricsConfig';
 import { Users, Plus, Edit2, Trash2, Save, X, DollarSign, Award, Clock, Building2, Link2, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -53,7 +54,8 @@ export default function Resources() {
       
       const hoursByResource = {};
       timesheets.forEach(ts => {
-        const countsTowardsCost = ts.status === 'Approved' || (ts.status === 'Submitted' && !ts.was_rejected);
+        // Use centralized config for status checking
+        const countsTowardsCost = timesheetContributesToSpend(ts.status) && !ts.was_rejected;
         if (!countsTowardsCost) return;
         const hours = parseFloat(ts.hours_worked || ts.hours || 0);
         hoursByResource[ts.resource_id] = (hoursByResource[ts.resource_id] || 0) + hours;

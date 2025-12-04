@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { milestonesService, deliverablesService, timesheetsService } from '../services';
 import { useProject } from '../contexts/ProjectContext';
+import { VALID_STATUSES, timesheetContributesToSpend } from '../config/metricsConfig';
 import { 
   Target, ArrowLeft, Package, CheckCircle, Clock, 
   AlertCircle, Calendar, DollarSign, Info, TrendingUp, User
@@ -278,9 +279,9 @@ export default function MilestoneDetail() {
 
       {/* Budget & Spend Tracking */}
       {(() => {
-        // Only count timesheets that are: Approved OR (Submitted AND not previously rejected)
+        // Only count timesheets that contribute to spend (using centralized config)
         const countingTimesheets = timesheets.filter(ts => 
-          ts.status === 'Approved' || (ts.status === 'Submitted' && !ts.was_rejected)
+          timesheetContributesToSpend(ts.status) && !ts.was_rejected
         );
         
         // Calculate spend from valid timesheets only

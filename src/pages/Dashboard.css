@@ -821,3 +821,38 @@
 .dashboard .react-resizable-handle::after {
   border-color: var(--ds-teal) !important;
 }
+
+/* Refresh indicator */
+.dashboard-refreshing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+}
+
+.dashboard-refreshing .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Error state */
+.dashboard-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 16px;
+  color: var(--ds-text-secondary);
+}
+
+.dashboard-error button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

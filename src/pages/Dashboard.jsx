@@ -2,32 +2,26 @@
  * Dashboard Page - Apple-Inspired Premium Design
  * 
  * Clean, professional dashboard with meaningful KPIs and metrics.
- * Designed with Apple's design philosophy: Clarity, Deference, Depth.
+ * Uses centralized MetricsService for all calculations.
  * 
- * @version 5.0
- * @updated 2 December 2025
+ * @version 6.0
+ * @updated 3 December 2025
+ * @change Uses centralized metricsService - no local calculations
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import './Dashboard.css';
-import { milestonesService, deliverablesService, kpisService, qualityStandardsService, timesheetsService } from '../services';
-import { supabase } from '../lib/supabase';
+import { metricsService } from '../services';
+import { BUDGET_CONFIG } from '../config/metricsConfig';
 import { 
   TrendingUp, Clock, Package, Target, Award, 
-  DollarSign, FileCheck, BarChart3, CheckCircle2,
-  ArrowRight, Briefcase
+  FileCheck, BarChart3, CheckCircle2, ArrowRight
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/common';
-
-function isPMORole(role) {
-  if (!role) return false;
-  const roleLower = role.toLowerCase();
-  return roleLower.includes('pmo') || roleLower.includes('project manager');
-}
 
 export default function Dashboard() {
   const { showTestUsers } = useTestUsers();
@@ -35,137 +29,44 @@ export default function Dashboard() {
   const { user, role } = useAuth();
 
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalMilestones: 0,
-    completedMilestones: 0,
-    totalDeliverables: 0,
-    deliveredCount: 0,
-    inProgressDeliverables: 0,
-    totalResources: 0,
-    totalKPIs: 0,
-    achievedKPIs: 0,
-    totalQS: 0,
-    achievedQS: 0,
-    totalBudget: 0,
-    spendToDate: 0
-  });
-  const [certificateStats, setCertificateStats] = useState({ signed: 0, pending: 0, awaitingGeneration: 0 });
-  const [pmoStats, setPmoStats] = useState({ pmoBudget: 0, pmoSpend: 0, nonPmoBudget: 0, nonPmoSpend: 0 });
-  const [milestones, setMilestones] = useState([]);
-  const [milestoneSpend, setMilestoneSpend] = useState({});
-  const [kpisByCategory, setKpisByCategory] = useState({});
-  const [qualityStandards, setQualityStandards] = useState([]);
-  const [projectProgress, setProjectProgress] = useState(0);
+  const [metrics, setMetrics] = useState(null);
+  const [error, setError] = useState(null);
 
-  const fetchData = useCallback(async () => {
+  // Fetch all metrics from centralized service
+  const fetchMetrics = useCallback(async () => {
     if (!projectId) return;
+    
     setLoading(true);
+    setError(null);
+    
     try {
-      // Fetch all data
-      const milestonesData = await milestonesService.getAll(projectId, { orderBy: { column: 'milestone_ref', ascending: true } });
-      setMilestones(milestonesData);
-
-      const deliverablesSummary = await deliverablesService.getSummary(projectId);
-      const kpisData = await kpisService.getAll(projectId, { orderBy: { column: 'kpi_ref', ascending: true } });
-      const qsData = await qualityStandardsService.getAll(projectId, { orderBy: { column: 'qs_ref', ascending: true } });
-      setQualityStandards(qsData);
-
-      const { data: resourcesData } = await supabase.from('resources').select('*');
-      const timesheetsData = await timesheetsService.getAllFiltered(projectId, showTestUsers);
-
-      // Calculate PMO vs Non-PMO budgets
-      let pmoBudget = 0, nonPmoBudget = 0;
-      if (resourcesData) {
-        resourcesData.forEach(r => {
-          const budget = (r.daily_rate || 0) * (r.days_allocated || 0);
-          if (isPMORole(r.role)) pmoBudget += budget;
-          else nonPmoBudget += budget;
-        });
-      }
-
-      // Calculate spend by milestone
-      const spendByMilestone = {};
-      let totalSpend = 0, pmoSpend = 0, nonPmoSpend = 0;
+      // Clear any cached metrics to ensure fresh data
+      metricsService.clearCache();
       
-      if (timesheetsData && resourcesData) {
-        timesheetsData.forEach(ts => {
-          const countsTowardsCost = ts.status === 'Approved' || (ts.status === 'Submitted' && !ts.was_rejected);
-          if (!countsTowardsCost) return;
-          
-          const hours = parseFloat(ts.hours_worked || ts.hours || 0);
-          const resource = ts.resources || resourcesData.find(r => r.id === ts.resource_id);
-          if (resource) {
-            const dayCost = (hours / 8) * (resource.daily_rate || 0);
-            if (ts.milestone_id) spendByMilestone[ts.milestone_id] = (spendByMilestone[ts.milestone_id] || 0) + dayCost;
-            totalSpend += dayCost;
-            if (isPMORole(resource.role)) pmoSpend += dayCost;
-            else nonPmoSpend += dayCost;
-          }
-        });
-      }
-      setMilestoneSpend(spendByMilestone);
-      setPmoStats({ pmoBudget, pmoSpend, nonPmoBudget, nonPmoSpend });
-
-      // Group KPIs by category
-      const grouped = {};
-      kpisData.forEach(kpi => {
-        const category = kpi.category || 'Other';
-        if (!grouped[category]) grouped[category] = [];
-        grouped[category].push(kpi);
+      // Get all dashboard metrics in a single call
+      const dashboardMetrics = await metricsService.getAllDashboardMetrics(projectId, {
+        includeTestContent: showTestUsers
       });
-      setKpisByCategory(grouped);
-
-      // Calculate stats
-      const totalMilestones = milestonesData.length;
-      const completedMilestones = milestonesData.filter(m => m.status === 'Completed').length;
-      const totalDeliverables = deliverablesSummary.total;
-      const deliveredCount = deliverablesSummary.delivered;
-      const inProgressDeliverables = deliverablesSummary.inProgress || 0;
-      const totalResources = resourcesData?.length || 0;
-      const totalKPIs = kpisData.length;
-      const achievedKPIs = kpisData.filter(k => (k.current_value || 0) >= (k.target || 90)).length;
-      const totalQS = qsData.length;
-      const achievedQS = qsData.filter(q => (q.current_value || 0) >= (q.target || 100)).length;
-
-      // Certificates
-      const { data: certificatesData } = await supabase.from('milestone_certificates').select('*').eq('project_id', projectId);
-      const signedCerts = certificatesData?.filter(c => c.status === 'Signed').length || 0;
-      const pendingCerts = certificatesData?.filter(c => c.status === 'Pending Customer Signature' || c.status === 'Pending Supplier Signature').length || 0;
-      const awaitingGen = Math.max(0, completedMilestones - (certificatesData?.length || 0));
-      setCertificateStats({ signed: signedCerts, pending: pendingCerts, awaitingGeneration: awaitingGen });
-
-      const totalBudget = milestonesData.reduce((sum, m) => sum + (m.budget || 0), 0);
-      const avgProgress = totalMilestones > 0 ? Math.round(milestonesData.reduce((sum, m) => sum + (m.progress || 0), 0) / totalMilestones) : 0;
-      setProjectProgress(avgProgress);
-
-      setStats({
-        totalMilestones,
-        completedMilestones,
-        totalDeliverables,
-        deliveredCount,
-        inProgressDeliverables,
-        totalResources,
-        totalKPIs,
-        achievedKPIs,
-        totalQS,
-        achievedQS,
-        totalBudget,
-        spendToDate: totalSpend
-      });
-    } catch (error) {
-      console.error('Error:', error);
+      
+      setMetrics(dashboardMetrics);
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+      setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   }, [projectId, showTestUsers]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { 
+    fetchMetrics(); 
+  }, [fetchMetrics]);
 
-  // Helper to format currency
+  // Helper to format currency using config
   const formatCurrency = (amount) => {
-    if (amount >= 1000000) return `£${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 1000) return `£${Math.round(amount / 1000)}k`;
-    return `£${Math.round(amount)}`;
+    const { currency } = BUDGET_CONFIG;
+    if (amount >= 1000000) return `${currency}${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `${currency}${Math.round(amount / 1000)}k`;
+    return `${currency}${Math.round(amount)}`;
   };
 
   // Get greeting based on time
@@ -180,8 +81,34 @@ export default function Dashboard() {
     return <LoadingSpinner message="Loading dashboard..." size="large" fullPage />;
   }
 
-  const budgetUsedPercent = stats.totalBudget > 0 ? Math.round((stats.spendToDate / stats.totalBudget) * 100) : 0;
-  const maxBudget = Math.max(...milestones.map(m => m.budget || 0), 1);
+  if (error) {
+    return (
+      <div className="dashboard">
+        <div className="error-message">
+          <p>{error}</p>
+          <button onClick={fetchMetrics} className="btn btn-primary">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!metrics) {
+    return <LoadingSpinner message="Preparing dashboard..." size="large" fullPage />;
+  }
+
+  // Destructure metrics for easier access
+  const { 
+    milestones, 
+    deliverables, 
+    kpis, 
+    qualityStandards, 
+    budget, 
+    certificates,
+    milestoneSpend,
+    projectProgress 
+  } = metrics;
+
+  const maxBudget = Math.max(...(milestones.milestones?.map(m => m.budget || 0) || [1]), 1);
 
   return (
     <div className="dashboard">
@@ -201,7 +128,7 @@ export default function Dashboard() {
           <div className="progress-ring-info">
             <h2>{projectProgress}%</h2>
             <p>Overall Project Progress</p>
-            <p className="detail">{stats.completedMilestones} of {stats.totalMilestones} milestones complete</p>
+            <p className="detail">{milestones.completed} of {milestones.total} milestones complete</p>
           </div>
           <div className="progress-ring">
             <svg width="140" height="140" viewBox="0 0 140 140">
@@ -225,10 +152,10 @@ export default function Dashboard() {
               <Clock size={20} />
             </div>
             <div className="hero-metric-label">Milestones</div>
-            <div className="hero-metric-value teal">{stats.completedMilestones}/{stats.totalMilestones}</div>
+            <div className="hero-metric-value teal">{milestones.completed}/{milestones.total}</div>
             <div className="hero-metric-subtext">
               <CheckCircle2 size={14} />
-              {stats.totalMilestones > 0 ? Math.round((stats.completedMilestones / stats.totalMilestones) * 100) : 0}% complete
+              {milestones.total > 0 ? Math.round((milestones.completed / milestones.total) * 100) : 0}% complete
             </div>
           </div>
 
@@ -237,10 +164,10 @@ export default function Dashboard() {
               <Package size={20} />
             </div>
             <div className="hero-metric-label">Deliverables</div>
-            <div className="hero-metric-value success">{stats.deliveredCount}/{stats.totalDeliverables}</div>
+            <div className="hero-metric-value success">{deliverables.delivered}/{deliverables.total}</div>
             <div className="hero-metric-subtext">
               <TrendingUp size={14} />
-              {stats.totalDeliverables > 0 ? Math.round((stats.deliveredCount / stats.totalDeliverables) * 100) : 0}% delivered
+              {deliverables.completionPercent}% delivered
             </div>
           </div>
 
@@ -249,10 +176,10 @@ export default function Dashboard() {
               <Target size={20} />
             </div>
             <div className="hero-metric-label">KPIs Achieved</div>
-            <div className="hero-metric-value accent">{stats.achievedKPIs}/{stats.totalKPIs}</div>
+            <div className="hero-metric-value accent">{kpis.achieved}/{kpis.total}</div>
             <div className="hero-metric-subtext">
               <BarChart3 size={14} />
-              {stats.totalKPIs > 0 ? Math.round((stats.achievedKPIs / stats.totalKPIs) * 100) : 0}% on target
+              {kpis.achievementPercent}% on target
             </div>
           </div>
 
@@ -261,16 +188,16 @@ export default function Dashboard() {
               <Award size={20} />
             </div>
             <div className="hero-metric-label">Quality Standards</div>
-            <div className="hero-metric-value" style={{ color: '#8b5cf6' }}>{stats.achievedQS}/{stats.totalQS}</div>
+            <div className="hero-metric-value" style={{ color: '#8b5cf6' }}>{qualityStandards.achieved}/{qualityStandards.total}</div>
             <div className="hero-metric-subtext">
               <CheckCircle2 size={14} />
-              {stats.totalQS > 0 ? Math.round((stats.achievedQS / stats.totalQS) * 100) : 0}% achieved
+              {qualityStandards.achievementPercent}% achieved
             </div>
           </div>
         </div>
 
         {/* Certificates Banner */}
-        {(certificateStats.pending > 0 || certificateStats.awaitingGeneration > 0) && (
+        {(certificates.pending > 0 || certificates.awaitingGeneration > 0) && (
           <div className="certificates-banner">
             <div className="certificates-info">
               <div className="certificates-icon">
@@ -283,15 +210,15 @@ export default function Dashboard() {
             </div>
             <div className="certificates-stats">
               <div className="cert-stat">
-                <div className="cert-stat-value signed">{certificateStats.signed}</div>
+                <div className="cert-stat-value signed">{certificates.signed}</div>
                 <div className="cert-stat-label">Signed</div>
               </div>
               <div className="cert-stat">
-                <div className="cert-stat-value pending">{certificateStats.pending}</div>
+                <div className="cert-stat-value pending">{certificates.pending}</div>
                 <div className="cert-stat-label">Pending</div>
               </div>
               <div className="cert-stat">
-                <div className="cert-stat-value awaiting">{certificateStats.awaitingGeneration}</div>
+                <div className="cert-stat-value awaiting">{certificates.awaitingGeneration}</div>
                 <div className="cert-stat-label">Awaiting</div>
               </div>
             </div>
@@ -309,7 +236,7 @@ export default function Dashboard() {
               <div className="ds-card-header">
                 <div>
                   <h3 className="ds-card-title">Budget Overview</h3>
-                  <p className="ds-card-subtitle">{budgetUsedPercent}% of budget utilized</p>
+                  <p className="ds-card-subtitle">{budget.utilizationPercent}% of budget utilized</p>
                 </div>
                 <Link to="/reports" className="ds-card-action">View Reports →</Link>
               </div>
@@ -317,19 +244,19 @@ export default function Dashboard() {
                 <div className="budget-display">
                   <div className="budget-item">
                     <div className="budget-item-label">Total Budget</div>
-                    <div className="budget-item-value budget">{formatCurrency(stats.totalBudget)}</div>
+                    <div className="budget-item-value budget">{formatCurrency(budget.totalBudget)}</div>
                   </div>
                   <div className="budget-item">
                     <div className="budget-item-label">Spend to Date</div>
-                    <div className="budget-item-value spend">{formatCurrency(stats.spendToDate)}</div>
-                    <div className="budget-item-percent">{budgetUsedPercent}% utilized</div>
+                    <div className="budget-item-value spend">{formatCurrency(budget.totalSpend)}</div>
+                    <div className="budget-item-percent">{budget.utilizationPercent}% utilized</div>
                   </div>
                 </div>
                 <div style={{ marginTop: 24 }}>
                   <div className="progress-bar" style={{ height: 8 }}>
                     <div 
                       className="progress-bar-fill teal" 
-                      style={{ width: `${Math.min(budgetUsedPercent, 100)}%` }}
+                      style={{ width: `${Math.min(budget.utilizationPercent, 100)}%` }}
                     />
                   </div>
                 </div>
@@ -349,19 +276,19 @@ export default function Dashboard() {
               <div className="ds-card-body">
                 <div className="stat-tiles">
                   <div className="stat-tile">
-                    <div className="stat-tile-value" style={{ color: '#f59e0b' }}>{formatCurrency(pmoStats.pmoBudget)}</div>
+                    <div className="stat-tile-value" style={{ color: '#f59e0b' }}>{formatCurrency(budget.pmoBudget)}</div>
                     <div className="stat-tile-label">PMO Budget</div>
                   </div>
                   <div className="stat-tile">
-                    <div className="stat-tile-value" style={{ color: '#ea580c' }}>{formatCurrency(pmoStats.pmoSpend)}</div>
+                    <div className="stat-tile-value" style={{ color: '#ea580c' }}>{formatCurrency(budget.pmoSpend)}</div>
                     <div className="stat-tile-label">PMO Spend</div>
                   </div>
                   <div className="stat-tile">
-                    <div className="stat-tile-value" style={{ color: 'var(--ds-accent)' }}>{formatCurrency(pmoStats.nonPmoBudget)}</div>
+                    <div className="stat-tile-value" style={{ color: 'var(--ds-accent)' }}>{formatCurrency(budget.deliveryBudget)}</div>
                     <div className="stat-tile-label">Delivery Budget</div>
                   </div>
                   <div className="stat-tile">
-                    <div className="stat-tile-value" style={{ color: 'var(--ds-teal)' }}>{formatCurrency(pmoStats.nonPmoSpend)}</div>
+                    <div className="stat-tile-value" style={{ color: 'var(--ds-teal)' }}>{formatCurrency(budget.deliverySpend)}</div>
                     <div className="stat-tile-label">Delivery Spend</div>
                   </div>
                 </div>
@@ -391,7 +318,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="milestone-chart">
-                  {milestones.map(milestone => {
+                  {milestones.milestones?.map(milestone => {
                     const spend = milestoneSpend[milestone.id] || 0;
                     const budgetHeight = maxBudget > 0 ? ((milestone.budget || 0) / maxBudget) * 100 : 0;
                     const spendHeight = maxBudget > 0 ? (spend / maxBudget) * 100 : 0;
@@ -430,9 +357,9 @@ export default function Dashboard() {
               </div>
               <div className="ds-card-body">
                 <div className="kpi-categories">
-                  {Object.entries(kpisByCategory).map(([category, kpis]) => {
-                    const totalKPIs = kpis.length;
-                    const achievedKPIs = kpis.filter(k => (k.current_value || 0) >= (k.target || 90)).length;
+                  {Object.entries(kpis.byCategory || {}).map(([category, categoryKpis]) => {
+                    const totalKPIs = categoryKpis.length;
+                    const achievedKPIs = categoryKpis.filter(k => k.isAchieved).length;
                     const achievedPercentage = totalKPIs > 0 ? (achievedKPIs / totalKPIs) * 100 : 0;
                     const barClass = category.includes('Time') ? 'time' : category.includes('Quality') ? 'quality' : 'delivery';
                     return (
@@ -462,15 +389,15 @@ export default function Dashboard() {
               <div className="ds-card-header">
                 <div>
                   <h3 className="ds-card-title">Quality Standards</h3>
-                  <p className="ds-card-subtitle">{stats.achievedQS} of {stats.totalQS} standards achieved</p>
+                  <p className="ds-card-subtitle">{qualityStandards.achieved} of {qualityStandards.total} standards achieved</p>
                 </div>
                 <Link to="/quality-standards" className="ds-card-action">View All →</Link>
               </div>
               <div className="ds-card-body">
                 <div className="progress-list">
-                  {qualityStandards.slice(0, 5).map(qs => {
-                    const percentage = qs.current_value || 0;
-                    const isAchieved = percentage >= (qs.target || 100);
+                  {qualityStandards.qualityStandards?.slice(0, 5).map(qs => {
+                    const percentage = qs.calculatedValue || 0;
+                    const isAchieved = qs.isAchieved;
                     return (
                       <div key={qs.id} className="progress-item">
                         <div className="progress-item-header">
@@ -505,48 +432,48 @@ export default function Dashboard() {
                   <div className="progress-item">
                     <div className="progress-item-header">
                       <span className="progress-item-label">Milestone Completion</span>
-                      <span className="progress-item-value">{stats.completedMilestones}/{stats.totalMilestones}</span>
+                      <span className="progress-item-value">{milestones.completed}/{milestones.total}</span>
                     </div>
                     <div className="progress-bar">
                       <div 
                         className="progress-bar-fill teal"
-                        style={{ width: `${stats.totalMilestones > 0 ? (stats.completedMilestones / stats.totalMilestones) * 100 : 0}%` }}
+                        style={{ width: `${milestones.total > 0 ? (milestones.completed / milestones.total) * 100 : 0}%` }}
                       />
                     </div>
                   </div>
                   <div className="progress-item">
                     <div className="progress-item-header">
                       <span className="progress-item-label">Deliverables Completed</span>
-                      <span className="progress-item-value">{stats.deliveredCount}/{stats.totalDeliverables}</span>
+                      <span className="progress-item-value">{deliverables.delivered}/{deliverables.total}</span>
                     </div>
                     <div className="progress-bar">
                       <div 
                         className="progress-bar-fill success"
-                        style={{ width: `${stats.totalDeliverables > 0 ? (stats.deliveredCount / stats.totalDeliverables) * 100 : 0}%` }}
+                        style={{ width: `${deliverables.completionPercent}%` }}
                       />
                     </div>
                   </div>
                   <div className="progress-item">
                     <div className="progress-item-header">
                       <span className="progress-item-label">Budget Utilization</span>
-                      <span className="progress-item-value">{budgetUsedPercent}%</span>
+                      <span className="progress-item-value">{budget.utilizationPercent}%</span>
                     </div>
                     <div className="progress-bar">
                       <div 
                         className="progress-bar-fill accent"
-                        style={{ width: `${Math.min(budgetUsedPercent, 100)}%` }}
+                        style={{ width: `${Math.min(budget.utilizationPercent, 100)}%` }}
                       />
                     </div>
                   </div>
                   <div className="progress-item">
                     <div className="progress-item-header">
                       <span className="progress-item-label">KPI Achievement</span>
-                      <span className="progress-item-value">{stats.achievedKPIs}/{stats.totalKPIs}</span>
+                      <span className="progress-item-value">{kpis.achieved}/{kpis.total}</span>
                     </div>
                     <div className="progress-bar">
                       <div 
                         className="progress-bar-fill warning"
-                        style={{ width: `${stats.totalKPIs > 0 ? (stats.achievedKPIs / stats.totalKPIs) * 100 : 0}%` }}
+                        style={{ width: `${kpis.achievementPercent}%` }}
                       />
                     </div>
                   </div>

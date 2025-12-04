@@ -13,6 +13,7 @@ import { TestUserProvider } from './contexts/TestUserContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { MetricsProvider } from './contexts/MetricsContext';
 
 // Shared components - always loaded
 import { ErrorBoundary, LoadingSpinner, Skeleton } from './components/common';
@@ -90,8 +91,9 @@ export default function App() {
           <AuthProvider>
             <ProjectProvider>
               <TestUserProvider>
-                <NotificationProvider>
-                  <ChatProvider>
+                <MetricsProvider>
+                  <NotificationProvider>
+                    <ChatProvider>
                     <Routes>
                       {/* Public routes */}
                       <Route path="/login" element={<Login />} />
@@ -213,8 +215,9 @@ export default function App() {
                     {/* Vercel Production Monitoring */}
                     <Analytics />
                     <SpeedInsights />
-                  </ChatProvider>
-                </NotificationProvider>
+                    </ChatProvider>
+                  </NotificationProvider>
+                </MetricsProvider>
               </TestUserProvider>
             </ProjectProvider>
           </AuthProvider>

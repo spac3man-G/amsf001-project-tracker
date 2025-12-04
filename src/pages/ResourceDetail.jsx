@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { VALID_STATUSES, timesheetContributesToSpend } from '../config/metricsConfig';
 import { LoadingSpinner, StatCard } from '../components/common';
 import { resourcesService, partnersService, timesheetsService, expensesService } from '../services';
 
@@ -106,8 +107,12 @@ export default function ResourceDetail() {
         timesheetsForSummary.forEach(ts => {
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           totalHours += hours;
-          if (ts.status === 'Approved') approvedHours += hours;
-          else if (ts.status === 'Submitted' && !ts.was_rejected) pendingHours += hours;
+          // Use centralized config for status checking
+          if (VALID_STATUSES.timesheets.completed.includes(ts.status)) {
+            approvedHours += hours;
+          } else if (ts.status === 'Submitted' && !ts.was_rejected) {
+            pendingHours += hours;
+          }
         });
       }
 

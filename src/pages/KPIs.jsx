@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { kpisService } from '../services';
+import { supabase } from '../lib/supabase';
 import { 
   TrendingUp, RefreshCw, CheckCircle, AlertCircle, 
   AlertTriangle, Clock, Edit2, Plus, Trash2, X, Save

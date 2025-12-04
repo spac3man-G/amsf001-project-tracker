@@ -2,14 +2,16 @@
  * KPIs Service
  * 
  * Handles all KPI-related data operations.
+ * Updated to use centralized metrics configuration for status filtering.
  * 
- * @version 1.0
- * @created 30 November 2025
- * @phase Phase 1 - Stabilisation
+ * @version 2.0
+ * @updated 3 December 2025
+ * @phase Centralized Metrics
  */
 
 import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
+import { VALID_STATUSES } from '../config/metricsConfig';
 
 export class KPIsService extends BaseService {
   constructor() {
@@ -137,19 +139,72 @@ export class KPIsService extends BaseService {
 
   /**
    * Get KPI assessments from deliverable_kpi_assessments table
+   * ONLY includes assessments from NON-DELETED deliverables with valid status
+   * 
+   * Uses centralized VALID_STATUSES config for consistency across the app.
    */
   async getAssessments(projectId) {
     try {
+      // Join with deliverables to filter by status and is_deleted
       const { data, error } = await supabase
         .from('deliverable_kpi_assessments')
-        .select('kpi_id, criteria_met')
-        .eq('project_id', projectId);
+        .select(`
+          kpi_id,
+          criteria_met,
+          deliverables!inner(id, status, is_deleted, project_id)
+        `)
+        .eq('deliverables.project_id', projectId)
+        .or('deliverables.is_deleted.is.null,deliverables.is_deleted.eq.false')
+        .in('deliverables.status', VALID_STATUSES.deliverables.contributeToKPIs);
 
-      if (error) throw error;
+      if (error) {
+        console.warn('KPIsService getAssessments warning:', error.message);
+        // Try fallback query without the complex filter
+        return await this.getAssessmentsFallback(projectId);
+      }
+      
       return data || [];
     } catch (error) {
       console.error('KPIsService getAssessments error:', error);
-      throw error;
+      return [];
+    }
+  }
+
+  /**
+   * Fallback method if the complex join doesn't work
+   * Fetches assessments and filters client-side
+   */
+  async getAssessmentsFallback(projectId) {
+    try {
+      // Get all assessments with deliverable info
+      const { data: assessments, error: assError } = await supabase
+        .from('deliverable_kpi_assessments')
+        .select('kpi_id, criteria_met, deliverable_id');
+
+      if (assError) throw assError;
+
+      // Get valid deliverables (not deleted, correct status)
+      const { data: deliverables, error: delError } = await supabase
+        .from('deliverables')
+        .select('id, status, is_deleted')
+        .eq('project_id', projectId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .in('status', VALID_STATUSES.deliverables.contributeToKPIs);
+
+      if (delError) throw delError;
+
+      // Create set of valid deliverable IDs
+      const validDeliverableIds = new Set(deliverables?.map(d => d.id) || []);
+
+      // Filter assessments to only include those from valid deliverables
+      const filteredAssessments = (assessments || []).filter(a => 
+        validDeliverableIds.has(a.deliverable_id)
+      );
+
+      return filteredAssessments;
+    } catch (error) {
+      console.error('KPIsService getAssessmentsFallback error:', error);
+      return [];
     }
   }
 }

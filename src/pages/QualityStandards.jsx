@@ -59,21 +59,29 @@ export default function QualityStandards() {
       });
       setQualityStandards(data || []);
 
-      // Fetch assessment counts for each QS (no service method yet for assessments)
+      // Fetch assessment counts using centralized service
+      // This properly filters out assessments from deleted deliverables
+      const assessments = await qualityStandardsService.getAssessments(pid);
+      
+      // Count assessments per QS
       const counts = {};
-      for (const qs of (data || [])) {
-        const { data: assessments } = await supabase
-          .from('deliverable_qs_assessments')
-          .select('criteria_met')
-          .eq('quality_standard_id', qs.id);
-
-        const total = assessments?.filter(a => a.criteria_met !== null).length || 0;
-        const met = assessments?.filter(a => a.criteria_met === true).length || 0;
-        counts[qs.id] = { total, met };
+      if (assessments && assessments.length > 0) {
+        assessments.forEach(a => {
+          const qsId = a.quality_standard_id;
+          if (!counts[qsId]) {
+            counts[qsId] = { total: 0, met: 0 };
+          }
+          if (a.criteria_met !== null) {
+            counts[qsId].total++;
+            if (a.criteria_met === true) counts[qsId].met++;
+          }
+        });
       }
       setAssessmentCounts(counts);
     } catch (error) {
       console.error('Error fetching quality standards:', error);
+    } finally {
+      setLoading(false);
     }
   }
 
