@@ -118,7 +118,7 @@ export default function MilestoneTable({
                       ? new Date(milestone.forecast_end_date || milestone.end_date).toLocaleDateString('en-GB') 
                       : '-'}
                   </td>
-                  <td title="Invoiced on completion">£{(milestone.budget || 0).toLocaleString()}</td>
+                  <td title="Invoiced on completion">£{(milestone.billable || 0).toLocaleString()}</td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <CertificateCell
                       milestone={milestone}

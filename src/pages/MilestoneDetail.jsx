@@ -68,7 +68,7 @@ export default function MilestoneDetail() {
       // Fetch timesheets for this milestone using service layer
       const timesheetsData = await timesheetsService.getAll(project.id, {
         filters: [{ column: 'milestone_id', operator: 'eq', value: id }],
-        select: '*, resources(id, name, daily_rate, discount_percent)',
+        select: '*, resources(id, name, sell_price, discount_percent)',
         orderBy: { column: 'date', ascending: false }
       });
       
@@ -270,7 +270,7 @@ export default function MilestoneDetail() {
               <DollarSign size={16} style={{ color: '#64748b' }} />
               <span style={{ color: '#64748b' }}>Budget:</span>
               <span style={{ fontWeight: '500' }}>
-                £{(milestone.budget || 0).toLocaleString()}
+                £{(milestone.billable || 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -290,12 +290,12 @@ export default function MilestoneDetail() {
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           const resource = ts.resources;
           if (resource) {
-            const dailyRate = resource.daily_rate || 0;
+            const dailyRate = resource.sell_price || 0;
             return sum + calculateBillableValue(hours, dailyRate);
           }
           return sum;
         }, 0);
-        const budget = milestone.budget || 0;
+        const budget = milestone.billable || 0;
         const spendPercent = budget > 0 ? Math.round((totalSpend / budget) * 100) : 0;
         const isOverBudget = spendPercent > 100;
 
@@ -307,7 +307,7 @@ export default function MilestoneDetail() {
           const resource = ts.resources;
           let cost = 0;
           if (resource) {
-            const dailyRate = resource.daily_rate || 0;
+            const dailyRate = resource.sell_price || 0;
             cost = calculateBillableValue(hours, dailyRate);
           }
           if (!spendByResource[resourceName]) {

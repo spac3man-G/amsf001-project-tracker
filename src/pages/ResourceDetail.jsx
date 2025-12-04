@@ -211,7 +211,7 @@ export default function ResourceDetail() {
       role: resource.role || '',
       resource_ref: resource.resource_ref || '',
       sfia_level: sfiaToDisplay(resource.sfia_level),
-      daily_rate: resource.daily_rate || '',
+      sell_price: resource.sell_price || '',
       cost_price: resource.cost_price || '',
       discount_percent: resource.discount_percent || 0,
       days_allocated: resource.days_allocated || '',
@@ -232,7 +232,7 @@ export default function ResourceDetail() {
         role: editForm.role,
         resource_ref: editForm.resource_ref,
         sfia_level: sfiaToDatabase(editForm.sfia_level),
-        daily_rate: parseFloat(editForm.daily_rate) || 0,
+        sell_price: parseFloat(editForm.sell_price) || 0,
         discount_percent: parseFloat(editForm.discount_percent) || 0,
         days_allocated: parseInt(editForm.days_allocated) || 0,
         resource_type: editForm.resource_type,
@@ -287,7 +287,7 @@ export default function ResourceDetail() {
   }
 
   // Calculate stats
-  const margin = resourcesService.calculateMargin(resource.daily_rate, resource.cost_price);
+  const margin = resourcesService.calculateMargin(resource.sell_price, resource.cost_price);
   const marginStyle = getMarginStyle(margin.percent);
   const MarginIcon = marginStyle.icon;
   const typeStyle = getResourceTypeStyle(resource.resource_type);
@@ -296,7 +296,7 @@ export default function ResourceDetail() {
   const daysAllocated = resource.days_allocated || 0;
   const daysUsed = resource.timesheetSummary?.daysWorked || 0;
   const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
-  const totalValue = (resource.daily_rate || 0) * daysAllocated;
+  const totalValue = (resource.sell_price || 0) * daysAllocated;
 
   return (
     <div className="page-container">
@@ -344,7 +344,7 @@ export default function ResourceDetail() {
 
       {/* Stats Row */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <StatCard icon={DollarSign} label="Daily Rate" value={`£${resource.daily_rate || 0}`} subtext="Customer rate" color="#10b981" />
+        <StatCard icon={DollarSign} label="Sell Price" value={`£${resource.sell_price || 0}`} subtext="Customer rate" color="#10b981" />
         {canSeeCostPrice && (
           <StatCard icon={DollarSign} label="Cost Price" value={resource.cost_price ? `£${resource.cost_price}` : 'Not set'} subtext="Internal cost" color="#3b82f6" />
         )}

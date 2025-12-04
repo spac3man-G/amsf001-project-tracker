@@ -116,12 +116,12 @@ export default function ResourceEditForm({
 
         {/* Daily Rate */}
         <div>
-          <label style={labelStyle}>Daily Rate (£) - Customer</label>
+          <label style={labelStyle}>Sell Price (£) - Customer</label>
           <input
             type="number"
             style={inputStyle}
-            value={form.daily_rate}
-            onChange={(e) => onFormChange({...form, daily_rate: e.target.value})}
+            value={form.sell_price}
+            onChange={(e) => onFormChange({...form, sell_price: e.target.value})}
           />
         </div>
 

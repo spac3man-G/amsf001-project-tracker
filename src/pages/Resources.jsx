@@ -38,7 +38,7 @@ export default function Resources() {
   const [saving, setSaving] = useState(false);
   const [newResource, setNewResource] = useState({
     resource_ref: '', name: '', email: '', role: '', sfia_level: 'L4',
-    daily_rate: '', cost_price: '', discount_percent: 0, days_allocated: '', days_used: 0, resource_type: 'internal'
+    sell_price: '', cost_price: '', discount_percent: 0, days_allocated: '', days_used: 0, resource_type: 'internal'
   });
 
   const fetchData = useCallback(async () => {
@@ -101,7 +101,7 @@ export default function Resources() {
     setEditingId(resource.id);
     setEditForm({
       name: resource.name, email: resource.email, role: resource.role,
-      sfia_level: sfiaToDisplay(resource.sfia_level), daily_rate: resource.daily_rate,
+      sfia_level: sfiaToDisplay(resource.sfia_level), sell_price: resource.sell_price,
       cost_price: resource.cost_price || '', discount_percent: resource.discount_percent,
       days_allocated: resource.days_allocated, days_used: resource.days_used,
       resource_type: resource.resource_type || 'internal'
@@ -113,7 +113,7 @@ export default function Resources() {
       const updateData = {
         name: editForm.name, email: editForm.email, role: editForm.role,
         sfia_level: sfiaToDatabase(editForm.sfia_level),
-        daily_rate: parseFloat(editForm.daily_rate) || 0,
+        sell_price: parseFloat(editForm.sell_price) || 0,
         discount_percent: parseFloat(editForm.discount_percent) || 0,
         days_allocated: parseInt(editForm.days_allocated) || 0,
         days_used: parseFloat(editForm.days_used) || 0,
@@ -147,7 +147,7 @@ export default function Resources() {
         project_id: projectId,
         user_id: existingProfile.id,
         sfia_level: sfiaToDatabase(newResource.sfia_level),
-        daily_rate: parseFloat(newResource.daily_rate),
+        sell_price: parseFloat(newResource.sell_price),
         cost_price: newResource.cost_price ? parseFloat(newResource.cost_price) : null,
         days_allocated: parseInt(newResource.days_allocated),
         discount_percent: parseFloat(newResource.discount_percent) || 0,
@@ -156,7 +156,7 @@ export default function Resources() {
 
       await fetchData();
       setShowAddForm(false);
-      setNewResource({ resource_ref: '', name: '', email: '', role: '', sfia_level: 'L4', daily_rate: '', cost_price: '', discount_percent: 0, days_allocated: '', days_used: 0, resource_type: 'internal' });
+      setNewResource({ resource_ref: '', name: '', email: '', role: '', sfia_level: 'L4', sell_price: '', cost_price: '', discount_percent: 0, days_allocated: '', days_used: 0, resource_type: 'internal' });
       showSuccess('Resource added!');
     } catch (error) {
       console.error('Error adding resource:', error);
@@ -213,7 +213,7 @@ export default function Resources() {
   const filteredResources = resources.filter(r => filterType === 'all' || (r.resource_type || 'internal') === filterType);
 
   // Calculate totals
-  const totalBudget = filteredResources.reduce((sum, r) => sum + ((r.daily_rate || 0) * (r.days_allocated || 0)), 0);
+  const totalBudget = filteredResources.reduce((sum, r) => sum + ((r.sell_price || 0) * (r.days_allocated || 0)), 0);
   const totalDaysAllocated = filteredResources.reduce((sum, r) => sum + (r.days_allocated || 0), 0);
   const totalHoursWorked = filteredResources.reduce((sum, r) => sum + (timesheetHours[r.id] || 0), 0);
   const totalDaysUsed = hoursToDays(totalHoursWorked);
@@ -223,15 +223,15 @@ export default function Resources() {
   const thirdPartyCount = resources.filter(r => r.resource_type === 'third_party').length;
 
   // Margin stats
-  const resourcesWithCostPrice = filteredResources.filter(r => r.cost_price && r.daily_rate);
-  const totalRevenue = resourcesWithCostPrice.reduce((sum, r) => sum + ((r.daily_rate || 0) * (r.days_allocated || 0)), 0);
+  const resourcesWithCostPrice = filteredResources.filter(r => r.cost_price && r.sell_price);
+  const totalRevenue = resourcesWithCostPrice.reduce((sum, r) => sum + ((r.sell_price || 0) * (r.days_allocated || 0)), 0);
   const totalCost = resourcesWithCostPrice.reduce((sum, r) => sum + ((r.cost_price || 0) * (r.days_allocated || 0)), 0);
   const overallMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : null;
   const overallMarginStyle = getMarginStyle(overallMargin);
 
   const marginCounts = { good: 0, low: 0, critical: 0, unknown: 0 };
   filteredResources.forEach(r => {
-    const margin = calculateMargin(r.daily_rate, r.cost_price);
+    const margin = calculateMargin(r.sell_price, r.cost_price);
     if (margin === null) marginCounts.unknown++;
     else if (margin >= 25) marginCounts.good++;
     else if (margin >= 10) marginCounts.low++;
@@ -290,7 +290,7 @@ export default function Resources() {
               <input className="input-field" placeholder="Email" type="email" value={newResource.email} onChange={(e) => setNewResource({...newResource, email: e.target.value})} />
               <input className="input-field" placeholder="Role" value={newResource.role} onChange={(e) => setNewResource({...newResource, role: e.target.value})} />
               <select className="input-field" value={newResource.sfia_level} onChange={(e) => setNewResource({...newResource, sfia_level: e.target.value})}><option value="L3">L3</option><option value="L4">L4</option><option value="L5">L5</option><option value="L6">L6</option></select>
-              <input className="input-field" placeholder="Daily Rate (£)" type="number" value={newResource.daily_rate} onChange={(e) => setNewResource({...newResource, daily_rate: e.target.value})} />
+              <input className="input-field" placeholder="Sell Price (£)" type="number" value={newResource.sell_price} onChange={(e) => setNewResource({...newResource, sell_price: e.target.value})} />
               {canSeeCostPrice && <input className="input-field" placeholder="Cost Price (£)" type="number" value={newResource.cost_price} onChange={(e) => setNewResource({...newResource, cost_price: e.target.value})} />}
               <input className="input-field" placeholder="Days Allocated" type="number" value={newResource.days_allocated} onChange={(e) => setNewResource({...newResource, days_allocated: e.target.value})} />
               <select className="input-field" value={newResource.resource_type} onChange={(e) => setNewResource({...newResource, resource_type: e.target.value})}><option value="internal">Internal</option><option value="third_party">Third-Party</option></select>
@@ -327,7 +327,7 @@ export default function Resources() {
                 const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
                 const typeStyle = getResourceTypeStyle(resource.resource_type);
                 const TypeIcon = typeStyle.icon;
-                const margin = calculateMargin(resource.daily_rate, resource.cost_price);
+                const margin = calculateMargin(resource.sell_price, resource.cost_price);
                 const marginStyle = getMarginStyle(margin);
                 const MarginIcon = marginStyle.icon;
                 
@@ -344,7 +344,7 @@ export default function Resources() {
                         {canSeeResourceType && <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.65rem', backgroundColor: typeStyle.bg, color: typeStyle.color, borderRadius: '6px', fontSize: '0.8rem' }}><TypeIcon size={14} />{resource.resource_type === 'third_party' ? '3rd Party' : 'Internal'}</span></td>}
                         <td><input className="input-field" value={editForm.role} onChange={(e) => setEditForm({...editForm, role: e.target.value})} /></td>
                         <td><select className="input-field" value={editForm.sfia_level} onChange={(e) => setEditForm({...editForm, sfia_level: e.target.value})}><option value="L3">L3</option><option value="L4">L4</option><option value="L5">L5</option><option value="L6">L6</option></select></td>
-                        <td><input className="input-field" type="number" value={editForm.daily_rate} onChange={(e) => setEditForm({...editForm, daily_rate: e.target.value})} style={{ width: '80px' }} /></td>
+                        <td><input className="input-field" type="number" value={editForm.sell_price} onChange={(e) => setEditForm({...editForm, sell_price: e.target.value})} style={{ width: '80px' }} /></td>
                         {canSeeCostPrice && <td><input className="input-field" type="number" value={editForm.cost_price} onChange={(e) => setEditForm({...editForm, cost_price: e.target.value})} style={{ width: '80px' }} /></td>}
                         {canSeeCostPrice && <td>-</td>}
                         <td><input className="input-field" type="number" value={editForm.days_allocated} onChange={(e) => setEditForm({...editForm, days_allocated: e.target.value})} style={{ width: '60px' }} /></td>
@@ -362,12 +362,12 @@ export default function Resources() {
                         {canSeeResourceType && <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.65rem', backgroundColor: typeStyle.bg, color: typeStyle.color, borderRadius: '6px', fontSize: '0.8rem' }}><TypeIcon size={14} />{resource.resource_type === 'third_party' ? '3rd Party' : 'Internal'}</span></td>}
                         <td>{resource.role}</td>
                         <td><span className={`badge ${getSfiaColor(resource.sfia_level)}`}><Award size={14} style={{ marginRight: '0.25rem' }} />{sfiaToDisplay(resource.sfia_level)}</span></td>
-                        <td>£{resource.daily_rate}</td>
+                        <td>£{resource.sell_price}</td>
                         {canSeeCostPrice && <td>{resource.cost_price ? `£${resource.cost_price}` : <span style={{ color: '#9ca3af' }}>-</span>}</td>}
                         {canSeeCostPrice && <td><div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', backgroundColor: marginStyle.bg, color: marginStyle.color, borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}><MarginIcon size={14} />{margin !== null ? `${margin.toFixed(0)}%` : 'N/A'}</div></td>}
                         <td><div><span style={{ fontWeight: '500' }}>{daysUsed.toFixed(1)}</span>/{daysAllocated}</div></td>
                         <td><div><div style={{ width: '60px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${Math.min(utilization, 100)}%`, height: '100%', backgroundColor: utilization > 100 ? '#dc2626' : '#3b82f6' }} /></div><span style={{ fontSize: '0.875rem' }}>{Math.round(utilization)}%</span></div></td>
-                        <td><strong>£{((resource.daily_rate || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong></td>
+                        <td><strong>£{((resource.sell_price || 0) * (resource.days_allocated || 0)).toLocaleString()}</strong></td>
                         {canManageResources && (
                           <td onClick={(e) => e.stopPropagation()}>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>

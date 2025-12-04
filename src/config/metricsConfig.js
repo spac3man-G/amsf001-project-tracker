@@ -198,7 +198,7 @@ export function daysToHours(days) {
 /**
  * Calculate billable value (what you charge the customer)
  * @param {number} hours - Hours worked
- * @param {number} dailyRate - Daily sell rate (daily_rate column)
+ * @param {number} sellPrice - Daily sell rate (sell_price column)
  * @returns {number} - Billable value
  */
 export function calculateBillableValue(hours, dailyRate) {

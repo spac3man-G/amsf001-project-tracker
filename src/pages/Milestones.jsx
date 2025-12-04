@@ -56,7 +56,7 @@ export default function Milestones() {
     milestone_ref: '', name: '', description: '',
     baseline_start_date: '', baseline_end_date: '',
     actual_start_date: '', forecast_end_date: '',
-    start_date: '', end_date: '', budget: ''
+    start_date: '', end_date: '', billable: ''
   };
 
   const [newMilestone, setNewMilestone] = useState(emptyForm);
@@ -145,7 +145,7 @@ export default function Milestones() {
         baseline_end_date: newMilestone.baseline_end_date || newMilestone.end_date || null,
         actual_start_date: newMilestone.actual_start_date || newMilestone.start_date || null,
         forecast_end_date: newMilestone.forecast_end_date || newMilestone.end_date || null,
-        budget: parseFloat(newMilestone.budget) || 0,
+        billable: parseFloat(newMilestone.billable) || 0,
         progress: 0,
         status: 'Not Started',
         created_by: currentUserId
@@ -195,7 +195,7 @@ export default function Milestones() {
       forecast_end_date: milestone.forecast_end_date || milestone.end_date || '',
       start_date: milestone.start_date || '',
       end_date: milestone.end_date || '',
-      budget: milestone.budget || ''
+      billable: milestone.billable || ''
     });
     setShowEditModal(true);
   }
@@ -217,7 +217,7 @@ export default function Milestones() {
         baseline_end_date: editForm.baseline_end_date || null,
         actual_start_date: editForm.actual_start_date || null,
         forecast_end_date: editForm.forecast_end_date || null,
-        budget: parseFloat(editForm.budget) || 0
+        billable: parseFloat(editForm.billable) || 0
       });
 
       await fetchMilestones();
@@ -258,7 +258,7 @@ export default function Milestones() {
         certificate_number: certificateNumber,
         milestone_ref: milestone.milestone_ref,
         milestone_name: milestone.name,
-        payment_milestone_value: milestone.budget || 0,
+        payment_milestone_value: milestone.billable || 0,
         status: 'Draft',
         deliverables_snapshot: fullDeliverables || [],
         generated_by: currentUserId
@@ -328,7 +328,7 @@ export default function Milestones() {
   if (loading) return <LoadingSpinner message="Loading milestones..." size="large" fullPage />;
 
   // Calculate stats
-  const totalBudget = milestones.reduce((sum, m) => sum + (m.budget || 0), 0);
+  const totalBudget = milestones.reduce((sum, m) => sum + (m.billable || 0), 0);
   const milestonesWithStatus = milestones.map(m => ({
     ...m,
     computedStatus: calculateMilestoneStatus(milestoneDeliverables[m.id]),

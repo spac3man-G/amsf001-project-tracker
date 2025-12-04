@@ -29,7 +29,7 @@ export class TimesheetsService extends BaseService {
   async getAll(projectId, options = {}) {
     const defaultSelect = `
       *,
-      resources(id, name, email, daily_rate, cost_price),
+      resources(id, name, email, sell_price, cost_price),
       milestones(id, milestone_ref, name)
     `;
     return super.getAll(projectId, {
@@ -50,7 +50,7 @@ export class TimesheetsService extends BaseService {
         .from(this.tableName)
         .select(`
           *,
-          resources(id, name, email, daily_rate, cost_price),
+          resources(id, name, email, sell_price, cost_price),
           milestones(id, milestone_ref, name)
         `)
         .eq('project_id', projectId)

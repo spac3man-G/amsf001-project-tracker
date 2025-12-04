@@ -72,7 +72,7 @@ export default function TimesheetDetailModal({
   const resource = resources?.find(r => r.id === timesheet.resource_id);
   const milestone = milestones?.find(m => m.id === timesheet.milestone_id);
   const hours = parseFloat(timesheet.hours_worked || timesheet.hours || 0);
-  const dailyRate = resource?.daily_rate || timesheet.resources?.daily_rate || 0;
+  const dailyRate = resource?.sell_price || timesheet.resources?.sell_price || 0;
   const totalValue = calculateBillableValue(hours, dailyRate);
 
   async function handleSave() {

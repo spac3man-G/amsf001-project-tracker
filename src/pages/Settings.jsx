@@ -144,7 +144,7 @@ export default function Settings() {
   }
 
   // Calculate budget allocation stats
-  const totalAllocated = milestones.reduce((sum, m) => sum + (parseFloat(m.budget) || 0), 0);
+  const totalAllocated = milestones.reduce((sum, m) => sum + (parseFloat(m.billable) || 0), 0);
   const unallocated = parseFloat(settings.total_budget) - totalAllocated;
   const allocationPercent = settings.total_budget > 0 
     ? Math.round((totalAllocated / settings.total_budget) * 100) 
@@ -344,7 +344,7 @@ export default function Settings() {
                         type="number"
                         min="0"
                         step="0.01"
-                        value={m.budget || ''}
+                        value={m.billable || ''}
                         onChange={(e) => handleMilestoneBudgetChange(m.id, e.target.value)}
                         disabled={savingMilestone === m.id}
                         style={{ 
@@ -363,7 +363,7 @@ export default function Settings() {
                   </td>
                   <td style={{ textAlign: 'right', color: '#64748b' }}>
                     {settings.total_budget > 0 
-                      ? `${((m.budget || 0) / settings.total_budget * 100).toFixed(1)}%`
+                      ? `${((m.billable || 0) / settings.total_budget * 100).toFixed(1)}%`
                       : '0%'
                     }
                   </td>

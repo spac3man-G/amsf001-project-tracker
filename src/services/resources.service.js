@@ -369,8 +369,8 @@ export class ResourcesService extends BaseService {
       daysUsed,
       remaining,
       utilizationPercent,
-      totalValue: (resource.daily_rate || 0) * daysAllocated,
-      valueUsed: (resource.daily_rate || 0) * daysUsed
+      totalValue: (resource.sell_price || 0) * daysAllocated,
+      valueUsed: (resource.sell_price || 0) * daysUsed
     };
   }
 
@@ -385,7 +385,7 @@ export class ResourcesService extends BaseService {
       internal: resources.filter(r => r.resource_type === 'internal').length,
       thirdParty: resources.filter(r => r.resource_type === 'third_party').length,
       active: resources.filter(r => r.is_active).length,
-      totalBudget: resources.reduce((sum, r) => sum + ((r.daily_rate || 0) * (r.days_allocated || 0)), 0)
+      totalBudget: resources.reduce((sum, r) => sum + ((r.sell_price || 0) * (r.days_allocated || 0)), 0)
     };
   }
 

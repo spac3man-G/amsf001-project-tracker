@@ -399,7 +399,7 @@ class MetricsService {
         .from('timesheets')
         .select(`
           id, date, hours_worked, hours, status, milestone_id, resource_id, is_deleted,
-          resources(id, name, role, daily_rate)
+          resources(id, name, role, sell_price)
         `)
         .eq('project_id', projectId);
 
@@ -419,7 +419,7 @@ class MetricsService {
       timesheets.forEach(ts => {
         const hours = parseFloat(ts.hours_worked || ts.hours || 0);
         const resource = ts.resources;
-        const dailyRate = resource?.daily_rate || 0;
+        const dailyRate = resource?.sell_price || 0;
         const dayCost = (hours / BUDGET_CONFIG.hoursPerDay) * dailyRate;
 
         // Only count valid statuses toward spend
@@ -551,7 +551,7 @@ class MetricsService {
       // Simple query - filter client-side
       const { data: rawResources, error } = await supabase
         .from('resources')
-        .select('id, name, role, daily_rate, days_allocated, is_deleted')
+        .select('id, name, role, sell_price, days_allocated, is_deleted')
         .eq('project_id', projectId);
 
       if (error) throw error;
@@ -563,7 +563,7 @@ class MetricsService {
       let deliveryBudget = 0;
 
       resources.forEach(r => {
-        const budget = (r.daily_rate || 0) * (r.days_allocated || 0);
+        const budget = (r.sell_price || 0) * (r.days_allocated || 0);
         if (isPMORole(r.role)) {
           pmoBudget += budget;
         } else {

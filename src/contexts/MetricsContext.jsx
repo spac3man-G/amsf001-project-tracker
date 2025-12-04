@@ -140,7 +140,7 @@ export function MetricsProvider({ children }) {
     expenses: metrics?.expenses || null,
     resources: metrics?.resources || null,
     certificates: metrics?.certificates || null,
-    budget: metrics?.budget || null,
+    billable: metrics?.billable || null,
     milestoneSpend: metrics?.milestoneSpend || {},
     projectProgress: metrics?.projectProgress || 0,
     

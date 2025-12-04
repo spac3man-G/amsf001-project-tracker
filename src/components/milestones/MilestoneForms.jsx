@@ -118,8 +118,8 @@ export function MilestoneAddForm({
           className="form-input"
           placeholder="0"
           style={{ maxWidth: '200px' }}
-          value={form.budget}
-          onChange={(e) => onFormChange({ ...form, budget: e.target.value })}
+          value={form.billable}
+          onChange={(e) => onFormChange({ ...form, billable: e.target.value })}
         />
         <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
           The amount that can be invoiced when this milestone is completed (not a budget for doing the work)
@@ -277,8 +277,8 @@ export function MilestoneEditModal({
           <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Billable Amount (£)</label>
           <input
             type="number"
-            value={form.budget}
-            onChange={(e) => onFormChange({ ...form, budget: e.target.value })}
+            value={form.billable}
+            onChange={(e) => onFormChange({ ...form, billable: e.target.value })}
             style={{ ...inputStyle, width: '200px' }}
           />
           <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>

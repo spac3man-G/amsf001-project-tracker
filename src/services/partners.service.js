@@ -58,7 +58,7 @@ class PartnersService extends BaseService {
           resources (
             id,
             name,
-            daily_rate,
+            sell_price,
             cost_price,
             is_active
           )
