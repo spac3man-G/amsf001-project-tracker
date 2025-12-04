@@ -255,9 +255,10 @@ export class MilestonesService extends BaseService {
   }
 
   /**
-   * Get billable milestones with expected completion dates
+   * Get billable milestones with expected completion dates and certificate status
    * Expected date is MAX of linked deliverables' due_dates, 
    * falling back to milestone's forecast_end_date
+   * Ready to bill = certificate exists with status 'Signed'
    */
   async getBillableMilestones(projectId) {
     try {
@@ -269,6 +270,21 @@ export class MilestonesService extends BaseService {
 
       // Get all deliverables for these milestones to find max due_date
       const milestoneIds = milestones.map(m => m.id);
+      
+      // Get certificates to check if milestone is ready to bill
+      const { data: certificates } = await supabase
+        .from('milestone_certificates')
+        .select('milestone_id, status')
+        .eq('project_id', projectId);
+
+      // Map certificates by milestone_id
+      const certificateMap = {};
+      (certificates || []).forEach(c => {
+        // Only store the most relevant status (Signed takes priority)
+        if (!certificateMap[c.milestone_id] || c.status === 'Signed') {
+          certificateMap[c.milestone_id] = c.status;
+        }
+      });
       
       if (milestoneIds.length > 0) {
         const { data: deliverables } = await supabase
@@ -287,17 +303,21 @@ export class MilestonesService extends BaseService {
           }
         });
 
-        // Add expected_date to each milestone
+        // Add expected_date and ready_to_bill to each milestone
         return milestones.map(m => ({
           ...m,
-          expected_date: maxDates[m.id] || m.forecast_end_date || m.end_date
+          expected_date: maxDates[m.id] || m.forecast_end_date || m.end_date,
+          certificate_status: certificateMap[m.id] || null,
+          ready_to_bill: certificateMap[m.id] === 'Signed'
         }));
       }
 
       // No deliverables - use milestone dates directly
       return milestones.map(m => ({
         ...m,
-        expected_date: m.forecast_end_date || m.end_date
+        expected_date: m.forecast_end_date || m.end_date,
+        certificate_status: certificateMap[m.id] || null,
+        ready_to_bill: certificateMap[m.id] === 'Signed'
       }));
     } catch (error) {
       console.error('MilestonesService getBillableMilestones error:', error);

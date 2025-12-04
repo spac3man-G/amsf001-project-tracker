@@ -2,16 +2,19 @@
  * Billing Widget
  * 
  * Dashboard widget showing billable milestones with payment tracking.
- * Displays milestone amount, expected date, billed/received status, and PO number.
+ * Displays milestone amount, expected date, ready to bill status, billed/received status, and PO number.
  * Editable by Admin and Supplier PM roles only (when editable prop is true).
  * 
- * @version 1.1
+ * On dashboard: clicking anywhere navigates to /billing
+ * On billing page: milestone refs are clickable links to milestone detail
+ * 
+ * @version 1.2
  * @updated 6 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PoundSterling, Check, X, Calendar, FileText } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { PoundSterling, Check, X, Calendar, FileText, Award } from 'lucide-react';
 import { milestonesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -48,6 +51,13 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleWidgetClick = (e) => {
+    // Only navigate on dashboard (not full page), and only if not clicking an interactive element
+    if (!fullPage && !e.target.closest('button, input, a')) {
+      navigate('/billing');
+    }
+  };
 
   const handleToggle = async (milestone, field) => {
     if (!allowEdit) return;
@@ -120,7 +130,14 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
   }
 
   return (
-    <div className="dashboard-widget billing-widget" style={{ gridColumn: 'span 2' }}>
+    <div 
+      className="dashboard-widget billing-widget" 
+      style={{ 
+        gridColumn: 'span 2',
+        cursor: fullPage ? 'default' : 'pointer'
+      }}
+      onClick={handleWidgetClick}
+    >
       <div className="widget-header">
         <div className="widget-icon" style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}>
           <PoundSterling size={20} />
@@ -161,6 +178,7 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
               <th style={{ textAlign: 'left', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Milestone</th>
               <th style={{ textAlign: 'right', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Amount</th>
               <th style={{ textAlign: 'center', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Expected</th>
+              <th style={{ textAlign: 'center', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Ready</th>
               <th style={{ textAlign: 'center', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Billed</th>
               <th style={{ textAlign: 'center', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Received</th>
               <th style={{ textAlign: 'left', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>PO Number</th>
@@ -176,7 +194,17 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
                 }}
               >
                 <td style={{ padding: '0.625rem 0.25rem' }}>
-                  <div style={{ fontWeight: '500' }}>{milestone.milestone_ref}</div>
+                  {fullPage ? (
+                    <Link 
+                      to={`/milestones/${milestone.id}`}
+                      style={{ textDecoration: 'none' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ fontWeight: '500', color: '#3b82f6' }}>{milestone.milestone_ref}</div>
+                    </Link>
+                  ) : (
+                    <div style={{ fontWeight: '500' }}>{milestone.milestone_ref}</div>
+                  )}
                   <div style={{ fontSize: '0.75rem', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {milestone.name}
                   </div>
@@ -191,8 +219,27 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
                   </div>
                 </td>
                 <td style={{ textAlign: 'center', padding: '0.625rem 0.25rem' }}>
+                  <div 
+                    style={{ 
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.125rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      backgroundColor: milestone.ready_to_bill ? '#dcfce7' : '#fef3c7',
+                      color: milestone.ready_to_bill ? '#16a34a' : '#d97706'
+                    }}
+                    title={milestone.certificate_status || 'No certificate'}
+                  >
+                    <Award size={12} />
+                    {milestone.ready_to_bill ? 'Yes' : 'No'}
+                  </div>
+                </td>
+                <td style={{ textAlign: 'center', padding: '0.625rem 0.25rem' }}>
                   <button
-                    onClick={() => handleToggle(milestone, 'is_billed')}
+                    onClick={(e) => { e.stopPropagation(); handleToggle(milestone, 'is_billed'); }}
                     disabled={!allowEdit}
                     style={{
                       width: '28px',
@@ -212,7 +259,7 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
                 </td>
                 <td style={{ textAlign: 'center', padding: '0.625rem 0.25rem' }}>
                   <button
-                    onClick={() => handleToggle(milestone, 'is_received')}
+                    onClick={(e) => { e.stopPropagation(); handleToggle(milestone, 'is_received'); }}
                     disabled={!allowEdit}
                     style={{
                       width: '28px',
@@ -232,7 +279,7 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
                 </td>
                 <td style={{ padding: '0.625rem 0.25rem' }}>
                   {editingPO === milestone.id ? (
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', gap: '0.25rem' }} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="text"
                         value={poValue}
@@ -264,7 +311,7 @@ export default function BillingWidget({ editable = false, fullPage = false }) {
                     </div>
                   ) : (
                     <div
-                      onClick={() => allowEdit && handlePOEdit(milestone)}
+                      onClick={(e) => { e.stopPropagation(); allowEdit && handlePOEdit(milestone); }}
                       style={{
                         padding: '0.25rem 0.5rem',
                         fontSize: '0.75rem',
