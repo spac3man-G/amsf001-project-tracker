@@ -1,5 +1,5 @@
 // Vercel Edge Function for AI Chat Assistant
-// Version 3.2 - Upgraded to Sonnet, validation terminology
+// Version 3.3 - Performance improvements: timeouts, parallel execution, extended cache
 // Uses Claude Sonnet with function calling for database queries
 
 import { createClient } from '@supabase/supabase-js';
@@ -142,6 +142,31 @@ async function withRetry(operation, operationName) {
 }
 
 // ============================================
+// QUERY TIMEOUT UTILITY
+// ============================================
+
+const QUERY_TIMEOUT_MS = 5000; // 5 second timeout for database queries
+
+async function withTimeout(promise, timeoutMs = QUERY_TIMEOUT_MS, operationName = 'Operation') {
+  let timeoutId;
+  
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${operationName} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutId);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+// ============================================
 // USER-FRIENDLY ERROR MESSAGES
 // ============================================
 
@@ -202,11 +227,19 @@ function getUserFriendlyError(error, toolName) {
 // ============================================
 
 const responseCache = new Map();
-const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minute cache (increased from 1 min for performance)
 
 function getCacheKey(toolName, toolInput, context) {
-  // Only cache certain read-only, stable queries
-  const cacheableTools = ['getUserProfile', 'getRolePermissions', 'getMilestones', 'getResources'];
+  // Cache read-only, relatively stable queries
+  const cacheableTools = [
+    'getUserProfile', 
+    'getRolePermissions', 
+    'getMilestones', 
+    'getResources',
+    'getDeliverables',
+    'getKPIs',
+    'getBudgetSummary'
+  ];
   if (!cacheableTools.includes(toolName)) return null;
   
   return `${context.userContext?.email || 'anon'}:${toolName}:${JSON.stringify(toolInput)}`;
@@ -1332,8 +1365,13 @@ async function executeTool(toolName, toolInput, context) {
   };
 
   try {
-    // Execute with retry logic for transient errors
-    const result = await withRetry(executeToolOperation, toolName);
+    // Execute with timeout AND retry logic for transient errors
+    // Timeout wraps retries so total time is bounded
+    const result = await withTimeout(
+      withRetry(executeToolOperation, toolName),
+      QUERY_TIMEOUT_MS,
+      toolName
+    );
     
     // Cache successful results
     setCachedResponse(cacheKey, result);
@@ -1382,6 +1420,7 @@ ${userContext?.partnerName ? `- Partner: ${userContext.partnerName}` : ''}
 7. If a query returns no results, say so clearly and suggest alternatives
 8. Offer to drill down into details when appropriate
 9. Don't repeat tool results verbatim - synthesise them into a helpful response
+10. If some data queries fail but others succeed, provide what information you have and note what couldn't be retrieved
 
 ## Important Notes
 - All queries are automatically filtered based on the user's role and permissions
@@ -1522,22 +1561,52 @@ export default async function handler(req) {
         // Find tool use blocks
         const toolUseBlocks = data.content.filter(block => block.type === 'tool_use');
         
-        // Execute tools and collect results
-        const toolResults = [];
-        for (const toolUse of toolUseBlocks) {
-          const result = await executeTool(toolUse.name, toolUse.input, context);
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: toolUse.id,
-            content: JSON.stringify(result)
-          });
+        // Execute ALL tools in PARALLEL for better performance
+        const toolPromises = toolUseBlocks.map(async (toolUse) => {
+          const startTime = Date.now();
+          try {
+            const result = await executeTool(toolUse.name, toolUse.input, context);
+            console.log(`[Tool] ${toolUse.name} completed in ${Date.now() - startTime}ms`);
+            return {
+              type: 'tool_result',
+              tool_use_id: toolUse.id,
+              content: JSON.stringify(result),
+              success: true
+            };
+          } catch (error) {
+            console.error(`[Tool] ${toolUse.name} failed after ${Date.now() - startTime}ms:`, error.message);
+            // Return partial result with error info so Claude can still respond
+            return {
+              type: 'tool_result',
+              tool_use_id: toolUse.id,
+              content: JSON.stringify({ 
+                error: `Unable to retrieve ${toolUse.name} data. The query timed out or failed.`,
+                partial: true,
+                recoverable: true
+              }),
+              success: false
+            };
+          }
+        });
+        
+        // Wait for all tools to complete (success or failure)
+        const toolResults = await Promise.all(toolPromises);
+        
+        // Log summary of tool execution
+        const successCount = toolResults.filter(r => r.success).length;
+        const failCount = toolResults.filter(r => !r.success).length;
+        if (failCount > 0) {
+          console.log(`[Tools] ${successCount}/${toolResults.length} succeeded, ${failCount} failed`);
         }
+        
+        // Remove the success flag before sending to API
+        const cleanedResults = toolResults.map(({ success, ...rest }) => rest);
         
         // Add assistant response and tool results to messages
         apiMessages = [
           ...apiMessages,
           { role: 'assistant', content: data.content },
-          { role: 'user', content: toolResults }
+          { role: 'user', content: cleanedResults }
         ];
       } else {
         // No more tool use, we have our final response
