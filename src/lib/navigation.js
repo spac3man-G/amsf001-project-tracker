@@ -32,7 +32,8 @@ import {
   ClipboardList,
   Building2,
   History,
-  Archive
+  Archive,
+  PoundSterling
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -140,6 +141,14 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR],
     readOnlyRoles: []
   },
+  billing: {
+    id: 'billing',
+    path: '/billing',
+    icon: PoundSterling,
+    label: 'Billing',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: []
+  },
   partners: {
     id: 'partners',
     path: '/partners',
@@ -219,6 +228,7 @@ export const ROLE_NAV_ORDER = {
     'resources',
     'timesheets',
     'expenses',
+    'billing',
     'partners',
     'users',
     'settings',
@@ -237,6 +247,7 @@ export const ROLE_NAV_ORDER = {
     'resources',
     'timesheets',
     'expenses',
+    'billing',
     'partners',
     'users',
     'settings',

@@ -41,6 +41,7 @@ const KPIDetail = lazy(() => import('./pages/KPIDetail'));
 const QualityStandards = lazy(() => import('./pages/QualityStandards'));
 const QualityStandardDetail = lazy(() => import('./pages/QualityStandardDetail'));
 const Reports = lazy(() => import('./pages/Reports'));
+const Billing = lazy(() => import('./pages/Billing'));
 const Users = lazy(() => import('./pages/Users'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
@@ -177,6 +178,11 @@ export default function App() {
                       {/* Reports */}
                       <Route path="/reports" element={
                         <ProtectedRoute><Reports /></ProtectedRoute>
+                      } />
+                      
+                      {/* Billing */}
+                      <Route path="/billing" element={
+                        <ProtectedRoute><Billing /></ProtectedRoute>
                       } />
                       
                       {/* Users (Admin) */}

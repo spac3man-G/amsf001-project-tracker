@@ -43,7 +43,7 @@ export default function Dashboard() {
           <DeliverablesWidget />
           <TimesheetsWidget />
           <ExpensesWidget />
-          <BillingWidget />
+          <BillingWidget editable={false} />
         </div>
       </div>
     </div>

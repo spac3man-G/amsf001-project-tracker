@@ -3,10 +3,10 @@
  * 
  * Dashboard widget showing billable milestones with payment tracking.
  * Displays milestone amount, expected date, billed/received status, and PO number.
- * Editable by Admin and Supplier PM roles only.
+ * Editable by Admin and Supplier PM roles only (when editable prop is true).
  * 
- * @version 1.0
- * @created 6 December 2025
+ * @version 1.1
+ * @updated 6 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -17,11 +17,14 @@ import { useProject } from '../../contexts/ProjectContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../contexts/ToastContext';
 
-export default function BillingWidget() {
+export default function BillingWidget({ editable = false, fullPage = false }) {
   const navigate = useNavigate();
   const { projectId } = useProject();
   const { canEditBilling } = usePermissions();
   const { showSuccess, showError } = useToast();
+  
+  // Only allow editing if both prop allows it AND user has permission
+  const allowEdit = editable && canEditBilling;
   
   const [loading, setLoading] = useState(true);
   const [milestones, setMilestones] = useState([]);
@@ -47,7 +50,7 @@ export default function BillingWidget() {
   }, [fetchData]);
 
   const handleToggle = async (milestone, field) => {
-    if (!canEditBilling) return;
+    if (!allowEdit) return;
     
     try {
       const newValue = !milestone[field];
@@ -62,7 +65,7 @@ export default function BillingWidget() {
   };
 
   const handlePOEdit = (milestone) => {
-    if (!canEditBilling) return;
+    if (!allowEdit) return;
     setEditingPO(milestone.id);
     setPOValue(milestone.purchase_order || '');
   };
@@ -190,13 +193,13 @@ export default function BillingWidget() {
                 <td style={{ textAlign: 'center', padding: '0.625rem 0.25rem' }}>
                   <button
                     onClick={() => handleToggle(milestone, 'is_billed')}
-                    disabled={!canEditBilling}
+                    disabled={!allowEdit}
                     style={{
                       width: '28px',
                       height: '28px',
                       borderRadius: '6px',
                       border: 'none',
-                      cursor: canEditBilling ? 'pointer' : 'default',
+                      cursor: allowEdit ? 'pointer' : 'default',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -210,13 +213,13 @@ export default function BillingWidget() {
                 <td style={{ textAlign: 'center', padding: '0.625rem 0.25rem' }}>
                   <button
                     onClick={() => handleToggle(milestone, 'is_received')}
-                    disabled={!canEditBilling}
+                    disabled={!allowEdit}
                     style={{
                       width: '28px',
                       height: '28px',
                       borderRadius: '6px',
                       border: 'none',
-                      cursor: canEditBilling ? 'pointer' : 'default',
+                      cursor: allowEdit ? 'pointer' : 'default',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -261,21 +264,21 @@ export default function BillingWidget() {
                     </div>
                   ) : (
                     <div
-                      onClick={() => canEditBilling && handlePOEdit(milestone)}
+                      onClick={() => allowEdit && handlePOEdit(milestone)}
                       style={{
                         padding: '0.25rem 0.5rem',
                         fontSize: '0.75rem',
                         color: milestone.purchase_order ? '#1e293b' : '#94a3b8',
-                        cursor: canEditBilling ? 'pointer' : 'default',
+                        cursor: allowEdit ? 'pointer' : 'default',
                         borderRadius: '4px',
-                        backgroundColor: canEditBilling ? '#f8fafc' : 'transparent',
+                        backgroundColor: allowEdit ? '#f8fafc' : 'transparent',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.25rem'
                       }}
                     >
                       <FileText size={12} />
-                      {milestone.purchase_order || (canEditBilling ? 'Add PO' : '—')}
+                      {milestone.purchase_order || (allowEdit ? 'Add PO' : '—')}
                     </div>
                   )}
                 </td>
