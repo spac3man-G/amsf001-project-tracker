@@ -1,9 +1,9 @@
 /**
  * Dashboard Page - Clean Slate
  * 
- * Blank dashboard ready for customization.
+ * Dashboard with milestone progress widget.
  * 
- * @version 7.0
+ * @version 7.1
  * @updated 4 December 2025
  */
 
@@ -11,6 +11,7 @@ import React from 'react';
 import './Dashboard.css';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
+import { MilestonesWidget } from '../components/dashboard';
 
 export default function Dashboard() {
   const { projectName, projectRef } = useProject();
@@ -37,7 +38,9 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-content">
-        {/* Dashboard content will be added here */}
+        <div className="dashboard-widgets">
+          <MilestonesWidget />
+        </div>
       </div>
     </div>
   );

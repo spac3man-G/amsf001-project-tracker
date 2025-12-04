@@ -1,6 +1,6 @@
 /* =============================================================================
-   AMSF001 Dashboard - Clean Slate
-   Version: 7.0
+   AMSF001 Dashboard - With Widgets
+   Version: 7.1
    ============================================================================= */
 
 /* -----------------------------------------------------------------------------
@@ -99,10 +99,146 @@
 }
 
 /* -----------------------------------------------------------------------------
+   Widget Grid
+   ----------------------------------------------------------------------------- */
+.dashboard-widgets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* -----------------------------------------------------------------------------
+   Widget Base Styles
+   ----------------------------------------------------------------------------- */
+.dashboard-widget {
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--ds-shadow-card);
+  cursor: pointer;
+  transition: all var(--ds-transition);
+  border: 1px solid var(--ds-border);
+}
+
+.dashboard-widget:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ds-shadow-md);
+  border-color: var(--ds-teal);
+}
+
+.widget-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+.widget-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--ds-teal-light);
+  color: var(--ds-teal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.widget-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  flex: 1;
+}
+
+.widget-total {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  background: var(--ds-bg-secondary);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.widget-loading {
+  text-align: center;
+  padding: 24px;
+  color: var(--ds-text-secondary);
+  font-size: 14px;
+}
+
+/* -----------------------------------------------------------------------------
+   Widget Breakdown Rows
+   ----------------------------------------------------------------------------- */
+.widget-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.widget-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.widget-row-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.widget-row-icon.approved {
+  background: var(--ds-success-bg);
+  color: var(--ds-success);
+}
+
+.widget-row-icon.pending {
+  background: var(--ds-warning-bg);
+  color: var(--ds-warning);
+}
+
+.widget-row-icon.awaiting {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.widget-row-icon.progress {
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-tertiary);
+}
+
+.widget-row-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--ds-text-primary);
+}
+
+.widget-row-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-mono);
+  min-width: 28px;
+  text-align: right;
+}
+
+/* -----------------------------------------------------------------------------
    Responsive Design
    ----------------------------------------------------------------------------- */
 @media (max-width: 768px) {
   .dashboard-content {
     padding: 16px;
+  }
+  
+  .dashboard-widgets {
+    grid-template-columns: 1fr;
   }
 }
