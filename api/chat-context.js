@@ -1,6 +1,6 @@
 // Vercel Edge Function for Chat Context Pre-fetch
 // Loads key project metrics when chat opens for instant responses
-// Version 1.0
+// Version 1.1 - Uses aggregate view for faster fetching
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -43,6 +43,111 @@ async function fetchContextBundle(projectId, userContext) {
   const supabase = getSupabase();
   if (!supabase) throw new Error('Database not configured');
 
+  // Try fast path using aggregate view first
+  try {
+    const fastResult = await fetchFromAggregateView(supabase, projectId, userContext);
+    if (fastResult) {
+      console.log('[Chat Context] Using aggregate view (fast path)');
+      return fastResult;
+    }
+  } catch (err) {
+    console.warn('[Chat Context] Aggregate view not available, using fallback:', err.message);
+  }
+
+  // Fallback to multiple queries
+  return fetchWithMultipleQueries(supabase, projectId, userContext);
+}
+
+// Fast path: single query using aggregate view
+async function fetchFromAggregateView(supabase, projectId, userContext) {
+  const { data, error } = await withTimeout(
+    supabase
+      .from('chat_context_summary')
+      .select('*')
+      .eq('project_id', projectId)
+      .single(),
+    3000
+  );
+
+  if (error || !data) return null;
+
+  // Also get user-specific pending items if they have a linked resource
+  let userDraftCount = 0;
+  if (userContext?.linkedResourceId) {
+    const { count } = await supabase
+      .from('timesheets')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+      .eq('resource_id', userContext.linkedResourceId)
+      .eq('status', 'Draft')
+      .or('is_deleted.is.null,is_deleted.eq.false');
+    userDraftCount = count || 0;
+  }
+
+  return {
+    project: {
+      id: projectId,
+      name: data.project_name,
+      reference: data.project_reference,
+    },
+    budgetSummary: {
+      projectBudget: data.budget_total,
+      milestoneBillable: data.budget_milestone_billable,
+      actualSpend: data.budget_actual_spend,
+      variance: data.budget_variance,
+      percentUsed: data.budget_percent_used,
+    },
+    milestoneSummary: {
+      total: data.milestones_total,
+      byStatus: {
+        completed: data.milestones_completed,
+        inProgress: data.milestones_in_progress,
+        notStarted: data.milestones_not_started,
+        atRisk: data.milestones_at_risk,
+      },
+    },
+    deliverableSummary: {
+      total: data.deliverables_total,
+      byStatus: {
+        delivered: data.deliverables_delivered,
+        reviewComplete: data.deliverables_review_complete,
+        awaitingReview: data.deliverables_awaiting_review,
+        inProgress: data.deliverables_in_progress,
+        notStarted: 0, // Can add to view if needed
+      },
+    },
+    timesheetSummary: {
+      totalEntries: data.timesheets_total,
+      totalHours: data.timesheets_hours,
+      byStatus: {
+        submitted: data.timesheets_submitted,
+        validated: data.timesheets_validated,
+        approved: 0, // Can add to view if needed
+      },
+    },
+    expenseSummary: {
+      totalEntries: data.expenses_total,
+      totalAmount: data.expenses_amount,
+      chargeableAmount: data.expenses_chargeable,
+      nonChargeableAmount: data.expenses_non_chargeable,
+      byStatus: {
+        submitted: 0,
+        validated: 0,
+        approved: 0,
+      },
+    },
+    pendingActions: {
+      draftTimesheets: userDraftCount,
+      awaitingValidation: data.pending_timesheets + data.pending_expenses,
+      hasPending: userDraftCount > 0 || data.pending_timesheets > 0 || data.pending_expenses > 0,
+    },
+    fetchedAt: new Date().toISOString(),
+    source: 'aggregate_view',
+  };
+}
+
+// Fallback: multiple parallel queries
+async function fetchWithMultipleQueries(supabase, projectId, userContext) {
   const results = {
     project: null,
     budgetSummary: null,
@@ -52,6 +157,7 @@ async function fetchContextBundle(projectId, userContext) {
     expenseSummary: null,
     pendingActions: null,
     fetchedAt: new Date().toISOString(),
+    source: 'multiple_queries',
   };
 
   // Run all queries in parallel
