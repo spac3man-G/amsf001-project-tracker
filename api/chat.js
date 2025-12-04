@@ -1,6 +1,6 @@
 // Vercel Edge Function for AI Chat Assistant
-// Version 3.3 - Performance improvements: timeouts, parallel execution, extended cache
-// Uses Claude Sonnet with function calling for database queries
+// Version 3.4 - Model routing: Haiku for simple queries, Sonnet for complex
+// Uses Claude with function calling for database queries
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -36,10 +36,24 @@ const supabase = {
 // COST MONITORING - Token Usage Logging
 // ============================================
 
-// Claude Sonnet pricing (per 1M tokens, as of Dec 2024)
+// Claude pricing (per 1M tokens, as of Dec 2024)
 const TOKEN_COSTS = {
-  input: 3.00,   // $3.00 per 1M input tokens
-  output: 15.00, // $15.00 per 1M output tokens
+  // Sonnet - used for complex queries with tool use
+  sonnet: {
+    input: 3.00,
+    output: 15.00,
+  },
+  // Haiku - used for simple queries from pre-fetched context
+  haiku: {
+    input: 0.25,
+    output: 1.25,
+  }
+};
+
+// Model selection
+const MODELS = {
+  HAIKU: 'claude-haiku-4-5-20250929',
+  SONNET: 'claude-sonnet-4-5-20250929',
 };
 
 // In-memory usage stats (resets on cold start)
@@ -48,23 +62,31 @@ const usageStats = {
   totalInputTokens: 0,
   totalOutputTokens: 0,
   estimatedCostUSD: 0,
+  haikuRequests: 0,
+  sonnetRequests: 0,
   startedAt: new Date().toISOString(),
   recentRequests: [], // Last 100 requests for analysis
 };
 
-function logTokenUsage(usage, userId, toolsUsed) {
+function logTokenUsage(usage, userId, toolsUsed, model = 'sonnet') {
   if (!usage) return;
   
   const inputTokens = usage.input_tokens || 0;
   const outputTokens = usage.output_tokens || 0;
-  const costUSD = (inputTokens * TOKEN_COSTS.input / 1000000) + 
-                  (outputTokens * TOKEN_COSTS.output / 1000000);
+  const costs = TOKEN_COSTS[model] || TOKEN_COSTS.sonnet;
+  const costUSD = (inputTokens * costs.input / 1000000) + 
+                  (outputTokens * costs.output / 1000000);
   
   // Update totals
   usageStats.totalRequests++;
   usageStats.totalInputTokens += inputTokens;
   usageStats.totalOutputTokens += outputTokens;
   usageStats.estimatedCostUSD += costUSD;
+  if (model === 'haiku') {
+    usageStats.haikuRequests++;
+  } else {
+    usageStats.sonnetRequests++;
+  }
   
   // Track recent requests (keep last 100)
   usageStats.recentRequests.push({
@@ -74,6 +96,7 @@ function logTokenUsage(usage, userId, toolsUsed) {
     outputTokens,
     costUSD: costUSD.toFixed(6),
     toolsUsed,
+    model,
   });
   
   if (usageStats.recentRequests.length > 100) {
@@ -1384,6 +1407,104 @@ async function executeTool(toolName, toolInput, context) {
 }
 
 // ============================================
+// MODEL ROUTING - Choose Haiku vs Sonnet
+// ============================================
+
+// Keywords that suggest a simple query answerable from pre-fetched context
+const SIMPLE_QUERY_PATTERNS = [
+  /budget|spend|cost|variance/i,
+  /milestone.*(status|progress|summary|count|how many)/i,
+  /deliverable.*(status|progress|summary|count|how many)/i,
+  /timesheet.*(summary|total|hours|count|how many)/i,
+  /expense.*(summary|total|amount|count|how many)/i,
+  /pending|action|todo|to do|what.*(do|need)/i,
+  /overview|summary|status|dashboard/i,
+  /how.*(doing|going|progress)/i,
+];
+
+// Keywords that suggest a complex query needing specific tool calls
+const COMPLEX_QUERY_PATTERNS = [
+  /specific|detail|list|show me|find|search/i,
+  /filter|between|from|to|date|week|month|year/i,
+  /resource|person|team member|who/i,
+  /partner|supplier/i,
+  /compare|versus|vs/i,
+  /kpi|quality|standard/i,
+  /\d+/,  // Contains numbers (likely specific queries)
+];
+
+function shouldUseHaiku(message, prefetchedContext) {
+  // Can't use Haiku if we don't have pre-fetched context
+  if (!prefetchedContext) return false;
+  
+  const lastMessage = message.toLowerCase();
+  
+  // Check for complex patterns first (these need Sonnet + tools)
+  for (const pattern of COMPLEX_QUERY_PATTERNS) {
+    if (pattern.test(lastMessage)) {
+      return false;
+    }
+  }
+  
+  // Check for simple patterns (can use Haiku with pre-fetched data)
+  for (const pattern of SIMPLE_QUERY_PATTERNS) {
+    if (pattern.test(lastMessage)) {
+      return true;
+    }
+  }
+  
+  // Default to Sonnet for safety (better responses for unknown queries)
+  return false;
+}
+
+// Build a simpler prompt for Haiku (no tools, just pre-fetched data)
+function buildHaikuPrompt(context) {
+  const { userContext, projectContext, prefetchedContext } = context;
+  
+  return `You are a helpful project assistant. Answer the user's question using ONLY the provided data below. Be concise and helpful. Use UK date format (DD/MM/YYYY) and GBP currency (£).
+
+## User
+- Name: ${userContext?.name || 'Unknown'}
+- Role: ${userContext?.role || 'Unknown'}
+
+## Project: ${projectContext?.name || 'AMSF001'}
+
+## Current Data
+### Budget
+- Project Budget: £${(prefetchedContext?.budgetSummary?.projectBudget || 0).toLocaleString()}
+- Milestone Billable: £${(prefetchedContext?.budgetSummary?.milestoneBillable || 0).toLocaleString()}
+- Actual Spend: £${(prefetchedContext?.budgetSummary?.actualSpend || 0).toLocaleString()}
+- Variance: £${(prefetchedContext?.budgetSummary?.variance || 0).toLocaleString()}
+- Budget Used: ${prefetchedContext?.budgetSummary?.percentUsed || 0}%
+
+### Milestones (${prefetchedContext?.milestoneSummary?.total || 0} total)
+- Completed: ${prefetchedContext?.milestoneSummary?.byStatus?.completed || 0}
+- In Progress: ${prefetchedContext?.milestoneSummary?.byStatus?.inProgress || 0}
+- At Risk: ${prefetchedContext?.milestoneSummary?.byStatus?.atRisk || 0}
+- Not Started: ${prefetchedContext?.milestoneSummary?.byStatus?.notStarted || 0}
+
+### Deliverables (${prefetchedContext?.deliverableSummary?.total || 0} total)
+- Delivered: ${prefetchedContext?.deliverableSummary?.byStatus?.delivered || 0}
+- Review Complete: ${prefetchedContext?.deliverableSummary?.byStatus?.reviewComplete || 0}
+- Awaiting Review: ${prefetchedContext?.deliverableSummary?.byStatus?.awaitingReview || 0}
+- In Progress: ${prefetchedContext?.deliverableSummary?.byStatus?.inProgress || 0}
+
+### Timesheets
+- Total Entries: ${prefetchedContext?.timesheetSummary?.totalEntries || 0}
+- Total Hours: ${prefetchedContext?.timesheetSummary?.totalHours || 0}
+
+### Expenses
+- Total: £${(prefetchedContext?.expenseSummary?.totalAmount || 0).toLocaleString()}
+- Chargeable: £${(prefetchedContext?.expenseSummary?.chargeableAmount || 0).toLocaleString()}
+
+### Pending Actions
+- Draft Timesheets: ${prefetchedContext?.pendingActions?.draftTimesheets || 0}
+- Awaiting Validation: ${prefetchedContext?.pendingActions?.awaitingValidation || 0}
+
+Answer naturally and helpfully. If you need more specific information than provided, say you can help find more details if they ask.`;
+}
+
+// ============================================
 // SYSTEM PROMPT
 // ============================================
 
@@ -1568,12 +1689,69 @@ export default async function handler(req) {
       prefetchedContext: prefetchedContext || null,
     };
 
+    // Get the last user message for routing decision
+    const lastUserMessage = sanitizedMessages[sanitizedMessages.length - 1]?.content || '';
+    
+    // Determine if we can use the fast Haiku path
+    const useHaiku = shouldUseHaiku(lastUserMessage, prefetchedContext);
+    
+    if (useHaiku) {
+      // FAST PATH: Use Haiku with pre-fetched data (no tools needed)
+      console.log('[Chat] Using Haiku fast path with pre-fetched context');
+      
+      const haikuPrompt = buildHaikuPrompt(context);
+      
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: MODELS.HAIKU,
+          max_tokens: 1024,
+          system: haikuPrompt,
+          messages: sanitizedMessages,
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('[Chat] Haiku failed, falling back to Sonnet');
+        // Fall through to Sonnet path below
+      } else {
+        const data = await response.json();
+        const textContent = data.content.find(block => block.type === 'text');
+        const responseText = textContent?.text || 'I apologize, but I was unable to generate a response.';
+
+        // Log token usage for Haiku
+        logTokenUsage(data.usage, userId, false, 'haiku');
+
+        return new Response(JSON.stringify({
+          message: responseText,
+          usage: data.usage,
+          toolsUsed: false,
+          cached: false,
+          model: 'haiku',
+        }), {
+          status: 200,
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': String(rateLimit.remaining),
+          },
+        });
+      }
+    }
+
+    // STANDARD PATH: Use Sonnet with tools
     // Build system prompt (includes pre-fetched data if available)
     const systemPrompt = buildSystemPrompt(context);
     
     // Log if we have pre-fetched context
     if (prefetchedContext) {
-      console.log('[Chat] Using pre-fetched context for faster response');
+      console.log('[Chat] Using Sonnet with pre-fetched context and tools');
+    } else {
+      console.log('[Chat] Using Sonnet with tools (no pre-fetched context)');
     }
 
     // Initial API call with tools
@@ -1594,7 +1772,7 @@ export default async function handler(req) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
+          model: MODELS.SONNET,
           max_tokens: 2048,
           system: systemPrompt,
           tools: TOOLS,
@@ -1678,13 +1856,14 @@ export default async function handler(req) {
     const responseText = textContent?.text || 'I apologize, but I was unable to generate a response.';
 
     // Log token usage for cost monitoring
-    logTokenUsage(finalResponse.usage, userId, iterations > 1);
+    logTokenUsage(finalResponse.usage, userId, iterations > 1, 'sonnet');
 
     return new Response(JSON.stringify({
       message: responseText,
       usage: finalResponse.usage,
       toolsUsed: iterations > 1,
-      cached: false
+      cached: false,
+      model: 'sonnet',
     }), {
       status: 200,
       headers: { 
