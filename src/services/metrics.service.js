@@ -16,15 +16,12 @@
 import { supabase } from '../lib/supabase';
 import {
   VALID_STATUSES,
-  SOFT_DELETE_FILTER,
-  TEST_CONTENT_FILTER,
   BUDGET_CONFIG,
   KPI_CONFIG,
   QS_CONFIG,
   isPMORole,
   timesheetContributesToSpend,
-  expenseContributesToSpend,
-  deliverableContributesToKPIs
+  expenseContributesToSpend
 } from '../config/metricsConfig';
 
 class MetricsService {
@@ -71,14 +68,17 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      const { data: milestones, error } = await supabase
+      // Simple query - filter soft-deleted client-side
+      const { data: rawMilestones, error } = await supabase
         .from('milestones')
-        .select('id, milestone_ref, name, status, progress, budget, percent_complete')
+        .select('id, milestone_ref, name, status, progress, budget, percent_complete, is_deleted')
         .eq('project_id', projectId)
-        .or(SOFT_DELETE_FILTER.supabaseFilter)
         .order('milestone_ref');
 
       if (error) throw error;
+
+      // Filter out soft-deleted records
+      const milestones = rawMilestones?.filter(m => m.is_deleted !== true) || [];
 
       const metrics = {
         total: milestones.length,
@@ -113,18 +113,20 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      let query = supabase
+      // Simple query - filter client-side
+      const { data: rawDeliverables, error } = await supabase
         .from('deliverables')
-        .select('id, deliverable_ref, name, status, due_date, milestone_id')
+        .select('id, deliverable_ref, name, status, due_date, milestone_id, is_deleted, is_test_content')
         .eq('project_id', projectId)
-        .or(SOFT_DELETE_FILTER.supabaseFilter);
-
-      if (!includeTestContent) {
-        query = query.or(TEST_CONTENT_FILTER.supabaseFilter);
-      }
-
-      const { data: deliverables, error } = await query.order('deliverable_ref');
+        .order('deliverable_ref');
+      
       if (error) throw error;
+
+      // Filter out soft-deleted and optionally test content
+      let deliverables = rawDeliverables?.filter(d => d.is_deleted !== true) || [];
+      if (!includeTestContent) {
+        deliverables = deliverables.filter(d => d.is_test_content !== true);
+      }
 
       const today = new Date().toISOString().split('T')[0];
       const nextWeek = new Date();
@@ -175,15 +177,17 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      // Get all KPIs
-      const { data: kpis, error: kpiError } = await supabase
+      // Get all KPIs - simple query, filter client-side
+      const { data: rawKpis, error: kpiError } = await supabase
         .from('kpis')
-        .select('id, kpi_ref, name, category, target, current_value')
+        .select('id, kpi_ref, name, category, target, current_value, is_deleted')
         .eq('project_id', projectId)
-        .or(SOFT_DELETE_FILTER.supabaseFilter)
         .order('kpi_ref');
 
       if (kpiError) throw kpiError;
+
+      // Filter out soft-deleted
+      const kpis = rawKpis?.filter(k => k.is_deleted !== true) || [];
 
       // Get assessments with deliverable data
       // We fetch all for this project and filter client-side because
@@ -288,15 +292,17 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      // Get all Quality Standards
-      const { data: standards, error: qsError } = await supabase
+      // Get all Quality Standards - simple query, filter client-side
+      const { data: rawStandards, error: qsError } = await supabase
         .from('quality_standards')
-        .select('id, qs_ref, name, category, target, current_value')
+        .select('id, qs_ref, name, category, target, current_value, is_deleted')
         .eq('project_id', projectId)
-        .or(SOFT_DELETE_FILTER.supabaseFilter)
         .order('qs_ref');
 
       if (qsError) throw qsError;
+
+      // Filter out soft-deleted
+      const standards = rawStandards?.filter(q => q.is_deleted !== true) || [];
 
       // Get assessments with deliverable data
       // We fetch all for this project and filter client-side because
@@ -388,22 +394,19 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      // Get timesheets with resource info
-      let query = supabase
+      // Get timesheets with resource info - simple query without complex filters
+      const { data: rawTimesheets, error } = await supabase
         .from('timesheets')
         .select(`
-          id, date, hours_worked, hours, status, milestone_id, resource_id,
+          id, date, hours_worked, hours, status, milestone_id, resource_id, is_deleted,
           resources(id, name, role, daily_rate)
         `)
-        .eq('project_id', projectId)
-        .or(SOFT_DELETE_FILTER.supabaseFilter);
+        .eq('project_id', projectId);
 
-      if (!includeTestUsers) {
-        query = query.or(TEST_CONTENT_FILTER.supabaseFilter);
-      }
-
-      const { data: timesheets, error } = await query;
       if (error) throw error;
+
+      // Filter client-side for soft-deleted records
+      const timesheets = rawTimesheets?.filter(ts => ts.is_deleted !== true) || [];
 
       // Calculate metrics
       let totalHours = 0;
@@ -478,18 +481,16 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      let query = supabase
+      // Simple query without complex filters - filter client-side
+      const { data: rawExpenses, error } = await supabase
         .from('expenses')
-        .select('id, date, amount, status, category, milestone_id, chargeable_to_customer, procurement_method')
-        .eq('project_id', projectId)
-        .or(SOFT_DELETE_FILTER.supabaseFilter);
+        .select('id, date, amount, status, category, milestone_id, chargeable_to_customer, procurement_method, is_deleted')
+        .eq('project_id', projectId);
 
-      if (!includeTestUsers) {
-        query = query.or(TEST_CONTENT_FILTER.supabaseFilter);
-      }
-
-      const { data: expenses, error } = await query;
       if (error) throw error;
+
+      // Filter client-side for soft-deleted records
+      const expenses = rawExpenses?.filter(exp => exp.is_deleted !== true) || [];
 
       let totalAmount = 0;
       let chargeableAmount = 0;
@@ -554,13 +555,16 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      const { data: resources, error } = await supabase
+      // Simple query - filter client-side
+      const { data: rawResources, error } = await supabase
         .from('resources')
-        .select('id, name, role, daily_rate, days_allocated')
-        .eq('project_id', projectId)
-        .or(SOFT_DELETE_FILTER.supabaseFilter);
+        .select('id, name, role, daily_rate, days_allocated, is_deleted')
+        .eq('project_id', projectId);
 
       if (error) throw error;
+
+      // Filter out soft-deleted
+      const resources = rawResources?.filter(r => r.is_deleted !== true) || [];
 
       let pmoBudget = 0;
       let deliveryBudget = 0;
