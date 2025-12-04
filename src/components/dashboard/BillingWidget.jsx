@@ -133,7 +133,6 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
     <div 
       className="dashboard-widget billing-widget" 
       style={{ 
-        gridColumn: 'span 2',
         cursor: fullPage ? 'default' : 'pointer'
       }}
       onClick={handleWidgetClick}

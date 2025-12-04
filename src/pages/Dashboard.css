@@ -498,3 +498,225 @@
     flex: 1 1 calc(50% - 8px);
   }
 }
+
+
+/* -----------------------------------------------------------------------------
+   Dashboard Widgets Row (2-column layout for Billing & Finance)
+   ----------------------------------------------------------------------------- */
+.dashboard-widgets-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 24px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-widgets-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Finance Widget
+   ----------------------------------------------------------------------------- */
+.finance-widget {
+  cursor: default;
+}
+
+.finance-widget:hover {
+  transform: none;
+}
+
+.finance-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.finance-section {
+  padding-top: 12px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.finance-section:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.finance-billable {
+  background: var(--ds-bg-tertiary);
+  margin: -4px -8px 0;
+  padding: 12px 16px;
+  border-radius: var(--ds-radius-sm);
+}
+
+.finance-section-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ds-text-secondary);
+  margin-bottom: 10px;
+}
+
+.finance-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.finance-row-large {
+  padding: 4px 0;
+}
+
+.finance-row-large .finance-label {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.finance-row-large .finance-value {
+  font-size: 20px;
+}
+
+.finance-row-total {
+  border-top: 1px solid var(--ds-border-subtle);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.finance-row-total .finance-label,
+.finance-row-total .finance-value {
+  font-weight: 600;
+}
+
+.finance-row-gap {
+  background: var(--ds-bg-tertiary);
+  margin: 8px -8px 0;
+  padding: 10px 16px;
+  border-radius: var(--ds-radius-sm);
+}
+
+.finance-row-gap.positive {
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.finance-row-gap.positive .finance-icon {
+  color: #10b981;
+}
+
+.finance-row-gap.positive .finance-value {
+  color: #10b981;
+}
+
+.finance-row-gap.negative {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.finance-row-gap.negative .finance-icon {
+  color: #dc2626;
+}
+
+.finance-row-gap.negative .finance-value {
+  color: #dc2626;
+}
+
+.finance-icon {
+  flex-shrink: 0;
+  color: var(--ds-text-secondary);
+}
+
+.finance-icon.pending {
+  color: var(--ds-warning);
+}
+
+.finance-icon.approved {
+  color: var(--ds-success);
+}
+
+.finance-label {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ds-text-primary);
+}
+
+.finance-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-mono);
+  text-align: right;
+}
+
+/* Expenses Grid */
+.finance-expenses-grid {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr 1fr;
+  gap: 6px 12px;
+  font-size: 12px;
+}
+
+.finance-expenses-header {
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  text-align: right;
+  padding-bottom: 4px;
+}
+
+.finance-expenses-header:first-child {
+  text-align: left;
+}
+
+.finance-expenses-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ds-text-primary);
+}
+
+.finance-expenses-value {
+  text-align: right;
+  font-family: var(--ds-font-mono);
+  color: var(--ds-text-primary);
+}
+
+.finance-expenses-total {
+  font-weight: 600;
+}
+
+.finance-expenses-total-label {
+  font-weight: 600;
+  border-top: 1px solid var(--ds-border-subtle);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.finance-expenses-grid .finance-expenses-total-label ~ .finance-expenses-total {
+  border-top: 1px solid var(--ds-border-subtle);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.finance-expenses-grand-total {
+  font-weight: 700;
+  color: var(--ds-text-primary);
+  border-top: 1px solid var(--ds-border-subtle);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+/* PMO Bar */
+.finance-pmo-bar {
+  height: 8px;
+  background: var(--ds-bg-secondary);
+  border-radius: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.finance-pmo-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}

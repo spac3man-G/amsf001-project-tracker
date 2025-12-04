@@ -1,10 +1,10 @@
 /**
  * Dashboard Page
  * 
- * Dashboard with milestone, deliverables, billing, KPI/QS metrics widgets.
+ * Dashboard with milestone, deliverables, KPI/QS metrics, billing and finance widgets.
  * Includes refresh button to reload all widget data.
  * 
- * @version 7.4
+ * @version 7.5
  * @updated 6 December 2025
  */
 
@@ -19,6 +19,7 @@ import {
   TimesheetsWidget, 
   ExpensesWidget, 
   BillingWidget,
+  FinanceWidget,
   KPICardsRow,
   QSCardsRow
 } from '../components/dashboard';
@@ -66,13 +67,12 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-content">
-        {/* Main Widgets Grid */}
+        {/* Main Widgets Grid (4 columns) */}
         <div className="dashboard-widgets">
           <MilestonesWidget refreshTrigger={refreshTrigger} />
           <DeliverablesWidget refreshTrigger={refreshTrigger} />
           <TimesheetsWidget refreshTrigger={refreshTrigger} />
           <ExpensesWidget refreshTrigger={refreshTrigger} />
-          <BillingWidget editable={false} refreshTrigger={refreshTrigger} />
         </div>
 
         {/* KPI Metrics Row */}
@@ -80,6 +80,12 @@ export default function Dashboard() {
 
         {/* QS Metrics Row */}
         <QSCardsRow refreshTrigger={refreshTrigger} />
+
+        {/* Billing & Finance Row (2 columns) */}
+        <div className="dashboard-widgets-row">
+          <BillingWidget editable={false} refreshTrigger={refreshTrigger} />
+          <FinanceWidget refreshTrigger={refreshTrigger} />
+        </div>
       </div>
     </div>
   );
