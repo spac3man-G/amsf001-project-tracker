@@ -185,8 +185,9 @@ class MetricsService {
 
       if (kpiError) throw kpiError;
 
-      // Get assessments from DELIVERED deliverables
-      // We fetch all and filter client-side for is_deleted to handle NULL values properly
+      // Get assessments with deliverable data
+      // We fetch all for this project and filter client-side because
+      // Supabase doesn't support .in() on foreign table columns
       const { data: rawAssessments, error: assessError } = await supabase
         .from('deliverable_kpi_assessments')
         .select(`
@@ -194,17 +195,17 @@ class MetricsService {
           criteria_met,
           deliverables!inner(id, status, is_deleted, project_id)
         `)
-        .eq('deliverables.project_id', projectId)
-        .in('deliverables.status', VALID_STATUSES.deliverables.contributeToKPIs);
+        .eq('deliverables.project_id', projectId);
 
       if (assessError) {
         // Table might not exist or no assessments yet
         console.warn('KPI assessments query warning:', assessError.message);
       }
 
-      // Filter out deleted deliverables (is_deleted must be null or false)
+      // Filter to only include assessments from DELIVERED, NON-DELETED deliverables
       const assessments = rawAssessments?.filter(a => 
-        a.deliverables?.is_deleted !== true
+        a.deliverables?.is_deleted !== true &&
+        VALID_STATUSES.deliverables.contributeToKPIs.includes(a.deliverables?.status)
       ) || [];
 
       // Calculate achievement per KPI based on assessments
@@ -297,8 +298,9 @@ class MetricsService {
 
       if (qsError) throw qsError;
 
-      // Get assessments from DELIVERED deliverables
-      // We fetch all and filter client-side for is_deleted to handle NULL values properly
+      // Get assessments with deliverable data
+      // We fetch all for this project and filter client-side because
+      // Supabase doesn't support .in() on foreign table columns
       const { data: rawAssessments, error: assessError } = await supabase
         .from('deliverable_qs_assessments')
         .select(`
@@ -306,16 +308,16 @@ class MetricsService {
           criteria_met,
           deliverables!inner(id, status, is_deleted, project_id)
         `)
-        .eq('deliverables.project_id', projectId)
-        .in('deliverables.status', VALID_STATUSES.deliverables.contributeToQS);
+        .eq('deliverables.project_id', projectId);
 
       if (assessError) {
         console.warn('QS assessments query warning:', assessError.message);
       }
 
-      // Filter out deleted deliverables (is_deleted must be null or false)
+      // Filter to only include assessments from DELIVERED, NON-DELETED deliverables
       const assessments = rawAssessments?.filter(a => 
-        a.deliverables?.is_deleted !== true
+        a.deliverables?.is_deleted !== true &&
+        VALID_STATUSES.deliverables.contributeToQS.includes(a.deliverables?.status)
       ) || [];
 
       // Calculate achievement per QS based on assessments
