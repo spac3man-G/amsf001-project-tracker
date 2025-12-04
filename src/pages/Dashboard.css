@@ -103,7 +103,7 @@
    ----------------------------------------------------------------------------- */
 .dashboard-widgets {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
 }
 
@@ -242,7 +242,7 @@
 /* -----------------------------------------------------------------------------
    Responsive Design
    ----------------------------------------------------------------------------- */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .dashboard-widgets {
     grid-template-columns: repeat(2, 1fr);
   }
