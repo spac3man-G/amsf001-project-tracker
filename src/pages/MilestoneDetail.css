@@ -235,6 +235,14 @@
   margin-top: 0.5rem;
 }
 
+.variance-positive {
+  color: #16a34a;
+}
+
+.variance-negative {
+  color: #dc2626;
+}
+
 /* Section Card */
 .section-card {
   background: white;
@@ -668,6 +676,10 @@
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
+.modal-content.edit-modal {
+  max-width: 640px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -752,6 +764,13 @@
   background: #f3f4f6;
   color: #9ca3af;
   cursor: not-allowed;
+}
+
+.form-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #86868b;
+  margin-top: 0.35rem;
 }
 
 .form-row {

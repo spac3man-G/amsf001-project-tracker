@@ -3,12 +3,12 @@
  * 
  * Displays detailed information for a single milestone including:
  * - Dates (baseline and forecast)
- * - Billable amount
+ * - Billable amounts (baseline, forecast, actual)
  * - Baseline commitment workflow (dual signature)
  * - Linked deliverables with progress calculation
  * - Edit functionality (role-restricted)
  * 
- * @version 3.0
+ * @version 3.1
  * @updated 5 December 2025
  */
 
@@ -18,7 +18,7 @@ import { milestonesService, deliverablesService } from '../services';
 import { 
   ArrowLeft, AlertCircle, RefreshCw, Calendar, 
   PoundSterling, Package, CheckCircle, Clock, ChevronRight,
-  Edit2, Lock, Unlock, Check, X
+  Edit2, Lock, Unlock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -40,16 +40,12 @@ export default function MilestoneDetail() {
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({});
-  
-  // Baseline commitment modal state
-  const [showBaselineModal, setShowBaselineModal] = useState(false);
 
   // Role checks
   const isAdmin = userRole === 'admin';
   const isSupplierPM = userRole === 'supplier_pm';
   const isCustomerPM = userRole === 'customer_pm';
   const canEdit = isAdmin || isSupplierPM;
-  const canCommitBaseline = isAdmin || isSupplierPM;
   const canSignAsSupplier = isAdmin || isSupplierPM;
   const canSignAsCustomer = isCustomerPM;
   
@@ -115,6 +111,11 @@ export default function MilestoneDetail() {
     });
   }
 
+  // Format currency
+  function formatCurrency(value) {
+    return `£${(value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
   // Get status styling
   function getStatusClass(status) {
     switch (status) {
@@ -131,11 +132,8 @@ export default function MilestoneDetail() {
   // Check if baseline can be edited
   function canEditBaseline() {
     if (!milestone) return false;
-    // Admin can always edit
     if (isAdmin) return true;
-    // If baseline is locked, only admin can edit
     if (milestone.baseline_locked) return false;
-    // Otherwise supplier PM can edit
     return isSupplierPM;
   }
 
@@ -146,8 +144,10 @@ export default function MilestoneDetail() {
       description: milestone.description || '',
       baseline_start_date: milestone.baseline_start_date || '',
       baseline_end_date: milestone.baseline_end_date || '',
+      baseline_billable: milestone.baseline_billable || milestone.billable || 0,
       start_date: milestone.start_date || '',
       forecast_end_date: milestone.forecast_end_date || '',
+      forecast_billable: milestone.forecast_billable || milestone.billable || 0,
       actual_start_date: milestone.actual_start_date || '',
       billable: milestone.billable || 0
     });
@@ -164,14 +164,16 @@ export default function MilestoneDetail() {
         description: editForm.description,
         start_date: editForm.start_date || null,
         forecast_end_date: editForm.forecast_end_date || null,
-        actual_start_date: editForm.actual_start_date || null
+        forecast_billable: parseFloat(editForm.forecast_billable) || 0,
+        actual_start_date: editForm.actual_start_date || null,
+        billable: parseFloat(editForm.billable) || 0
       };
 
       // Only allow baseline edits if permitted
       if (canEditBaseline()) {
         updates.baseline_start_date = editForm.baseline_start_date || null;
         updates.baseline_end_date = editForm.baseline_end_date || null;
-        updates.billable = parseFloat(editForm.billable) || 0;
+        updates.baseline_billable = parseFloat(editForm.baseline_billable) || 0;
       }
 
       await milestonesService.update(id, updates);
@@ -271,7 +273,6 @@ export default function MilestoneDetail() {
       });
 
       await fetchMilestoneData();
-      setShowBaselineModal(false);
       showSuccess('Baseline lock has been reset');
     } catch (error) {
       console.error('Error resetting baseline:', error);
@@ -315,6 +316,11 @@ export default function MilestoneDetail() {
     (supplierSigned && customerSigned) ? 'Locked' :
     supplierSigned ? 'Awaiting Customer' :
     customerSigned ? 'Awaiting Supplier' : 'Not Committed';
+
+  // Financial values - use dedicated columns or fall back to billable
+  const baselineBillable = milestone.baseline_billable ?? milestone.billable ?? 0;
+  const forecastBillable = milestone.forecast_billable ?? milestone.billable ?? 0;
+  const actualBillable = milestone.billable ?? 0;
 
   return (
     <div className="milestone-detail-page">
@@ -372,17 +378,23 @@ export default function MilestoneDetail() {
             </div>
           </div>
 
-          {/* Billable Amount Card */}
+          {/* Forecast Billable Card */}
           <div className="metric-card">
             <div className="metric-header">
               <PoundSterling size={18} />
-              <span>Billable Amount</span>
+              <span>Forecast Billable</span>
             </div>
             <div className="metric-value currency-value">
-              £{(milestone.billable || 0).toLocaleString()}
+              {formatCurrency(forecastBillable)}
             </div>
             <div className="metric-subtitle">
-              {milestone.billable > 0 ? 'To be invoiced on completion' : 'Non-billable milestone'}
+              {forecastBillable !== baselineBillable && baselineBillable > 0 && (
+                <span className={forecastBillable > baselineBillable ? 'variance-positive' : 'variance-negative'}>
+                  {forecastBillable > baselineBillable ? '+' : ''}
+                  {formatCurrency(forecastBillable - baselineBillable)} vs baseline
+                </span>
+              )}
+              {forecastBillable === baselineBillable && 'On baseline'}
             </div>
           </div>
         </div>
@@ -410,7 +422,7 @@ export default function MilestoneDetail() {
             </div>
             <div className="baseline-item">
               <span className="baseline-label">Billable Amount</span>
-              <span className="baseline-value">£{(milestone.billable || 0).toLocaleString()}</span>
+              <span className="baseline-value">{formatCurrency(baselineBillable)}</span>
             </div>
           </div>
 
@@ -486,7 +498,7 @@ export default function MilestoneDetail() {
           )}
         </div>
 
-        {/* Dates Section */}
+        {/* Schedule Section */}
         <div className="section-card">
           <h3 className="section-title">
             <Calendar size={18} />
@@ -503,6 +515,10 @@ export default function MilestoneDetail() {
                 <span className="date-label">End</span>
                 <span className="date-value">{formatDate(milestone.baseline_end_date)}</span>
               </div>
+              <div className="date-row">
+                <span className="date-label">Billable</span>
+                <span className="date-value">{formatCurrency(baselineBillable)}</span>
+              </div>
             </div>
             <div className="date-group">
               <h4 className="date-group-title">Forecast</h4>
@@ -514,6 +530,10 @@ export default function MilestoneDetail() {
                 <span className="date-label">End</span>
                 <span className="date-value">{formatDate(milestone.forecast_end_date)}</span>
               </div>
+              <div className="date-row">
+                <span className="date-label">Billable</span>
+                <span className="date-value">{formatCurrency(forecastBillable)}</span>
+              </div>
             </div>
             <div className="date-group">
               <h4 className="date-group-title">Actual</h4>
@@ -524,6 +544,10 @@ export default function MilestoneDetail() {
               <div className="date-row">
                 <span className="date-label">End</span>
                 <span className="date-value">{computedStatus === 'Completed' ? formatDate(new Date()) : '—'}</span>
+              </div>
+              <div className="date-row">
+                <span className="date-label">Billable</span>
+                <span className="date-value">{formatCurrency(actualBillable)}</span>
               </div>
             </div>
           </div>
@@ -580,11 +604,11 @@ export default function MilestoneDetail() {
       {/* Edit Modal */}
       {showEditModal && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content edit-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Edit Milestone</h2>
               <button className="modal-close" onClick={() => setShowEditModal(false)}>
-                <X size={20} />
+                ×
               </button>
             </div>
 
@@ -608,51 +632,48 @@ export default function MilestoneDetail() {
               </div>
 
               {/* Baseline fields - only if allowed */}
-              {canEditBaseline() && (
-                <>
-                  <h3 className="form-section-title">
-                    Baseline Dates
-                    {milestone.baseline_locked && (
-                      <span className="locked-badge">
-                        <Lock size={12} /> Locked
-                      </span>
-                    )}
-                  </h3>
-                  
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Baseline Start</label>
-                      <input
-                        type="date"
-                        value={editForm.baseline_start_date}
-                        onChange={e => setEditForm({ ...editForm, baseline_start_date: e.target.value })}
-                        disabled={milestone.baseline_locked && !isAdmin}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Baseline End</label>
-                      <input
-                        type="date"
-                        value={editForm.baseline_end_date}
-                        onChange={e => setEditForm({ ...editForm, baseline_end_date: e.target.value })}
-                        disabled={milestone.baseline_locked && !isAdmin}
-                      />
-                    </div>
-                  </div>
+              <h3 className="form-section-title">
+                Baseline
+                {milestone.baseline_locked && (
+                  <span className="locked-badge">
+                    <Lock size={12} /> Locked
+                  </span>
+                )}
+              </h3>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Baseline Start</label>
+                  <input
+                    type="date"
+                    value={editForm.baseline_start_date}
+                    onChange={e => setEditForm({ ...editForm, baseline_start_date: e.target.value })}
+                    disabled={!canEditBaseline()}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Baseline End</label>
+                  <input
+                    type="date"
+                    value={editForm.baseline_end_date}
+                    onChange={e => setEditForm({ ...editForm, baseline_end_date: e.target.value })}
+                    disabled={!canEditBaseline()}
+                  />
+                </div>
+              </div>
 
-                  <div className="form-group">
-                    <label>Billable Amount (£)</label>
-                    <input
-                      type="number"
-                      value={editForm.billable}
-                      onChange={e => setEditForm({ ...editForm, billable: e.target.value })}
-                      disabled={milestone.baseline_locked && !isAdmin}
-                    />
-                  </div>
-                </>
-              )}
+              <div className="form-group">
+                <label>Baseline Billable (£)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editForm.baseline_billable}
+                  onChange={e => setEditForm({ ...editForm, baseline_billable: e.target.value })}
+                  disabled={!canEditBaseline()}
+                />
+              </div>
 
-              <h3 className="form-section-title">Forecast Dates</h3>
+              <h3 className="form-section-title">Forecast</h3>
               
               <div className="form-row">
                 <div className="form-group">
@@ -674,12 +695,35 @@ export default function MilestoneDetail() {
               </div>
 
               <div className="form-group">
+                <label>Forecast Billable (£)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editForm.forecast_billable}
+                  onChange={e => setEditForm({ ...editForm, forecast_billable: e.target.value })}
+                />
+              </div>
+
+              <h3 className="form-section-title">Actual</h3>
+
+              <div className="form-group">
                 <label>Actual Start</label>
                 <input
                   type="date"
                   value={editForm.actual_start_date}
                   onChange={e => setEditForm({ ...editForm, actual_start_date: e.target.value })}
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Current Billable (£)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editForm.billable}
+                  onChange={e => setEditForm({ ...editForm, billable: e.target.value })}
+                />
+                <span className="form-hint">The billable amount to be invoiced</span>
               </div>
             </div>
 
