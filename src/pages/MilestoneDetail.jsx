@@ -2,14 +2,13 @@
  * Milestone Detail Page
  * 
  * Displays detailed information for a single milestone including:
- * - Dates (baseline and forecast)
- * - Billable amounts (baseline, forecast, actual)
+ * - Progress and billable metrics
+ * - Schedule (baseline/forecast/actual)
+ * - Linked deliverables
  * - Baseline commitment workflow (dual signature)
  * - Acceptance certificate workflow (dual signature)
- * - Linked deliverables with progress calculation
- * - Edit functionality (role-restricted)
  * 
- * @version 3.2
+ * @version 3.3
  * @updated 5 December 2025
  */
 
@@ -23,7 +22,6 @@ import {
   Edit2, Lock, Unlock, Award, FileCheck, PenTool
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingSpinner } from '../components/common';
 import './MilestoneDetail.css';
@@ -32,7 +30,6 @@ export default function MilestoneDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, role: userRole, profile } = useAuth();
-  const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
   
   const [milestone, setMilestone] = useState(null);
@@ -116,6 +113,14 @@ export default function MilestoneDetail() {
     return 'In Progress';
   }
 
+  // Calculate milestone progress - average of deliverable progress fields
+  // This matches the logic in Milestones.jsx list view
+  function calculateMilestoneProgress(deliverables) {
+    if (!deliverables || deliverables.length === 0) return 0;
+    const totalProgress = deliverables.reduce((sum, d) => sum + (d.progress || 0), 0);
+    return Math.round(totalProgress / deliverables.length);
+  }
+
   // Format date for display
   function formatDate(dateStr) {
     if (!dateStr) return '—';
@@ -184,7 +189,6 @@ export default function MilestoneDetail() {
         billable: parseFloat(editForm.billable) || 0
       };
 
-      // Only allow baseline edits if permitted
       if (canEditBaseline()) {
         updates.baseline_start_date = editForm.baseline_start_date || null;
         updates.baseline_end_date = editForm.baseline_end_date || null;
@@ -212,18 +216,14 @@ export default function MilestoneDetail() {
 
     try {
       setSaving(true);
-      
       const updates = {
         baseline_supplier_pm_id: currentUserId,
         baseline_supplier_pm_name: currentUserName,
         baseline_supplier_pm_signed_at: new Date().toISOString()
       };
-
-      // If customer already signed, lock the baseline
       if (milestone.baseline_customer_pm_signed_at) {
         updates.baseline_locked = true;
       }
-
       await milestonesService.update(id, updates);
       await fetchMilestoneData();
       showSuccess('Baseline signed as Supplier PM');
@@ -244,18 +244,14 @@ export default function MilestoneDetail() {
 
     try {
       setSaving(true);
-      
       const updates = {
         baseline_customer_pm_id: currentUserId,
         baseline_customer_pm_name: currentUserName,
         baseline_customer_pm_signed_at: new Date().toISOString()
       };
-
-      // If supplier already signed, lock the baseline
       if (milestone.baseline_supplier_pm_signed_at) {
         updates.baseline_locked = true;
       }
-
       await milestonesService.update(id, updates);
       await fetchMilestoneData();
       showSuccess('Baseline signed as Customer PM');
@@ -276,7 +272,6 @@ export default function MilestoneDetail() {
 
     try {
       setSaving(true);
-      
       await milestonesService.update(id, {
         baseline_locked: false,
         baseline_supplier_pm_id: null,
@@ -286,7 +281,6 @@ export default function MilestoneDetail() {
         baseline_customer_pm_name: null,
         baseline_customer_pm_signed_at: null
       });
-
       await fetchMilestoneData();
       showSuccess('Baseline lock has been reset');
     } catch (error) {
@@ -308,8 +302,6 @@ export default function MilestoneDetail() {
 
     try {
       setSaving(true);
-
-      // Get full deliverable data for snapshot
       const { data: fullDeliverables } = await supabase
         .from('deliverables')
         .select('deliverable_ref, name, status, progress')
@@ -343,23 +335,16 @@ export default function MilestoneDetail() {
 
   // Sign certificate as supplier
   async function signCertificateAsSupplier() {
-    if (!canSignAsSupplier) {
-      showWarning('Only Admin or Supplier PM can sign as supplier.');
-      return;
-    }
-
-    if (!certificate) return;
+    if (!canSignAsSupplier || !certificate) return;
 
     try {
       setSaving(true);
-      
       const updates = {
         supplier_pm_id: currentUserId,
         supplier_pm_name: currentUserName,
         supplier_pm_signed_at: new Date().toISOString(),
         status: certificate.customer_pm_signed_at ? 'Signed' : 'Pending Customer Signature'
       };
-
       await milestonesService.updateCertificate(certificate.id, updates);
       await fetchMilestoneData();
       showSuccess('Certificate signed as Supplier PM');
@@ -373,23 +358,16 @@ export default function MilestoneDetail() {
 
   // Sign certificate as customer
   async function signCertificateAsCustomer() {
-    if (!canSignAsCustomer) {
-      showWarning('Only Customer PM can sign as customer.');
-      return;
-    }
-
-    if (!certificate) return;
+    if (!canSignAsCustomer || !certificate) return;
 
     try {
       setSaving(true);
-      
       const updates = {
         customer_pm_id: currentUserId,
         customer_pm_name: currentUserName,
         customer_pm_signed_at: new Date().toISOString(),
         status: certificate.supplier_pm_signed_at ? 'Signed' : 'Pending Supplier Signature'
       };
-
       await milestonesService.updateCertificate(certificate.id, updates);
       await fetchMilestoneData();
       showSuccess('Certificate signed as Customer PM');
@@ -439,9 +417,8 @@ export default function MilestoneDetail() {
   const computedStatus = calculateMilestoneStatus(deliverables);
   const totalDeliverables = deliverables.length;
   const deliveredCount = deliverables.filter(d => d.status === 'Delivered').length;
-  const progress = totalDeliverables > 0 
-    ? Math.round((deliveredCount / totalDeliverables) * 100) 
-    : 0;
+  // Use same progress calculation as Milestones list view
+  const progress = calculateMilestoneProgress(deliverables);
 
   // Baseline status
   const baselineLocked = milestone.baseline_locked;
@@ -541,275 +518,6 @@ export default function MilestoneDetail() {
           </div>
         </div>
 
-        {/* Baseline Commitment Section */}
-        <div className="section-card baseline-section">
-          <div className="section-header">
-            <h3 className="section-title">
-              {baselineLocked ? <Lock size={18} /> : <Unlock size={18} />}
-              Baseline Commitment
-            </h3>
-            <span className={`baseline-status-badge ${baselineStatus.toLowerCase().replace(' ', '-')}`}>
-              {baselineStatus}
-            </span>
-          </div>
-
-          <div className="baseline-values">
-            <div className="baseline-item">
-              <span className="baseline-label">Start Date</span>
-              <span className="baseline-value">{formatDate(milestone.baseline_start_date)}</span>
-            </div>
-            <div className="baseline-item">
-              <span className="baseline-label">End Date</span>
-              <span className="baseline-value">{formatDate(milestone.baseline_end_date)}</span>
-            </div>
-            <div className="baseline-item">
-              <span className="baseline-label">Billable Amount</span>
-              <span className="baseline-value">{formatCurrency(baselineBillable)}</span>
-            </div>
-          </div>
-
-          {/* Signature Status */}
-          <div className="signature-grid">
-            <div className={`signature-box ${supplierSigned ? 'signed' : ''}`}>
-              <div className="signature-header">
-                <span className="signature-role">Supplier PM</span>
-                {supplierSigned && <CheckCircle size={16} className="signed-icon" />}
-              </div>
-              {supplierSigned ? (
-                <div className="signature-info">
-                  <span className="signer-name">{milestone.baseline_supplier_pm_name}</span>
-                  <span className="signed-date">{formatDate(milestone.baseline_supplier_pm_signed_at)}</span>
-                </div>
-              ) : (
-                canSignAsSupplier && !baselineLocked && (
-                  <button 
-                    className="sign-button"
-                    onClick={signBaselineAsSupplier}
-                    disabled={saving}
-                  >
-                    {saving ? 'Signing...' : 'Sign to Commit'}
-                  </button>
-                )
-              )}
-            </div>
-
-            <div className={`signature-box ${customerSigned ? 'signed' : ''}`}>
-              <div className="signature-header">
-                <span className="signature-role">Customer PM</span>
-                {customerSigned && <CheckCircle size={16} className="signed-icon" />}
-              </div>
-              {customerSigned ? (
-                <div className="signature-info">
-                  <span className="signer-name">{milestone.baseline_customer_pm_name}</span>
-                  <span className="signed-date">{formatDate(milestone.baseline_customer_pm_signed_at)}</span>
-                </div>
-              ) : (
-                canSignAsCustomer && !baselineLocked && (
-                  <button 
-                    className="sign-button"
-                    onClick={signBaselineAsCustomer}
-                    disabled={saving}
-                  >
-                    {saving ? 'Signing...' : 'Sign to Commit'}
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-
-          {/* Admin Reset Option */}
-          {isAdmin && baselineLocked && (
-            <div className="admin-actions">
-              <button 
-                className="reset-button"
-                onClick={resetBaseline}
-                disabled={saving}
-              >
-                <Unlock size={16} />
-                {saving ? 'Resetting...' : 'Reset Baseline Lock'}
-              </button>
-            </div>
-          )}
-
-          {/* Info text */}
-          {!baselineLocked && (
-            <p className="baseline-info">
-              Both Supplier PM and Customer PM must sign to lock the baseline. 
-              Once locked, baseline values can only be changed by an Admin.
-            </p>
-          )}
-        </div>
-
-        {/* Acceptance Certificate Section */}
-        <div className="section-card certificate-section">
-          <div className="section-header">
-            <h3 className="section-title">
-              <Award size={18} />
-              Acceptance Certificate
-            </h3>
-            {certificate && certStatusInfo && (
-              <span className={`cert-status-badge ${certStatusInfo.class}`}>
-                {isCertFullySigned && <CheckCircle size={14} />}
-                {certStatusInfo.label}
-              </span>
-            )}
-          </div>
-
-          {/* No Certificate Yet */}
-          {!certificate && (
-            <div className="cert-empty">
-              {computedStatus !== 'Completed' ? (
-                <>
-                  <div className="cert-empty-icon">
-                    <FileCheck size={40} strokeWidth={1.5} />
-                  </div>
-                  <p className="cert-empty-text">
-                    Certificate can be generated once all deliverables are delivered.
-                  </p>
-                  <div className="cert-progress-hint">
-                    <span className="cert-progress-count">{deliveredCount} of {totalDeliverables}</span> deliverables delivered
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="cert-empty-icon ready">
-                    <Award size={40} strokeWidth={1.5} />
-                  </div>
-                  <p className="cert-empty-text">
-                    All deliverables have been delivered. Ready to generate certificate.
-                  </p>
-                  {canGenerateCertificate && (
-                    <button 
-                      className="generate-cert-button"
-                      onClick={generateCertificate}
-                      disabled={saving}
-                    >
-                      <Award size={18} />
-                      {saving ? 'Generating...' : 'Generate Certificate'}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Certificate Exists */}
-          {certificate && (
-            <>
-              {/* Certificate Info */}
-              <div className="cert-info-grid">
-                <div className="cert-info-item">
-                  <span className="cert-info-label">Certificate Number</span>
-                  <span className="cert-info-value mono">{certificate.certificate_number}</span>
-                </div>
-                <div className="cert-info-item">
-                  <span className="cert-info-label">Payment Value</span>
-                  <span className="cert-info-value currency">{formatCurrency(certificate.payment_milestone_value)}</span>
-                </div>
-                <div className="cert-info-item">
-                  <span className="cert-info-label">Generated</span>
-                  <span className="cert-info-value">{formatDate(certificate.generated_at)}</span>
-                </div>
-              </div>
-
-              {/* Deliverables Snapshot */}
-              {certificate.deliverables_snapshot && certificate.deliverables_snapshot.length > 0 && (
-                <div className="cert-deliverables">
-                  <h4 className="cert-deliverables-title">Deliverables Accepted</h4>
-                  <div className="cert-deliverables-list">
-                    {certificate.deliverables_snapshot.map((d, idx) => (
-                      <div key={idx} className="cert-deliverable-item">
-                        <span className="cert-del-ref">{d.deliverable_ref}</span>
-                        <span className="cert-del-name">{d.name}</span>
-                        <CheckCircle size={14} className="cert-del-check" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Certificate Signatures */}
-              <div className="signature-grid">
-                <div className={`signature-box ${certSupplierSigned ? 'signed' : ''}`}>
-                  <div className="signature-header">
-                    <span className="signature-role">Supplier PM</span>
-                    {certSupplierSigned && <CheckCircle size={16} className="signed-icon" />}
-                  </div>
-                  {certSupplierSigned ? (
-                    <div className="signature-info">
-                      <div className="signature-name-row">
-                        <PenTool size={14} />
-                        <span className="signer-name">{certificate.supplier_pm_name}</span>
-                      </div>
-                      <span className="signed-date">{formatDate(certificate.supplier_pm_signed_at)}</span>
-                    </div>
-                  ) : (
-                    canSignAsSupplier && !isCertFullySigned && (
-                      <button 
-                        className="sign-button"
-                        onClick={signCertificateAsSupplier}
-                        disabled={saving}
-                      >
-                        <PenTool size={14} />
-                        {saving ? 'Signing...' : 'Sign as Supplier PM'}
-                      </button>
-                    )
-                  )}
-                  {!certSupplierSigned && !canSignAsSupplier && (
-                    <span className="awaiting-text">Awaiting signature</span>
-                  )}
-                </div>
-
-                <div className={`signature-box ${certCustomerSigned ? 'signed' : ''}`}>
-                  <div className="signature-header">
-                    <span className="signature-role">Customer PM</span>
-                    {certCustomerSigned && <CheckCircle size={16} className="signed-icon" />}
-                  </div>
-                  {certCustomerSigned ? (
-                    <div className="signature-info">
-                      <div className="signature-name-row">
-                        <PenTool size={14} />
-                        <span className="signer-name">{certificate.customer_pm_name}</span>
-                      </div>
-                      <span className="signed-date">{formatDate(certificate.customer_pm_signed_at)}</span>
-                    </div>
-                  ) : (
-                    canSignAsCustomer && !isCertFullySigned && (
-                      <button 
-                        className="sign-button customer"
-                        onClick={signCertificateAsCustomer}
-                        disabled={saving}
-                      >
-                        <PenTool size={14} />
-                        {saving ? 'Signing...' : 'Sign as Customer PM'}
-                      </button>
-                    )
-                  )}
-                  {!certCustomerSigned && !canSignAsCustomer && (
-                    <span className="awaiting-text">Awaiting signature</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Ready to Bill indicator */}
-              {isCertFullySigned && (
-                <div className="cert-ready-to-bill">
-                  <CheckCircle size={18} />
-                  <span>Certificate fully signed — Ready to bill</span>
-                </div>
-              )}
-
-              {/* Info text for unsigned */}
-              {!isCertFullySigned && (
-                <p className="baseline-info">
-                  Both Supplier PM and Customer PM must sign to complete the acceptance certificate.
-                  Once signed, the milestone payment value can be invoiced.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
         {/* Schedule Section */}
         <div className="section-card">
           <h3 className="section-title">
@@ -899,6 +607,7 @@ export default function MilestoneDetail() {
                     <span className="deliverable-name">{del.name}</span>
                   </div>
                   <div className="deliverable-meta">
+                    <span className="deliverable-progress">{del.progress || 0}%</span>
                     <span className={`deliverable-status ${getStatusClass(del.status)}`}>
                       {del.status === 'Delivered' && <CheckCircle size={12} />}
                       {del.status === 'In Progress' && <Clock size={12} />}
@@ -911,6 +620,235 @@ export default function MilestoneDetail() {
             </div>
           )}
         </div>
+
+        {/* Baseline Commitment Section */}
+        <div className="section-card baseline-section">
+          <div className="section-header">
+            <h3 className="section-title">
+              {baselineLocked ? <Lock size={18} /> : <Unlock size={18} />}
+              Baseline Commitment
+            </h3>
+            <span className={`baseline-status-badge ${baselineStatus.toLowerCase().replace(' ', '-')}`}>
+              {baselineStatus}
+            </span>
+          </div>
+
+          <div className="baseline-values">
+            <div className="baseline-item">
+              <span className="baseline-label">Start Date</span>
+              <span className="baseline-value">{formatDate(milestone.baseline_start_date)}</span>
+            </div>
+            <div className="baseline-item">
+              <span className="baseline-label">End Date</span>
+              <span className="baseline-value">{formatDate(milestone.baseline_end_date)}</span>
+            </div>
+            <div className="baseline-item">
+              <span className="baseline-label">Billable Amount</span>
+              <span className="baseline-value">{formatCurrency(baselineBillable)}</span>
+            </div>
+          </div>
+
+          <div className="signature-grid">
+            <div className={`signature-box ${supplierSigned ? 'signed' : ''}`}>
+              <div className="signature-header">
+                <span className="signature-role">Supplier PM</span>
+                {supplierSigned && <CheckCircle size={16} className="signed-icon" />}
+              </div>
+              {supplierSigned ? (
+                <div className="signature-info">
+                  <span className="signer-name">{milestone.baseline_supplier_pm_name}</span>
+                  <span className="signed-date">{formatDate(milestone.baseline_supplier_pm_signed_at)}</span>
+                </div>
+              ) : (
+                canSignAsSupplier && !baselineLocked && (
+                  <button className="sign-button" onClick={signBaselineAsSupplier} disabled={saving}>
+                    {saving ? 'Signing...' : 'Sign to Commit'}
+                  </button>
+                )
+              )}
+            </div>
+
+            <div className={`signature-box ${customerSigned ? 'signed' : ''}`}>
+              <div className="signature-header">
+                <span className="signature-role">Customer PM</span>
+                {customerSigned && <CheckCircle size={16} className="signed-icon" />}
+              </div>
+              {customerSigned ? (
+                <div className="signature-info">
+                  <span className="signer-name">{milestone.baseline_customer_pm_name}</span>
+                  <span className="signed-date">{formatDate(milestone.baseline_customer_pm_signed_at)}</span>
+                </div>
+              ) : (
+                canSignAsCustomer && !baselineLocked && (
+                  <button className="sign-button" onClick={signBaselineAsCustomer} disabled={saving}>
+                    {saving ? 'Signing...' : 'Sign to Commit'}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          {isAdmin && baselineLocked && (
+            <div className="admin-actions">
+              <button className="reset-button" onClick={resetBaseline} disabled={saving}>
+                <Unlock size={16} />
+                {saving ? 'Resetting...' : 'Reset Baseline Lock'}
+              </button>
+            </div>
+          )}
+
+          {!baselineLocked && (
+            <p className="baseline-info">
+              Both Supplier PM and Customer PM must sign to lock the baseline. 
+              Once locked, baseline values can only be changed by an Admin.
+            </p>
+          )}
+        </div>
+
+        {/* Acceptance Certificate Section */}
+        <div className="section-card certificate-section">
+          <div className="section-header">
+            <h3 className="section-title">
+              <Award size={18} />
+              Acceptance Certificate
+            </h3>
+            {certificate && certStatusInfo && (
+              <span className={`cert-status-badge ${certStatusInfo.class}`}>
+                {isCertFullySigned && <CheckCircle size={14} />}
+                {certStatusInfo.label}
+              </span>
+            )}
+          </div>
+
+          {!certificate && (
+            <div className="cert-empty">
+              {computedStatus !== 'Completed' ? (
+                <>
+                  <div className="cert-empty-icon">
+                    <FileCheck size={40} strokeWidth={1.5} />
+                  </div>
+                  <p className="cert-empty-text">
+                    Certificate can be generated once all deliverables are delivered.
+                  </p>
+                  <div className="cert-progress-hint">
+                    <span className="cert-progress-count">{deliveredCount} of {totalDeliverables}</span> deliverables delivered
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="cert-empty-icon ready">
+                    <Award size={40} strokeWidth={1.5} />
+                  </div>
+                  <p className="cert-empty-text">
+                    All deliverables have been delivered. Ready to generate certificate.
+                  </p>
+                  {canGenerateCertificate && (
+                    <button className="generate-cert-button" onClick={generateCertificate} disabled={saving}>
+                      <Award size={18} />
+                      {saving ? 'Generating...' : 'Generate Certificate'}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {certificate && (
+            <>
+              <div className="cert-info-grid">
+                <div className="cert-info-item">
+                  <span className="cert-info-label">Certificate Number</span>
+                  <span className="cert-info-value mono">{certificate.certificate_number}</span>
+                </div>
+                <div className="cert-info-item">
+                  <span className="cert-info-label">Payment Value</span>
+                  <span className="cert-info-value currency">{formatCurrency(certificate.payment_milestone_value)}</span>
+                </div>
+                <div className="cert-info-item">
+                  <span className="cert-info-label">Generated</span>
+                  <span className="cert-info-value">{formatDate(certificate.generated_at)}</span>
+                </div>
+              </div>
+
+              {certificate.deliverables_snapshot && certificate.deliverables_snapshot.length > 0 && (
+                <div className="cert-deliverables">
+                  <h4 className="cert-deliverables-title">Deliverables Accepted</h4>
+                  <div className="cert-deliverables-list">
+                    {certificate.deliverables_snapshot.map((d, idx) => (
+                      <div key={idx} className="cert-deliverable-item">
+                        <span className="cert-del-ref">{d.deliverable_ref}</span>
+                        <span className="cert-del-name">{d.name}</span>
+                        <CheckCircle size={14} className="cert-del-check" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="signature-grid">
+                <div className={`signature-box ${certSupplierSigned ? 'signed' : ''}`}>
+                  <div className="signature-header">
+                    <span className="signature-role">Supplier PM</span>
+                    {certSupplierSigned && <CheckCircle size={16} className="signed-icon" />}
+                  </div>
+                  {certSupplierSigned ? (
+                    <div className="signature-info">
+                      <div className="signature-name-row">
+                        <PenTool size={14} />
+                        <span className="signer-name">{certificate.supplier_pm_name}</span>
+                      </div>
+                      <span className="signed-date">{formatDate(certificate.supplier_pm_signed_at)}</span>
+                    </div>
+                  ) : canSignAsSupplier && !isCertFullySigned ? (
+                    <button className="sign-button" onClick={signCertificateAsSupplier} disabled={saving}>
+                      <PenTool size={14} />
+                      {saving ? 'Signing...' : 'Sign as Supplier PM'}
+                    </button>
+                  ) : (
+                    <span className="awaiting-text">Awaiting signature</span>
+                  )}
+                </div>
+
+                <div className={`signature-box ${certCustomerSigned ? 'signed' : ''}`}>
+                  <div className="signature-header">
+                    <span className="signature-role">Customer PM</span>
+                    {certCustomerSigned && <CheckCircle size={16} className="signed-icon" />}
+                  </div>
+                  {certCustomerSigned ? (
+                    <div className="signature-info">
+                      <div className="signature-name-row">
+                        <PenTool size={14} />
+                        <span className="signer-name">{certificate.customer_pm_name}</span>
+                      </div>
+                      <span className="signed-date">{formatDate(certificate.customer_pm_signed_at)}</span>
+                    </div>
+                  ) : canSignAsCustomer && !isCertFullySigned ? (
+                    <button className="sign-button customer" onClick={signCertificateAsCustomer} disabled={saving}>
+                      <PenTool size={14} />
+                      {saving ? 'Signing...' : 'Sign as Customer PM'}
+                    </button>
+                  ) : (
+                    <span className="awaiting-text">Awaiting signature</span>
+                  )}
+                </div>
+              </div>
+
+              {isCertFullySigned && (
+                <div className="cert-ready-to-bill">
+                  <CheckCircle size={18} />
+                  <span>Certificate fully signed — Ready to bill</span>
+                </div>
+              )}
+
+              {!isCertFullySigned && (
+                <p className="baseline-info">
+                  Both Supplier PM and Customer PM must sign to complete the acceptance certificate.
+                  Once signed, the milestone payment value can be invoiced.
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Edit Modal */}
@@ -919,70 +857,39 @@ export default function MilestoneDetail() {
           <div className="modal-content edit-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Edit Milestone</h2>
-              <button className="modal-close" onClick={() => setShowEditModal(false)}>
-                ×
-              </button>
+              <button className="modal-close" onClick={() => setShowEditModal(false)}>×</button>
             </div>
 
             <div className="modal-body">
               <div className="form-group">
                 <label>Name</label>
-                <input
-                  type="text"
-                  value={editForm.name}
-                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                />
+                <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
               </div>
 
               <div className="form-group">
                 <label>Description</label>
-                <textarea
-                  value={editForm.description}
-                  onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                  rows={3}
-                />
+                <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={3} />
               </div>
 
-              {/* Baseline fields */}
               <h3 className="form-section-title">
                 Baseline
-                {milestone.baseline_locked && (
-                  <span className="locked-badge">
-                    <Lock size={12} /> Locked
-                  </span>
-                )}
+                {milestone.baseline_locked && <span className="locked-badge"><Lock size={12} /> Locked</span>}
               </h3>
               
               <div className="form-row">
                 <div className="form-group">
                   <label>Baseline Start</label>
-                  <input
-                    type="date"
-                    value={editForm.baseline_start_date}
-                    onChange={e => setEditForm({ ...editForm, baseline_start_date: e.target.value })}
-                    disabled={!canEditBaseline()}
-                  />
+                  <input type="date" value={editForm.baseline_start_date} onChange={e => setEditForm({ ...editForm, baseline_start_date: e.target.value })} disabled={!canEditBaseline()} />
                 </div>
                 <div className="form-group">
                   <label>Baseline End</label>
-                  <input
-                    type="date"
-                    value={editForm.baseline_end_date}
-                    onChange={e => setEditForm({ ...editForm, baseline_end_date: e.target.value })}
-                    disabled={!canEditBaseline()}
-                  />
+                  <input type="date" value={editForm.baseline_end_date} onChange={e => setEditForm({ ...editForm, baseline_end_date: e.target.value })} disabled={!canEditBaseline()} />
                 </div>
               </div>
 
               <div className="form-group">
                 <label>Baseline Billable (£)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editForm.baseline_billable}
-                  onChange={e => setEditForm({ ...editForm, baseline_billable: e.target.value })}
-                  disabled={!canEditBaseline()}
-                />
+                <input type="number" step="0.01" value={editForm.baseline_billable} onChange={e => setEditForm({ ...editForm, baseline_billable: e.target.value })} disabled={!canEditBaseline()} />
               </div>
 
               <h3 className="form-section-title">Forecast</h3>
@@ -990,59 +897,35 @@ export default function MilestoneDetail() {
               <div className="form-row">
                 <div className="form-group">
                   <label>Forecast Start</label>
-                  <input
-                    type="date"
-                    value={editForm.start_date}
-                    onChange={e => setEditForm({ ...editForm, start_date: e.target.value })}
-                  />
+                  <input type="date" value={editForm.start_date} onChange={e => setEditForm({ ...editForm, start_date: e.target.value })} />
                 </div>
                 <div className="form-group">
                   <label>Forecast End</label>
-                  <input
-                    type="date"
-                    value={editForm.forecast_end_date}
-                    onChange={e => setEditForm({ ...editForm, forecast_end_date: e.target.value })}
-                  />
+                  <input type="date" value={editForm.forecast_end_date} onChange={e => setEditForm({ ...editForm, forecast_end_date: e.target.value })} />
                 </div>
               </div>
 
               <div className="form-group">
                 <label>Forecast Billable (£)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editForm.forecast_billable}
-                  onChange={e => setEditForm({ ...editForm, forecast_billable: e.target.value })}
-                />
+                <input type="number" step="0.01" value={editForm.forecast_billable} onChange={e => setEditForm({ ...editForm, forecast_billable: e.target.value })} />
               </div>
 
               <h3 className="form-section-title">Actual</h3>
 
               <div className="form-group">
                 <label>Actual Start</label>
-                <input
-                  type="date"
-                  value={editForm.actual_start_date}
-                  onChange={e => setEditForm({ ...editForm, actual_start_date: e.target.value })}
-                />
+                <input type="date" value={editForm.actual_start_date} onChange={e => setEditForm({ ...editForm, actual_start_date: e.target.value })} />
               </div>
 
               <div className="form-group">
                 <label>Current Billable (£)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editForm.billable}
-                  onChange={e => setEditForm({ ...editForm, billable: e.target.value })}
-                />
+                <input type="number" step="0.01" value={editForm.billable} onChange={e => setEditForm({ ...editForm, billable: e.target.value })} />
                 <span className="form-hint">The billable amount to be invoiced</span>
               </div>
             </div>
 
             <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                Cancel
-              </button>
+              <button className="btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
               <button className="btn-primary" onClick={handleSaveEdit} disabled={saving}>
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
