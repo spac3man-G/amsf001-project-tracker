@@ -1,19 +1,25 @@
 /**
- * Expense Detail Modal
+ * Expense Detail Modal - Apple Design System
  * 
  * Full-screen modal for viewing, editing, and validating individual expenses.
- * Includes receipt preview, full edit form, and action buttons.
+ * Includes:
+ * - Clean Apple-style design
+ * - Receipt image previews with full-size view on click
+ * - Full edit form with all fields
+ * - Action buttons for workflow (Submit, Validate, Reject)
  * 
- * @version 1.0
- * @created 3 December 2025
+ * @version 2.0
+ * @updated 5 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import { 
-  X, Save, Send, CheckCircle, Trash2, Download, Edit2,
+  X, Save, Send, CheckCircle, Trash2, Edit2, ExternalLink, ZoomIn,
   Car, Home, Utensils, Receipt, Building2, Briefcase, Calendar,
-  User, DollarSign, FileText, Clock
+  User, DollarSign, Clock, Paperclip, Image
 } from 'lucide-react';
+import './ExpenseDetailModal.css';
 
 const CATEGORIES = ['Travel', 'Accommodation', 'Sustenance'];
 const STATUSES = ['Draft', 'Submitted', 'Approved', 'Rejected', 'Paid'];
@@ -34,22 +40,145 @@ function getCategoryIcon(category) {
   }
 }
 
-function getCategoryColor(category) {
+function getCategoryClass(category) {
   switch (category) {
-    case 'Travel': return { bg: '#dbeafe', color: '#2563eb' };
-    case 'Accommodation': return { bg: '#f3e8ff', color: '#7c3aed' };
-    case 'Sustenance': return { bg: '#ffedd5', color: '#ea580c' };
-    default: return { bg: '#f1f5f9', color: '#64748b' };
+    case 'Travel': return 'cat-travel';
+    case 'Accommodation': return 'cat-accommodation';
+    case 'Sustenance': return 'cat-sustenance';
+    default: return 'cat-default';
   }
 }
 
-function getStatusColor(status) {
+function getStatusClass(status) {
   switch (status) {
-    case 'Approved': case 'Paid': return { bg: '#dcfce7', color: '#166534' };
-    case 'Submitted': return { bg: '#dbeafe', color: '#1e40af' };
-    case 'Rejected': return { bg: '#fee2e2', color: '#991b1b' };
-    default: return { bg: '#f1f5f9', color: '#64748b' };
+    case 'Approved': case 'Paid': return 'stat-validated';
+    case 'Submitted': return 'stat-submitted';
+    case 'Rejected': return 'stat-rejected';
+    default: return 'stat-draft';
   }
+}
+
+/**
+ * Get public URL for a receipt file from Supabase storage
+ */
+function getReceiptUrl(filePath) {
+  const { data } = supabase.storage.from('receipts').getPublicUrl(filePath);
+  return data?.publicUrl || null;
+}
+
+/**
+ * Check if file is an image based on extension
+ */
+function isImageFile(fileName) {
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+  const ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+  return imageExtensions.includes(ext);
+}
+
+/**
+ * Receipt Gallery Component - Shows receipt images with preview
+ */
+function ReceiptGallery({ files, onDownload }) {
+  const [expandedImage, setExpandedImage] = useState(null);
+  const [imageUrls, setImageUrls] = useState({});
+
+  useEffect(() => {
+    // Get URLs for all image files
+    const urls = {};
+    files.forEach(file => {
+      if (isImageFile(file.file_name)) {
+        urls[file.id || file.file_path] = getReceiptUrl(file.file_path);
+      }
+    });
+    setImageUrls(urls);
+  }, [files]);
+
+  if (!files || files.length === 0) return null;
+
+  return (
+    <>
+      <div className="receipts-section">
+        <div className="section-label">
+          <Paperclip size={16} />
+          <span>Receipts ({files.length})</span>
+        </div>
+        <div className="receipts-grid">
+          {files.map((file, idx) => {
+            const fileKey = file.id || file.file_path;
+            const imageUrl = imageUrls[fileKey];
+            const isImage = isImageFile(file.file_name);
+
+            return (
+              <div key={idx} className="receipt-item">
+                {isImage && imageUrl ? (
+                  <div 
+                    className="receipt-image-container"
+                    onClick={() => setExpandedImage({ url: imageUrl, name: file.file_name })}
+                  >
+                    <img 
+                      src={imageUrl} 
+                      alt={file.file_name}
+                      className="receipt-thumbnail"
+                    />
+                    <div className="receipt-overlay">
+                      <ZoomIn size={20} />
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    className="receipt-file-icon"
+                    onClick={() => onDownload(file.file_path, file.file_name)}
+                  >
+                    <Receipt size={24} />
+                  </div>
+                )}
+                <div className="receipt-info">
+                  <span className="receipt-name" title={file.file_name}>
+                    {file.file_name.length > 20 
+                      ? file.file_name.substring(0, 17) + '...' 
+                      : file.file_name}
+                  </span>
+                  <button 
+                    className="receipt-download"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload(file.file_path, file.file_name);
+                    }}
+                    title="Download"
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Full-size Image Modal */}
+      {expandedImage && (
+        <div 
+          className="image-modal-overlay"
+          onClick={() => setExpandedImage(null)}
+        >
+          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="image-modal-close"
+              onClick={() => setExpandedImage(null)}
+            >
+              <X size={24} />
+            </button>
+            <img 
+              src={expandedImage.url} 
+              alt={expandedImage.name}
+              className="image-modal-img"
+            />
+            <div className="image-modal-caption">{expandedImage.name}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 export default function ExpenseDetailModal({
@@ -92,8 +221,6 @@ export default function ExpenseDetailModal({
 
   if (!isOpen || !expense) return null;
 
-  const catColors = getCategoryColor(expense.category);
-  const statusColors = getStatusColor(expense.status);
   const isChargeable = expense.chargeable_to_customer !== false;
 
   async function handleSave() {
@@ -107,108 +234,47 @@ export default function ExpenseDetailModal({
   }
 
   return (
-    <div 
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '1rem'
-      }}
-      onClick={handleClose}
-    >
-      <div 
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          width: '100%',
-          maxWidth: '700px',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '1.25rem 1.5rem',
-          borderBottom: '1px solid #e2e8f0',
-          backgroundColor: '#f8fafc'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              padding: '0.5rem',
-              borderRadius: '8px',
-              backgroundColor: catColors.bg,
-              color: catColors.color
-            }}>
+        <header className="modal-header">
+          <div className="modal-header-left">
+            <div className={`modal-icon ${getCategoryClass(expense.category)}`}>
               {getCategoryIcon(expense.category)}
             </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-                {expense.expense_ref || 'Expense Details'}
-              </h2>
-              <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                {expense.category} Expense
-              </span>
+            <div className="modal-title-group">
+              <h2>{expense.expense_ref || 'Expense Details'}</h2>
+              <span>{expense.category} Expense</span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{
-              padding: '0.375rem 0.75rem',
-              borderRadius: '6px',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              backgroundColor: statusColors.bg,
-              color: statusColors.color
-            }}>
+          <div className="modal-header-right">
+            <span className={`modal-status ${getStatusClass(expense.status)}`}>
               {STATUS_DISPLAY_NAMES[expense.status] || expense.status}
             </span>
-            <button 
-              onClick={handleClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0.5rem',
-                color: '#64748b'
-              }}
-            >
-              <X size={24} />
+            <button className="modal-close" onClick={handleClose}>
+              <X size={20} />
             </button>
           </div>
-        </div>
+        </header>
 
         {/* Content */}
-        <div style={{ padding: '1.5rem' }}>
+        <div className="modal-body">
           {isEditing ? (
             /* Edit Form */
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Category
-                  </label>
+            <div className="edit-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Category</label>
                   <select
-                    className="form-input"
                     value={editForm.category}
                     onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
                   >
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Resource
-                  </label>
+                <div className="form-group">
+                  <label>Resource</label>
                   <select
-                    className="form-input"
                     value={editForm.resource_id || ''}
                     onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })}
                   >
@@ -218,78 +284,59 @@ export default function ExpenseDetailModal({
                 </div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Date
-                  </label>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Date</label>
                   <input
                     type="date"
-                    className="form-input"
                     value={editForm.expense_date}
                     onChange={(e) => setEditForm({ ...editForm, expense_date: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Amount (£)
-                  </label>
+                <div className="form-group">
+                  <label>Amount (£)</label>
                   <input
                     type="number"
                     step="0.01"
-                    className="form-input"
                     value={editForm.amount}
                     onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                  Reason
-                </label>
+              <div className="form-group full-width">
+                <label>Reason</label>
                 <input
                   type="text"
-                  className="form-input"
                   value={editForm.reason}
                   onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                  Notes
-                </label>
+              <div className="form-group full-width">
+                <label>Notes</label>
                 <textarea
-                  className="form-input"
                   rows={3}
                   value={editForm.notes}
                   onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-row">
                 {canEditChargeable() && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label className="checkbox-label">
                     <input
                       type="checkbox"
-                      id="chargeable"
                       checked={editForm.chargeable_to_customer}
                       onChange={(e) => setEditForm({ ...editForm, chargeable_to_customer: e.target.checked })}
-                      style={{ width: '18px', height: '18px' }}
                     />
-                    <label htmlFor="chargeable" style={{ fontWeight: '500', fontSize: '0.875rem' }}>
-                      Chargeable to Customer
-                    </label>
-                  </div>
+                    <span>Chargeable to Customer</span>
+                  </label>
                 )}
                 {hasRole(['admin', 'supplier_pm']) && (
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                      Procurement Method
-                    </label>
+                  <div className="form-group">
+                    <label>Procurement</label>
                     <select
-                      className="form-input"
                       value={editForm.procurement_method}
                       onChange={(e) => setEditForm({ ...editForm, procurement_method: e.target.value })}
                     >
@@ -301,12 +348,9 @@ export default function ExpenseDetailModal({
               </div>
 
               {canValidateExpense(expense) && (
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Status
-                  </label>
+                <div className="form-group">
+                  <label>Status</label>
                   <select
-                    className="form-input"
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                   >
@@ -317,132 +361,83 @@ export default function ExpenseDetailModal({
             </div>
           ) : (
             /* View Mode */
-            <div style={{ display: 'grid', gap: '1.25rem' }}>
-              {/* Key Details */}
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(2, 1fr)', 
-                gap: '1rem',
-                padding: '1rem',
-                backgroundColor: '#f8fafc',
-                borderRadius: '8px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <User size={18} style={{ color: '#64748b' }} />
+            <div className="view-content">
+              {/* Key Details Grid */}
+              <div className="details-grid">
+                <div className="detail-item">
+                  <User size={18} />
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Resource</div>
-                    <div style={{ fontWeight: '500' }}>{expense.resource_name || 'Unknown'}</div>
+                    <span className="detail-label">Resource</span>
+                    <span className="detail-value">{expense.resource_name || 'Unknown'}</span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Calendar size={18} style={{ color: '#64748b' }} />
+                <div className="detail-item">
+                  <Calendar size={18} />
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Date</div>
-                    <div style={{ fontWeight: '500' }}>{new Date(expense.expense_date).toLocaleDateString('en-GB')}</div>
+                    <span className="detail-label">Date</span>
+                    <span className="detail-value">{new Date(expense.expense_date).toLocaleDateString('en-GB')}</span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <DollarSign size={18} style={{ color: '#64748b' }} />
+                <div className="detail-item">
+                  <DollarSign size={18} />
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Amount</div>
-                    <div style={{ fontWeight: '600', fontSize: '1.125rem', color: '#0f172a' }}>£{parseFloat(expense.amount).toFixed(2)}</div>
+                    <span className="detail-label">Amount</span>
+                    <span className="detail-value amount">£{parseFloat(expense.amount).toFixed(2)}</span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  {isChargeable ? <CheckCircle size={18} style={{ color: '#10b981' }} /> : <X size={18} style={{ color: '#f59e0b' }} />}
+                <div className="detail-item">
+                  {isChargeable ? <CheckCircle size={18} className="icon-success" /> : <X size={18} className="icon-warning" />}
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Chargeable</div>
-                    <div style={{ fontWeight: '500', color: isChargeable ? '#10b981' : '#f59e0b' }}>
+                    <span className="detail-label">Chargeable</span>
+                    <span className={`detail-value ${isChargeable ? 'text-success' : 'text-warning'}`}>
                       {isChargeable ? 'Yes' : 'No'}
-                    </div>
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Reason */}
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
-                  Reason
-                </div>
-                <div style={{ fontSize: '0.9375rem' }}>{expense.reason || 'No reason provided'}</div>
+              <div className="info-section">
+                <span className="section-label">Reason</span>
+                <p className="section-content">{expense.reason || 'No reason provided'}</p>
               </div>
 
               {/* Notes */}
               {expense.notes && (
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
-                    Notes
-                  </div>
-                  <div style={{ fontSize: '0.9375rem', color: '#475569' }}>{expense.notes}</div>
+                <div className="info-section">
+                  <span className="section-label">Notes</span>
+                  <p className="section-content secondary">{expense.notes}</p>
                 </div>
               )}
 
               {/* Procurement - only for certain roles */}
               {hasRole(['admin', 'supplier_pm']) && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div className="info-section inline">
                   {(expense.procurement_method || 'supplier') === 'partner' ? (
-                    <Building2 size={18} style={{ color: '#7c3aed' }} />
+                    <Building2 size={18} className="icon-purple" />
                   ) : (
-                    <Briefcase size={18} style={{ color: '#4338ca' }} />
+                    <Briefcase size={18} className="icon-blue" />
                   )}
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Procured By</div>
-                    <div style={{ fontWeight: '500' }}>
+                    <span className="section-label">Procured By</span>
+                    <span className="section-content">
                       {(expense.procurement_method || 'supplier') === 'partner' ? 'Partner (Reimbursable)' : 'Supplier (JT Direct)'}
-                    </div>
+                    </span>
                   </div>
                 </div>
               )}
 
-              {/* Receipts */}
-              {expense.expense_files?.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                    Receipts ({expense.expense_files.length})
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {expense.expense_files.map((file, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => onDownloadFile(file.file_path, file.file_name)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.375rem',
-                          padding: '0.5rem 0.75rem',
-                          backgroundColor: '#f1f5f9',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem'
-                        }}
-                      >
-                        <Download size={16} style={{ color: '#3b82f6' }} />
-                        {file.file_name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Receipts Gallery */}
+              <ReceiptGallery 
+                files={expense.expense_files || []} 
+                onDownload={onDownloadFile}
+              />
 
               {/* Timestamps */}
-              <div style={{ 
-                display: 'flex', 
-                gap: '1.5rem', 
-                fontSize: '0.8125rem', 
-                color: '#64748b',
-                paddingTop: '0.75rem',
-                borderTop: '1px solid #e2e8f0'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                  <Clock size={14} />
-                  Created: {expense.created_at ? new Date(expense.created_at).toLocaleString('en-GB') : 'Unknown'}
-                </div>
+              <div className="timestamps">
+                <span><Clock size={14} /> Created: {expense.created_at ? new Date(expense.created_at).toLocaleString('en-GB') : 'Unknown'}</span>
                 {expense.updated_at && expense.updated_at !== expense.created_at && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <Clock size={14} />
-                    Updated: {new Date(expense.updated_at).toLocaleString('en-GB')}
-                  </div>
+                  <span><Clock size={14} /> Updated: {new Date(expense.updated_at).toLocaleString('en-GB')}</span>
                 )}
               </div>
             </div>
@@ -450,32 +445,24 @@ export default function ExpenseDetailModal({
         </div>
 
         {/* Footer Actions */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '1rem 1.5rem',
-          borderTop: '1px solid #e2e8f0',
-          backgroundColor: '#f8fafc'
-        }}>
-          <div>
+        <footer className="modal-footer">
+          <div className="footer-left">
             {canDeleteExpense(expense) && !isEditing && (
               <button
                 onClick={() => { onDelete(expense); handleClose(); }}
                 className="btn btn-danger"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
               >
                 <Trash2 size={16} /> Delete
               </button>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="footer-right">
             {isEditing ? (
               <>
                 <button onClick={() => setIsEditing(false)} className="btn btn-secondary">
                   Cancel
                 </button>
-                <button onClick={handleSave} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <button onClick={handleSave} className="btn btn-primary">
                   <Save size={16} /> Save Changes
                 </button>
               </>
@@ -485,9 +472,8 @@ export default function ExpenseDetailModal({
                   <button 
                     onClick={() => { onSubmit(expense.id); handleClose(); }} 
                     className="btn btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
                   >
-                    <Send size={16} /> Submit for Validation
+                    <Send size={16} /> Submit
                   </button>
                 )}
                 {canValidateExpense(expense) && (
@@ -495,14 +481,12 @@ export default function ExpenseDetailModal({
                     <button 
                       onClick={() => { onReject(expense.id); handleClose(); }} 
                       className="btn btn-danger"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
                     >
                       <X size={16} /> Reject
                     </button>
                     <button 
                       onClick={() => { onValidate(expense.id); handleClose(); }} 
                       className="btn btn-success"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
                     >
                       <CheckCircle size={16} /> Validate
                     </button>
@@ -512,7 +496,6 @@ export default function ExpenseDetailModal({
                   <button 
                     onClick={() => setIsEditing(true)} 
                     className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
                   >
                     <Edit2 size={16} /> Edit
                   </button>
@@ -520,7 +503,7 @@ export default function ExpenseDetailModal({
               </>
             )}
           </div>
-        </div>
+        </footer>
       </div>
     </div>
   );

@@ -1,10 +1,15 @@
 /**
- * Expenses Page - Apple Design System (Clean)
+ * Expenses Page - Apple Design System
  * 
  * Track project expenses with category breakdown, validation workflow,
  * and procurement method tracking. Includes Smart Receipt Scanner.
  * 
- * @version 4.1 - Removed dashboard cards for clean layout
+ * Features:
+ * - Clean table with click-to-navigate pattern
+ * - Detail modal shows receipt images
+ * - All actions moved to modal (no action buttons in table)
+ * 
+ * @version 5.0 - Apple Design System
  * @updated 5 December 2025
  */
 
@@ -54,8 +59,6 @@ export default function Expenses() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [entryMode, setEntryMode] = useState('form');
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [newExpense, setNewExpense] = useState(INITIAL_EXPENSE_FORM);
 
@@ -66,7 +69,7 @@ export default function Expenses() {
   const [filterProcurement, setFilterProcurement] = useState('all');
 
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, expenseId: null, expenseData: null });
-  const [detailModal, setDetailModal] = useState({ isOpen: false, expense: null, editMode: false, editData: null });
+  const [detailModal, setDetailModal] = useState({ isOpen: false, expense: null });
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
@@ -175,32 +178,6 @@ export default function Expenses() {
     }
   }
 
-  function handleEdit(expense) {
-    setEditingId(expense.id);
-    setEditForm({
-      category: expense.category, resource_id: expense.resource_id, resource_name: expense.resource_name,
-      expense_date: expense.expense_date, reason: expense.reason, amount: expense.amount, notes: expense.notes, status: expense.status,
-      chargeable_to_customer: expense.chargeable_to_customer !== false, procurement_method: expense.procurement_method || 'supplier'
-    });
-  }
-
-  async function handleSave(id) {
-    try {
-      const resourceName = resources.find(r => r.id === editForm.resource_id)?.name || editForm.resource_name;
-      await expensesService.update(id, {
-        category: editForm.category, resource_id: editForm.resource_id, resource_name: resourceName,
-        expense_date: editForm.expense_date, reason: editForm.reason, amount: parseFloat(editForm.amount), notes: editForm.notes,
-        status: editForm.status, chargeable_to_customer: editForm.chargeable_to_customer, procurement_method: editForm.procurement_method
-      });
-      await fetchData();
-      setEditingId(null);
-      showSuccess('Expense updated!');
-    } catch (error) {
-      console.error('Error updating expense:', error);
-      showError('Failed to update: ' + error.message);
-    }
-  }
-
   function handleDeleteClick(expense) {
     setDeleteDialog({
       isOpen: true, expenseId: expense.id,
@@ -278,15 +255,15 @@ export default function Expenses() {
           </div>
           <div className="exp-header-actions">
             <button className="exp-btn exp-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
-              <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
+              <RefreshCw size={16} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
             {canAddExpense && !showAddForm && (
               <>
                 <button className="exp-btn exp-btn-primary" onClick={() => { setEntryMode('form'); setShowAddForm(true); }}>
-                  <Plus size={18} /> Add Expenses
+                  <Plus size={16} /> Add Expenses
                 </button>
                 <button className="exp-btn exp-btn-scanner" onClick={() => { setEntryMode('scanner'); setShowAddForm(true); }} title="Scan a receipt with AI">
-                  <Camera size={18} /> <Sparkles size={14} /> Scan Receipt
+                  <Camera size={16} /> <Sparkles size={12} /> Scan Receipt
                 </button>
               </>
             )}
@@ -330,13 +307,9 @@ export default function Expenses() {
           </div>
           
           <ExpenseTable
-            expenses={filteredExpenses} editingId={editingId} editForm={editForm} setEditForm={setEditForm}
-            resources={resources} hasRole={hasRole} canEditChargeable={canEditChargeable}
-            canSubmitExpense={canSubmitExpense} canValidateExpense={canValidateExpense}
-            canEditExpense={canEditExpense} canDeleteExpense={canDeleteExpense}
-            handleEdit={handleEdit} handleSave={handleSave} handleSubmit={handleSubmit}
-            handleValidate={handleValidate} handleReject={handleReject} handleDeleteClick={handleDeleteClick}
-            downloadFile={downloadFile} setEditingId={setEditingId} setDetailModal={setDetailModal}
+            expenses={filteredExpenses}
+            hasRole={hasRole}
+            setDetailModal={setDetailModal}
           />
         </div>
       </div>
@@ -349,9 +322,9 @@ export default function Expenses() {
         message={deleteDialog.expenseData ? (
           <div>
             <p>Are you sure you want to delete this expense?</p>
-            <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', padding: '0.75rem', marginTop: '0.75rem' }}>
-              <p style={{ fontWeight: '600', color: '#92400e', margin: '0 0 0.5rem 0' }}>Details:</p>
-              <ul style={{ margin: '0', paddingLeft: '1.25rem', color: '#92400e', fontSize: '0.9rem' }}>
+            <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', padding: '12px', marginTop: '12px' }}>
+              <p style={{ fontWeight: '600', color: '#92400e', margin: '0 0 8px 0', fontSize: '14px' }}>Details:</p>
+              <ul style={{ margin: '0', paddingLeft: '20px', color: '#92400e', fontSize: '13px', lineHeight: '1.6' }}>
                 <li><strong>Resource:</strong> {deleteDialog.expenseData.resourceName}</li>
                 <li><strong>Category:</strong> {deleteDialog.expenseData.category}</li>
                 <li><strong>Amount:</strong> £{deleteDialog.expenseData.totalAmount?.toFixed(2)}</li>
