@@ -1,0 +1,684 @@
+/* =============================================================================
+   AMSF001 RAID Log - Apple Design System
+   Version: 2.0
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   CSS Variables - Design Tokens (matching Dashboard)
+   ----------------------------------------------------------------------------- */
+.raid-log {
+  --ds-bg-primary: #ffffff;
+  --ds-bg-secondary: #f5f5f7;
+  --ds-bg-tertiary: #fbfbfd;
+  
+  --ds-text-primary: #1d1d1f;
+  --ds-text-secondary: #86868b;
+  --ds-text-tertiary: #6e6e73;
+  
+  --ds-teal: #0d9488;
+  --ds-teal-light: rgba(13, 148, 136, 0.1);
+  
+  --ds-red: #ff3b30;
+  --ds-red-light: rgba(255, 59, 48, 0.1);
+  --ds-orange: #ff9500;
+  --ds-orange-light: rgba(255, 149, 0, 0.1);
+  --ds-blue: #007aff;
+  --ds-blue-light: rgba(0, 122, 255, 0.1);
+  --ds-purple: #af52de;
+  --ds-purple-light: rgba(175, 82, 222, 0.1);
+  --ds-green: #34c759;
+  --ds-green-light: rgba(52, 199, 89, 0.1);
+  --ds-yellow: #ffcc00;
+  --ds-yellow-light: rgba(255, 204, 0, 0.15);
+  --ds-gray: #8e8e93;
+  --ds-gray-light: rgba(142, 142, 147, 0.12);
+  
+  --ds-border: rgba(0, 0, 0, 0.06);
+  --ds-border-subtle: rgba(0, 0, 0, 0.04);
+  
+  --ds-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ds-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --ds-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --ds-shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
+  
+  --ds-radius-sm: 8px;
+  --ds-radius-md: 12px;
+  --ds-radius-lg: 16px;
+  
+  --ds-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  --ds-font-mono: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
+  
+  --ds-transition: 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ds-transition-fast: 0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* -----------------------------------------------------------------------------
+   Page Layout
+   ----------------------------------------------------------------------------- */
+.raid-log {
+  font-family: var(--ds-font-sans);
+  background: var(--ds-bg-secondary);
+  min-height: 100vh;
+}
+
+/* -----------------------------------------------------------------------------
+   Header
+   ----------------------------------------------------------------------------- */
+.raid-header {
+  background: var(--ds-bg-primary);
+  border-bottom: 1px solid var(--ds-border);
+  padding: 24px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.raid-header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.raid-header-left h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.raid-header-left p {
+  font-size: 15px;
+  color: var(--ds-text-secondary);
+  margin: 4px 0 0;
+}
+
+.raid-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.raid-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--ds-transition);
+  border: none;
+}
+
+.raid-btn-primary {
+  background: var(--ds-teal);
+  color: white;
+}
+
+.raid-btn-primary:hover {
+  background: #0b8278;
+  transform: translateY(-1px);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.raid-btn-secondary {
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-primary);
+  border: 1px solid var(--ds-border);
+}
+
+.raid-btn-secondary:hover {
+  background: var(--ds-bg-primary);
+  border-color: var(--ds-teal);
+  color: var(--ds-teal);
+}
+
+.raid-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.raid-btn-secondary .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* -----------------------------------------------------------------------------
+   Content Area
+   ----------------------------------------------------------------------------- */
+.raid-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+/* -----------------------------------------------------------------------------
+   Summary Cards Grid
+   ----------------------------------------------------------------------------- */
+.raid-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.raid-summary-card {
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  padding: 24px;
+  box-shadow: var(--ds-shadow-card);
+  border: 1px solid var(--ds-border);
+  transition: all var(--ds-transition);
+  cursor: pointer;
+}
+
+.raid-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.raid-summary-card.risk { border-left: 4px solid var(--ds-red); }
+.raid-summary-card.assumption { border-left: 4px solid var(--ds-blue); }
+.raid-summary-card.issue { border-left: 4px solid var(--ds-orange); }
+.raid-summary-card.dependency { border-left: 4px solid var(--ds-purple); }
+
+.raid-summary-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.raid-summary-card.risk .raid-summary-icon { background: var(--ds-red-light); color: var(--ds-red); }
+.raid-summary-card.assumption .raid-summary-icon { background: var(--ds-blue-light); color: var(--ds-blue); }
+.raid-summary-card.issue .raid-summary-icon { background: var(--ds-orange-light); color: var(--ds-orange); }
+.raid-summary-card.dependency .raid-summary-icon { background: var(--ds-purple-light); color: var(--ds-purple); }
+
+.raid-summary-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--ds-text-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+  font-family: var(--ds-font-mono);
+}
+
+.raid-summary-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ds-text-primary);
+  margin-bottom: 2px;
+}
+
+.raid-summary-sub {
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+}
+
+/* -----------------------------------------------------------------------------
+   Priority Alert
+   ----------------------------------------------------------------------------- */
+.raid-priority-alert {
+  background: linear-gradient(135deg, var(--ds-red-light), rgba(255, 149, 0, 0.08));
+  border: 1px solid rgba(255, 59, 48, 0.2);
+  border-radius: var(--ds-radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.raid-priority-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.raid-priority-header svg {
+  color: var(--ds-red);
+}
+
+.raid-priority-header span {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.raid-priority-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.raid-priority-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-sm);
+  font-size: 13px;
+  color: var(--ds-text-primary);
+  cursor: pointer;
+  transition: all var(--ds-transition);
+  border: 1px solid var(--ds-border);
+}
+
+.raid-priority-item:hover {
+  border-color: var(--ds-red);
+  transform: translateY(-1px);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.raid-priority-ref {
+  font-weight: 600;
+  font-family: var(--ds-font-mono);
+  color: var(--ds-red);
+}
+
+/* -----------------------------------------------------------------------------
+   Filter Bar
+   ----------------------------------------------------------------------------- */
+.raid-filter-bar {
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--ds-shadow-card);
+  border: 1px solid var(--ds-border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.raid-search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+  position: relative;
+}
+
+.raid-search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ds-text-secondary);
+}
+
+.raid-search input {
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  font-size: 14px;
+  background: var(--ds-bg-secondary);
+  transition: all var(--ds-transition);
+}
+
+.raid-search input:focus {
+  outline: none;
+  border-color: var(--ds-teal);
+  background: var(--ds-bg-primary);
+  box-shadow: 0 0 0 3px var(--ds-teal-light);
+}
+
+.raid-filter-select {
+  padding: 10px 36px 10px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  font-size: 14px;
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-primary);
+  cursor: pointer;
+  transition: all var(--ds-transition);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.raid-filter-select:focus {
+  outline: none;
+  border-color: var(--ds-teal);
+  background-color: var(--ds-bg-primary);
+}
+
+.raid-clear-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  border-radius: var(--ds-radius-sm);
+  transition: all var(--ds-transition);
+}
+
+.raid-clear-filters:hover {
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-primary);
+}
+
+/* -----------------------------------------------------------------------------
+   Category Sections
+   ----------------------------------------------------------------------------- */
+.raid-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.raid-category {
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-card);
+  border: 1px solid var(--ds-border);
+  overflow: hidden;
+}
+
+.raid-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  cursor: pointer;
+  transition: background var(--ds-transition);
+  border: none;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+}
+
+.raid-category-header:hover {
+  background: var(--ds-bg-tertiary);
+}
+
+.raid-category.risk .raid-category-header { border-left: 4px solid var(--ds-red); }
+.raid-category.assumption .raid-category-header { border-left: 4px solid var(--ds-blue); }
+.raid-category.issue .raid-category-header { border-left: 4px solid var(--ds-orange); }
+.raid-category.dependency .raid-category-header { border-left: 4px solid var(--ds-purple); }
+
+.raid-category-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.raid-category-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.raid-category.risk .raid-category-icon { background: var(--ds-red-light); color: var(--ds-red); }
+.raid-category.assumption .raid-category-icon { background: var(--ds-blue-light); color: var(--ds-blue); }
+.raid-category.issue .raid-category-icon { background: var(--ds-orange-light); color: var(--ds-orange); }
+.raid-category.dependency .raid-category-icon { background: var(--ds-purple-light); color: var(--ds-purple); }
+
+.raid-category-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.raid-category-count {
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.raid-category-chevron {
+  color: var(--ds-text-secondary);
+  transition: transform var(--ds-transition);
+}
+
+.raid-category.expanded .raid-category-chevron {
+  transform: rotate(180deg);
+}
+
+/* -----------------------------------------------------------------------------
+   Item List
+   ----------------------------------------------------------------------------- */
+.raid-items-list {
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.raid-item {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  cursor: pointer;
+  transition: background var(--ds-transition);
+}
+
+.raid-item:last-child {
+  border-bottom: none;
+}
+
+.raid-item:hover {
+  background: var(--ds-bg-tertiary);
+}
+
+.raid-item-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.raid-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.raid-item-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.raid-item-ref {
+  font-family: var(--ds-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-secondary);
+}
+
+.raid-category.risk .raid-item-ref { background: var(--ds-red-light); color: var(--ds-red); }
+.raid-category.assumption .raid-item-ref { background: var(--ds-blue-light); color: var(--ds-blue); }
+.raid-category.issue .raid-item-ref { background: var(--ds-orange-light); color: var(--ds-orange); }
+.raid-category.dependency .raid-item-ref { background: var(--ds-purple-light); color: var(--ds-purple); }
+
+.raid-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.raid-item-description {
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.raid-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--ds-text-tertiary);
+}
+
+.raid-item-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.raid-item-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* -----------------------------------------------------------------------------
+   Badges
+   ----------------------------------------------------------------------------- */
+.raid-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.raid-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Severity badges */
+.raid-badge.severity-high {
+  background: var(--ds-red-light);
+  color: var(--ds-red);
+}
+.raid-badge.severity-high .raid-badge-dot { background: var(--ds-red); }
+
+.raid-badge.severity-medium {
+  background: var(--ds-yellow-light);
+  color: #b8860b;
+}
+.raid-badge.severity-medium .raid-badge-dot { background: var(--ds-yellow); }
+
+.raid-badge.severity-low {
+  background: var(--ds-green-light);
+  color: var(--ds-green);
+}
+.raid-badge.severity-low .raid-badge-dot { background: var(--ds-green); }
+
+/* Status badges */
+.raid-badge.status-open {
+  background: var(--ds-blue-light);
+  color: var(--ds-blue);
+}
+
+.raid-badge.status-in-progress {
+  background: var(--ds-yellow-light);
+  color: #b8860b;
+}
+
+.raid-badge.status-closed {
+  background: var(--ds-gray-light);
+  color: var(--ds-gray);
+}
+
+.raid-badge.status-accepted {
+  background: var(--ds-green-light);
+  color: var(--ds-green);
+}
+
+.raid-badge.status-mitigated {
+  background: var(--ds-teal-light);
+  color: var(--ds-teal);
+}
+
+/* -----------------------------------------------------------------------------
+   Empty State
+   ----------------------------------------------------------------------------- */
+.raid-empty {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--ds-text-secondary);
+}
+
+.raid-empty-icon {
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.raid-empty-text {
+  font-size: 15px;
+}
+
+/* -----------------------------------------------------------------------------
+   Responsive
+   ----------------------------------------------------------------------------- */
+@media (max-width: 1200px) {
+  .raid-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .raid-header {
+    padding: 20px;
+  }
+  
+  .raid-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .raid-content {
+    padding: 20px;
+  }
+  
+  .raid-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .raid-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .raid-search {
+    max-width: none;
+  }
+  
+  .raid-item-main {
+    flex-direction: column;
+  }
+  
+  .raid-item-badges {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 12px;
+  }
+}

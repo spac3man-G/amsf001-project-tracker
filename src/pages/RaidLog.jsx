@@ -1,20 +1,37 @@
+/**
+ * RAID Log Page
+ * 
+ * Risks, Assumptions, Issues, and Dependencies tracking.
+ * Apple-inspired design with clean visual hierarchy.
+ * 
+ * @version 2.0
+ * @updated 5 December 2025
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { raidService } from '../services';
 import { 
-  AlertTriangle, AlertCircle, CheckCircle, Info, Link2, 
-  RefreshCw, Plus, Filter, X, Search, ChevronDown, ChevronUp
+  AlertTriangle, Info, AlertCircle, Link2, 
+  RefreshCw, Plus, Search, X, ChevronDown, User, Calendar
 } from 'lucide-react';
+import './RaidLog.css';
+import { raidService } from '../services';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog, StatusBadge } from '../components/common';
+import { LoadingSpinner, ConfirmDialog } from '../components/common';
 import RaidDetailModal from '../components/raid/RaidDetailModal';
 import RaidAddForm from '../components/raid/RaidAddForm';
 
+// Category configuration
+const CATEGORIES = {
+  Risk: { icon: AlertTriangle, className: 'risk', plural: 'Risks' },
+  Assumption: { icon: Info, className: 'assumption', plural: 'Assumptions' },
+  Issue: { icon: AlertCircle, className: 'issue', plural: 'Issues' },
+  Dependency: { icon: Link2, className: 'dependency', plural: 'Dependencies' }
+};
+
 export default function RaidLog() {
-  const navigate = useNavigate();
-  const { user, role: userRole } = useAuth();
+  const { user } = useAuth();
   const { projectId } = useProject();
   const currentUserId = user?.id || null;
   
@@ -43,61 +60,12 @@ export default function RaidLog() {
   
   // Expanded categories
   const [expandedCategories, setExpandedCategories] = useState({
-    Risk: true,
-    Assumption: true,
-    Issue: true,
-    Dependency: true
+    Risk: true, Assumption: true, Issue: true, Dependency: true
   });
-
-  // Category icons and colors
-  const categoryConfig = {
-    Risk: { 
-      icon: AlertTriangle, 
-      color: 'text-red-600', 
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200'
-    },
-    Assumption: { 
-      icon: Info, 
-      color: 'text-blue-600', 
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200'
-    },
-    Issue: { 
-      icon: AlertCircle, 
-      color: 'text-orange-600', 
-      bgColor: 'bg-orange-50',
-      borderColor: 'border-orange-200'
-    },
-    Dependency: { 
-      icon: Link2, 
-      color: 'text-purple-600', 
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200'
-    }
-  };
-
-  // Status configuration
-  const statusConfig = {
-    'Open': { color: 'bg-blue-100 text-blue-800' },
-    'In Progress': { color: 'bg-yellow-100 text-yellow-800' },
-    'Closed': { color: 'bg-gray-100 text-gray-800' },
-    'Accepted': { color: 'bg-green-100 text-green-800' },
-    'Mitigated': { color: 'bg-teal-100 text-teal-800' }
-  };
-
-  // Severity configuration
-  const severityConfig = {
-    'High': { color: 'bg-red-100 text-red-800', dot: 'bg-red-500' },
-    'Medium': { color: 'bg-yellow-100 text-yellow-800', dot: 'bg-yellow-500' },
-    'Low': { color: 'bg-green-100 text-green-800', dot: 'bg-green-500' }
-  };
 
   // Fetch data
   useEffect(() => {
-    if (projectId) {
-      fetchData();
-    }
+    if (projectId) fetchData();
   }, [projectId]);
 
   async function fetchData() {
@@ -121,6 +89,10 @@ export default function RaidLog() {
     await fetchData();
   }
 
+  // Check if any filters are active
+  const hasActiveFilters = categoryFilter !== 'all' || statusFilter !== 'all' || 
+                           severityFilter !== 'all' || searchTerm;
+
   // Filter items
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -140,14 +112,12 @@ export default function RaidLog() {
   }, [items, categoryFilter, statusFilter, severityFilter, searchTerm]);
 
   // Group items by category
-  const groupedItems = useMemo(() => {
-    return {
-      Risk: filteredItems.filter(i => i.category === 'Risk'),
-      Assumption: filteredItems.filter(i => i.category === 'Assumption'),
-      Issue: filteredItems.filter(i => i.category === 'Issue'),
-      Dependency: filteredItems.filter(i => i.category === 'Dependency')
-    };
-  }, [filteredItems]);
+  const groupedItems = useMemo(() => ({
+    Risk: filteredItems.filter(i => i.category === 'Risk'),
+    Assumption: filteredItems.filter(i => i.category === 'Assumption'),
+    Issue: filteredItems.filter(i => i.category === 'Issue'),
+    Dependency: filteredItems.filter(i => i.category === 'Dependency')
+  }), [filteredItems]);
 
   // Handle delete
   async function handleDelete() {
@@ -158,267 +128,247 @@ export default function RaidLog() {
       await fetchData();
     } catch (error) {
       console.error('Error deleting RAID item:', error);
-      alert('Failed to delete item. Please try again.');
+      alert('Failed to delete item');
     }
   }
 
-  // Toggle category expansion
-  function toggleCategory(category) {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
+  function clearFilters() {
+    setCategoryFilter('all');
+    setStatusFilter('all');
+    setSeverityFilter('all');
+    setSearchTerm('');
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner />
+      <div className="raid-log">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+          <LoadingSpinner />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <PageHeader
-        title="RAID Log"
-        subtitle="Risks, Assumptions, Issues, and Dependencies"
-        action={canCreate && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-          >
-            <Plus size={18} />
-            Add Item
-          </button>
-        )}
-      />
-
-      {/* Summary Stats */}
-      {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <StatCard
-            label="Risks"
-            value={summary.byCategory.Risk.total}
-            subValue={`${summary.byCategory.Risk.open} open`}
-            icon={AlertTriangle}
-            color="red"
-          />
-          <StatCard
-            label="Assumptions"
-            value={summary.byCategory.Assumption.total}
-            subValue={`${summary.byCategory.Assumption.open} open`}
-            icon={Info}
-            color="blue"
-          />
-          <StatCard
-            label="Issues"
-            value={summary.byCategory.Issue.total}
-            subValue={`${summary.byCategory.Issue.open} open`}
-            icon={AlertCircle}
-            color="orange"
-          />
-          <StatCard
-            label="Dependencies"
-            value={summary.byCategory.Dependency.total}
-            subValue={`${summary.byCategory.Dependency.open} open`}
-            icon={Link2}
-            color="purple"
-          />
-        </div>
-      )}
-
-      {/* High Priority Alert */}
-      {summary?.highPriorityItems?.length > 0 && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center gap-2 text-red-800 font-medium mb-2">
-            <AlertTriangle size={18} />
-            {summary.highPriorityItems.length} High Priority Items Requiring Attention
+    <div className="raid-log">
+      {/* Header */}
+      <header className="raid-header">
+        <div className="raid-header-content">
+          <div className="raid-header-left">
+            <h1>RAID Log</h1>
+            <p>Risks, Assumptions, Issues, and Dependencies</p>
           </div>
-          <div className="text-sm text-red-700">
-            {summary.highPriorityItems.map(item => (
-              <span 
-                key={item.id} 
-                className="inline-block mr-3 cursor-pointer hover:underline"
-                onClick={() => setSelectedItem(items.find(i => i.id === item.id))}
-              >
-                {item.raid_ref}: {item.title}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white rounded-lg border border-gray-200">
-        <div className="flex items-center gap-2">
-          <Filter size={18} className="text-gray-400" />
-          <span className="text-sm font-medium text-gray-600">Filters:</span>
-        </div>
-
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-          />
-        </div>
-
-        {/* Category Filter */}
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
-        >
-          <option value="all">All Categories</option>
-          <option value="Risk">Risks</option>
-          <option value="Assumption">Assumptions</option>
-          <option value="Issue">Issues</option>
-          <option value="Dependency">Dependencies</option>
-        </select>
-
-        {/* Status Filter */}
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
-        >
-          <option value="all">All Statuses</option>
-          <option value="Open">Open</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Closed">Closed</option>
-          <option value="Accepted">Accepted</option>
-          <option value="Mitigated">Mitigated</option>
-        </select>
-
-        {/* Severity Filter */}
-        <select
-          value={severityFilter}
-          onChange={(e) => setSeverityFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
-        >
-          <option value="all">All Severities</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
-        </select>
-
-        {/* Clear Filters */}
-        {(categoryFilter !== 'all' || statusFilter !== 'all' || severityFilter !== 'all' || searchTerm) && (
-          <button
-            onClick={() => {
-              setCategoryFilter('all');
-              setStatusFilter('all');
-              setSeverityFilter('all');
-              setSearchTerm('');
-            }}
-            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
-          >
-            <X size={14} />
-            Clear
-          </button>
-        )}
-
-        {/* Refresh */}
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="ml-auto p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          title="Refresh"
-        >
-          <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
-        </button>
-      </div>
-
-      {/* RAID Categories */}
-      <div className="space-y-4">
-        {['Risk', 'Assumption', 'Issue', 'Dependency'].map(category => {
-          const config = categoryConfig[category];
-          const CategoryIcon = config.icon;
-          const categoryItems = groupedItems[category];
-          const isExpanded = expandedCategories[category];
-
-          return (
-            <div 
-              key={category} 
-              className={`bg-white rounded-lg border ${config.borderColor} overflow-hidden`}
+          <div className="raid-header-actions">
+            <button 
+              className="raid-btn raid-btn-secondary"
+              onClick={handleRefresh}
+              disabled={refreshing}
             >
-              {/* Category Header */}
-              <button
-                onClick={() => toggleCategory(category)}
-                className={`w-full flex items-center justify-between p-4 ${config.bgColor} hover:opacity-90 transition-opacity`}
+              <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
+              Refresh
+            </button>
+            {canCreate && (
+              <button 
+                className="raid-btn raid-btn-primary"
+                onClick={() => setShowAddForm(true)}
               >
-                <div className="flex items-center gap-3">
-                  <CategoryIcon size={20} className={config.color} />
-                  <span className={`font-semibold ${config.color}`}>
-                    {category === 'Dependency' ? 'Dependencies' : `${category}s`}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    ({categoryItems.length} items)
-                  </span>
-                </div>
-                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                <Plus size={16} />
+                Add Item
               </button>
+            )}
+          </div>
+        </div>
+      </header>
 
-              {/* Category Items */}
-              {isExpanded && (
-                <div className="divide-y divide-gray-100">
-                  {categoryItems.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500">
-                      No {category.toLowerCase()}s found
+      <div className="raid-content">
+        {/* Summary Cards */}
+        {summary && (
+          <div className="raid-summary-grid">
+            {Object.entries(CATEGORIES).map(([category, config]) => {
+              const Icon = config.icon;
+              const stats = summary.byCategory[category] || { total: 0, open: 0 };
+              return (
+                <div 
+                  key={category}
+                  className={`raid-summary-card ${config.className}`}
+                  onClick={() => setCategoryFilter(category)}
+                >
+                  <div className="raid-summary-icon">
+                    <Icon size={22} />
+                  </div>
+                  <div className="raid-summary-value">{stats.total}</div>
+                  <div className="raid-summary-label">{config.plural}</div>
+                  <div className="raid-summary-sub">{stats.open} open</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* High Priority Alert */}
+        {summary?.highPriorityItems?.length > 0 && (
+          <div className="raid-priority-alert">
+            <div className="raid-priority-header">
+              <AlertTriangle size={18} />
+              <span>{summary.highPriorityItems.length} High Priority Items Requiring Attention</span>
+            </div>
+            <div className="raid-priority-items">
+              {summary.highPriorityItems.map(item => (
+                <div 
+                  key={item.id}
+                  className="raid-priority-item"
+                  onClick={() => setSelectedItem(items.find(i => i.id === item.id))}
+                >
+                  <span className="raid-priority-ref">{item.raid_ref}</span>
+                  <span>{item.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Filter Bar */}
+        <div className="raid-filter-bar">
+          <div className="raid-search">
+            <Search size={16} />
+            <input
+              type="text"
+              placeholder="Search RAID items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <select
+            className="raid-filter-select"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="all">All Categories</option>
+            <option value="Risk">Risks</option>
+            <option value="Assumption">Assumptions</option>
+            <option value="Issue">Issues</option>
+            <option value="Dependency">Dependencies</option>
+          </select>
+
+          <select
+            className="raid-filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Closed">Closed</option>
+            <option value="Accepted">Accepted</option>
+            <option value="Mitigated">Mitigated</option>
+          </select>
+
+          <select
+            className="raid-filter-select"
+            value={severityFilter}
+            onChange={(e) => setSeverityFilter(e.target.value)}
+          >
+            <option value="all">All Severities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button className="raid-clear-filters" onClick={clearFilters}>
+              <X size={14} />
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        {/* Category Sections */}
+        <div className="raid-categories">
+          {Object.entries(CATEGORIES).map(([category, config]) => {
+            const Icon = config.icon;
+            const categoryItems = groupedItems[category];
+            const isExpanded = expandedCategories[category];
+
+            return (
+              <div key={category} className={`raid-category ${config.className} ${isExpanded ? 'expanded' : ''}`}>
+                <button
+                  className="raid-category-header"
+                  onClick={() => setExpandedCategories(prev => ({
+                    ...prev, [category]: !prev[category]
+                  }))}
+                >
+                  <div className="raid-category-left">
+                    <div className="raid-category-icon">
+                      <Icon size={18} />
                     </div>
-                  ) : (
-                    categoryItems.map(item => (
-                      <div
-                        key={item.id}
-                        onClick={() => setSelectedItem(item)}
-                        className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-1">
-                              <span className="font-mono text-sm text-gray-500">
-                                {item.raid_ref}
-                              </span>
-                              <span className="font-medium text-gray-900 truncate">
-                                {item.title || item.description?.substring(0, 50)}
+                    <span className="raid-category-title">
+                      {config.plural}
+                      <span className="raid-category-count">({categoryItems.length})</span>
+                    </span>
+                  </div>
+                  <ChevronDown size={20} className="raid-category-chevron" />
+                </button>
+
+                {isExpanded && (
+                  <div className="raid-items-list">
+                    {categoryItems.length === 0 ? (
+                      <div className="raid-empty">
+                        <Icon size={32} className="raid-empty-icon" />
+                        <div className="raid-empty-text">No {config.plural.toLowerCase()} found</div>
+                      </div>
+                    ) : (
+                      categoryItems.map(item => (
+                        <div
+                          key={item.id}
+                          className="raid-item"
+                          onClick={() => setSelectedItem(item)}
+                        >
+                          <div className="raid-item-main">
+                            <div className="raid-item-content">
+                              <div className="raid-item-header">
+                                <span className="raid-item-ref">{item.raid_ref}</span>
+                                <span className="raid-item-title">{item.title || 'Untitled'}</span>
+                              </div>
+                              <div className="raid-item-description">{item.description}</div>
+                              <div className="raid-item-meta">
+                                {item.owner && (
+                                  <span className="raid-item-meta-item">
+                                    <User size={14} />
+                                    {item.owner.name}
+                                  </span>
+                                )}
+                                {item.due_date && (
+                                  <span className="raid-item-meta-item">
+                                    <Calendar size={14} />
+                                    {new Date(item.due_date).toLocaleDateString('en-GB', {
+                                      day: 'numeric', month: 'short'
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="raid-item-badges">
+                              {item.severity && (
+                                <span className={`raid-badge severity-${item.severity.toLowerCase()}`}>
+                                  <span className="raid-badge-dot" />
+                                  {item.severity}
+                                </span>
+                              )}
+                              <span className={`raid-badge status-${item.status.toLowerCase().replace(' ', '-')}`}>
+                                {item.status}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600 line-clamp-2">
-                              {item.description}
-                            </p>
-                            {item.owner && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                Owner: {item.owner.name}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {/* Severity Badge */}
-                            {item.severity && (
-                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${severityConfig[item.severity]?.color || 'bg-gray-100'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${severityConfig[item.severity]?.dot || 'bg-gray-400'}`} />
-                                {item.severity}
-                              </span>
-                            )}
-                            {/* Status Badge */}
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig[item.status]?.color || 'bg-gray-100'}`}>
-                              {item.status}
-                            </span>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Add Form Modal */}
