@@ -476,7 +476,164 @@
   color: var(--ds-gray);
 }
 
-/* Responsive */
+/* =============================================================================
+   Date Range Filter Component
+   ============================================================================= */
+
+.ts-date-filter {
+  background: var(--ds-bg-primary);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  padding: 16px 24px;
+  margin-bottom: 24px;
+}
+
+.ts-date-filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ts-date-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--ds-text-primary);
+}
+
+.ts-date-filter-label svg {
+  color: var(--ds-text-secondary);
+}
+
+/* Quick Select Buttons */
+.ts-quick-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.ts-quick-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-bg-primary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text-primary);
+  cursor: pointer;
+  transition: all var(--ds-transition);
+}
+
+.ts-quick-btn:hover {
+  border-color: var(--ds-teal);
+  color: var(--ds-teal);
+}
+
+.ts-quick-btn.active {
+  background: var(--ds-teal);
+  border-color: var(--ds-teal);
+  color: white;
+}
+
+/* Month Select */
+.ts-month-select {
+  padding: 8px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-bg-primary);
+  font-size: 14px;
+  min-width: 160px;
+  cursor: pointer;
+}
+
+.ts-month-select:focus {
+  outline: none;
+  border-color: var(--ds-teal);
+}
+
+/* Date Separator */
+.ts-date-separator {
+  color: var(--ds-text-secondary);
+  font-size: 14px;
+}
+
+/* Date Inputs */
+.ts-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ts-date-input {
+  padding: 8px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-bg-primary);
+  font-size: 14px;
+  width: 140px;
+}
+
+.ts-date-input:focus {
+  outline: none;
+  border-color: var(--ds-teal);
+}
+
+.ts-date-to {
+  color: var(--ds-text-secondary);
+  font-size: 14px;
+}
+
+/* Clear Button */
+.ts-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-bg-primary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: all var(--ds-transition);
+}
+
+.ts-clear-btn:hover {
+  border-color: var(--ds-red);
+  color: var(--ds-red);
+  background: var(--ds-red-light);
+}
+
+/* Showing Label */
+.ts-showing-label {
+  margin-left: auto;
+  padding: 8px 14px;
+  background: var(--ds-teal-light);
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-teal);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* =============================================================================
+   Responsive
+   ============================================================================= */
+
+@media (max-width: 1024px) {
+  .ts-date-filter-row {
+    gap: 10px;
+  }
+  
+  .ts-showing-label {
+    margin-left: 0;
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+  }
+}
+
 @media (max-width: 768px) {
   .ts-header {
     padding: 20px;
@@ -498,5 +655,38 @@
   
   .ts-mode-buttons {
     flex-direction: column;
+  }
+  
+  .ts-date-filter-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .ts-quick-buttons {
+    width: 100%;
+  }
+  
+  .ts-quick-btn {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .ts-month-select {
+    width: 100%;
+  }
+  
+  .ts-date-inputs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  .ts-date-input {
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  .ts-showing-label {
+    width: 100%;
+    text-align: center;
   }
 }

@@ -3,8 +3,9 @@
  * 
  * Track time spent on project activities with daily/weekly entry modes.
  * Includes clickable rows for detail view with edit/validate capabilities.
+ * Now with date range filtering (This Week, Last Week, Month, Custom).
  * 
- * @version 3.1 - Removed dashboard cards for clean layout
+ * @version 3.2 - Added date range filter
  * @updated 5 December 2025
  */
 
@@ -20,7 +21,7 @@ import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, ConfirmDialog } from '../components/common';
-import { TimesheetDetailModal } from '../components/timesheets';
+import { TimesheetDetailModal, TimesheetDateFilter } from '../components/timesheets';
 import './Timesheets.css';
 
 const STATUSES = ['Draft', 'Submitted', 'Approved', 'Rejected'];
@@ -62,6 +63,10 @@ export default function Timesheets() {
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, timesheetId: null, timesheetData: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, timesheet: null });
 
+  // Date range filter state
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
+  const [selectedPeriod, setSelectedPeriod] = useState('');
+
   const [newTimesheet, setNewTimesheet] = useState({
     resource_id: '', milestone_id: '', work_date: new Date().toISOString().split('T')[0],
     week_ending: getNextSunday(), hours_worked: '', description: '', status: 'Draft', entry_type: 'daily'
@@ -90,6 +95,39 @@ export default function Timesheets() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { if (currentUserResourceId) setNewTimesheet(prev => ({ ...prev, resource_id: currentUserResourceId })); }, [currentUserResourceId]);
+
+  // Date range handlers
+  function handlePeriodSelect(period, range) {
+    setSelectedPeriod(period);
+    setDateRange(range);
+  }
+
+  function handleDateRangeChange(field, value) {
+    setSelectedPeriod('custom');
+    setDateRange(prev => ({ ...prev, [field]: value || null }));
+  }
+
+  function clearDateFilter() {
+    setDateRange({ start: null, end: null });
+    setSelectedPeriod('');
+  }
+
+  function getDateRangeLabel() {
+    if (!dateRange.start && !dateRange.end) return 'All Time';
+    
+    if (selectedPeriod === 'this-week') return 'This Week';
+    if (selectedPeriod === 'last-week') return 'Last Week';
+    
+    // Month format (YYYY-MM)
+    if (selectedPeriod && selectedPeriod.length === 7 && selectedPeriod.includes('-')) {
+      const [year, month] = selectedPeriod.split('-').map(Number);
+      return new Date(year, month - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+    
+    const start = dateRange.start ? new Date(dateRange.start).toLocaleDateString('en-GB') : 'Start';
+    const end = dateRange.end ? new Date(dateRange.end).toLocaleDateString('en-GB') : 'End';
+    return `${start} - ${end}`;
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -155,8 +193,36 @@ export default function Timesheets() {
     } 
   }
 
-  const filteredTimesheets = timesheets.filter(ts => filterResource === 'all' || ts.resource_id === filterResource);
-  const hoursByResource = resources.map(r => ({ name: r.name, hours: filteredTimesheets.filter(ts => ts.resource_id === r.id).reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0) })).filter(r => r.hours > 0);
+  // Apply filters: resource + date range
+  const filteredTimesheets = timesheets.filter(ts => {
+    // Resource filter
+    if (filterResource !== 'all' && ts.resource_id !== filterResource) {
+      return false;
+    }
+    
+    // Date range filter
+    if (dateRange.start || dateRange.end) {
+      const tsDate = new Date(ts.work_date || ts.date);
+      if (dateRange.start && tsDate < new Date(dateRange.start)) {
+        return false;
+      }
+      if (dateRange.end) {
+        const endDate = new Date(dateRange.end);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end day
+        if (tsDate > endDate) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  });
+
+  const hoursByResource = resources.map(r => ({ 
+    name: r.name, 
+    hours: filteredTimesheets.filter(ts => ts.resource_id === r.id).reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0) 
+  })).filter(r => r.hours > 0);
+  
   const availableResources = getAvailableResources(resources);
 
   if (loading) return <LoadingSpinner message="Loading timesheets..." size="large" fullPage />;
@@ -188,6 +254,16 @@ export default function Timesheets() {
       </header>
 
       <div className="ts-content">
+        {/* Date Range Filter */}
+        <TimesheetDateFilter
+          dateRange={dateRange}
+          selectedPeriod={selectedPeriod}
+          onPeriodSelect={handlePeriodSelect}
+          onDateRangeChange={handleDateRangeChange}
+          onClear={clearDateFilter}
+          getDateRangeLabel={getDateRangeLabel}
+        />
+
         {hoursByResource.length > 0 && (
           <div className="ts-hours-summary">
             <h4 className="ts-hours-title">Hours by Resource</h4>
@@ -288,7 +364,7 @@ export default function Timesheets() {
             </thead>
             <tbody>
               {filteredTimesheets.length === 0 ? (
-                <tr><td colSpan={6} className="ts-empty-cell">No timesheets found.</td></tr>
+                <tr><td colSpan={6} className="ts-empty-cell">No timesheets found for the selected period.</td></tr>
               ) : filteredTimesheets.map(ts => (
                 <tr key={ts.id} onClick={() => setDetailModal({ isOpen: true, timesheet: ts })}>
                   <td>
