@@ -7,14 +7,13 @@
  * - Dependencies (future feature)
  * - Linked deliverables with progress calculation
  * 
- * @version 2.1
+ * @version 2.2
  * @updated 5 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { milestonesService, deliverablesService } from '../services';
-import { useProject } from '../contexts/ProjectContext';
 import { 
   Target, ArrowLeft, AlertCircle, RefreshCw, Calendar, 
   PoundSterling, Package, CheckCircle, Clock, Link2, ChevronRight
@@ -25,35 +24,35 @@ import './MilestoneDetail.css';
 export default function MilestoneDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { project } = useProject();
   const [milestone, setMilestone] = useState(null);
   const [deliverables, setDeliverables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchMilestoneData = useCallback(async (showRefresh = false) => {
-    // Guard: Don't fetch if project is not loaded yet
-    if (!project?.id) {
+    if (!id) {
+      setLoading(false);
       return;
     }
     
     if (showRefresh) setRefreshing(true);
     
     try {
+      // First, fetch the milestone
       const milestoneData = await milestonesService.getById(id);
       
       if (!milestoneData) {
         setMilestone(null);
         setLoading(false);
+        setRefreshing(false);
         return;
       }
       
       setMilestone(milestoneData);
 
-      // Fetch deliverables for this milestone
-      const deliverablesData = await deliverablesService.getAll(project.id, {
+      // Then fetch deliverables using the milestone's project_id
+      const deliverablesData = await deliverablesService.getAll(milestoneData.project_id, {
         filters: [{ column: 'milestone_id', operator: 'eq', value: id }],
-        select: '*, deliverable_kpis(kpi_id, kpis(kpi_ref, name))',
         orderBy: { column: 'deliverable_ref', ascending: true }
       });
       setDeliverables(deliverablesData || []);
@@ -63,13 +62,11 @@ export default function MilestoneDetail() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id, project?.id]);
+  }, [id]);
 
   useEffect(() => {
-    if (project?.id) {
-      fetchMilestoneData();
-    }
-  }, [fetchMilestoneData, project?.id]);
+    fetchMilestoneData();
+  }, [fetchMilestoneData]);
 
   // Calculate milestone status from its deliverables
   function calculateMilestoneStatus(deliverables) {
@@ -108,8 +105,7 @@ export default function MilestoneDetail() {
     }
   }
 
-  // Show loading if project or milestone not yet loaded
-  if (!project?.id || loading) {
+  if (loading) {
     return <LoadingSpinner message="Loading milestone..." size="large" fullPage />;
   }
 
