@@ -5,22 +5,25 @@
  * - Dates (baseline and forecast)
  * - Billable amounts (baseline, forecast, actual)
  * - Baseline commitment workflow (dual signature)
+ * - Acceptance certificate workflow (dual signature)
  * - Linked deliverables with progress calculation
  * - Edit functionality (role-restricted)
  * 
- * @version 3.1
+ * @version 3.2
  * @updated 5 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { milestonesService, deliverablesService } from '../services';
+import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft, AlertCircle, RefreshCw, Calendar, 
   PoundSterling, Package, CheckCircle, Clock, ChevronRight,
-  Edit2, Lock, Unlock
+  Edit2, Lock, Unlock, Award, FileCheck, PenTool
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingSpinner } from '../components/common';
 import './MilestoneDetail.css';
@@ -29,10 +32,12 @@ export default function MilestoneDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, role: userRole, profile } = useAuth();
+  const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
   
   const [milestone, setMilestone] = useState(null);
   const [deliverables, setDeliverables] = useState([]);
+  const [certificate, setCertificate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -72,11 +77,21 @@ export default function MilestoneDetail() {
       
       setMilestone(milestoneData);
 
+      // Fetch deliverables
       const deliverablesData = await deliverablesService.getAll(milestoneData.project_id, {
         filters: [{ column: 'milestone_id', operator: 'eq', value: id }],
         orderBy: { column: 'deliverable_ref', ascending: true }
       });
       setDeliverables(deliverablesData || []);
+
+      // Fetch certificate for this milestone
+      const { data: certData } = await supabase
+        .from('milestone_certificates')
+        .select('*')
+        .eq('milestone_id', id)
+        .limit(1);
+      
+      setCertificate(certData?.[0] || null);
     } catch (error) {
       console.error('Error fetching milestone data:', error);
     } finally {
@@ -282,6 +297,126 @@ export default function MilestoneDetail() {
     }
   }
 
+  // Generate certificate
+  async function generateCertificate() {
+    const allDelivered = deliverables.length > 0 && deliverables.every(d => d.status === 'Delivered');
+    
+    if (!allDelivered) {
+      showWarning('Cannot generate certificate: All deliverables must be delivered first.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Get full deliverable data for snapshot
+      const { data: fullDeliverables } = await supabase
+        .from('deliverables')
+        .select('deliverable_ref, name, status, progress')
+        .eq('milestone_id', id)
+        .eq('status', 'Delivered');
+
+      const certificateNumber = `CERT-${milestone.milestone_ref}-${Date.now().toString(36).toUpperCase()}`;
+
+      await milestonesService.createCertificate({
+        project_id: milestone.project_id,
+        milestone_id: id,
+        certificate_number: certificateNumber,
+        milestone_ref: milestone.milestone_ref,
+        milestone_name: milestone.name,
+        payment_milestone_value: milestone.billable || 0,
+        status: 'Draft',
+        deliverables_snapshot: fullDeliverables || [],
+        generated_by: currentUserId,
+        generated_at: new Date().toISOString()
+      });
+
+      await fetchMilestoneData();
+      showSuccess('Certificate generated successfully!');
+    } catch (error) {
+      console.error('Error generating certificate:', error);
+      showError('Failed to generate certificate: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Sign certificate as supplier
+  async function signCertificateAsSupplier() {
+    if (!canSignAsSupplier) {
+      showWarning('Only Admin or Supplier PM can sign as supplier.');
+      return;
+    }
+
+    if (!certificate) return;
+
+    try {
+      setSaving(true);
+      
+      const updates = {
+        supplier_pm_id: currentUserId,
+        supplier_pm_name: currentUserName,
+        supplier_pm_signed_at: new Date().toISOString(),
+        status: certificate.customer_pm_signed_at ? 'Signed' : 'Pending Customer Signature'
+      };
+
+      await milestonesService.updateCertificate(certificate.id, updates);
+      await fetchMilestoneData();
+      showSuccess('Certificate signed as Supplier PM');
+    } catch (error) {
+      console.error('Error signing certificate:', error);
+      showError('Failed to sign certificate: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Sign certificate as customer
+  async function signCertificateAsCustomer() {
+    if (!canSignAsCustomer) {
+      showWarning('Only Customer PM can sign as customer.');
+      return;
+    }
+
+    if (!certificate) return;
+
+    try {
+      setSaving(true);
+      
+      const updates = {
+        customer_pm_id: currentUserId,
+        customer_pm_name: currentUserName,
+        customer_pm_signed_at: new Date().toISOString(),
+        status: certificate.supplier_pm_signed_at ? 'Signed' : 'Pending Supplier Signature'
+      };
+
+      await milestonesService.updateCertificate(certificate.id, updates);
+      await fetchMilestoneData();
+      showSuccess('Certificate signed as Customer PM');
+    } catch (error) {
+      console.error('Error signing certificate:', error);
+      showError('Failed to sign certificate: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Get certificate status display info
+  function getCertificateStatusInfo(status) {
+    switch (status) {
+      case 'Signed':
+        return { label: 'Signed', class: 'cert-signed' };
+      case 'Pending Customer Signature':
+        return { label: 'Awaiting Customer', class: 'cert-pending-customer' };
+      case 'Pending Supplier Signature':
+        return { label: 'Awaiting Supplier', class: 'cert-pending-supplier' };
+      case 'Draft':
+        return { label: 'Draft', class: 'cert-draft' };
+      default:
+        return { label: status || 'Unknown', class: 'cert-draft' };
+    }
+  }
+
   if (loading) {
     return <LoadingSpinner message="Loading milestone..." size="large" fullPage />;
   }
@@ -317,10 +452,17 @@ export default function MilestoneDetail() {
     supplierSigned ? 'Awaiting Customer' :
     customerSigned ? 'Awaiting Supplier' : 'Not Committed';
 
-  // Financial values - use dedicated columns or fall back to billable
+  // Financial values
   const baselineBillable = milestone.baseline_billable ?? milestone.billable ?? 0;
   const forecastBillable = milestone.forecast_billable ?? milestone.billable ?? 0;
   const actualBillable = milestone.billable ?? 0;
+
+  // Certificate status
+  const canGenerateCertificate = computedStatus === 'Completed' && !certificate && (isAdmin || isSupplierPM || isCustomerPM);
+  const certStatusInfo = certificate ? getCertificateStatusInfo(certificate.status) : null;
+  const certSupplierSigned = certificate?.supplier_pm_signed_at;
+  const certCustomerSigned = certificate?.customer_pm_signed_at;
+  const isCertFullySigned = certificate?.status === 'Signed';
 
   return (
     <div className="milestone-detail-page">
@@ -498,6 +640,176 @@ export default function MilestoneDetail() {
           )}
         </div>
 
+        {/* Acceptance Certificate Section */}
+        <div className="section-card certificate-section">
+          <div className="section-header">
+            <h3 className="section-title">
+              <Award size={18} />
+              Acceptance Certificate
+            </h3>
+            {certificate && certStatusInfo && (
+              <span className={`cert-status-badge ${certStatusInfo.class}`}>
+                {isCertFullySigned && <CheckCircle size={14} />}
+                {certStatusInfo.label}
+              </span>
+            )}
+          </div>
+
+          {/* No Certificate Yet */}
+          {!certificate && (
+            <div className="cert-empty">
+              {computedStatus !== 'Completed' ? (
+                <>
+                  <div className="cert-empty-icon">
+                    <FileCheck size={40} strokeWidth={1.5} />
+                  </div>
+                  <p className="cert-empty-text">
+                    Certificate can be generated once all deliverables are delivered.
+                  </p>
+                  <div className="cert-progress-hint">
+                    <span className="cert-progress-count">{deliveredCount} of {totalDeliverables}</span> deliverables delivered
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="cert-empty-icon ready">
+                    <Award size={40} strokeWidth={1.5} />
+                  </div>
+                  <p className="cert-empty-text">
+                    All deliverables have been delivered. Ready to generate certificate.
+                  </p>
+                  {canGenerateCertificate && (
+                    <button 
+                      className="generate-cert-button"
+                      onClick={generateCertificate}
+                      disabled={saving}
+                    >
+                      <Award size={18} />
+                      {saving ? 'Generating...' : 'Generate Certificate'}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Certificate Exists */}
+          {certificate && (
+            <>
+              {/* Certificate Info */}
+              <div className="cert-info-grid">
+                <div className="cert-info-item">
+                  <span className="cert-info-label">Certificate Number</span>
+                  <span className="cert-info-value mono">{certificate.certificate_number}</span>
+                </div>
+                <div className="cert-info-item">
+                  <span className="cert-info-label">Payment Value</span>
+                  <span className="cert-info-value currency">{formatCurrency(certificate.payment_milestone_value)}</span>
+                </div>
+                <div className="cert-info-item">
+                  <span className="cert-info-label">Generated</span>
+                  <span className="cert-info-value">{formatDate(certificate.generated_at)}</span>
+                </div>
+              </div>
+
+              {/* Deliverables Snapshot */}
+              {certificate.deliverables_snapshot && certificate.deliverables_snapshot.length > 0 && (
+                <div className="cert-deliverables">
+                  <h4 className="cert-deliverables-title">Deliverables Accepted</h4>
+                  <div className="cert-deliverables-list">
+                    {certificate.deliverables_snapshot.map((d, idx) => (
+                      <div key={idx} className="cert-deliverable-item">
+                        <span className="cert-del-ref">{d.deliverable_ref}</span>
+                        <span className="cert-del-name">{d.name}</span>
+                        <CheckCircle size={14} className="cert-del-check" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Certificate Signatures */}
+              <div className="signature-grid">
+                <div className={`signature-box ${certSupplierSigned ? 'signed' : ''}`}>
+                  <div className="signature-header">
+                    <span className="signature-role">Supplier PM</span>
+                    {certSupplierSigned && <CheckCircle size={16} className="signed-icon" />}
+                  </div>
+                  {certSupplierSigned ? (
+                    <div className="signature-info">
+                      <div className="signature-name-row">
+                        <PenTool size={14} />
+                        <span className="signer-name">{certificate.supplier_pm_name}</span>
+                      </div>
+                      <span className="signed-date">{formatDate(certificate.supplier_pm_signed_at)}</span>
+                    </div>
+                  ) : (
+                    canSignAsSupplier && !isCertFullySigned && (
+                      <button 
+                        className="sign-button"
+                        onClick={signCertificateAsSupplier}
+                        disabled={saving}
+                      >
+                        <PenTool size={14} />
+                        {saving ? 'Signing...' : 'Sign as Supplier PM'}
+                      </button>
+                    )
+                  )}
+                  {!certSupplierSigned && !canSignAsSupplier && (
+                    <span className="awaiting-text">Awaiting signature</span>
+                  )}
+                </div>
+
+                <div className={`signature-box ${certCustomerSigned ? 'signed' : ''}`}>
+                  <div className="signature-header">
+                    <span className="signature-role">Customer PM</span>
+                    {certCustomerSigned && <CheckCircle size={16} className="signed-icon" />}
+                  </div>
+                  {certCustomerSigned ? (
+                    <div className="signature-info">
+                      <div className="signature-name-row">
+                        <PenTool size={14} />
+                        <span className="signer-name">{certificate.customer_pm_name}</span>
+                      </div>
+                      <span className="signed-date">{formatDate(certificate.customer_pm_signed_at)}</span>
+                    </div>
+                  ) : (
+                    canSignAsCustomer && !isCertFullySigned && (
+                      <button 
+                        className="sign-button customer"
+                        onClick={signCertificateAsCustomer}
+                        disabled={saving}
+                      >
+                        <PenTool size={14} />
+                        {saving ? 'Signing...' : 'Sign as Customer PM'}
+                      </button>
+                    )
+                  )}
+                  {!certCustomerSigned && !canSignAsCustomer && (
+                    <span className="awaiting-text">Awaiting signature</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Ready to Bill indicator */}
+              {isCertFullySigned && (
+                <div className="cert-ready-to-bill">
+                  <CheckCircle size={18} />
+                  <span>Certificate fully signed — Ready to bill</span>
+                </div>
+              )}
+
+              {/* Info text for unsigned */}
+              {!isCertFullySigned && (
+                <p className="baseline-info">
+                  Both Supplier PM and Customer PM must sign to complete the acceptance certificate.
+                  Once signed, the milestone payment value can be invoiced.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
         {/* Schedule Section */}
         <div className="section-card">
           <h3 className="section-title">
@@ -631,7 +943,7 @@ export default function MilestoneDetail() {
                 />
               </div>
 
-              {/* Baseline fields - only if allowed */}
+              {/* Baseline fields */}
               <h3 className="form-section-title">
                 Baseline
                 {milestone.baseline_locked && (
