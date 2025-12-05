@@ -6,7 +6,7 @@
  * - Status/progress calculation from deliverables
  * - Acceptance certificate workflow
  * 
- * @version 3.1 - Removed dashboard cards for clean layout
+ * @version 4.0 - Refactored to use shared utilities
  * @refactored 5 December 2025
  */
 
@@ -32,6 +32,13 @@ import {
   MilestoneAddForm,
   MilestoneEditModal
 } from '../components/milestones';
+import { 
+  calculateMilestoneStatus, 
+  calculateMilestoneProgress,
+  getCertificateStatusInfo,
+  getStatusCssClass
+} from '../lib/milestoneCalculations';
+import { formatDate, formatCurrency } from '../lib/formatters';
 import './Milestones.css';
 
 export default function Milestones() {
@@ -73,21 +80,6 @@ export default function Milestones() {
       fetchCertificates(projectId);
     }
   }, [projectId]);
-
-  function calculateMilestoneStatus(deliverables) {
-    if (!deliverables || deliverables.length === 0) return 'Not Started';
-    const allNotStarted = deliverables.every(d => d.status === 'Not Started' || !d.status);
-    const allDelivered = deliverables.every(d => d.status === 'Delivered');
-    if (allDelivered) return 'Completed';
-    if (allNotStarted) return 'Not Started';
-    return 'In Progress';
-  }
-
-  function calculateMilestoneProgress(deliverables) {
-    if (!deliverables || deliverables.length === 0) return 0;
-    const totalProgress = deliverables.reduce((sum, d) => sum + (d.progress || 0), 0);
-    return Math.round(totalProgress / deliverables.length);
-  }
 
   async function fetchCertificates(projId) {
     try {
@@ -297,37 +289,36 @@ export default function Milestones() {
     const isSupplier = signatureType === 'supplier';
     const isCustomer = signatureType === 'customer';
 
-    if (isSupplier && !['admin', 'supplier_pm'].includes(userRole)) {
+    if (isSupplier && !canSignAsSupplier) {
       showWarning('Only Admin or Supplier PM can sign as supplier.');
       return;
     }
-    if (isCustomer && userRole !== 'customer_pm') {
+    if (isCustomer && !canSignAsCustomer) {
       showWarning('Only Customer PM can sign as customer.');
       return;
     }
 
     try {
-      const updates = {};
-      let newStatus = selectedCertificate.status;
+      // Use the service method for signing
+      await milestonesService.signCertificate(
+        selectedCertificate.id, 
+        signatureType, 
+        currentUserId, 
+        currentUserName
+      );
 
-      if (isSupplier) {
-        updates.supplier_pm_id = currentUserId;
-        updates.supplier_pm_name = currentUserName;
-        updates.supplier_pm_signed_at = new Date().toISOString();
-        newStatus = selectedCertificate.customer_pm_signed_at ? 'Signed' : 'Pending Customer Signature';
-      }
-
-      if (isCustomer) {
-        updates.customer_pm_id = currentUserId;
-        updates.customer_pm_name = currentUserName;
-        updates.customer_pm_signed_at = new Date().toISOString();
-        newStatus = selectedCertificate.supplier_pm_signed_at ? 'Signed' : 'Pending Supplier Signature';
-      }
-
-      updates.status = newStatus;
-      await milestonesService.updateCertificate(selectedCertificate.id, updates);
       await fetchCertificates();
-      setSelectedCertificate({ ...selectedCertificate, ...updates });
+      
+      // Refresh the modal certificate data
+      const updatedCert = await milestonesService.getCertificateByMilestoneId(selectedCertificate.milestone.id);
+      if (updatedCert) {
+        setSelectedCertificate({ 
+          ...updatedCert, 
+          milestone: selectedCertificate.milestone, 
+          deliverables: selectedCertificate.deliverables 
+        });
+      }
+      
       showSuccess('Certificate signed successfully!');
     } catch (error) {
       console.error('Error signing certificate:', error);
@@ -339,6 +330,7 @@ export default function Milestones() {
 
   if (loading) return <LoadingSpinner message="Loading milestones..." size="large" fullPage />;
 
+  // Use shared utility functions for status and progress calculation
   const milestonesWithStatus = milestones.map(m => ({
     ...m,
     computedStatus: calculateMilestoneStatus(milestoneDeliverables[m.id]),
@@ -417,7 +409,8 @@ export default function Milestones() {
                 {milestonesWithStatus.map(milestone => {
                   const cert = certificates[milestone.id];
                   const deliverableCount = milestoneDeliverables[milestone.id]?.length || 0;
-                  const statusClass = milestone.computedStatus.toLowerCase().replace(' ', '-');
+                  const statusCssClass = getStatusCssClass(milestone.computedStatus);
+                  const certStatusInfo = cert ? getCertificateStatusInfo(cert.status) : null;
                   
                   return (
                     <tr 
@@ -436,26 +429,24 @@ export default function Milestones() {
                         )}
                       </td>
                       <td>
-                        <span className={`ms-status-badge ${statusClass}`}>
+                        <span className={`ms-status-badge ${statusCssClass}`}>
                           <span className="ms-status-dot"></span>
                           {milestone.computedStatus}
                         </span>
                       </td>
                       <td>
-                        <span className={`ms-progress ${statusClass}`}>
+                        <span className={`ms-progress ${statusCssClass}`}>
                           {milestone.computedProgress}%
                         </span>
                       </td>
                       <td>
                         <span className="ms-date">
-                          {(milestone.forecast_end_date || milestone.end_date) 
-                            ? new Date(milestone.forecast_end_date || milestone.end_date).toLocaleDateString('en-GB') 
-                            : '—'}
+                          {formatDate(milestone.forecast_end_date || milestone.end_date)}
                         </span>
                       </td>
                       <td>
                         <span className="ms-billable">
-                          £{(milestone.billable || 0).toLocaleString()}
+                          {formatCurrency(milestone.billable)}
                         </span>
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
@@ -463,17 +454,11 @@ export default function Milestones() {
                           <span className="ms-cert-badge not-ready">Not ready</span>
                         ) : cert ? (
                           <button
-                            className={`ms-cert-badge ${
-                              cert.status === 'Signed' ? 'signed' :
-                              cert.status === 'Pending Customer Signature' ? 'pending-customer' :
-                              cert.status === 'Pending Supplier Signature' ? 'pending-supplier' : ''
-                            }`}
+                            className={`ms-cert-badge ${certStatusInfo?.cssClass || ''}`}
                             onClick={() => openCertificateModal(milestone)}
                           >
                             <FileCheck size={14} />
-                            {cert.status === 'Signed' ? 'Signed' : 
-                             cert.status === 'Pending Customer Signature' ? 'Awaiting Customer' :
-                             cert.status === 'Pending Supplier Signature' ? 'Awaiting Supplier' : 'View'}
+                            {certStatusInfo?.label || 'View'}
                           </button>
                         ) : canEdit ? (
                           <button

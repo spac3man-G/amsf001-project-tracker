@@ -13,6 +13,7 @@ export { useFormValidation } from './useFormValidation';
 
 // Permissions
 export { usePermissions } from './usePermissions';
+export { useMilestonePermissions } from './useMilestonePermissions';
 
 // Dashboard
 export { useDashboardLayout } from './useDashboardLayout';

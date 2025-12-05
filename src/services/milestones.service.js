@@ -3,8 +3,8 @@
  * 
  * Handles all milestone-related data operations.
  * 
- * @version 2.0
- * @updated 30 November 2025
+ * @version 2.1
+ * @updated 5 December 2025
  * @phase Production Hardening - Service Layer
  */
 
@@ -216,6 +216,28 @@ export class MilestonesService extends BaseService {
   }
 
   /**
+   * Get a certificate by milestone ID
+   * 
+   * @param {string} milestoneId - The milestone ID
+   * @returns {Object|null} Certificate object or null if none exists
+   */
+  async getCertificateByMilestoneId(milestoneId) {
+    try {
+      const { data, error } = await supabase
+        .from('milestone_certificates')
+        .select('*')
+        .eq('milestone_id', milestoneId)
+        .limit(1);
+
+      if (error) throw error;
+      return data?.[0] || null;
+    } catch (error) {
+      console.error('MilestonesService getCertificateByMilestoneId error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create a new milestone certificate
    */
   async createCertificate(certificateData) {
@@ -250,6 +272,136 @@ export class MilestonesService extends BaseService {
       return data?.[0];
     } catch (error) {
       console.error('MilestonesService updateCertificate error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign a certificate as either supplier or customer PM.
+   * Handles status transitions automatically.
+   * 
+   * @param {string} certificateId - The certificate ID
+   * @param {'supplier' | 'customer'} signerRole - Who is signing
+   * @param {string} userId - The user ID of the signer
+   * @param {string} userName - The display name of the signer
+   * @returns {Object} Updated certificate
+   */
+  async signCertificate(certificateId, signerRole, userId, userName) {
+    try {
+      // First get the current certificate to check existing signatures
+      const { data: currentCert, error: fetchError } = await supabase
+        .from('milestone_certificates')
+        .select('*')
+        .eq('id', certificateId)
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+      const cert = currentCert?.[0];
+      if (!cert) throw new Error('Certificate not found');
+
+      const now = new Date().toISOString();
+      const updates = {};
+
+      if (signerRole === 'supplier') {
+        updates.supplier_pm_id = userId;
+        updates.supplier_pm_name = userName;
+        updates.supplier_pm_signed_at = now;
+        // Determine new status
+        updates.status = cert.customer_pm_signed_at 
+          ? 'Signed' 
+          : 'Pending Customer Signature';
+      } else if (signerRole === 'customer') {
+        updates.customer_pm_id = userId;
+        updates.customer_pm_name = userName;
+        updates.customer_pm_signed_at = now;
+        // Determine new status
+        updates.status = cert.supplier_pm_signed_at 
+          ? 'Signed' 
+          : 'Pending Supplier Signature';
+      } else {
+        throw new Error('Invalid signer role. Must be "supplier" or "customer".');
+      }
+
+      const { data, error } = await supabase
+        .from('milestone_certificates')
+        .update(updates)
+        .eq('id', certificateId)
+        .select();
+
+      if (error) throw error;
+      return data?.[0];
+    } catch (error) {
+      console.error('MilestonesService signCertificate error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign baseline as either supplier or customer PM.
+   * Handles lock status automatically when both parties have signed.
+   * 
+   * @param {string} milestoneId - The milestone ID
+   * @param {'supplier' | 'customer'} signerRole - Who is signing
+   * @param {string} userId - The user ID of the signer
+   * @param {string} userName - The display name of the signer
+   * @returns {Object} Updated milestone
+   */
+  async signBaseline(milestoneId, signerRole, userId, userName) {
+    try {
+      // First get the current milestone to check existing signatures
+      const milestone = await this.getById(milestoneId);
+      if (!milestone) throw new Error('Milestone not found');
+
+      const now = new Date().toISOString();
+      const updates = {};
+
+      if (signerRole === 'supplier') {
+        updates.baseline_supplier_pm_id = userId;
+        updates.baseline_supplier_pm_name = userName;
+        updates.baseline_supplier_pm_signed_at = now;
+        // Lock if other party already signed
+        if (milestone.baseline_customer_pm_signed_at) {
+          updates.baseline_locked = true;
+        }
+      } else if (signerRole === 'customer') {
+        updates.baseline_customer_pm_id = userId;
+        updates.baseline_customer_pm_name = userName;
+        updates.baseline_customer_pm_signed_at = now;
+        // Lock if other party already signed
+        if (milestone.baseline_supplier_pm_signed_at) {
+          updates.baseline_locked = true;
+        }
+      } else {
+        throw new Error('Invalid signer role. Must be "supplier" or "customer".');
+      }
+
+      return await this.update(milestoneId, updates);
+    } catch (error) {
+      console.error('MilestonesService signBaseline error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset baseline lock (admin only - caller must verify permission).
+   * Clears all signature data and unlocks the baseline.
+   * 
+   * @param {string} milestoneId - The milestone ID
+   * @returns {Object} Updated milestone
+   */
+  async resetBaseline(milestoneId) {
+    try {
+      return await this.update(milestoneId, {
+        baseline_locked: false,
+        baseline_supplier_pm_id: null,
+        baseline_supplier_pm_name: null,
+        baseline_supplier_pm_signed_at: null,
+        baseline_customer_pm_id: null,
+        baseline_customer_pm_name: null,
+        baseline_customer_pm_signed_at: null
+      });
+    } catch (error) {
+      console.error('MilestonesService resetBaseline error:', error);
       throw error;
     }
   }

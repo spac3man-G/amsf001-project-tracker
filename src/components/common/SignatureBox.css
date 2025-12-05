@@ -1,0 +1,191 @@
+/**
+ * SignatureBox Component Styles
+ * 
+ * Apple Design System styling for signature boxes.
+ * 
+ * @version 1.0
+ * @created 5 December 2025
+ */
+
+/* ============================================
+   SIGNATURE GRID LAYOUT
+   ============================================ */
+
+.signature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+  .signature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   SIGNATURE BOX
+   ============================================ */
+
+.signature-box {
+  background: #fafafa;
+  border: 1px solid #e8e8ed;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.signature-box.signed {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #86efac;
+}
+
+.signature-box.customer.signed {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #93c5fd;
+}
+
+/* ============================================
+   SIGNATURE HEADER
+   ============================================ */
+
+.signature-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.signature-role {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.signed-icon {
+  color: #16a34a;
+}
+
+.signature-box.customer .signed-icon {
+  color: #2563eb;
+}
+
+/* ============================================
+   SIGNATURE INFO (WHEN SIGNED)
+   ============================================ */
+
+.signature-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.signature-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #16a34a;
+}
+
+.signature-box.customer .signature-name-row {
+  color: #2563eb;
+}
+
+.signature-name-row svg {
+  flex-shrink: 0;
+}
+
+.signer-name {
+  font-weight: 500;
+  color: #1d1d1f;
+}
+
+.signed-date {
+  font-size: 0.8125rem;
+  color: #86868b;
+}
+
+/* ============================================
+   SIGN BUTTON
+   ============================================ */
+
+.sign-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sign-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+}
+
+.sign-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.sign-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Customer variant button */
+.sign-button.customer {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.sign-button.customer:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+/* ============================================
+   AWAITING TEXT
+   ============================================ */
+
+.awaiting-text {
+  font-size: 0.875rem;
+  color: #aeaeb2;
+  font-style: italic;
+}
+
+/* ============================================
+   SIGNATURE COMPLETE INDICATOR
+   ============================================ */
+
+.signature-complete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  margin-top: 1rem;
+  font-weight: 500;
+  border-radius: 10px;
+}
+
+.signature-complete.success {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  color: #16a34a;
+  border: 1px solid #86efac;
+}
+
+.signature-complete.info {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #2563eb;
+  border: 1px solid #93c5fd;
+}

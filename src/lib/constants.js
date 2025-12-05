@@ -206,3 +206,75 @@ export const MARGIN_COLORS = {
   critical: { text: '#dc2626', bg: '#fee2e2' },
   unknown: { text: '#64748b', bg: '#f1f5f9' }
 };
+
+// ============================================
+// CERTIFICATE STATUSES
+// ============================================
+
+export const CERTIFICATE_STATUSES = {
+  DRAFT: 'Draft',
+  PENDING_SUPPLIER: 'Pending Supplier Signature',
+  PENDING_CUSTOMER: 'Pending Customer Signature',
+  SIGNED: 'Signed'
+};
+
+export const CERTIFICATE_COLORS = {
+  draft: { text: '#64748b', bg: '#f1f5f9' },
+  'pending supplier signature': { text: '#d97706', bg: '#fef3c7' },
+  'pending customer signature': { text: '#d97706', bg: '#fef3c7' },
+  signed: { text: '#16a34a', bg: '#dcfce7' }
+};
+
+// ============================================
+// BASELINE STATUSES
+// ============================================
+
+export const BASELINE_STATUSES = {
+  NOT_COMMITTED: 'Not Committed',
+  AWAITING_SUPPLIER: 'Awaiting Supplier',
+  AWAITING_CUSTOMER: 'Awaiting Customer',
+  LOCKED: 'Locked'
+};
+
+export const BASELINE_COLORS = {
+  'not committed': { text: '#64748b', bg: '#f1f5f9' },
+  'awaiting supplier': { text: '#d97706', bg: '#fef3c7' },
+  'awaiting customer': { text: '#d97706', bg: '#fef3c7' },
+  locked: { text: '#16a34a', bg: '#dcfce7' }
+};
+
+// ============================================
+// USER ROLES
+// ============================================
+
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  SUPPLIER_PM: 'supplier_pm',
+  CUSTOMER_PM: 'customer_pm',
+  CONTRIBUTOR: 'contributor',
+  VIEWER: 'viewer'
+};
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Get status color configuration for any status string.
+ * Looks up in STATUS_COLORS, CERTIFICATE_COLORS, BASELINE_COLORS.
+ * 
+ * @param {string} status - Status string (case-insensitive)
+ * @returns {{ text: string, bg: string }} Color configuration
+ */
+export function getStatusColor(status) {
+  if (!status) return STATUS_COLORS['not started'];
+  
+  const normalised = status.toLowerCase();
+  
+  return (
+    STATUS_COLORS[normalised] ||
+    CERTIFICATE_COLORS[normalised] ||
+    BASELINE_COLORS[normalised] ||
+    STATUS_COLORS['not started']
+  );
+}
