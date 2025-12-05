@@ -7,7 +7,7 @@
  * - Dependencies (future feature)
  * - Linked deliverables with progress calculation
  * 
- * @version 2.0
+ * @version 2.1
  * @updated 5 December 2025
  */
 
@@ -32,6 +32,11 @@ export default function MilestoneDetail() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchMilestoneData = useCallback(async (showRefresh = false) => {
+    // Guard: Don't fetch if project is not loaded yet
+    if (!project?.id) {
+      return;
+    }
+    
     if (showRefresh) setRefreshing(true);
     
     try {
@@ -58,11 +63,13 @@ export default function MilestoneDetail() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id, project.id]);
+  }, [id, project?.id]);
 
   useEffect(() => {
-    fetchMilestoneData();
-  }, [fetchMilestoneData]);
+    if (project?.id) {
+      fetchMilestoneData();
+    }
+  }, [fetchMilestoneData, project?.id]);
 
   // Calculate milestone status from its deliverables
   function calculateMilestoneStatus(deliverables) {
@@ -101,7 +108,8 @@ export default function MilestoneDetail() {
     }
   }
 
-  if (loading) {
+  // Show loading if project or milestone not yet loaded
+  if (!project?.id || loading) {
     return <LoadingSpinner message="Loading milestone..." size="large" fullPage />;
   }
 
