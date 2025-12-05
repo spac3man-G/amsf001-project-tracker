@@ -1,24 +1,24 @@
 /**
- * Partners Page
+ * Partners Page - Apple Design System (Clean)
  * 
  * Manages third-party partner companies for resource allocation and invoicing.
+ * Click on any row to view/edit partner details.
  * Only accessible to Admin and Supplier PM roles.
+ * 
+ * @version 2.0 - Apple design, removed dashboard cards and inline actions
+ * @updated 5 December 2025
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Pencil, Trash2, Mail, User, FileText, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Building2, Plus, Mail, User, FileText, ToggleLeft, ToggleRight, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../contexts/ToastContext';
 import { partnersService } from '../services';
-import { 
-  LoadingSpinner, 
-  PageHeader, 
-  StatCard, 
-  ConfirmDialog
-} from '../components/common';
+import { LoadingSpinner, ConfirmDialog } from '../components/common';
+import './Partners.css';
 
 export default function Partners() {
   const navigate = useNavigate();
@@ -30,6 +30,7 @@ export default function Partners() {
   // State
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, partner: null, dependents: null });
@@ -65,7 +66,13 @@ export default function Partners() {
       showError('Failed to load partners. Please try again.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadPartners();
   };
 
   // Form handlers
@@ -82,19 +89,6 @@ export default function Partners() {
     setShowForm(false);
   };
 
-  const handleEdit = (partner) => {
-    setFormData({
-      name: partner.name || '',
-      contact_name: partner.contact_name || '',
-      contact_email: partner.contact_email || '',
-      payment_terms: partner.payment_terms || 'Net 30',
-      notes: partner.notes || '',
-      is_active: partner.is_active ?? true
-    });
-    setEditingPartner(partner);
-    setShowForm(true);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -107,11 +101,9 @@ export default function Partners() {
       setSaving(true);
 
       if (editingPartner) {
-        // Update existing partner
         await partnersService.update(editingPartner.id, formData);
         showSuccess('Partner updated successfully');
       } else {
-        // Create new partner
         await partnersService.create({
           ...formData,
           project_id: projectId
@@ -129,42 +121,8 @@ export default function Partners() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteConfirm.partner) return;
-
-    try {
-      setSaving(true);
-      await partnersService.delete(deleteConfirm.partner.id);
-      await loadPartners();
-      setDeleteConfirm({ show: false, partner: null, dependents: null });
-      showSuccess('Partner deleted successfully');
-    } catch (err) {
-      console.error('Failed to delete partner:', err);
-      showError('Failed to delete partner. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Fetch dependent record counts before showing delete dialog
-  const handleDeleteClick = async (partner) => {
-    try {
-      // Use service method to get dependency counts
-      const dependents = await partnersService.getDependencyCounts(partner.id);
-      
-      setDeleteConfirm({
-        show: true,
-        partner,
-        dependents
-      });
-    } catch (err) {
-      console.error('Error fetching dependents:', err);
-      // Still show dialog but without counts
-      setDeleteConfirm({ show: true, partner, dependents: null });
-    }
-  };
-
-  const handleToggleActive = async (partner) => {
+  const handleToggleActive = async (e, partner) => {
+    e.stopPropagation();
     try {
       await partnersService.toggleActive(partner.id);
       await loadPartners();
@@ -178,11 +136,11 @@ export default function Partners() {
   // Access denied
   if (!canAccess) {
     return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">
-            You don't have permission to access this page. Partners management is only available to Admin and Supplier PM roles.
-          </p>
+      <div className="partners-page">
+        <div className="ptr-content">
+          <div className="ptr-access-denied">
+            <p>You don't have permission to access this page. Partners management is only available to Admin and Supplier PM roles.</p>
+          </div>
         </div>
       </div>
     );
@@ -193,105 +151,203 @@ export default function Partners() {
     return <LoadingSpinner message="Loading partners..." size="large" fullPage />;
   }
 
-  // Stats
-  const activePartners = partners.filter(p => p.is_active).length;
-  const inactivePartners = partners.filter(p => !p.is_active).length;
-
   return (
-    <div className="p-6 space-y-6">
-      <PageHeader
-        title="Partners"
-        subtitle="Manage third-party partner companies for resource allocation and invoicing"
-        actions={
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Partner
-          </button>
-        }
-      />
+    <div className="partners-page">
+      {/* Header */}
+      <header className="ptr-header">
+        <div className="ptr-header-content">
+          <div className="ptr-header-left">
+            <div className="ptr-header-icon">
+              <Building2 size={24} />
+            </div>
+            <div>
+              <h1>Partners</h1>
+              <p>Manage third-party partner companies for resource allocation and invoicing</p>
+            </div>
+          </div>
+          <div className="ptr-header-actions">
+            <button 
+              className="ptr-btn ptr-btn-secondary" 
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
+              Refresh
+            </button>
+            <button className="ptr-btn ptr-btn-primary" onClick={() => setShowForm(true)}>
+              <Plus size={18} />
+              Add Partner
+            </button>
+          </div>
+        </div>
+      </header>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard
-          icon={Building2}
-          label="Total Partners"
-          value={partners.length}
-        />
-        <StatCard
-          icon={ToggleRight}
-          label="Active Partners"
-          value={activePartners}
-          color="green"
-        />
-        <StatCard
-          icon={ToggleLeft}
-          label="Inactive Partners"
-          value={inactivePartners}
-          color="gray"
-        />
+      {/* Content */}
+      <div className="ptr-content">
+        {/* Partners Table */}
+        <div className="ptr-table-card">
+          <div className="ptr-table-header">
+            <h2 className="ptr-table-title">Partner Companies</h2>
+            <span className="ptr-table-count">
+              {partners.length} partner{partners.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {partners.length === 0 ? (
+            <div className="ptr-empty">
+              <div className="ptr-empty-icon">
+                <Building2 size={32} />
+              </div>
+              <div className="ptr-empty-title">No Partners Yet</div>
+              <div className="ptr-empty-text">
+                Add your first partner company to start tracking third-party resources and expenses.
+              </div>
+              <button className="ptr-empty-btn" onClick={() => setShowForm(true)}>
+                <Plus size={18} />
+                Add Partner
+              </button>
+            </div>
+          ) : (
+            <table className="ptr-table">
+              <thead>
+                <tr>
+                  <th>Partner</th>
+                  <th>Contact</th>
+                  <th>Payment Terms</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partners.map((partner) => (
+                  <tr 
+                    key={partner.id} 
+                    onClick={() => navigate(`/partners/${partner.id}`)}
+                  >
+                    <td>
+                      <div className="ptr-partner-cell">
+                        <div className="ptr-partner-icon">
+                          <Building2 size={20} />
+                        </div>
+                        <div className="ptr-partner-info">
+                          <span className="ptr-partner-name">{partner.name}</span>
+                          {partner.notes && (
+                            <span className="ptr-partner-notes" title={partner.notes}>
+                              {partner.notes}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="ptr-contact-cell">
+                        {partner.contact_name && (
+                          <div className="ptr-contact-name">
+                            <User size={14} />
+                            {partner.contact_name}
+                          </div>
+                        )}
+                        {partner.contact_email && (
+                          <div className="ptr-contact-email">
+                            <Mail size={14} />
+                            <a 
+                              href={`mailto:${partner.contact_email}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {partner.contact_email}
+                            </a>
+                          </div>
+                        )}
+                        {!partner.contact_name && !partner.contact_email && (
+                          <span className="ptr-no-contact">No contact info</span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="ptr-terms">
+                        <FileText size={14} />
+                        {partner.payment_terms}
+                      </div>
+                    </td>
+                    <td>
+                      <button
+                        className={`ptr-status-badge ${partner.is_active ? 'active' : 'inactive'}`}
+                        onClick={(e) => handleToggleActive(e, partner)}
+                      >
+                        {partner.is_active ? (
+                          <>
+                            <ToggleRight size={14} />
+                            Active
+                          </>
+                        ) : (
+                          <>
+                            <ToggleLeft size={14} />
+                            Inactive
+                          </>
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
-      {/* Partner Form Modal */}
+      {/* Add/Edit Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">
+        <div className="ptr-modal-overlay">
+          <div className="ptr-modal">
+            <div className="ptr-modal-header">
+              <h2 className="ptr-modal-title">
                 {editingPartner ? 'Edit Partner' : 'Add New Partner'}
               </h2>
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company Name *
+            </div>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="ptr-modal-body">
+                <div className="ptr-form-group">
+                  <label className="ptr-form-label">
+                    Company Name <span className="required">*</span>
                   </label>
                   <input
                     type="text"
+                    className="ptr-form-input"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="e.g., Agilisys"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Name
-                  </label>
+                <div className="ptr-form-group">
+                  <label className="ptr-form-label">Contact Name</label>
                   <input
                     type="text"
+                    className="ptr-form-input"
                     value={formData.contact_name}
                     onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Primary contact name"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Email
-                  </label>
+                <div className="ptr-form-group">
+                  <label className="ptr-form-label">Contact Email</label>
                   <input
                     type="email"
+                    className="ptr-form-input"
                     value={formData.contact_email}
                     onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="contact@company.com"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Terms
-                  </label>
+                <div className="ptr-form-group">
+                  <label className="ptr-form-label">Payment Terms</label>
                   <select
+                    className="ptr-form-select"
                     value={formData.payment_terms}
                     onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="Net 15">Net 15</option>
                     <option value="Net 30">Net 30</option>
@@ -300,230 +356,49 @@ export default function Partners() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes
-                  </label>
+                <div className="ptr-form-group">
+                  <label className="ptr-form-label">Notes</label>
                   <textarea
+                    className="ptr-form-textarea"
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={3}
                     placeholder="Additional notes about this partner..."
                   />
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="ptr-form-checkbox">
                   <input
                     type="checkbox"
                     id="is_active"
                     checked={formData.is_active}
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="is_active" className="text-sm text-gray-700">
-                    Partner is active
-                  </label>
+                  <label htmlFor="is_active">Partner is active</label>
                 </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    disabled={saving}
-                  >
-                    {saving ? 'Saving...' : (editingPartner ? 'Update Partner' : 'Add Partner')}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Partners List */}
-      {partners.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Partners Yet</h3>
-          <p className="text-gray-500 mb-4">
-            Add your first partner company to start tracking third-party resources and expenses.
-          </p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Partner
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Partner
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Payment Terms
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {partners.map((partner) => (
-                <tr 
-                  key={partner.id} 
-                  className="table-row-clickable hover:bg-gray-50"
-                  onClick={() => navigate(`/partners/${partner.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium flex items-center gap-2">
-                          <span style={{ color: '#2563eb' }}>{partner.name}</span>
-                        </div>
-                        {partner.notes && (
-                          <div className="text-sm text-gray-500 truncate max-w-xs" title={partner.notes}>
-                            {partner.notes}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="space-y-1">
-                      {partner.contact_name && (
-                        <div className="flex items-center gap-2 text-sm text-gray-900">
-                          <User className="w-4 h-4 text-gray-400" />
-                          {partner.contact_name}
-                        </div>
-                      )}
-                      {partner.contact_email && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <Mail className="w-4 h-4 text-gray-400" />
-                          <a 
-                            href={`mailto:${partner.contact_email}`} 
-                            className="hover:text-blue-600"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {partner.contact_email}
-                          </a>
-                        </div>
-                      )}
-                      {!partner.contact_name && !partner.contact_email && (
-                        <span className="text-sm text-gray-400">No contact info</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2 text-sm text-gray-900">
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      {partner.payment_terms}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleToggleActive(partner)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                        partner.is_active
-                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {partner.is_active ? (
-                        <>
-                          <ToggleRight className="w-3 h-3" />
-                          Active
-                        </>
-                      ) : (
-                        <>
-                          <ToggleLeft className="w-3 h-3" />
-                          Inactive
-                        </>
-                      )}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(partner)}
-                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit partner"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(partner)}
-                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete partner"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={deleteConfirm.show}
-        onClose={() => setDeleteConfirm({ show: false, partner: null, dependents: null })}
-        onConfirm={handleDelete}
-        title="Delete Partner"
-        message={
-          <div>
-            <p>Are you sure you want to delete "<strong>{deleteConfirm.partner?.name}</strong>"?</p>
-            {deleteConfirm.dependents && (
-              <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '6px', border: '1px solid #fecaca' }}>
-                <p style={{ fontWeight: '600', color: '#991b1b', marginBottom: '0.5rem' }}>⚠️ This will also affect:</p>
-                <ul style={{ margin: '0', paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#7f1d1d' }}>
-                  {deleteConfirm.dependents.resourceCount > 0 && (
-                    <li>{deleteConfirm.dependents.resourceCount} linked resource{deleteConfirm.dependents.resourceCount !== 1 ? 's' : ''} (will be unlinked)</li>
-                  )}
-                  {deleteConfirm.dependents.timesheetCount > 0 && (
-                    <li>{deleteConfirm.dependents.timesheetCount} timesheet{deleteConfirm.dependents.timesheetCount !== 1 ? 's' : ''}</li>
-                  )}
-                  {deleteConfirm.dependents.expenseCount > 0 && (
-                    <li>{deleteConfirm.dependents.expenseCount} expense{deleteConfirm.dependents.expenseCount !== 1 ? 's' : ''}</li>
-                  )}
-                  {deleteConfirm.dependents.invoiceCount > 0 && (
-                    <li>{deleteConfirm.dependents.invoiceCount} invoice{deleteConfirm.dependents.invoiceCount !== 1 ? 's' : ''}</li>
-                  )}
-                </ul>
               </div>
-            )}
-            <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>This action cannot be undone.</p>
+
+              <div className="ptr-modal-footer">
+                <button
+                  type="button"
+                  className="ptr-modal-btn ptr-modal-btn-cancel"
+                  onClick={resetForm}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="ptr-modal-btn ptr-modal-btn-save"
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : (editingPartner ? 'Update Partner' : 'Add Partner')}
+                </button>
+              </div>
+            </form>
           </div>
-        }
-        confirmText="Delete"
-        type="danger"
-      />
+        </div>
+      )}
     </div>
   );
 }

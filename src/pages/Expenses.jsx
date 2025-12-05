@@ -1,41 +1,34 @@
 /**
- * Expenses Page
+ * Expenses Page - Apple Design System (Clean)
  * 
  * Track project expenses with category breakdown, validation workflow,
- * and procurement method tracking. Includes Smart Receipt Scanner
- * for AI-powered expense entry from receipt photos.
+ * and procurement method tracking. Includes Smart Receipt Scanner.
  * 
- * @version 4.0
- * @refactored 1 December 2025
+ * @version 4.1 - Removed dashboard cards for clean layout
+ * @updated 5 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { expensesService, resourcesService } from '../services';
 import { supabase } from '../lib/supabase';
-import { Receipt, Plus, Camera, Sparkles, CheckCircle, AlertCircle, Building2, Briefcase } from 'lucide-react';
+import { Receipt, Plus, Camera, Sparkles, RefreshCw } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
-
-// Extracted components
+import { LoadingSpinner, ConfirmDialog } from '../components/common';
 import {
   ReceiptScanner,
   ExpenseFilters,
-  CategoryBreakdown,
-  ResourceBreakdown,
-  ExpenseGuidelines,
   ExpenseAddForm,
   ExpenseTable,
   ExpenseDetailModal
 } from '../components/expenses';
+import './Expenses.css';
 
-// Constants
 const BUDGET = 20520;
 
-// Initial form state
 const INITIAL_EXPENSE_FORM = {
   resource_id: '',
   expense_date: new Date().toISOString().split('T')[0],
@@ -55,10 +48,10 @@ export default function Expenses() {
 
   const { canAddExpense, canSubmitExpense, canValidateExpense, canEditExpense, canDeleteExpense, getAvailableResources, hasRole } = usePermissions();
 
-  // State
   const [expenses, setExpenses] = useState([]);
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [entryMode, setEntryMode] = useState('form');
   const [editingId, setEditingId] = useState(null);
@@ -66,20 +59,17 @@ export default function Expenses() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [newExpense, setNewExpense] = useState(INITIAL_EXPENSE_FORM);
 
-  // Filters
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterResource, setFilterResource] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterChargeable, setFilterChargeable] = useState('all');
   const [filterProcurement, setFilterProcurement] = useState('all');
 
-  // Dialog states
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, expenseId: null, expenseData: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, expense: null, editMode: false, editData: null });
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
-    
     setLoading(true);
     try {
       const expensesData = await expensesService.getAllFiltered(projectId, showTestUsers);
@@ -100,12 +90,17 @@ export default function Expenses() {
       showError('Failed to load expenses');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [projectId, showTestUsers, testUserIds, showError]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Add new expenses
+  async function handleRefresh() {
+    setRefreshing(true);
+    await fetchData();
+  }
+
   async function handleAdd() {
     if (!newExpense.resource_id) { showWarning('Please select a resource'); return; }
 
@@ -253,7 +248,6 @@ export default function Expenses() {
 
   function canEditChargeable() { return hasRole(['admin', 'supplier_pm', 'customer_pm']); }
 
-  // Filtered expenses
   const filteredExpenses = expenses.filter(e => {
     if (filterCategory !== 'all' && e.category !== filterCategory) return false;
     if (filterResource !== 'all' && e.resource_name !== filterResource) return false;
@@ -264,114 +258,88 @@ export default function Expenses() {
     return true;
   });
 
-  // Calculate totals
-  const totalSpent = expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-  const chargeableTotal = expenses.filter(e => e.chargeable_to_customer !== false).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-  const nonChargeableTotal = expenses.filter(e => e.chargeable_to_customer === false).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-  const approvedSpent = expenses.filter(e => ['Approved', 'Paid'].includes(e.status)).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-  const remaining = BUDGET - approvedSpent;
-  const pendingCount = expenses.filter(e => e.status === 'Submitted').length;
-  const supplierProcuredTotal = expenses.filter(e => (e.procurement_method || 'supplier') === 'supplier').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-  const partnerProcuredTotal = expenses.filter(e => e.procurement_method === 'partner').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-
-  const categoryTotals = {
-    Travel: expenses.filter(e => e.category === 'Travel').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0),
-    Accommodation: expenses.filter(e => e.category === 'Accommodation').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0),
-    Sustenance: expenses.filter(e => e.category === 'Sustenance').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
-  };
-
-  const resourceTotals = {};
-  expenses.forEach(e => {
-    if (!resourceTotals[e.resource_name]) resourceTotals[e.resource_name] = { total: 0, chargeable: 0, nonChargeable: 0 };
-    const amount = parseFloat(e.amount || 0);
-    resourceTotals[e.resource_name].total += amount;
-    if (e.chargeable_to_customer !== false) resourceTotals[e.resource_name].chargeable += amount;
-    else resourceTotals[e.resource_name].nonChargeable += amount;
-  });
-
   const availableResources = getAvailableResources(resources);
   const resourceNames = [...new Set(expenses.map(e => e.resource_name))];
 
   if (loading && !projectId) return <LoadingSpinner message="Loading expenses..." size="large" fullPage />;
 
   return (
-    <div className="page-container">
-      <PageHeader icon={Receipt} title="Expenses" subtitle={`Track project expenses against £${BUDGET.toLocaleString()} budget`}>
-        {canAddExpense && !showAddForm && (
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="btn btn-primary" onClick={() => { setEntryMode('form'); setShowAddForm(true); }}>
-              <Plus size={18} /> Add Expenses
+    <div className="expenses-page">
+      <header className="exp-header">
+        <div className="exp-header-content">
+          <div className="exp-header-left">
+            <div className="exp-header-icon">
+              <Receipt size={24} />
+            </div>
+            <div>
+              <h1>Expenses</h1>
+              <p>Track project expenses against £{BUDGET.toLocaleString()} budget</p>
+            </div>
+          </div>
+          <div className="exp-header-actions">
+            <button className="exp-btn exp-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
+              <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
-            <button className="btn btn-secondary" onClick={() => { setEntryMode('scanner'); setShowAddForm(true); }} style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', color: 'white', border: 'none' }} title="Scan a receipt with AI">
-              <Camera size={18} /> <Sparkles size={14} /> Scan Receipt
-            </button>
+            {canAddExpense && !showAddForm && (
+              <>
+                <button className="exp-btn exp-btn-primary" onClick={() => { setEntryMode('form'); setShowAddForm(true); }}>
+                  <Plus size={18} /> Add Expenses
+                </button>
+                <button className="exp-btn exp-btn-scanner" onClick={() => { setEntryMode('scanner'); setShowAddForm(true); }} title="Scan a receipt with AI">
+                  <Camera size={18} /> <Sparkles size={14} /> Scan Receipt
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="exp-content">
+        <ExpenseFilters
+          filterCategory={filterCategory} setFilterCategory={setFilterCategory}
+          filterResource={filterResource} setFilterResource={setFilterResource}
+          filterStatus={filterStatus} setFilterStatus={setFilterStatus}
+          filterChargeable={filterChargeable} setFilterChargeable={setFilterChargeable}
+          filterProcurement={filterProcurement} setFilterProcurement={setFilterProcurement}
+          resourceNames={resourceNames} hasRole={hasRole}
+        />
+
+        {showAddForm && entryMode === 'form' && (
+          <ExpenseAddForm
+            newExpense={newExpense} setNewExpense={setNewExpense} availableResources={availableResources}
+            hasRole={hasRole} handleAdd={handleAdd} handleFileSelect={handleFileSelect}
+            removeFile={removeFile} uploadingFiles={uploadingFiles} onCancel={() => setShowAddForm(false)}
+          />
+        )}
+
+        {showAddForm && entryMode === 'scanner' && (
+          <div className="exp-scanner-wrapper">
+            <ReceiptScanner
+              resources={availableResources}
+              defaultResourceId={availableResources.length === 1 ? availableResources[0].id : null}
+              onExpenseCreated={handleScannedExpense}
+              onCancel={() => { setShowAddForm(false); setEntryMode('form'); }}
+            />
           </div>
         )}
-      </PageHeader>
 
-      {/* Budget Overview */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <StatCard icon={Receipt} label="Total Budget" value={`£${BUDGET.toLocaleString()}`} color="#3b82f6" />
-        <StatCard label="Total Claimed" value={`£${totalSpent.toLocaleString()}`} color="#3b82f6" />
-        <StatCard icon={CheckCircle} label="Chargeable" value={`£${chargeableTotal.toLocaleString()}`} color="#10b981" />
-        <StatCard icon={AlertCircle} label="Non-Chargeable" value={`£${nonChargeableTotal.toLocaleString()}`} color="#f59e0b" />
-      </div>
-
-      <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <StatCard label="Validated / Paid" value={`£${approvedSpent.toLocaleString()}`} color="#10b981" />
-        <StatCard label="Remaining Budget" value={`£${remaining.toLocaleString()}`} color={remaining < BUDGET * 0.2 ? '#ef4444' : '#10b981'} />
-        <StatCard label="Pending Validation" value={pendingCount} color="#f59e0b" />
-      </div>
-
-      {hasRole(['admin', 'supplier_pm']) && (
-        <div className="stats-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <StatCard icon={Briefcase} label="Supplier Procured" value={`£${supplierProcuredTotal.toLocaleString()}`} subtext="Paid directly by JT" color="#6366f1" />
-          <StatCard icon={Building2} label="Partner Procured" value={`£${partnerProcuredTotal.toLocaleString()}`} subtext="Reimbursable to partners" color="#8b5cf6" />
-        </div>
-      )}
-
-      <CategoryBreakdown expenses={expenses} categoryTotals={categoryTotals} />
-      <ResourceBreakdown resourceTotals={resourceTotals} />
-
-      <ExpenseFilters
-        filterCategory={filterCategory} setFilterCategory={setFilterCategory}
-        filterResource={filterResource} setFilterResource={setFilterResource}
-        filterStatus={filterStatus} setFilterStatus={setFilterStatus}
-        filterChargeable={filterChargeable} setFilterChargeable={setFilterChargeable}
-        filterProcurement={filterProcurement} setFilterProcurement={setFilterProcurement}
-        resourceNames={resourceNames} hasRole={hasRole}
-      />
-
-      {showAddForm && entryMode === 'form' && (
-        <ExpenseAddForm
-          newExpense={newExpense} setNewExpense={setNewExpense} availableResources={availableResources}
-          hasRole={hasRole} handleAdd={handleAdd} handleFileSelect={handleFileSelect}
-          removeFile={removeFile} uploadingFiles={uploadingFiles} onCancel={() => setShowAddForm(false)}
-        />
-      )}
-
-      {showAddForm && entryMode === 'scanner' && (
-        <div style={{ marginBottom: '1.5rem' }}>
-          <ReceiptScanner
-            resources={availableResources}
-            defaultResourceId={availableResources.length === 1 ? availableResources[0].id : null}
-            onExpenseCreated={handleScannedExpense}
-            onCancel={() => { setShowAddForm(false); setEntryMode('form'); }}
+        <div className="exp-table-card">
+          <div className="exp-table-header">
+            <h2 className="exp-table-title">Expense Entries</h2>
+            <span className="exp-table-count">{filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''}</span>
+          </div>
+          
+          <ExpenseTable
+            expenses={filteredExpenses} editingId={editingId} editForm={editForm} setEditForm={setEditForm}
+            resources={resources} hasRole={hasRole} canEditChargeable={canEditChargeable}
+            canSubmitExpense={canSubmitExpense} canValidateExpense={canValidateExpense}
+            canEditExpense={canEditExpense} canDeleteExpense={canDeleteExpense}
+            handleEdit={handleEdit} handleSave={handleSave} handleSubmit={handleSubmit}
+            handleValidate={handleValidate} handleReject={handleReject} handleDeleteClick={handleDeleteClick}
+            downloadFile={downloadFile} setEditingId={setEditingId} setDetailModal={setDetailModal}
           />
         </div>
-      )}
-
-      <ExpenseTable
-        expenses={filteredExpenses} editingId={editingId} editForm={editForm} setEditForm={setEditForm}
-        resources={resources} hasRole={hasRole} canEditChargeable={canEditChargeable}
-        canSubmitExpense={canSubmitExpense} canValidateExpense={canValidateExpense}
-        canEditExpense={canEditExpense} canDeleteExpense={canDeleteExpense}
-        handleEdit={handleEdit} handleSave={handleSave} handleSubmit={handleSubmit}
-        handleValidate={handleValidate} handleReject={handleReject} handleDeleteClick={handleDeleteClick}
-        downloadFile={downloadFile} setEditingId={setEditingId} setDetailModal={setDetailModal}
-      />
-
-      <ExpenseGuidelines />
+      </div>
 
       <ConfirmDialog
         isOpen={deleteDialog.isOpen}
@@ -390,13 +358,11 @@ export default function Expenses() {
                 <li><strong>Status:</strong> {deleteDialog.expenseData.status}</li>
               </ul>
             </div>
-            <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#6b7280' }}>This expense can be restored from the audit log if needed.</p>
           </div>
         ) : 'Are you sure you want to delete this expense?'}
         confirmText="Delete" cancelText="Cancel" variant="danger"
       />
 
-      {/* Expense Detail Modal */}
       <ExpenseDetailModal
         isOpen={detailModal.isOpen}
         expense={detailModal.expense}
@@ -411,15 +377,9 @@ export default function Expenses() {
         onSave={async (id, formData) => {
           const resourceName = resources.find(r => r.id === formData.resource_id)?.name || formData.resource_name;
           await expensesService.update(id, {
-            category: formData.category,
-            resource_id: formData.resource_id,
-            resource_name: resourceName,
-            expense_date: formData.expense_date,
-            reason: formData.reason,
-            amount: parseFloat(formData.amount),
-            notes: formData.notes,
-            status: formData.status,
-            chargeable_to_customer: formData.chargeable_to_customer,
+            category: formData.category, resource_id: formData.resource_id, resource_name: resourceName,
+            expense_date: formData.expense_date, reason: formData.reason, amount: parseFloat(formData.amount),
+            notes: formData.notes, status: formData.status, chargeable_to_customer: formData.chargeable_to_customer,
             procurement_method: formData.procurement_method
           });
           await fetchData();

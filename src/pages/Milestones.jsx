@@ -1,12 +1,12 @@
 /**
- * Milestones Page - Apple Design System
+ * Milestones Page - Apple Design System (Clean)
  * 
  * Track project milestones and deliverables with:
  * - Milestone CRUD operations
  * - Status/progress calculation from deliverables
  * - Acceptance certificate workflow
  * 
- * @version 3.0 - Apple Design System
+ * @version 3.1 - Removed dashboard cards for clean layout
  * @refactored 5 December 2025
  */
 
@@ -18,12 +18,9 @@ import {
   Milestone as MilestoneIcon, 
   Plus, 
   RefreshCw, 
-  CheckCircle, 
-  TrendingUp,
   Award,
   FileCheck,
-  Info,
-  BarChart3
+  Info
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -342,23 +339,11 @@ export default function Milestones() {
 
   if (loading) return <LoadingSpinner message="Loading milestones..." size="large" fullPage />;
 
-  // Calculate stats
-  const totalBudget = milestones.reduce((sum, m) => sum + (m.billable || 0), 0);
   const milestonesWithStatus = milestones.map(m => ({
     ...m,
     computedStatus: calculateMilestoneStatus(milestoneDeliverables[m.id]),
     computedProgress: calculateMilestoneProgress(milestoneDeliverables[m.id])
   }));
-  const avgProgress = milestones.length > 0 
-    ? Math.round(milestonesWithStatus.reduce((sum, m) => sum + m.computedProgress, 0) / milestones.length)
-    : 0;
-  const completedCount = milestonesWithStatus.filter(m => m.computedStatus === 'Completed').length;
-  
-  const signedCertificates = Object.values(certificates).filter(c => c.status === 'Signed').length;
-  const pendingCertificates = Object.values(certificates).filter(c => 
-    c.status === 'Pending Customer Signature' || c.status === 'Pending Supplier Signature'
-  ).length;
-  const certificatesNeeded = completedCount - Object.keys(certificates).length;
 
   return (
     <div className="milestones-page">
@@ -390,79 +375,6 @@ export default function Milestones() {
 
       {/* Content */}
       <div className="ms-content">
-        {/* Summary Cards */}
-        <div className="ms-summary-grid">
-          <div className="ms-summary-card accent">
-            <div className="ms-summary-icon">
-              <MilestoneIcon size={24} />
-            </div>
-            <div className="ms-summary-value">{milestones.length}</div>
-            <div className="ms-summary-label">Total Milestones</div>
-          </div>
-          
-          <div className="ms-summary-card success">
-            <div className="ms-summary-icon">
-              <CheckCircle size={24} />
-            </div>
-            <div className="ms-summary-value">{completedCount}</div>
-            <div className="ms-summary-label">Completed</div>
-            <div className="ms-summary-sub">of {milestones.length} milestones</div>
-          </div>
-          
-          <div className="ms-summary-card primary">
-            <div className="ms-summary-icon">
-              <TrendingUp size={24} />
-            </div>
-            <div className="ms-summary-value">{avgProgress}%</div>
-            <div className="ms-summary-label">Average Progress</div>
-          </div>
-          
-          <div className="ms-summary-card warning">
-            <div className="ms-summary-icon">
-              <Award size={24} />
-            </div>
-            <div className="ms-summary-value">£{totalBudget.toLocaleString()}</div>
-            <div className="ms-summary-label">Total Billable</div>
-            <div className="ms-summary-sub">on completion</div>
-          </div>
-        </div>
-
-        {/* Certificate Stats Banner */}
-        <div className="ms-cert-banner">
-          <div className="ms-cert-banner-icon">
-            <Award size={24} />
-          </div>
-          <div className="ms-cert-banner-title">Milestone Acceptance Certificates</div>
-          <div className="ms-cert-stats">
-            <div className="ms-cert-stat">
-              <div className={`ms-cert-stat-value ${signedCertificates > 0 ? 'signed' : 'none'}`}>
-                {signedCertificates}
-              </div>
-              <div className="ms-cert-stat-label">Signed</div>
-            </div>
-            <div className="ms-cert-stat">
-              <div className={`ms-cert-stat-value ${pendingCertificates > 0 ? 'pending' : 'none'}`}>
-                {pendingCertificates}
-              </div>
-              <div className="ms-cert-stat-label">Pending</div>
-            </div>
-            <div className="ms-cert-stat">
-              <div className={`ms-cert-stat-value ${certificatesNeeded > 0 ? 'awaiting' : 'none'}`}>
-                {certificatesNeeded > 0 ? certificatesNeeded : 0}
-              </div>
-              <div className="ms-cert-stat-label">Awaiting Generation</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="ms-quick-actions">
-          <Link to="/gantt" className="ms-quick-action">
-            <BarChart3 size={18} />
-            View Gantt Chart
-          </Link>
-        </div>
-
         {/* Add Form */}
         {showAddForm && canEdit && (
           <MilestoneAddForm
@@ -593,7 +505,6 @@ export default function Milestones() {
             <li><strong>In Progress:</strong> At least one deliverable has begun work</li>
             <li><strong>Completed:</strong> All deliverables have been delivered</li>
             <li>Click any milestone row to view and manage its deliverables</li>
-            <li>Progress = average of all deliverable progress percentages</li>
           </ul>
         </div>
       </div>

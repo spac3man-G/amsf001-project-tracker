@@ -1,18 +1,17 @@
 /**
- * Deliverables Page
+ * Deliverables Page - Apple Design System (Clean)
  * 
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
  * Click on any deliverable to view details and perform workflow actions.
  * 
- * @version 3.0
- * @updated 3 December 2025
- * @phase Production - Detail Modal Integration
+ * @version 3.1 - Removed dashboard cards for clean layout
+ * @updated 5 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService } from '../services';
-import { Package, Plus, X, Save, CheckCircle, Clock, AlertCircle, Send, ThumbsUp, RotateCcw } from 'lucide-react';
+import { Package, Plus, X, Save, CheckCircle, Clock, AlertCircle, Send, ThumbsUp, RotateCcw, RefreshCw } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -21,6 +20,7 @@ import { useMetrics } from '../contexts/MetricsContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader } from '../components/common';
 import { DeliverableDetailModal } from '../components/deliverables';
+import './Deliverables.css';
 
 const STATUS_OPTIONS = ['Not Started', 'In Progress', 'Submitted for Review', 'Returned for More Work', 'Review Complete', 'Delivered'];
 const STATUS_COLORS = {
@@ -86,6 +86,7 @@ export default function Deliverables() {
   const [kpis, setKpis] = useState([]);
   const [qualityStandards, setQualityStandards] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completingDeliverable, setCompletingDeliverable] = useState(null);
@@ -116,10 +117,15 @@ export default function Deliverables() {
       const deliverablesData = await deliverablesService.getAllWithRelations(projectId, showTestUsers);
       setDeliverables(deliverablesData || []);
     } catch (error) { console.error('Error:', error); showError('Failed to load deliverables'); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   }, [projectId, showTestUsers, showError]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await fetchData();
+  }
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -137,12 +143,11 @@ export default function Deliverables() {
       setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', kpi_ids: [], qs_ids: [] });
       setShowAddForm(false);
       fetchData();
-      refreshMetrics(); // Update dashboard metrics
+      refreshMetrics();
       showSuccess('Deliverable added!');
     } catch (error) { showError('Failed: ' + error.message); }
   }
 
-  // Save from detail modal
   async function handleSaveFromModal(id, editForm) {
     try {
       await deliverablesService.update(id, { 
@@ -158,7 +163,7 @@ export default function Deliverables() {
       if (editForm.qs_ids) await deliverablesService.syncQSLinks(id, editForm.qs_ids);
 
       fetchData();
-      refreshMetrics(); // Update dashboard metrics
+      refreshMetrics();
       showSuccess('Deliverable updated!');
     } catch (error) { showError('Failed: ' + error.message); }
   }
@@ -172,7 +177,7 @@ export default function Deliverables() {
 
       await deliverablesService.update(d.id, { status: newStatus, progress: newProgress });
       fetchData();
-      refreshMetrics(); // Update dashboard metrics
+      refreshMetrics();
       showSuccess(`Status changed to ${newStatus}`);
     } catch (error) { showError('Failed: ' + error.message); }
   }
@@ -227,7 +232,6 @@ export default function Deliverables() {
     catch (error) { showError('Failed: ' + error.message); }
   }
 
-  // Open detail modal on row click
   function handleRowClick(d) {
     setDetailModal({ isOpen: true, deliverable: d });
   }
@@ -237,11 +241,7 @@ export default function Deliverables() {
   if (filterStatus) filteredDeliverables = filteredDeliverables.filter(d => d.status === filterStatus);
   if (showAwaitingReview) filteredDeliverables = filteredDeliverables.filter(d => d.status === 'Submitted for Review');
 
-  const totalDeliverables = deliverables.length;
   const submittedForReview = deliverables.filter(d => d.status === 'Submitted for Review').length;
-  const inProgress = deliverables.filter(d => d.status === 'In Progress').length;
-  const delivered = deliverables.filter(d => d.status === 'Delivered').length;
-
   const canEdit = canEditDeliverable;
   const canReview = canReviewDeliverable;
   const canDelete = canDeleteDeliverable;
@@ -249,69 +249,143 @@ export default function Deliverables() {
   if (loading) return <LoadingSpinner message="Loading deliverables..." size="large" fullPage />;
 
   return (
-    <div className="page-container">
-      <PageHeader icon={Package} title="Deliverables" subtitle="Track project deliverables with review workflow">
-        {canEdit && <button className="btn btn-primary" onClick={() => setShowAddForm(!showAddForm)}><Plus size={18} /> Add Deliverable</button>}
-      </PageHeader>
-
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-label">Total</div><div className="stat-value">{totalDeliverables}</div></div>
-        <div className="stat-card"><div className="stat-label" style={{ color: '#d97706' }}>For Review</div><div className="stat-value" style={{ color: '#d97706' }}>{submittedForReview}</div></div>
-        <div className="stat-card"><div className="stat-label" style={{ color: '#4f46e5' }}>In Progress</div><div className="stat-value" style={{ color: '#4f46e5' }}>{inProgress}</div></div>
-        <div className="stat-card"><div className="stat-label" style={{ color: '#16a34a' }}>Delivered</div><div className="stat-value" style={{ color: '#16a34a' }}>{delivered}</div></div>
-      </div>
-
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <select value={filterMilestone} onChange={(e) => setFilterMilestone(e.target.value)} style={{ minWidth: '200px' }}><option value="">All Milestones</option>{milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}</select>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ minWidth: '150px' }}><option value="">All Statuses</option>{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select>
-        {submittedForReview > 0 && <button onClick={() => { setShowAwaitingReview(!showAwaitingReview); if (!showAwaitingReview) { setFilterMilestone(''); setFilterStatus(''); } }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: showAwaitingReview ? '#fef3c7' : '#fffbeb', border: '1px solid #fbbf24', borderRadius: '6px', color: '#92400e', cursor: 'pointer', fontWeight: '500' }}><Send size={16} /> {submittedForReview} Awaiting Review</button>}
-      </div>
-
-      {showAddForm && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3>Add New Deliverable</h3>
-          <form onSubmit={handleAdd}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-              <div><label>Ref *</label><input type="text" value={newDeliverable.deliverable_ref} onChange={(e) => setNewDeliverable({ ...newDeliverable, deliverable_ref: e.target.value })} required /></div>
-              <div><label>Name *</label><input type="text" value={newDeliverable.name} onChange={(e) => setNewDeliverable({ ...newDeliverable, name: e.target.value })} required /></div>
+    <div className="deliverables-page">
+      <header className="del-header">
+        <div className="del-header-content">
+          <div className="del-header-left">
+            <div className="del-header-icon">
+              <Package size={24} />
             </div>
-            <div style={{ marginTop: '1rem' }}><label>Description</label><textarea value={newDeliverable.description} onChange={(e) => setNewDeliverable({ ...newDeliverable, description: e.target.value })} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-              <div><label>Milestone *</label><select value={newDeliverable.milestone_id} onChange={(e) => setNewDeliverable({ ...newDeliverable, milestone_id: e.target.value })} required><option value="">Select</option>{milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}</select></div>
-              <div><label>Assigned To</label><input type="text" value={newDeliverable.assigned_to} onChange={(e) => setNewDeliverable({ ...newDeliverable, assigned_to: e.target.value })} /></div>
-              <div><label>Due Date</label><div style={{ padding: '0.5rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '6px', color: '#64748b', fontSize: '0.875rem' }}>{(() => { const m = milestones.find(m => m.id === newDeliverable.milestone_id); return m?.forecast_end_date ? new Date(m.forecast_end_date).toLocaleDateString('en-GB') : 'Select milestone'; })()}</div></div>
+            <div>
+              <h1>Deliverables</h1>
+              <p>Track project deliverables with review workflow</p>
             </div>
-            <KPISelector kpis={kpis} selectedIds={newDeliverable.kpi_ids} onChange={(ids) => setNewDeliverable({ ...newDeliverable, kpi_ids: ids })} />
-            <QSSelector qualityStandards={qualityStandards} selectedIds={newDeliverable.qs_ids} onChange={(ids) => setNewDeliverable({ ...newDeliverable, qs_ids: ids })} />
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}><button type="submit" className="btn-primary"><Save size={16} /> Save</button><button type="button" className="btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button></div>
-          </form>
+          </div>
+          <div className="del-header-actions">
+            <button className="del-btn del-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
+              <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
+            </button>
+            {canEdit && (
+              <button className="del-btn del-btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
+                <Plus size={18} /> Add Deliverable
+              </button>
+            )}
+          </div>
         </div>
-      )}
+      </header>
 
-      <div className="table-container">
-        <table className="table">
-          <thead><tr><th>Ref</th><th>Name</th><th>Milestone</th><th>Status</th><th>Progress</th></tr></thead>
-          <tbody>
-            {filteredDeliverables.length === 0 ? <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No deliverables found</td></tr> : filteredDeliverables.map(d => {
-              const statusInfo = STATUS_COLORS[d.status] || STATUS_COLORS['Not Started'];
-              const StatusIcon = statusInfo.icon;
-              return (
-                <tr 
-                  key={d.id}
-                  onClick={() => handleRowClick(d)}
-                  style={{ cursor: 'pointer' }}
-                  className="table-row-clickable"
-                >
-                  <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{d.deliverable_ref}</td>
-                  <td style={{ fontWeight: '500' }}>{d.name}</td>
-                  <td>{d.milestones ? <span style={{ color: '#3b82f6' }}>{d.milestones.milestone_ref}</span> : '-'}</td>
-                  <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem', backgroundColor: statusInfo.bg, color: statusInfo.color }}><StatusIcon size={14} />{d.status}</span></td>
-                  <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '60px', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}><div style={{ width: `${d.progress || 0}%`, height: '100%', backgroundColor: d.status === 'Delivered' ? '#16a34a' : '#4f46e5' }} /></div><span style={{ fontSize: '0.85rem' }}>{d.progress || 0}%</span></div></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="del-content">
+        {/* Filters */}
+        <div className="del-filters">
+          <select value={filterMilestone} onChange={(e) => setFilterMilestone(e.target.value)} className="del-filter-select">
+            <option value="">All Milestones</option>
+            {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
+          </select>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="del-filter-select">
+            <option value="">All Statuses</option>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {submittedForReview > 0 && (
+            <button 
+              onClick={() => { setShowAwaitingReview(!showAwaitingReview); if (!showAwaitingReview) { setFilterMilestone(''); setFilterStatus(''); } }} 
+              className={`del-filter-badge ${showAwaitingReview ? 'active' : ''}`}
+            >
+              <Send size={16} /> {submittedForReview} Awaiting Review
+            </button>
+          )}
+        </div>
+
+        {showAddForm && (
+          <div className="del-add-form">
+            <h3 className="del-add-form-title">Add New Deliverable</h3>
+            <form onSubmit={handleAdd}>
+              <div className="del-form-row">
+                <div className="del-form-group">
+                  <label>Ref *</label>
+                  <input type="text" value={newDeliverable.deliverable_ref} onChange={(e) => setNewDeliverable({ ...newDeliverable, deliverable_ref: e.target.value })} required />
+                </div>
+                <div className="del-form-group" style={{ flex: 2 }}>
+                  <label>Name *</label>
+                  <input type="text" value={newDeliverable.name} onChange={(e) => setNewDeliverable({ ...newDeliverable, name: e.target.value })} required />
+                </div>
+              </div>
+              <div className="del-form-group">
+                <label>Description</label>
+                <textarea value={newDeliverable.description} onChange={(e) => setNewDeliverable({ ...newDeliverable, description: e.target.value })} />
+              </div>
+              <div className="del-form-row">
+                <div className="del-form-group">
+                  <label>Milestone *</label>
+                  <select value={newDeliverable.milestone_id} onChange={(e) => setNewDeliverable({ ...newDeliverable, milestone_id: e.target.value })} required>
+                    <option value="">Select</option>
+                    {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}
+                  </select>
+                </div>
+                <div className="del-form-group">
+                  <label>Assigned To</label>
+                  <input type="text" value={newDeliverable.assigned_to} onChange={(e) => setNewDeliverable({ ...newDeliverable, assigned_to: e.target.value })} />
+                </div>
+                <div className="del-form-group">
+                  <label>Due Date</label>
+                  <div className="del-form-readonly">{(() => { const m = milestones.find(m => m.id === newDeliverable.milestone_id); return m?.forecast_end_date ? new Date(m.forecast_end_date).toLocaleDateString('en-GB') : 'Select milestone'; })()}</div>
+                </div>
+              </div>
+              <KPISelector kpis={kpis} selectedIds={newDeliverable.kpi_ids} onChange={(ids) => setNewDeliverable({ ...newDeliverable, kpi_ids: ids })} />
+              <QSSelector qualityStandards={qualityStandards} selectedIds={newDeliverable.qs_ids} onChange={(ids) => setNewDeliverable({ ...newDeliverable, qs_ids: ids })} />
+              <div className="del-form-actions">
+                <button type="submit" className="del-btn del-btn-primary"><Save size={16} /> Save</button>
+                <button type="button" className="del-btn del-btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className="del-table-card">
+          <div className="del-table-header">
+            <h2 className="del-table-title">Project Deliverables</h2>
+            <span className="del-table-count">{filteredDeliverables.length} deliverable{filteredDeliverables.length !== 1 ? 's' : ''}</span>
+          </div>
+          
+          <table className="del-table">
+            <thead>
+              <tr>
+                <th>Ref</th>
+                <th>Name</th>
+                <th>Milestone</th>
+                <th>Status</th>
+                <th>Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDeliverables.length === 0 ? (
+                <tr><td colSpan={5} className="del-empty-cell">No deliverables found</td></tr>
+              ) : filteredDeliverables.map(d => {
+                const statusInfo = STATUS_COLORS[d.status] || STATUS_COLORS['Not Started'];
+                const StatusIcon = statusInfo.icon;
+                return (
+                  <tr key={d.id} onClick={() => handleRowClick(d)}>
+                    <td><span className="del-ref">{d.deliverable_ref}</span></td>
+                    <td><span className="del-name">{d.name}</span></td>
+                    <td>{d.milestones ? <span className="del-milestone-link">{d.milestones.milestone_ref}</span> : '—'}</td>
+                    <td>
+                      <span className="del-status-badge" style={{ backgroundColor: statusInfo.bg, color: statusInfo.color }}>
+                        <StatusIcon size={14} />{d.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="del-progress">
+                        <div className="del-progress-bar">
+                          <div className="del-progress-fill" style={{ width: `${d.progress || 0}%`, backgroundColor: d.status === 'Delivered' ? '#16a34a' : '#4f46e5' }} />
+                        </div>
+                        <span className="del-progress-text">{d.progress || 0}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Detail Modal */}
@@ -331,7 +405,7 @@ export default function Deliverables() {
         onOpenCompletion={openCompletionModal}
       />
 
-      {/* Completion Modal (KPI/QS Assessment) */}
+      {/* Completion Modal */}
       {showCompletionModal && completingDeliverable && (
         <div className="modal-overlay">
           <div className="modal modal-lg">
