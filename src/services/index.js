@@ -35,5 +35,8 @@ export { dashboardService, DashboardService } from './dashboard.service';
 // Smart features
 export { receiptScannerService } from './receiptScanner.service';
 
+// RAID Log
+export { raidService, default as RaidService } from './raid.service';
+
 // Metrics (centralized calculations)
 export { metricsService, default as MetricsService } from './metrics.service';

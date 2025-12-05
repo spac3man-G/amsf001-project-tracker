@@ -117,6 +117,19 @@ export const PERMISSION_MATRIX = {
   },
 
   // ----------------------------------------
+  // RAID LOG (Risks, Assumptions, Issues, Dependencies)
+  // ----------------------------------------
+  raid: {
+    view: AUTHENTICATED,
+    create: MANAGERS,                         // All managers can create
+    edit: MANAGERS,                           // All managers can edit
+    delete: SUPPLIER_SIDE,                    // Only supplier side can delete
+    manage: MANAGERS,                         // General management
+    updateStatus: MANAGERS,                   // Change status (Open, Closed, etc.)
+    assignOwner: MANAGERS,                    // Assign responsibility
+  },
+
+  // ----------------------------------------
   // RESOURCES
   // ----------------------------------------
   resources: {

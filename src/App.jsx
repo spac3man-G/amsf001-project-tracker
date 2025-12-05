@@ -40,6 +40,7 @@ const KPIs = lazy(() => import('./pages/KPIs'));
 const KPIDetail = lazy(() => import('./pages/KPIDetail'));
 const QualityStandards = lazy(() => import('./pages/QualityStandards'));
 const QualityStandardDetail = lazy(() => import('./pages/QualityStandardDetail'));
+const RaidLog = lazy(() => import('./pages/RaidLog'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Billing = lazy(() => import('./pages/Billing'));
 const Users = lazy(() => import('./pages/Users'));
@@ -173,6 +174,11 @@ export default function App() {
                       } />
                       <Route path="/quality-standards/:id" element={
                         <ProtectedRoute><QualityStandardDetail /></ProtectedRoute>
+                      } />
+                      
+                      {/* RAID Log */}
+                      <Route path="/raid" element={
+                        <ProtectedRoute><RaidLog /></ProtectedRoute>
                       } />
                       
                       {/* Reports */}

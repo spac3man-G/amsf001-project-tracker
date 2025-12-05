@@ -33,7 +33,8 @@ import {
   Building2,
   History,
   Archive,
-  PoundSterling
+  PoundSterling,
+  ShieldAlert
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -116,6 +117,14 @@ export const NAV_ITEMS = {
     label: 'Quality Standards',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
+  },
+  raid: {
+    id: 'raid',
+    path: '/raid',
+    icon: ShieldAlert,
+    label: 'RAID Log',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
+    readOnlyRoles: [ROLES.VIEWER]
   },
   resources: {
     id: 'resources',
@@ -225,6 +234,7 @@ export const ROLE_NAV_ORDER = {
     'deliverables',
     'kpis',
     'qualityStandards',
+    'raid',
     'resources',
     'timesheets',
     'expenses',
@@ -244,6 +254,7 @@ export const ROLE_NAV_ORDER = {
     'deliverables',
     'kpis',
     'qualityStandards',
+    'raid',
     'resources',
     'timesheets',
     'expenses',
@@ -263,6 +274,7 @@ export const ROLE_NAV_ORDER = {
     'deliverables',
     'kpis',
     'qualityStandards',
+    'raid',
     'timesheets',
     'expenses'
   ],
@@ -278,7 +290,8 @@ export const ROLE_NAV_ORDER = {
     'milestones',
     'deliverables',
     'kpis',
-    'qualityStandards'
+    'qualityStandards',
+    'raid'
   ]
 };
 
