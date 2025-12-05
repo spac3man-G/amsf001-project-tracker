@@ -1,37 +1,44 @@
 /**
- * Milestones Page
+ * Milestones Page - Apple Design System
  * 
  * Track project milestones and deliverables with:
  * - Milestone CRUD operations
  * - Status/progress calculation from deliverables
  * - Acceptance certificate workflow
  * 
- * @version 2.0
- * @refactored 1 December 2025
+ * @version 3.0 - Apple Design System
+ * @refactored 5 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { milestonesService, deliverablesService } from '../services';
 import { supabase } from '../lib/supabase';
-import { Milestone as MilestoneIcon, Plus, RefreshCw, CheckCircle } from 'lucide-react';
+import { 
+  Milestone as MilestoneIcon, 
+  Plus, 
+  RefreshCw, 
+  CheckCircle, 
+  TrendingUp,
+  Award,
+  FileCheck,
+  Info,
+  BarChart3
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
-
-// Extracted components
+import { LoadingSpinner, ConfirmDialog } from '../components/common';
 import {
   CertificateModal,
   MilestoneAddForm,
-  MilestoneEditModal,
-  MilestoneTable,
-  CertificateStatsCard,
-  MilestoneInfoBox
+  MilestoneEditModal
 } from '../components/milestones';
+import './Milestones.css';
 
 export default function Milestones() {
+  const navigate = useNavigate();
   const { user, role: userRole, profile } = useAuth();
   const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
@@ -45,6 +52,7 @@ export default function Milestones() {
   const [milestoneDeliverables, setMilestoneDeliverables] = useState({});
   const [certificates, setCertificates] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
@@ -124,7 +132,14 @@ export default function Milestones() {
       showError('Failed to load milestones');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await fetchMilestones();
+    await fetchCertificates();
   }
 
   async function handleAdd() {
@@ -346,61 +361,242 @@ export default function Milestones() {
   const certificatesNeeded = completedCount - Object.keys(certificates).length;
 
   return (
-    <div className="page-container">
-      <PageHeader icon={MilestoneIcon} title="Milestones" subtitle="Track project milestones and deliverables">
-        <button className="btn btn-secondary" onClick={() => fetchMilestones()}>
-          <RefreshCw size={18} /> Refresh
-        </button>
-        {canEdit && !showAddForm && (
-          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-            <Plus size={18} /> Add Milestone
-          </button>
+    <div className="milestones-page">
+      {/* Header */}
+      <header className="ms-header">
+        <div className="ms-header-content">
+          <div className="ms-header-left">
+            <h1>Milestones</h1>
+            <p>Track project milestones and deliverables</p>
+          </div>
+          <div className="ms-header-actions">
+            <button 
+              className="ms-btn ms-btn-secondary" 
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
+              Refresh
+            </button>
+            {canEdit && !showAddForm && (
+              <button className="ms-btn ms-btn-primary" onClick={() => setShowAddForm(true)}>
+                <Plus size={18} />
+                Add Milestone
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div className="ms-content">
+        {/* Summary Cards */}
+        <div className="ms-summary-grid">
+          <div className="ms-summary-card accent">
+            <div className="ms-summary-icon">
+              <MilestoneIcon size={24} />
+            </div>
+            <div className="ms-summary-value">{milestones.length}</div>
+            <div className="ms-summary-label">Total Milestones</div>
+          </div>
+          
+          <div className="ms-summary-card success">
+            <div className="ms-summary-icon">
+              <CheckCircle size={24} />
+            </div>
+            <div className="ms-summary-value">{completedCount}</div>
+            <div className="ms-summary-label">Completed</div>
+            <div className="ms-summary-sub">of {milestones.length} milestones</div>
+          </div>
+          
+          <div className="ms-summary-card primary">
+            <div className="ms-summary-icon">
+              <TrendingUp size={24} />
+            </div>
+            <div className="ms-summary-value">{avgProgress}%</div>
+            <div className="ms-summary-label">Average Progress</div>
+          </div>
+          
+          <div className="ms-summary-card warning">
+            <div className="ms-summary-icon">
+              <Award size={24} />
+            </div>
+            <div className="ms-summary-value">£{totalBudget.toLocaleString()}</div>
+            <div className="ms-summary-label">Total Billable</div>
+            <div className="ms-summary-sub">on completion</div>
+          </div>
+        </div>
+
+        {/* Certificate Stats Banner */}
+        <div className="ms-cert-banner">
+          <div className="ms-cert-banner-icon">
+            <Award size={24} />
+          </div>
+          <div className="ms-cert-banner-title">Milestone Acceptance Certificates</div>
+          <div className="ms-cert-stats">
+            <div className="ms-cert-stat">
+              <div className={`ms-cert-stat-value ${signedCertificates > 0 ? 'signed' : 'none'}`}>
+                {signedCertificates}
+              </div>
+              <div className="ms-cert-stat-label">Signed</div>
+            </div>
+            <div className="ms-cert-stat">
+              <div className={`ms-cert-stat-value ${pendingCertificates > 0 ? 'pending' : 'none'}`}>
+                {pendingCertificates}
+              </div>
+              <div className="ms-cert-stat-label">Pending</div>
+            </div>
+            <div className="ms-cert-stat">
+              <div className={`ms-cert-stat-value ${certificatesNeeded > 0 ? 'awaiting' : 'none'}`}>
+                {certificatesNeeded > 0 ? certificatesNeeded : 0}
+              </div>
+              <div className="ms-cert-stat-label">Awaiting Generation</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="ms-quick-actions">
+          <Link to="/gantt" className="ms-quick-action">
+            <BarChart3 size={18} />
+            View Gantt Chart
+          </Link>
+        </div>
+
+        {/* Add Form */}
+        {showAddForm && canEdit && (
+          <MilestoneAddForm
+            form={newMilestone}
+            onFormChange={setNewMilestone}
+            onSubmit={handleAdd}
+            onCancel={() => setShowAddForm(false)}
+          />
         )}
-      </PageHeader>
 
-      {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
-        <StatCard icon={MilestoneIcon} label="Total Milestones" value={milestones.length} variant="accent" />
-        <StatCard icon={CheckCircle} label="Completed" value={completedCount} variant="success" />
-        <StatCard label="Average Progress" value={`${avgProgress}%`} variant="primary" />
-        <StatCard label="Total Billable" value={`£${totalBudget.toLocaleString()}`} subtext="on completion" variant="success" />
+        {/* Milestones Table */}
+        <div className="ms-table-card">
+          <div className="ms-table-header">
+            <h2 className="ms-table-title">Project Milestones</h2>
+            <span className="ms-table-count">{milestones.length} milestone{milestones.length !== 1 ? 's' : ''}</span>
+          </div>
+          
+          {milestones.length === 0 ? (
+            <div className="ms-empty">
+              <div className="ms-empty-icon">
+                <MilestoneIcon size={32} />
+              </div>
+              <div className="ms-empty-title">No milestones found</div>
+              <div className="ms-empty-text">Click "Add Milestone" to create your first milestone.</div>
+            </div>
+          ) : (
+            <table className="ms-table">
+              <thead>
+                <tr>
+                  <th>Ref</th>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Forecast End</th>
+                  <th>Billable</th>
+                  <th>Certificate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {milestonesWithStatus.map(milestone => {
+                  const cert = certificates[milestone.id];
+                  const deliverableCount = milestoneDeliverables[milestone.id]?.length || 0;
+                  const statusClass = milestone.computedStatus.toLowerCase().replace(' ', '-');
+                  
+                  return (
+                    <tr 
+                      key={milestone.id}
+                      onClick={() => navigate(`/milestones/${milestone.id}`)}
+                    >
+                      <td>
+                        <span className="ms-ref">{milestone.milestone_ref}</span>
+                      </td>
+                      <td>
+                        <div className="ms-name">{milestone.name}</div>
+                        {deliverableCount > 0 && (
+                          <div className="ms-name-sub">
+                            {deliverableCount} deliverable{deliverableCount !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`ms-status-badge ${statusClass}`}>
+                          <span className="ms-status-dot"></span>
+                          {milestone.computedStatus}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`ms-progress ${statusClass}`}>
+                          {milestone.computedProgress}%
+                        </span>
+                      </td>
+                      <td>
+                        <span className="ms-date">
+                          {(milestone.forecast_end_date || milestone.end_date) 
+                            ? new Date(milestone.forecast_end_date || milestone.end_date).toLocaleDateString('en-GB') 
+                            : '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="ms-billable">
+                          £{(milestone.billable || 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        {milestone.computedStatus !== 'Completed' ? (
+                          <span className="ms-cert-badge not-ready">Not ready</span>
+                        ) : cert ? (
+                          <button
+                            className={`ms-cert-badge ${
+                              cert.status === 'Signed' ? 'signed' :
+                              cert.status === 'Pending Customer Signature' ? 'pending-customer' :
+                              cert.status === 'Pending Supplier Signature' ? 'pending-supplier' : ''
+                            }`}
+                            onClick={() => openCertificateModal(milestone)}
+                          >
+                            <FileCheck size={14} />
+                            {cert.status === 'Signed' ? 'Signed' : 
+                             cert.status === 'Pending Customer Signature' ? 'Awaiting Customer' :
+                             cert.status === 'Pending Supplier Signature' ? 'Awaiting Supplier' : 'View'}
+                          </button>
+                        ) : canEdit ? (
+                          <button
+                            className="ms-cert-badge generate"
+                            onClick={() => generateCertificate(milestone)}
+                          >
+                            <Award size={14} />
+                            Generate
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Info Box */}
+        <div className="ms-info-box">
+          <div className="ms-info-header">
+            <Info size={18} />
+            How Milestone Status & Progress Work
+          </div>
+          <ul className="ms-info-list">
+            <li>Milestone <strong>status</strong> and <strong>progress</strong> are automatically calculated from deliverables</li>
+            <li><strong>Not Started:</strong> All deliverables are "Not Started" (or no deliverables exist)</li>
+            <li><strong>In Progress:</strong> At least one deliverable has begun work</li>
+            <li><strong>Completed:</strong> All deliverables have been delivered</li>
+            <li>Click any milestone row to view and manage its deliverables</li>
+            <li>Progress = average of all deliverable progress percentages</li>
+          </ul>
+        </div>
       </div>
-
-      {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-xl)' }}>
-        <Link to="/gantt" className="btn btn-secondary">
-          📊 View Gantt Chart
-        </Link>
-      </div>
-
-      {/* Certificate Stats */}
-      <CertificateStatsCard 
-        signedCount={signedCertificates} 
-        pendingCount={pendingCertificates} 
-        awaitingCount={certificatesNeeded} 
-      />
-
-      {/* Add Form */}
-      {showAddForm && canEdit && (
-        <MilestoneAddForm
-          form={newMilestone}
-          onFormChange={setNewMilestone}
-          onSubmit={handleAdd}
-          onCancel={() => setShowAddForm(false)}
-        />
-      )}
-
-      {/* Milestones Table */}
-      <MilestoneTable
-        milestones={milestonesWithStatus}
-        milestoneDeliverables={milestoneDeliverables}
-        certificates={certificates}
-        canEdit={canEdit}
-        onEdit={openEditModal}
-        onDelete={handleDeleteClick}
-        onGenerateCertificate={generateCertificate}
-        onViewCertificate={openCertificateModal}
-      />
 
       {/* Edit Modal */}
       {showEditModal && (
@@ -422,9 +618,6 @@ export default function Milestones() {
           canSignCustomer={canSignAsCustomer}
         />
       )}
-
-      {/* Info Box */}
-      <MilestoneInfoBox />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

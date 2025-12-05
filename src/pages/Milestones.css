@@ -1,0 +1,639 @@
+/* =============================================================================
+   AMSF001 Milestones Page - Apple Design System
+   Version: 2.0
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   CSS Variables - Design Tokens
+   ----------------------------------------------------------------------------- */
+.milestones-page {
+  --ds-bg-primary: #ffffff;
+  --ds-bg-secondary: #f5f5f7;
+  --ds-bg-tertiary: #fbfbfd;
+  
+  --ds-text-primary: #1d1d1f;
+  --ds-text-secondary: #86868b;
+  --ds-text-tertiary: #6e6e73;
+  
+  --ds-teal: #0d9488;
+  --ds-teal-light: rgba(13, 148, 136, 0.1);
+  
+  --ds-blue: #007aff;
+  --ds-blue-light: rgba(0, 122, 255, 0.1);
+  --ds-green: #34c759;
+  --ds-green-light: rgba(52, 199, 89, 0.1);
+  --ds-orange: #ff9500;
+  --ds-orange-light: rgba(255, 149, 0, 0.1);
+  --ds-yellow: #ffcc00;
+  --ds-yellow-light: rgba(255, 204, 0, 0.15);
+  --ds-gray: #8e8e93;
+  --ds-gray-light: rgba(142, 142, 147, 0.12);
+  --ds-purple: #af52de;
+  --ds-purple-light: rgba(175, 82, 222, 0.1);
+  
+  --ds-border: rgba(0, 0, 0, 0.06);
+  --ds-border-subtle: rgba(0, 0, 0, 0.04);
+  
+  --ds-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --ds-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  
+  --ds-radius-sm: 8px;
+  --ds-radius-md: 12px;
+  --ds-radius-lg: 16px;
+  
+  --ds-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  --ds-font-mono: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
+  
+  --ds-transition: 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* -----------------------------------------------------------------------------
+   Page Layout
+   ----------------------------------------------------------------------------- */
+.milestones-page {
+  font-family: var(--ds-font-sans);
+  background: var(--ds-bg-secondary);
+  min-height: 100vh;
+}
+
+/* -----------------------------------------------------------------------------
+   Header
+   ----------------------------------------------------------------------------- */
+.ms-header {
+  background: var(--ds-bg-primary);
+  border-bottom: 1px solid var(--ds-border);
+  padding: 24px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.ms-header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ms-header-left h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.ms-header-left p {
+  font-size: 15px;
+  color: var(--ds-text-secondary);
+  margin: 4px 0 0;
+}
+
+.ms-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.ms-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--ds-transition);
+  border: none;
+  text-decoration: none;
+}
+
+.ms-btn-primary {
+  background: var(--ds-teal);
+  color: white;
+}
+
+.ms-btn-primary:hover {
+  background: #0b8278;
+  transform: translateY(-1px);
+}
+
+.ms-btn-secondary {
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-primary);
+  border: 1px solid var(--ds-border);
+}
+
+.ms-btn-secondary:hover {
+  background: var(--ds-bg-primary);
+  border-color: var(--ds-teal);
+  color: var(--ds-teal);
+}
+
+.ms-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ms-btn-secondary .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* -----------------------------------------------------------------------------
+   Content Area
+   ----------------------------------------------------------------------------- */
+.ms-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+/* -----------------------------------------------------------------------------
+   Summary Cards Grid
+   ----------------------------------------------------------------------------- */
+.ms-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.ms-summary-card {
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  padding: 24px;
+  box-shadow: var(--ds-shadow-card);
+  border: 1px solid var(--ds-border);
+  transition: all var(--ds-transition);
+}
+
+.ms-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.ms-summary-card.accent { border-left: 4px solid var(--ds-teal); }
+.ms-summary-card.success { border-left: 4px solid var(--ds-green); }
+.ms-summary-card.primary { border-left: 4px solid var(--ds-blue); }
+.ms-summary-card.warning { border-left: 4px solid var(--ds-orange); }
+
+.ms-summary-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.ms-summary-card.accent .ms-summary-icon { background: var(--ds-teal-light); color: var(--ds-teal); }
+.ms-summary-card.success .ms-summary-icon { background: var(--ds-green-light); color: var(--ds-green); }
+.ms-summary-card.primary .ms-summary-icon { background: var(--ds-blue-light); color: var(--ds-blue); }
+.ms-summary-card.warning .ms-summary-icon { background: var(--ds-orange-light); color: var(--ds-orange); }
+
+.ms-summary-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--ds-text-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+  font-family: var(--ds-font-mono);
+}
+
+.ms-summary-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ds-text-primary);
+}
+
+.ms-summary-sub {
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+  margin-top: 2px;
+}
+
+/* -----------------------------------------------------------------------------
+   Certificate Stats Banner
+   ----------------------------------------------------------------------------- */
+.ms-cert-banner {
+  background: linear-gradient(135deg, var(--ds-yellow-light), rgba(255, 149, 0, 0.08));
+  border: 1px solid rgba(255, 204, 0, 0.3);
+  border-radius: var(--ds-radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.ms-cert-banner-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(202, 138, 4, 0.15);
+  color: #ca8a04;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-cert-banner-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #854d0e;
+}
+
+.ms-cert-stats {
+  display: flex;
+  gap: 32px;
+  margin-left: auto;
+}
+
+.ms-cert-stat {
+  text-align: center;
+}
+
+.ms-cert-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--ds-font-mono);
+  line-height: 1;
+}
+
+.ms-cert-stat-value.signed { color: var(--ds-green); }
+.ms-cert-stat-value.pending { color: var(--ds-orange); }
+.ms-cert-stat-value.awaiting { color: #dc2626; }
+.ms-cert-stat-value.none { color: var(--ds-gray); }
+
+.ms-cert-stat-label {
+  font-size: 12px;
+  color: #92400e;
+  margin-top: 4px;
+}
+
+/* -----------------------------------------------------------------------------
+   Quick Actions
+   ----------------------------------------------------------------------------- */
+.ms-quick-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.ms-quick-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--ds-bg-primary);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  color: var(--ds-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--ds-transition);
+}
+
+.ms-quick-action:hover {
+  border-color: var(--ds-teal);
+  color: var(--ds-teal);
+  transform: translateY(-1px);
+  box-shadow: var(--ds-shadow-card);
+}
+
+/* -----------------------------------------------------------------------------
+   Milestones Table Card
+   ----------------------------------------------------------------------------- */
+.ms-table-card {
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-card);
+  border: 1px solid var(--ds-border);
+  overflow: hidden;
+}
+
+.ms-table-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ms-table-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.ms-table-count {
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+  background: var(--ds-bg-secondary);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+/* -----------------------------------------------------------------------------
+   Table Styles
+   ----------------------------------------------------------------------------- */
+.ms-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ms-table thead {
+  background: var(--ds-bg-tertiary);
+}
+
+.ms-table th {
+  padding: 14px 20px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+.ms-table th:first-child {
+  padding-left: 24px;
+}
+
+.ms-table th:last-child {
+  padding-right: 24px;
+}
+
+.ms-table tbody tr {
+  cursor: pointer;
+  transition: background var(--ds-transition);
+}
+
+.ms-table tbody tr:hover {
+  background: var(--ds-bg-tertiary);
+}
+
+.ms-table td {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  font-size: 14px;
+  color: var(--ds-text-primary);
+}
+
+.ms-table td:first-child {
+  padding-left: 24px;
+}
+
+.ms-table td:last-child {
+  padding-right: 24px;
+}
+
+.ms-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Cell specific styles */
+.ms-ref {
+  font-family: var(--ds-font-mono);
+  font-weight: 600;
+  color: var(--ds-blue);
+  font-size: 13px;
+}
+
+.ms-name {
+  font-weight: 500;
+}
+
+.ms-name-sub {
+  font-size: 12px;
+  color: var(--ds-text-secondary);
+  margin-top: 2px;
+}
+
+.ms-progress {
+  font-family: var(--ds-font-mono);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ms-progress.completed { color: var(--ds-green); }
+.ms-progress.in-progress { color: var(--ds-blue); }
+.ms-progress.not-started { color: var(--ds-gray); }
+
+.ms-date {
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+}
+
+.ms-billable {
+  font-family: var(--ds-font-mono);
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+/* Status Badge */
+.ms-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ms-status-badge.completed {
+  background: var(--ds-green-light);
+  color: var(--ds-green);
+}
+
+.ms-status-badge.in-progress {
+  background: var(--ds-blue-light);
+  color: var(--ds-blue);
+}
+
+.ms-status-badge.not-started {
+  background: var(--ds-gray-light);
+  color: var(--ds-gray);
+}
+
+.ms-status-badge .ms-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Certificate Badge */
+.ms-cert-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all var(--ds-transition);
+}
+
+.ms-cert-badge:hover {
+  transform: translateY(-1px);
+}
+
+.ms-cert-badge.signed {
+  background: var(--ds-green-light);
+  color: var(--ds-green);
+}
+
+.ms-cert-badge.pending-customer {
+  background: var(--ds-blue-light);
+  color: var(--ds-blue);
+}
+
+.ms-cert-badge.pending-supplier {
+  background: var(--ds-orange-light);
+  color: var(--ds-orange);
+}
+
+.ms-cert-badge.generate {
+  background: var(--ds-yellow-light);
+  color: #b8860b;
+}
+
+.ms-cert-badge.not-ready {
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font-style: italic;
+  font-weight: 400;
+  cursor: default;
+}
+
+.ms-cert-badge.not-ready:hover {
+  transform: none;
+}
+
+/* Empty State */
+.ms-empty {
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.ms-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.ms-empty-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  margin-bottom: 8px;
+}
+
+.ms-empty-text {
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+}
+
+/* -----------------------------------------------------------------------------
+   Info Box
+   ----------------------------------------------------------------------------- */
+.ms-info-box {
+  background: var(--ds-bg-primary);
+  border: 1px solid var(--ds-border);
+  border-left: 4px solid var(--ds-blue);
+  border-radius: var(--ds-radius-lg);
+  padding: 20px 24px;
+  margin-top: 24px;
+}
+
+.ms-info-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ds-blue);
+  margin-bottom: 12px;
+}
+
+.ms-info-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--ds-text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.ms-info-list strong {
+  color: var(--ds-text-primary);
+}
+
+/* -----------------------------------------------------------------------------
+   Responsive Design
+   ----------------------------------------------------------------------------- */
+@media (max-width: 1200px) {
+  .ms-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .ms-cert-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .ms-cert-stats {
+    margin-left: 0;
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ms-header {
+    padding: 20px;
+  }
+  
+  .ms-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .ms-content {
+    padding: 20px;
+  }
+  
+  .ms-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ms-table {
+    font-size: 13px;
+  }
+  
+  .ms-table th,
+  .ms-table td {
+    padding: 12px 16px;
+  }
+}
