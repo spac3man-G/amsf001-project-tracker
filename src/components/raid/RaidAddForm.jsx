@@ -1,7 +1,25 @@
+/**
+ * RAID Add Form - Apple Design System
+ * 
+ * Create new RAID (Risk, Assumption, Issue, Dependency) items.
+ * Clean modal form with category selection cards.
+ * 
+ * @version 2.0
+ * @updated 5 December 2025
+ */
+
 import React, { useState, useEffect } from 'react';
 import { X, Save, AlertTriangle, AlertCircle, Info, Link2 } from 'lucide-react';
 import { raidService } from '../../services';
 import { supabase } from '../../lib/supabase';
+import './RaidAddForm.css';
+
+const CATEGORIES = [
+  { value: 'Risk', icon: AlertTriangle, className: 'cat-risk' },
+  { value: 'Assumption', icon: Info, className: 'cat-assumption' },
+  { value: 'Issue', icon: AlertCircle, className: 'cat-issue' },
+  { value: 'Dependency', icon: Link2, className: 'cat-dependency' }
+];
 
 export default function RaidAddForm({ projectId, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
@@ -24,13 +42,6 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
     source: ''
   });
 
-  const categories = [
-    { value: 'Risk', icon: AlertTriangle, color: 'text-red-600' },
-    { value: 'Assumption', icon: Info, color: 'text-blue-600' },
-    { value: 'Issue', icon: AlertCircle, color: 'text-orange-600' },
-    { value: 'Dependency', icon: Link2, color: 'text-purple-600' }
-  ];
-
   // Fetch resources and milestones for dropdowns
   useEffect(() => {
     async function fetchData() {
@@ -40,11 +51,13 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
             .from('resources')
             .select('id, name, email')
             .eq('project_id', projectId)
+            .is('deleted_at', null)
             .order('name'),
           supabase
             .from('milestones')
             .select('id, name, milestone_ref')
             .eq('project_id', projectId)
+            .is('deleted_at', null)
             .order('milestone_ref')
         ]);
         
@@ -55,9 +68,7 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
       }
     }
     
-    if (projectId) {
-      fetchData();
-    }
+    if (projectId) fetchData();
   }, [projectId]);
 
   // Auto-generate reference when category changes
@@ -71,9 +82,7 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
       }
     }
     
-    if (projectId && formData.category) {
-      generateRef();
-    }
+    if (projectId && formData.category) generateRef();
   }, [projectId, formData.category]);
 
   async function handleSubmit(e) {
@@ -117,27 +126,34 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
     setFormData(prev => ({ ...prev, [field]: value }));
   }
 
+  const selectedCategory = CATEGORIES.find(c => c.value === formData.category);
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="raid-add-overlay" onClick={onClose}>
+      <div className="raid-add-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Add RAID Item</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+        <header className={`raid-add-header ${selectedCategory?.className || ''}`}>
+          <div className="raid-add-header-content">
+            <div className="raid-add-icon">
+              {selectedCategory && <selectedCategory.icon size={22} />}
+            </div>
+            <div>
+              <h2>New {formData.category}</h2>
+              <span className="raid-add-ref">{formData.raid_ref}</span>
+            </div>
+          </div>
+          <button className="raid-add-close" onClick={onClose}>
             <X size={20} />
           </button>
-        </div>
+        </header>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <form onSubmit={handleSubmit} className="raid-add-body">
           {/* Category Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-            <div className="grid grid-cols-4 gap-2">
-              {categories.map(cat => {
+          <div className="raid-form-section">
+            <label className="raid-form-label">Category</label>
+            <div className="raid-category-grid">
+              {CATEGORIES.map(cat => {
                 const Icon = cat.icon;
                 const isSelected = formData.category === cat.value;
                 return (
@@ -145,79 +161,61 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
                     key={cat.value}
                     type="button"
                     onClick={() => handleChange('category', cat.value)}
-                    className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1
-                      ${isSelected 
-                        ? 'border-teal-500 bg-teal-50' 
-                        : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`raid-category-card ${cat.className} ${isSelected ? 'selected' : ''}`}
                   >
-                    <Icon size={20} className={isSelected ? 'text-teal-600' : cat.color} />
-                    <span className={`text-sm font-medium ${isSelected ? 'text-teal-700' : 'text-gray-700'}`}>
-                      {cat.value}
-                    </span>
+                    <Icon size={20} />
+                    <span>{cat.value}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Reference (auto-generated) */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reference</label>
-            <input
-              type="text"
-              value={formData.raid_ref}
-              onChange={(e) => handleChange('raid_ref', e.target.value.toUpperCase())}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 font-mono"
-              readOnly
-            />
-            <p className="text-xs text-gray-500 mt-1">Auto-generated based on category</p>
-          </div>
-
           {/* Title */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <div className="raid-form-group">
+            <label className="raid-form-label">Title</label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
               placeholder="Short title for quick identification"
+              className="raid-form-input"
             />
           </div>
 
           {/* Description */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+          <div className="raid-form-group">
+            <label className="raid-form-label">Description <span className="required">*</span></label>
             <textarea
               value={formData.description}
               onChange={(e) => handleChange('description', e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
               placeholder="Detailed description of the item"
+              className="raid-form-textarea"
               required
             />
           </div>
 
           {/* Impact */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Impact</label>
+          <div className="raid-form-group">
+            <label className="raid-form-label">Impact</label>
             <textarea
               value={formData.impact}
               onChange={(e) => handleChange('impact', e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
               placeholder="What is the impact if this materialises?"
+              className="raid-form-textarea"
             />
           </div>
 
-          {/* Probability & Severity */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Probability</label>
+          {/* Probability & Severity Row */}
+          <div className="raid-form-row">
+            <div className="raid-form-group">
+              <label className="raid-form-label">Probability</label>
               <select
                 value={formData.probability}
                 onChange={(e) => handleChange('probability', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                className="raid-form-select"
               >
                 <option value="">Select...</option>
                 <option value="Low">Low</option>
@@ -225,12 +223,12 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
                 <option value="High">High</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+            <div className="raid-form-group">
+              <label className="raid-form-label">Severity</label>
               <select
                 value={formData.severity}
                 onChange={(e) => handleChange('severity', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                className="raid-form-select"
               >
                 <option value="">Select...</option>
                 <option value="Low">Low</option>
@@ -241,27 +239,25 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
           </div>
 
           {/* Mitigation */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mitigation / Action Plan
-            </label>
+          <div className="raid-form-group">
+            <label className="raid-form-label">Mitigation / Action Plan</label>
             <textarea
               value={formData.mitigation}
               onChange={(e) => handleChange('mitigation', e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
               placeholder="Actions to mitigate or address this item"
+              className="raid-form-textarea"
             />
           </div>
 
-          {/* Owner & Due Date */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Owner</label>
+          {/* Owner & Due Date Row */}
+          <div className="raid-form-row">
+            <div className="raid-form-group">
+              <label className="raid-form-label">Owner</label>
               <select
                 value={formData.owner_id}
                 onChange={(e) => handleChange('owner_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                className="raid-form-select"
               >
                 <option value="">Select owner...</option>
                 {resources.map(r => (
@@ -269,26 +265,24 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+            <div className="raid-form-group">
+              <label className="raid-form-label">Due Date</label>
               <input
                 type="date"
                 value={formData.due_date}
                 onChange={(e) => handleChange('due_date', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                className="raid-form-input"
               />
             </div>
           </div>
 
           {/* Linked Milestone */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Linked Milestone (optional)
-            </label>
+          <div className="raid-form-group">
+            <label className="raid-form-label">Linked Milestone</label>
             <select
               value={formData.milestone_id}
               onChange={(e) => handleChange('milestone_id', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+              className="raid-form-select"
             >
               <option value="">No linked milestone</option>
               {milestones.map(m => (
@@ -300,36 +294,32 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
           </div>
 
           {/* Source */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+          <div className="raid-form-group">
+            <label className="raid-form-label">Source</label>
             <input
               type="text"
               value={formData.source}
               onChange={(e) => handleChange('source', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-              placeholder="e.g., Project Meeting 2025-12-01, SoW v2.61"
+              placeholder="e.g., Project Meeting, SoW v2.61"
+              className="raid-form-input"
             />
           </div>
         </form>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+        <footer className="raid-add-footer">
+          <button type="button" onClick={onClose} className="raid-btn raid-btn-secondary">
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={saving || !formData.description.trim()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+            className="raid-btn raid-btn-primary"
           >
-            <Save size={18} />
-            {saving ? 'Saving...' : 'Create Item'}
+            <Save size={16} />
+            {saving ? 'Creating...' : 'Create Item'}
           </button>
-        </div>
+        </footer>
       </div>
     </div>
   );
