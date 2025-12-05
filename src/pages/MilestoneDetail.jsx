@@ -4,10 +4,11 @@
  * Displays detailed information for a single milestone including:
  * - Dates (baseline and forecast)
  * - Billable amount
- * - Dependencies (future feature)
+ * - Baseline commitment workflow (dual signature)
  * - Linked deliverables with progress calculation
+ * - Edit functionality (role-restricted)
  * 
- * @version 2.2
+ * @version 3.0
  * @updated 5 December 2025
  */
 
@@ -15,19 +16,45 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { milestonesService, deliverablesService } from '../services';
 import { 
-  Target, ArrowLeft, AlertCircle, RefreshCw, Calendar, 
-  PoundSterling, Package, CheckCircle, Clock, Link2, ChevronRight
+  ArrowLeft, AlertCircle, RefreshCw, Calendar, 
+  PoundSterling, Package, CheckCircle, Clock, ChevronRight,
+  Edit2, Lock, Unlock, Check, X
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { LoadingSpinner } from '../components/common';
 import './MilestoneDetail.css';
 
 export default function MilestoneDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, role: userRole, profile } = useAuth();
+  const { showSuccess, showError, showWarning } = useToast();
+  
   const [milestone, setMilestone] = useState(null);
   const [deliverables, setDeliverables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  
+  // Baseline commitment modal state
+  const [showBaselineModal, setShowBaselineModal] = useState(false);
+
+  // Role checks
+  const isAdmin = userRole === 'admin';
+  const isSupplierPM = userRole === 'supplier_pm';
+  const isCustomerPM = userRole === 'customer_pm';
+  const canEdit = isAdmin || isSupplierPM;
+  const canCommitBaseline = isAdmin || isSupplierPM;
+  const canSignAsSupplier = isAdmin || isSupplierPM;
+  const canSignAsCustomer = isCustomerPM;
+  
+  const currentUserId = user?.id || null;
+  const currentUserName = profile?.full_name || user?.email || 'Unknown';
 
   const fetchMilestoneData = useCallback(async (showRefresh = false) => {
     if (!id) {
@@ -38,7 +65,6 @@ export default function MilestoneDetail() {
     if (showRefresh) setRefreshing(true);
     
     try {
-      // First, fetch the milestone
       const milestoneData = await milestonesService.getById(id);
       
       if (!milestoneData) {
@@ -50,7 +76,6 @@ export default function MilestoneDetail() {
       
       setMilestone(milestoneData);
 
-      // Then fetch deliverables using the milestone's project_id
       const deliverablesData = await deliverablesService.getAll(milestoneData.project_id, {
         filters: [{ column: 'milestone_id', operator: 'eq', value: id }],
         orderBy: { column: 'deliverable_ref', ascending: true }
@@ -73,10 +98,8 @@ export default function MilestoneDetail() {
     if (!deliverables || deliverables.length === 0) {
       return 'Not Started';
     }
-
     const allNotStarted = deliverables.every(d => d.status === 'Not Started' || !d.status);
     const allDelivered = deliverables.every(d => d.status === 'Delivered');
-    
     if (allDelivered) return 'Completed';
     if (allNotStarted) return 'Not Started';
     return 'In Progress';
@@ -102,6 +125,159 @@ export default function MilestoneDetail() {
         return 'status-in-progress';
       default: 
         return 'status-not-started';
+    }
+  }
+
+  // Check if baseline can be edited
+  function canEditBaseline() {
+    if (!milestone) return false;
+    // Admin can always edit
+    if (isAdmin) return true;
+    // If baseline is locked, only admin can edit
+    if (milestone.baseline_locked) return false;
+    // Otherwise supplier PM can edit
+    return isSupplierPM;
+  }
+
+  // Open edit modal
+  function openEditModal() {
+    setEditForm({
+      name: milestone.name || '',
+      description: milestone.description || '',
+      baseline_start_date: milestone.baseline_start_date || '',
+      baseline_end_date: milestone.baseline_end_date || '',
+      start_date: milestone.start_date || '',
+      forecast_end_date: milestone.forecast_end_date || '',
+      actual_start_date: milestone.actual_start_date || '',
+      billable: milestone.billable || 0
+    });
+    setShowEditModal(true);
+  }
+
+  // Save edit
+  async function handleSaveEdit() {
+    try {
+      setSaving(true);
+      
+      const updates = {
+        name: editForm.name,
+        description: editForm.description,
+        start_date: editForm.start_date || null,
+        forecast_end_date: editForm.forecast_end_date || null,
+        actual_start_date: editForm.actual_start_date || null
+      };
+
+      // Only allow baseline edits if permitted
+      if (canEditBaseline()) {
+        updates.baseline_start_date = editForm.baseline_start_date || null;
+        updates.baseline_end_date = editForm.baseline_end_date || null;
+        updates.billable = parseFloat(editForm.billable) || 0;
+      }
+
+      await milestonesService.update(id, updates);
+      await fetchMilestoneData();
+      setShowEditModal(false);
+      showSuccess('Milestone updated successfully');
+    } catch (error) {
+      console.error('Error updating milestone:', error);
+      showError('Failed to update milestone: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Sign baseline as supplier
+  async function signBaselineAsSupplier() {
+    if (!canSignAsSupplier) {
+      showWarning('Only Admin or Supplier PM can sign as supplier.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      const updates = {
+        baseline_supplier_pm_id: currentUserId,
+        baseline_supplier_pm_name: currentUserName,
+        baseline_supplier_pm_signed_at: new Date().toISOString()
+      };
+
+      // If customer already signed, lock the baseline
+      if (milestone.baseline_customer_pm_signed_at) {
+        updates.baseline_locked = true;
+      }
+
+      await milestonesService.update(id, updates);
+      await fetchMilestoneData();
+      showSuccess('Baseline signed as Supplier PM');
+    } catch (error) {
+      console.error('Error signing baseline:', error);
+      showError('Failed to sign baseline: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Sign baseline as customer
+  async function signBaselineAsCustomer() {
+    if (!canSignAsCustomer) {
+      showWarning('Only Customer PM can sign as customer.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      const updates = {
+        baseline_customer_pm_id: currentUserId,
+        baseline_customer_pm_name: currentUserName,
+        baseline_customer_pm_signed_at: new Date().toISOString()
+      };
+
+      // If supplier already signed, lock the baseline
+      if (milestone.baseline_supplier_pm_signed_at) {
+        updates.baseline_locked = true;
+      }
+
+      await milestonesService.update(id, updates);
+      await fetchMilestoneData();
+      showSuccess('Baseline signed as Customer PM');
+    } catch (error) {
+      console.error('Error signing baseline:', error);
+      showError('Failed to sign baseline: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Reset baseline (admin only)
+  async function resetBaseline() {
+    if (!isAdmin) {
+      showWarning('Only Admin can reset a locked baseline.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      await milestonesService.update(id, {
+        baseline_locked: false,
+        baseline_supplier_pm_id: null,
+        baseline_supplier_pm_name: null,
+        baseline_supplier_pm_signed_at: null,
+        baseline_customer_pm_id: null,
+        baseline_customer_pm_name: null,
+        baseline_customer_pm_signed_at: null
+      });
+
+      await fetchMilestoneData();
+      setShowBaselineModal(false);
+      showSuccess('Baseline lock has been reset');
+    } catch (error) {
+      console.error('Error resetting baseline:', error);
+      showError('Failed to reset baseline: ' + error.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -131,6 +307,15 @@ export default function MilestoneDetail() {
     ? Math.round((deliveredCount / totalDeliverables) * 100) 
     : 0;
 
+  // Baseline status
+  const baselineLocked = milestone.baseline_locked;
+  const supplierSigned = !!milestone.baseline_supplier_pm_signed_at;
+  const customerSigned = !!milestone.baseline_customer_pm_signed_at;
+  const baselineStatus = baselineLocked ? 'Locked' : 
+    (supplierSigned && customerSigned) ? 'Locked' :
+    supplierSigned ? 'Awaiting Customer' :
+    customerSigned ? 'Awaiting Supplier' : 'Not Committed';
+
   return (
     <div className="milestone-detail-page">
       {/* Header */}
@@ -138,9 +323,6 @@ export default function MilestoneDetail() {
         <button className="back-button" onClick={() => navigate('/milestones')}>
           <ArrowLeft size={20} />
         </button>
-        <div className="milestone-icon">
-          <Target size={24} />
-        </div>
         <div className="milestone-title-block">
           <div className="milestone-ref-row">
             <span className="milestone-ref">{milestone.milestone_ref}</span>
@@ -150,14 +332,21 @@ export default function MilestoneDetail() {
           </div>
           <h1 className="milestone-name">{milestone.name}</h1>
         </div>
-        <button 
-          className="refresh-button"
-          onClick={() => fetchMilestoneData(true)}
-          disabled={refreshing}
-        >
-          <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
+        <div className="header-actions">
+          {canEdit && (
+            <button className="edit-button" onClick={openEditModal}>
+              <Edit2 size={18} />
+              Edit
+            </button>
+          )}
+          <button 
+            className="refresh-button"
+            onClick={() => fetchMilestoneData(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
+          </button>
+        </div>
       </header>
 
       {/* Content */}
@@ -196,6 +385,105 @@ export default function MilestoneDetail() {
               {milestone.billable > 0 ? 'To be invoiced on completion' : 'Non-billable milestone'}
             </div>
           </div>
+        </div>
+
+        {/* Baseline Commitment Section */}
+        <div className="section-card baseline-section">
+          <div className="section-header">
+            <h3 className="section-title">
+              {baselineLocked ? <Lock size={18} /> : <Unlock size={18} />}
+              Baseline Commitment
+            </h3>
+            <span className={`baseline-status-badge ${baselineStatus.toLowerCase().replace(' ', '-')}`}>
+              {baselineStatus}
+            </span>
+          </div>
+
+          <div className="baseline-values">
+            <div className="baseline-item">
+              <span className="baseline-label">Start Date</span>
+              <span className="baseline-value">{formatDate(milestone.baseline_start_date)}</span>
+            </div>
+            <div className="baseline-item">
+              <span className="baseline-label">End Date</span>
+              <span className="baseline-value">{formatDate(milestone.baseline_end_date)}</span>
+            </div>
+            <div className="baseline-item">
+              <span className="baseline-label">Billable Amount</span>
+              <span className="baseline-value">£{(milestone.billable || 0).toLocaleString()}</span>
+            </div>
+          </div>
+
+          {/* Signature Status */}
+          <div className="signature-grid">
+            <div className={`signature-box ${supplierSigned ? 'signed' : ''}`}>
+              <div className="signature-header">
+                <span className="signature-role">Supplier PM</span>
+                {supplierSigned && <CheckCircle size={16} className="signed-icon" />}
+              </div>
+              {supplierSigned ? (
+                <div className="signature-info">
+                  <span className="signer-name">{milestone.baseline_supplier_pm_name}</span>
+                  <span className="signed-date">{formatDate(milestone.baseline_supplier_pm_signed_at)}</span>
+                </div>
+              ) : (
+                canSignAsSupplier && !baselineLocked && (
+                  <button 
+                    className="sign-button"
+                    onClick={signBaselineAsSupplier}
+                    disabled={saving}
+                  >
+                    {saving ? 'Signing...' : 'Sign to Commit'}
+                  </button>
+                )
+              )}
+            </div>
+
+            <div className={`signature-box ${customerSigned ? 'signed' : ''}`}>
+              <div className="signature-header">
+                <span className="signature-role">Customer PM</span>
+                {customerSigned && <CheckCircle size={16} className="signed-icon" />}
+              </div>
+              {customerSigned ? (
+                <div className="signature-info">
+                  <span className="signer-name">{milestone.baseline_customer_pm_name}</span>
+                  <span className="signed-date">{formatDate(milestone.baseline_customer_pm_signed_at)}</span>
+                </div>
+              ) : (
+                canSignAsCustomer && !baselineLocked && (
+                  <button 
+                    className="sign-button"
+                    onClick={signBaselineAsCustomer}
+                    disabled={saving}
+                  >
+                    {saving ? 'Signing...' : 'Sign to Commit'}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Admin Reset Option */}
+          {isAdmin && baselineLocked && (
+            <div className="admin-actions">
+              <button 
+                className="reset-button"
+                onClick={resetBaseline}
+                disabled={saving}
+              >
+                <Unlock size={16} />
+                {saving ? 'Resetting...' : 'Reset Baseline Lock'}
+              </button>
+            </div>
+          )}
+
+          {/* Info text */}
+          {!baselineLocked && (
+            <p className="baseline-info">
+              Both Supplier PM and Customer PM must sign to lock the baseline. 
+              Once locked, baseline values can only be changed by an Admin.
+            </p>
+          )}
         </div>
 
         {/* Dates Section */}
@@ -238,18 +526,6 @@ export default function MilestoneDetail() {
                 <span className="date-value">{computedStatus === 'Completed' ? formatDate(new Date()) : '—'}</span>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Dependencies Section */}
-        <div className="section-card">
-          <h3 className="section-title">
-            <Link2 size={18} />
-            Dependencies
-          </h3>
-          <div className="empty-state small">
-            <p>No dependencies defined for this milestone.</p>
-            <span className="empty-hint">Dependencies feature coming soon</span>
           </div>
         </div>
 
@@ -299,8 +575,125 @@ export default function MilestoneDetail() {
             </div>
           )}
         </div>
-
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Milestone</h2>
+              <button className="modal-close" onClick={() => setShowEditModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Name</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              {/* Baseline fields - only if allowed */}
+              {canEditBaseline() && (
+                <>
+                  <h3 className="form-section-title">
+                    Baseline Dates
+                    {milestone.baseline_locked && (
+                      <span className="locked-badge">
+                        <Lock size={12} /> Locked
+                      </span>
+                    )}
+                  </h3>
+                  
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Baseline Start</label>
+                      <input
+                        type="date"
+                        value={editForm.baseline_start_date}
+                        onChange={e => setEditForm({ ...editForm, baseline_start_date: e.target.value })}
+                        disabled={milestone.baseline_locked && !isAdmin}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Baseline End</label>
+                      <input
+                        type="date"
+                        value={editForm.baseline_end_date}
+                        onChange={e => setEditForm({ ...editForm, baseline_end_date: e.target.value })}
+                        disabled={milestone.baseline_locked && !isAdmin}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Billable Amount (£)</label>
+                    <input
+                      type="number"
+                      value={editForm.billable}
+                      onChange={e => setEditForm({ ...editForm, billable: e.target.value })}
+                      disabled={milestone.baseline_locked && !isAdmin}
+                    />
+                  </div>
+                </>
+              )}
+
+              <h3 className="form-section-title">Forecast Dates</h3>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Forecast Start</label>
+                  <input
+                    type="date"
+                    value={editForm.start_date}
+                    onChange={e => setEditForm({ ...editForm, start_date: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Forecast End</label>
+                  <input
+                    type="date"
+                    value={editForm.forecast_end_date}
+                    onChange={e => setEditForm({ ...editForm, forecast_end_date: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Actual Start</label>
+                <input
+                  type="date"
+                  value={editForm.actual_start_date}
+                  onChange={e => setEditForm({ ...editForm, actual_start_date: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                Cancel
+              </button>
+              <button className="btn-primary" onClick={handleSaveEdit} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
