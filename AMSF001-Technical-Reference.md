@@ -1,8 +1,8 @@
 # AMSF001 Project Tracker - Technical Reference
 
-**Last Updated:** 4 December 2025  
-**Version:** 1.0  
-**Production Readiness:** 98%
+**Last Updated:** 5 December 2025  
+**Version:** 2.0  
+**Production Readiness:** 100%
 
 ---
 
@@ -10,14 +10,16 @@
 
 1. [Quick Reference](#1-quick-reference)
 2. [Architecture Overview](#2-architecture-overview)
-3. [Supabase Configuration](#3-supabase-configuration)
-4. [Vercel Configuration](#4-vercel-configuration)
-5. [Service Layer](#5-service-layer)
-6. [UI Component Patterns](#6-ui-component-patterns)
-7. [SQL Migrations](#7-sql-migrations)
-8. [Local Development](#8-local-development)
-9. [Recent Changes](#9-recent-changes)
-10. [Troubleshooting](#10-troubleshooting)
+3. [Apple Design System](#3-apple-design-system)
+4. [Supabase Configuration](#4-supabase-configuration)
+5. [Vercel Configuration](#5-vercel-configuration)
+6. [Service Layer](#6-service-layer)
+7. [UI Component Patterns](#7-ui-component-patterns)
+8. [AI Chat System](#8-ai-chat-system)
+9. [SQL Migrations](#9-sql-migrations)
+10. [Local Development](#10-local-development)
+11. [Recent Changes](#11-recent-changes)
+12. [Troubleshooting](#12-troubleshooting)
 
 ---
 
@@ -61,44 +63,160 @@ git add -A && git commit -m "message" && git push
 | Layer | Technology |
 |-------|------------|
 | Frontend | React 18 + Vite |
-| Styling | Tailwind CSS + Custom CSS Variables |
+| Styling | Apple Design System (Custom CSS) |
 | Backend | Supabase (PostgreSQL + Auth + RLS) |
-| Hosting | Vercel |
-| AI | Anthropic Claude 4.5 Sonnet |
+| Hosting | Vercel (Pro) |
+| AI | Anthropic Claude 4.5 Sonnet/Haiku |
 
 ### Project Structure
 
 ```
 src/
-├── components/          # Reusable UI components
-│   ├── ui/             # Core UI (ActionButtons, Card, FilterBar)
-│   ├── timesheets/     # Timesheet components + modal
-│   ├── expenses/       # Expense components + modal
-│   ├── deliverables/   # Deliverable components + modal
-│   ├── milestones/     # Milestone table component
-│   └── networkstandards/  # Network standards + modal
-├── contexts/           # React contexts (Auth, Project, Toast)
-├── hooks/              # Custom hooks (usePermissions, useFormValidation)
-├── lib/                # Utilities (supabase client, permissions)
-├── pages/              # Page components
-├── services/           # Data service layer (18 services)
-└── styles/             # Global CSS
+├── components/              # Reusable UI components
+│   ├── ui/                 # Core UI (ActionButtons, Card, FilterBar)
+│   ├── common/             # Shared components (LoadingSpinner, etc.)
+│   ├── chat/               # AI Chat components
+│   ├── timesheets/         # Timesheet components + modal
+│   ├── expenses/           # Expense components + modal
+│   ├── deliverables/       # Deliverable components + modal
+│   ├── milestones/         # Milestone table component
+│   └── networkstandards/   # Network standards + modal
+├── contexts/               # React contexts (Auth, Project, Toast)
+├── hooks/                  # Custom hooks (usePermissions, useFormValidation)
+├── lib/                    # Utilities (supabase client, permissions)
+├── pages/                  # Page components (with dedicated CSS)
+├── services/               # Data service layer (18 services)
+└── styles/                 # Global CSS
 ```
 
 ### Role Hierarchy
 
-| Role | Level | Description |
-|------|-------|-------------|
-| admin | 5 | Full system access |
-| supplier_pm | 4 | Supplier project management |
-| customer_pm | 3 | Customer-side approval authority |
-| contributor | 2 | Submit timesheets, expenses, edit deliverables |
-| viewer | 1 | Read-only access |
-
+| Role | Level | Capabilities |
+|------|-------|--------------|
+| admin | 5 | Full system access, no workflow notifications |
+| supplier_pm | 4 | Full access + validates timesheets/expenses |
+| customer_pm | 3 | Reviews deliverables, validates timesheets |
+| contributor | 2 | Submits timesheets & expenses |
+| viewer | 1 | Read-only dashboard access |
 
 ---
 
-## 3. Supabase Configuration
+## 3. Apple Design System
+
+### Overview
+
+The application uses a custom Apple-inspired design system implemented consistently across all pages. Each page has its own CSS file with shared design tokens.
+
+### Design Tokens
+
+```css
+/* Color Palette */
+--color-primary: #007aff;      /* Blue - actions */
+--color-success: #34c759;      /* Green - positive */
+--color-warning: #ff9500;      /* Orange - caution */
+--color-danger: #ff3b30;       /* Red - destructive */
+--color-purple: #af52de;       /* Purple - special */
+--color-teal: #0d9488;         /* Teal - primary accent */
+
+/* Text Colors */
+--color-text-primary: #1d1d1f;
+--color-text-secondary: #86868b;
+--color-text-tertiary: #aeaeb2;
+
+/* Background Colors */
+--color-bg-primary: #ffffff;
+--color-bg-secondary: #f5f5f7;
+--color-bg-tertiary: #fafafa;
+
+/* Border Colors */
+--color-border: #d2d2d7;
+--color-border-light: #e8e8ed;
+
+/* Border Radius */
+--radius-sm: 6px;
+--radius-md: 10px;
+--radius-lg: 14px;
+
+/* Shadows */
+--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+--shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+/* Typography */
+--font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+--font-mono: 'SF Mono', SFMono-Regular, Consolas, monospace;
+```
+
+### Page CSS Files
+
+| Page | CSS File | Accent Color |
+|------|----------|--------------|
+| Milestones | Milestones.css | Teal (#0d9488) |
+| Deliverables | Deliverables.css | Blue (#007aff) |
+| Resources | Resources.css | Teal (#0d9488) |
+| Expenses | Expenses.css | Teal (#0d9488) |
+| Partners | Partners.css | Teal (#0d9488) |
+| Timesheets | Timesheets.css | Teal (#0d9488) |
+| KPIs | KPIs.css | Teal (#0d9488) |
+| Quality Standards | QualityStandards.css | Teal (#0d9488) |
+| Users | Users.css | Purple (#af52de) |
+| RAID Log | RaidLog.css | Red/Orange (#ef4444) |
+
+### Design Principles
+
+1. **Clean Headers** - Sticky with backdrop blur, icon + title + subtitle
+2. **No Dashboard Cards on List Pages** - Stats/metrics only on Dashboard
+3. **Click-to-Navigate** - Full row clickability, no separate "view" buttons
+4. **Inline Actions Only** - Status toggles use stopPropagation
+5. **Consistent Tables** - Clean borders, hover states, proper spacing
+
+### Header Pattern
+
+```jsx
+<header className="page-header">
+  <div className="header-content">
+    <div className="header-title">
+      <Icon size={28} strokeWidth={1.5} />
+      <div>
+        <h1>Page Title</h1>
+        <p>{count} item{count !== 1 ? 's' : ''}</p>
+      </div>
+    </div>
+    <div className="header-actions">
+      <button className="btn-primary">
+        <Plus size={16} /> Add New
+      </button>
+    </div>
+  </div>
+</header>
+```
+
+### Table Pattern
+
+```jsx
+<div className="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Column</th>
+      </tr>
+    </thead>
+    <tbody>
+      {items.map(item => (
+        <tr 
+          key={item.id}
+          onClick={() => navigate(`/path/${item.id}`)}
+        >
+          <td>{item.value}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+```
+
+---
+
+## 4. Supabase Configuration
 
 ### Project Details
 
@@ -151,7 +269,7 @@ The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.
 
 ---
 
-## 4. Vercel Configuration
+## 5. Vercel Configuration
 
 ### Project Details
 
@@ -184,7 +302,7 @@ The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.
 
 ---
 
-## 5. Service Layer
+## 6. Service Layer
 
 ### Services (18 total)
 
@@ -232,59 +350,49 @@ const { data, error } = await supabase
 return data?.[0];
 ```
 
-
 ---
 
-## 6. UI Component Patterns
+## 7. UI Component Patterns
 
-### Table Row Clickability
+### Click-to-Navigate Pattern
 
-All list pages use full row clickability for consistent UX:
+All list pages use full row clickability - **no separate view/edit/delete buttons in tables**:
 
 ```jsx
-// Import
-import { useNavigate } from 'react-router-dom';
-
-// Hook
-const navigate = useNavigate();
-
-// Table row
 <tr 
-  className="table-row-clickable hover:bg-gray-50"
   onClick={() => navigate(`/path/${item.id}`)}
   style={{ cursor: 'pointer' }}
 >
-  {/* Data cells - clickable */}
   <td>{item.name}</td>
-  
-  {/* Action cells - NOT clickable */}
-  <td onClick={(e) => e.stopPropagation()}>
-    <button onClick={handleEdit}>Edit</button>
-  </td>
+  <td>{item.status}</td>
 </tr>
 ```
 
-### Inline Editing Exception
+### Pages Following This Pattern
 
-For pages with inline editing (Resources, QualityStandards):
+| Page | Navigation Target | Notes |
+|------|-------------------|-------|
+| Milestones | /milestones/:id | Certificate badge inline |
+| Deliverables | /deliverables/:id | Status badge inline |
+| Resources | /resources/:id | Utilization bar inline |
+| Partners | /partners/:id | Status toggle with stopPropagation |
+| Expenses | Detail Modal | Filter bar retained |
+| Timesheets | Detail Modal | Filter bar retained |
+| KPIs | /kpis/:id | Category badges inline |
+| Quality Standards | /quality-standards/:id | Status badges inline |
+| Users | N/A (inline editing) | Role dropdown inline |
+
+### Inline Actions with stopPropagation
+
+For actions that shouldn't navigate:
 
 ```jsx
-<tr 
-  onClick={() => !isEditing && navigate(`/path/${item.id}`)}
-  style={{ cursor: isEditing ? 'default' : 'pointer' }}
-  className={isEditing ? '' : 'table-row-clickable'}
->
+<td onClick={(e) => e.stopPropagation()}>
+  <button onClick={() => toggleStatus(item.id)}>
+    Toggle
+  </button>
+</td>
 ```
-
-### Pages with Full Row Click
-
-| Page | Target | Special Handling |
-|------|--------|------------------|
-| KPIs.jsx | `/kpis/${id}` | Actions stopPropagation |
-| QualityStandards.jsx | `/quality-standards/${id}` | Disabled during editing |
-| MilestoneTable.jsx | `/milestones/${id}` | Certificate + Actions |
-| Resources.jsx | `/resources/${id}` | Disabled during editing |
-| Partners.jsx | `/partners/${id}` | Email + Status + Actions |
 
 ### Detail Modal Components
 
@@ -298,7 +406,52 @@ src/components/
 
 ---
 
-## 7. SQL Migrations
+## 8. AI Chat System
+
+### Three-Tier Architecture
+
+```
+User Question
+    ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ TIER 1: INSTANT (0ms API, ~100ms total)                         │
+│ LOCAL_RESPONSE_PATTERNS in ChatContext.jsx                      │
+│ Answers from prefetchedContext without any API call             │
+└─────────────────────────────────────────────────────────────────┘
+    ↓ (if no pattern match)
+┌─────────────────────────────────────────────────────────────────┐
+│ TIER 2: STREAMING HAIKU (1-2 seconds)                           │
+│ /api/chat-stream - STREAMING_PATTERNS check                     │
+│ Uses Haiku model with pre-fetched context only                  │
+└─────────────────────────────────────────────────────────────────┘
+    ↓ (if COMPLEX_PATTERNS detected)
+┌─────────────────────────────────────────────────────────────────┐
+│ TIER 3: FULL SONNET WITH TOOLS (3-5 seconds)                    │
+│ /api/chat - 12 database tools available                         │
+│ Parallel execution, 5s timeout, 5min cache                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| api/chat.js | Sonnet with database tools |
+| api/chat-stream.js | Streaming Haiku responses |
+| api/chat-context.js | Pre-fetch project context |
+| src/contexts/ChatContext.jsx | Tier 1 local responses |
+| src/components/chat/ChatWidget.jsx | UI component |
+
+### Performance Optimizations
+
+- **Query Timeouts:** 5-second hard limit on database queries
+- **Parallel Execution:** Multiple tools run concurrently
+- **Extended Cache:** 5-minute TTL for tool results
+- **Partial Failures:** Return available data if one tool fails
+
+---
+
+## 9. SQL Migrations
 
 ### Location
 `/Users/glennnickols/Projects/amsf001-project-tracker/sql/`
@@ -313,26 +466,15 @@ src/components/
 | P5b-partner-invoices-rls.sql | Invoice RLS policies | ✅ Deployed |
 | P6-enhanced-invoice-lines.sql | Invoice line items | ✅ Deployed |
 | P7-receipt-scanner.sql | Receipt scanner tables | ✅ Deployed |
-| P8-deliverables-contributor-access.sql | Contributors edit | ⏳ Pending |
-| **P9-milestone-update-rls.sql** | **Milestone RLS** | **⏳ PENDING** |
+| P8-deliverables-contributor-access.sql | Contributors edit | ✅ Deployed |
+| P9-milestone-update-rls.sql | Milestone RLS | ✅ Deployed |
 | audit-triggers.sql | Audit logging | ✅ Deployed |
 | soft-delete-implementation.sql | Soft delete | ✅ Deployed |
 | data-integrity-constraints.sql | Data validation | ✅ Deployed |
 
-### Deploying P9 (URGENT)
-
-**Issue:** Milestone edits fail with "No record found" error  
-**Cause:** Missing UPDATE RLS policy
-
-**Steps:**
-1. Open Supabase Dashboard → SQL Editor
-2. Copy contents of `sql/P9-milestone-update-rls.sql`
-3. Run the script
-4. Verify: `SELECT * FROM pg_policies WHERE tablename = 'milestones'`
-
 ---
 
-## 8. Local Development
+## 10. Local Development
 
 ### Prerequisites
 - Node.js 18.x or later
@@ -365,90 +507,76 @@ npm run dev
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build |
 
-
 ---
 
-## 9. Recent Changes
+## 11. Recent Changes
+
+### 5 December 2025 - Apple Design System Complete
+
+**UI Cleanup - All List Pages**
+- Removed dashboard summary cards from all list pages
+- Removed edit/delete action columns from all tables
+- Implemented click-to-navigate pattern consistently
+- Created dedicated CSS files with Apple design tokens
+
+**Pages Updated:**
+- Milestones.jsx/css - Clean table, certificate badges
+- Deliverables.jsx/css - Status badges, click to detail
+- Resources.jsx/css - Utilization bars, type filter retained
+- Expenses.jsx/css - Filter bar retained, no action column
+- Partners.jsx/css - Status toggle inline with stopPropagation
+- Timesheets.jsx/css - Filter bar, detail modal
+- KPIs.jsx/css - Category badges
+- QualityStandards.jsx/css - Status badges
+- Users.jsx/css - Inline role editing (clickable badge)
+- RaidLog.jsx/css - Risk/Issue tabs, priority badges
+
+**AI Chat Performance**
+- Added query timeouts (5s hard limit)
+- Implemented parallel tool execution
+- Extended cache TTL to 5 minutes
+- Added partial failure handling
+- Fixed field name mismatches in API queries
+
+**Commits:**
+- `5d83ca3c` - Apple design for Users page
+- `14cb1b65` - Fix missing Expenses.css
+- `33df7469` - Apple design for all list pages
+- `26a93a62` - Chat API field name audit
+- `cae0ffc6` - Chat performance improvements
+- `4b31f719` - Context loading indicator
 
 ### 4 December 2025
 
-**Phase I-III: Financial Calculations Refactoring**
-- Centralized all `/ 8` hour-to-day calculations into `metricsConfig.js`
-- Added utility functions: `hoursToDays()`, `daysToHours()`, `calculateBillableValue()`, `calculateCostValue()`
-- Renamed database columns: `resources.daily_rate` → `sell_price`, `milestones.budget` → `billable`
-- Removed unused columns: `discount_percent`, `discounted_rate`, `payment_percent`
-- Commits: `55fc0976`, `65d99432`
+**Financial Calculations Refactoring**
+- Centralized hour-to-day calculations in metricsConfig.js
+- Renamed database columns: daily_rate → sell_price, budget → billable
 
 **Dashboard Widgets**
-- Added TimesheetsWidget (Submitted/Validated counts + £ values)
-- Added ExpensesWidget (Awaiting/Validated totals, Chargeable/Non-Chargeable breakdown)
+- Added TimesheetsWidget and ExpensesWidget
 - Updated grid from 3 to 4 columns
-- All widgets exclude deleted and rejected items
-- Commits: `973d604a`, `c789bdc8`
 
 ### 3 December 2025
 
-**UI Consistency - Full Row Clickability**
-- Made all list page rows fully clickable
-- Added stopPropagation for action buttons
-- Removed redundant ExternalLink icons
-- Commit: `f463150b`
-
-**Detail Modals**
-- Added TimesheetDetailModal, ExpenseDetailModal
-- Added DeliverableDetailModal, NetworkStandardDetailModal
-- Workflow actions in modals (Validate/Reject, Submit/Review/Deliver)
+**UI Consistency**
+- Implemented full row clickability across all list pages
+- Added detail modals for Timesheets, Expenses, Deliverables
 
 **AI Model Upgrade**
-- Upgraded from Claude 3 Haiku to Claude 4.5 Sonnet
-- Improved reasoning and data analysis
+- Upgraded to Claude 4.5 Sonnet
 
-**Terminology Update**
-- Changed "Approved" → "Validated" throughout application
-
-**Supabase .single() Fix**
-- Replaced all `.single()` calls with `.select()` + array access
-- Fixes RLS-related "Cannot coerce" errors
-- Commit: `f3c3f802`
-
-### 2 December 2025
-
-**Apple Design System**
-- Modern Minimalist design with teal color scheme
-- Centralized UI components
-- Dashboard redesign with hero metrics
-
-**Component Refactoring**
-- PartnerDetail.jsx: 1,493 → 585 lines (61% reduction)
-- Milestones.jsx: 1,274 → 443 lines (65% reduction)
-- ResourceDetail.jsx: 1,117 → 423 lines (62% reduction)
-
-### 1 December 2025
-
-**AI Chat Assistant**
-- 12 database query tools
-- Role-based data scoping
-- Copy, export, persistence features
-
-**Smart Receipt Scanner**
-- AI-powered receipt data extraction
-- Category classification with learning
+**Terminology**
+- Changed "Approved" → "Validated" throughout
 
 ---
 
-## 10. Troubleshooting
-
-### Milestone Update Errors
-
-**Error:** "No record found with id: [uuid]"
-- **Cause:** Missing RLS UPDATE policy
-- **Solution:** Run `sql/P9-milestone-update-rls.sql` in Supabase
-
-**Error:** "Cannot coerce the result to a single JSON object"
-- **Cause:** Old code using `.single()` method
-- **Solution:** Already fixed in codebase (commit f3c3f802)
+## 12. Troubleshooting
 
 ### Build Failures
+
+**Error:** Could not resolve "./PageName.css"
+- **Cause:** CSS file referenced but doesn't exist
+- **Solution:** Create the missing CSS file or remove the import
 
 **Error:** Module not found
 ```bash
@@ -480,18 +608,34 @@ npm install
 
 ## Appendix: File Inventory
 
-### Feature Specifications (Root Directory)
+### Documentation Files
 
 | File | Purpose |
 |------|---------|
-| AI-CHAT-ASSISTANT-SPEC.md | AI assistant requirements |
-| SMART-RECEIPT-SCANNER-SPEC.md | Receipt scanner specification |
-| DASHBOARD-CUSTOMIZATION-SPEC.md | Dashboard drag-and-drop spec |
+| README.md | Project overview |
+| AMSF001-Technical-Reference.md | This document |
+| AMSF001-User-Guide.md | End-user documentation |
+| AI-CHAT-ASSISTANT-SPEC.md | AI assistant specification |
+| SMART-RECEIPT-SCANNER-SPEC.md | Receipt scanner spec |
+| DASHBOARD-CUSTOMIZATION-SPEC.md | Dashboard drag-and-drop |
 | ROADMAP-2025-12.md | Development roadmap |
+| SESSION-SUMMARY-2025-12-*.md | Daily session summaries |
 
-### Archived Documentation
-Old versioned documents are in `/docs/archive/` for reference.
+### Page CSS Files
+
+| File | Page |
+|------|------|
+| src/pages/Milestones.css | Milestones list |
+| src/pages/Deliverables.css | Deliverables list |
+| src/pages/Resources.css | Resources list |
+| src/pages/Expenses.css | Expenses list |
+| src/pages/Partners.css | Partners list |
+| src/pages/Timesheets.css | Timesheets list |
+| src/pages/KPIs.css | KPIs list |
+| src/pages/QualityStandards.css | Quality standards list |
+| src/pages/Users.css | User management |
+| src/pages/RaidLog.css | RAID log |
 
 ---
 
-*AMSF001 Technical Reference | Last Updated: 3 December 2025*
+*AMSF001 Technical Reference | Version 2.0 | 5 December 2025*

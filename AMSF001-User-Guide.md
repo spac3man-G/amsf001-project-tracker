@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - User Guide
 
-**Last Updated:** 3 December 2025  
-**Application Version:** 4.2
+**Last Updated:** 5 December 2025  
+**Application Version:** 5.0
 
 ---
 
@@ -9,14 +9,13 @@
 
 1. [Getting Started](#getting-started)
 2. [Dashboard](#dashboard)
-3. [Navigating Tables](#navigating-tables)
-4. [Partner Invoicing](#partner-invoicing)
+3. [Navigating the Application](#navigating-the-application)
+4. [Projects & Milestones](#projects--milestones)
 5. [Time & Expense Tracking](#time--expense-tracking)
-6. [Projects & Milestones](#projects--milestones)
-7. [Reports & Analytics](#reports--analytics)
-8. [AI Chat Assistant](#ai-chat-assistant)
-9. [Settings & Administration](#settings--administration)
-10. [Troubleshooting](#troubleshooting)
+6. [Partner Management & Invoicing](#partner-management--invoicing)
+7. [AI Chat Assistant](#ai-chat-assistant)
+8. [User Administration](#user-administration)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -32,23 +31,25 @@ The main menu is on the left side:
 
 | Menu Item | Purpose |
 |-----------|---------|
-| **Dashboard** | Overview and quick access |
-| **Milestones** | Project milestones and progress |
-| **Deliverables** | Deliverable tracking |
-| **Resources** | Team member management |
+| **Dashboard** | Overview with KPIs, metrics, and quick stats |
+| **Milestones** | Project milestones and completion tracking |
+| **Deliverables** | Work items and deliverable management |
+| **Resources** | Team members and allocation |
 | **Timesheets** | Time entry and validation |
-| **Expenses** | Expense tracking |
+| **Expenses** | Expense claims and validation |
 | **Partners** | Partner organizations and invoicing |
-| **Reports** | Analytics and reporting |
-| **Settings** | Account and project settings |
+| **KPIs** | Key Performance Indicators |
+| **Quality Standards** | Quality metrics tracking |
+| **RAID Log** | Risks, Assumptions, Issues, Dependencies |
+| **Users** | User management (Admin only) |
 
 ### User Roles
 
 | Role | Access Level |
 |------|-------------|
 | **Admin** | Full system access |
-| **Supplier PM** | Manage project, validate items |
-| **Customer PM** | Approve milestones, view reports |
+| **Supplier PM** | Manage project, validate timesheets/expenses |
+| **Customer PM** | Review deliverables, validate timesheets |
 | **Contributor** | Submit timesheets, expenses, edit deliverables |
 | **Viewer** | Read-only access |
 
@@ -57,96 +58,99 @@ The main menu is on the left side:
 ## Dashboard
 
 ### Overview
-Your command center showing the most important information at a glance. The dashboard is fully customizable with drag-and-drop widgets.
+Your command center showing the most important information at a glance. The dashboard displays KPIs, financial metrics, and project progress - all in one place.
+
+### Dashboard Widgets
+
+| Widget | Description |
+|--------|-------------|
+| **Project Progress** | Overall completion with visual progress ring |
+| **Budget Summary** | Spend vs budget overview |
+| **PMO Tracking** | PMO/Non-PMO cost breakdown |
+| **Key Statistics** | Counts of milestones, deliverables, resources |
+| **Timesheets** | Submitted and validated totals |
+| **Expenses** | Awaiting and validated amounts |
+| **Milestones List** | All milestones with progress bars |
 
 ### Customizing Your Dashboard
 1. Click the **Customize** button (top-right)
 2. **Drag widgets** to rearrange them
-3. **Resize widgets** from the bottom-right corner
-4. Your layout **auto-saves** as you make changes
-5. Click **Reset to Default** to restore the standard layout
-
-### Available Widgets
-
-| Widget | Description |
-|--------|-------------|
-| **Project Progress** | Overall completion percentage with progress ring |
-| **Budget Summary** | Spend vs budget overview |
-| **PMO Cost Tracking** | PMO/Non-PMO breakdown |
-| **Key Statistics** | Counts of milestones, deliverables, resources |
-| **Milestone Certificates** | Signing status summary |
-| **Milestones List** | All milestones with spend visualization |
-| **KPIs by Category** | Performance metrics |
-| **Quality Standards** | Achievement summary |
+3. **Resize widgets** from corners
+4. Your layout **auto-saves**
+5. Click **Reset to Default** to restore
 
 ---
 
-## Navigating Tables
+## Navigating the Application
 
-### Clicking Table Rows
-All list pages support **full row clicking** for easy navigation. Simply click anywhere on a row to view details.
+### Click-to-Navigate Pattern
+
+All list pages use a **clean, click-anywhere-to-view** pattern:
+
+- **Click any row** to open the detail page or modal
+- **No separate "View" or "Edit" buttons** clutter the table
+- **Hover** over a row to see it highlight
+- **Cursor changes to pointer** on clickable rows
+
+### Pages and Their Navigation
 
 | Page | Click Row To... |
 |------|-----------------|
 | **Milestones** | Open milestone detail page |
-| **KPIs** | Open KPI detail page |
-| **Quality Standards** | Open quality standard detail page |
+| **Deliverables** | Open deliverable detail page |
 | **Resources** | Open resource detail page |
 | **Partners** | Open partner detail page |
-| **Timesheets** | Open detail modal (Validate/Reject) |
-| **Expenses** | Open detail modal (Validate/Reject) |
-| **Deliverables** | Open detail modal (workflow actions) |
+| **KPIs** | Open KPI detail page |
+| **Quality Standards** | Open quality standard detail |
+| **Timesheets** | Open validation modal |
+| **Expenses** | Open detail modal |
 
-### Action Buttons
-Action buttons (Edit, Delete, View Certificate) work independently - clicking them won't navigate away from the page.
+### Editing Items
 
-### Visual Indicators
-- **Hover effect** - Row highlights when you hover over it
-- **Cursor changes** - Pointer cursor indicates clickable rows
-- **Blue text** - Reference numbers shown in blue (e.g., MS-001, KPI-001)
+To edit an item:
+1. **Click the row** to open the detail page
+2. On the detail page, click **Edit** to modify
+3. Make your changes
+4. Click **Save**
 
+This keeps list views clean and focused on information.
 
 ---
 
-## Partner Invoicing
+## Projects & Milestones
 
-### Generating an Invoice
+### Viewing Milestones
+1. Click **Milestones** in the menu
+2. See all milestones with progress, dates, and status
+3. **Click any row** to view full details
 
-1. Navigate to **Partners** in the menu
-2. **Click anywhere on a partner row** to open their detail page
-3. In the **Invoice Preview** section:
-   - Select the **Period** (month/custom date range)
-   - Click **Generate Invoice**
+### Milestone Information
 
-### Understanding the Invoice Summary
+| Field | Description |
+|-------|-------------|
+| **Reference** | Unique identifier (MS-001) |
+| **Name** | Milestone title |
+| **Start/End Date** | Planned timeline |
+| **Progress** | Completion percentage |
+| **Status** | Not Started, In Progress, Completed |
+| **Certificate** | Signing status badge |
 
-The invoice modal displays a comprehensive breakdown:
+### Certificate Badges
 
-| Card | Description |
-|------|-------------|
-| **Timesheets** (Blue) | Total timesheet value - all billable |
-| **Expenses Billable** (Green) | Partner expenses chargeable to customer |
-| **Expenses Non-Billable** (Red) | Partner expenses not chargeable |
-| **Invoice Total** (Purple) | Total to be paid by the partner |
+| Badge | Meaning |
+|-------|---------|
+| ✓ Both Signed | Customer and supplier signed |
+| Pending | Awaiting signatures |
+| – | No certificate yet |
 
-### Expenses Breakdown
+### Deliverables
 
-| Item | Description |
-|------|-------------|
-| **Total Expenses** | All expenses in the period |
-| **Chargeable to Customer** | Can be passed to customer |
-| **Not Chargeable** | Partner absorbs as cost |
-| **Paid by Partner** | Included on this invoice |
-| **Paid by Supplier** | NOT on this invoice (billed separately) |
+Each milestone contains deliverables - the actual work items:
 
-### Supplier Expenses
-Expenses marked as "Paid by: Supplier" are tracked but **not included** in the partner invoice. These appear in a separate amber section with clear "NOT ON THIS INVOICE" badge.
-
-### Printing / Saving as PDF
-1. Click **Print / Save PDF** button at bottom of invoice modal
-2. A print preview window opens
-3. **All timesheets and expenses** are shown (not truncated)
-4. Select **Save as PDF** in your print dialog
+1. From **Milestones**, click a milestone
+2. View its deliverables in the detail page
+3. Or go to **Deliverables** for a full list
+4. **Click any deliverable row** to see details
 
 ---
 
@@ -155,152 +159,209 @@ Expenses marked as "Paid by: Supplier" are tracked but **not included** in the p
 ### Submitting Timesheets
 
 1. Go to **Timesheets**
-2. Click **+ New Timesheet**
-3. Enter: Date, Hours worked, Description of work
-4. Click **Save as Draft** or **Submit for Validation**
+2. Click **+ Add Timesheet**
+3. Select the resource, date, and hours
+4. Add a description
+5. Click **Save** (Draft) or **Submit**
 
-### Timesheet Status Workflow
+### Timesheet Status
 
 | Status | Meaning |
 |--------|---------|
 | **Draft** | Editable, not yet submitted |
 | **Submitted** | Awaiting validation |
-| **Validated** | Ready for invoicing |
+| **Validated** | Approved for invoicing |
 | **Rejected** | Returned with comments |
 
-### Reviewing Timesheets (Managers)
+### Validating Timesheets (Managers)
+
 1. Go to **Timesheets**
-2. **Click any row** to open the detail modal
-3. Review the timesheet details
-4. Click **Validate** or **Reject**
+2. Use filters to find **Submitted** timesheets
+3. **Click the row** to open the detail modal
+4. Review the information
+5. Click **Validate** or **Reject**
 
 ### Submitting Expenses
 
 1. Go to **Expenses**
-2. Click **+ New Expense**
-3. Enter:
-   - Date and Amount
-   - Category (Travel, Sustenance, Equipment, Materials, Other)
-   - Description
-   - **Procurement Method** (Partner or Supplier)
-   - **Chargeable to Customer** (Yes/No)
-4. Attach receipt (optional)
-5. Click **Save** or **Submit**
+2. Click **+ Add Expense**
+3. Fill in: Date, Amount, Category, Description
+4. Set **Chargeable to Customer** (Yes/No)
+5. Attach a receipt if needed
+6. Click **Save** or **Submit**
 
 ### AI Receipt Scanning
+
 1. When adding an expense, click **Scan Receipt**
-2. Upload or take a photo of your receipt
-3. AI automatically extracts: Date, Amount, Category, Description
+2. Upload or photograph your receipt
+3. AI extracts: Date, Amount, Category, Description
 4. Review and adjust as needed
+5. Save the expense
+
+### Expense Categories
+
+| Category | Examples |
+|----------|----------|
+| Travel | Flights, trains, taxis, mileage |
+| Accommodation | Hotels, rentals |
+| Sustenance | Meals, refreshments |
+| Equipment | Hardware, software |
+| Materials | Supplies, consumables |
+| Other | Miscellaneous items |
 
 ---
 
-## Projects & Milestones
+## Partner Management & Invoicing
 
-### Viewing Milestones
-1. Go to **Milestones**
-2. **Click any row** to open the milestone detail page
-3. View progress, deliverables, and spend breakdown
+### Viewing Partners
 
-### Milestone Certificates
-Milestone certificates track formal sign-off:
-1. Open a milestone detail page
-2. Click **Generate Certificate**
-3. Fill in sign-off details
-4. Both supplier and customer must sign
+1. Go to **Partners** in the menu
+2. See all partners with status (Active/Inactive)
+3. **Click any row** to open the partner detail page
 
-### Deliverables Workflow
-1. Go to **Deliverables**
-2. **Click any row** to open the detail modal
-3. Available actions:
-   - **Submit** - Submit for review
-   - **Review** - Mark as reviewed
-   - **Deliver** - Mark as delivered
+### Partner Detail Page
 
----
+The partner detail page shows:
+- Contact information
+- Linked resources
+- Timesheet history
+- Expense history
+- Invoice generation
 
-## Reports & Analytics
+### Generating Invoices
 
-### Available Reports
+1. **Click a partner row** to open their detail page
+2. In the **Invoice Preview** section:
+   - Select the period (month or date range)
+   - Click **Generate Invoice**
+3. Review the invoice breakdown:
+   - **Timesheets** - Billable work hours
+   - **Expenses (Chargeable)** - Pass-through costs
+   - **Expenses (Non-Chargeable)** - Partner costs
+   - **Total** - Amount payable
 
-| Report | Description |
-|--------|-------------|
-| **Budget Analysis** | Detailed spend breakdown |
-| **Resource Utilization** | Team allocation |
-| **Timeline Progress** | Milestone completion trends |
-| **Financial Summary** | Cost tracking and forecasting |
+### Saving Invoices
 
-### Exporting Data
-Most tables support CSV export:
-1. Click the **Export** button
-2. Choose format (CSV)
-3. Download file
-
+1. Click **Print / Save PDF** at the bottom
+2. Use your browser's print dialog
+3. Select **Save as PDF**
 
 ---
 
 ## AI Chat Assistant
 
-### Accessing the Assistant
-Click the **AI Chat** icon in the bottom-right corner of any page.
+### Opening the Assistant
 
-### Example Questions
-- "What tasks are due this week?"
-- "Show me the budget status for the project"
-- "Who has submitted timesheets this month?"
-- "What expenses need approval?"
-- "Summarize the milestone progress"
+Click the **chat bubble icon** in the bottom-right corner to open the AI assistant.
 
-### Capabilities
-- Query timesheets, expenses, milestones, budgets
-- Get personalized action items
-- Data analysis and summaries
-- Role-aware responses (you only see data you have access to)
+### What You Can Ask
+
+| Question Type | Example |
+|--------------|---------|
+| Budget queries | "What's the remaining budget?" |
+| Progress updates | "How many milestones are completed?" |
+| Resource info | "Who is allocated to MS-002?" |
+| Expense summaries | "Show me expenses for November" |
+| Timesheet status | "What timesheets need validation?" |
+
+### Response Times
+
+| Query Type | Speed |
+|------------|-------|
+| Simple questions | ~100ms (instant) |
+| Summary queries | 1-2 seconds |
+| Complex analysis | 3-5 seconds |
+
+### Tips for Best Results
+
+- Be specific: "What's the budget for MS-003?" vs "Tell me about budgets"
+- Ask one thing at a time
+- Use natural language - no special syntax needed
 
 ---
 
-## Settings & Administration
+## User Administration
 
-### Account Settings
-- Update your profile information
-- Change password
-- Notification preferences
+### Accessing User Management
 
-### Project Settings (Admin only)
-- Project details and configuration
-- User management
-- Role assignments
+1. Log in as Admin or Supplier PM
+2. Go to **Users** in the menu
+
+### User List
+
+The user list shows:
+- User name and avatar
+- Email address
+- Linked resource (if any)
+- Role
+- Created date
+
+### Changing a User's Role
+
+1. Find the user in the list
+2. **Click their role badge** (e.g., "Contributor")
+3. Select the new role from the dropdown
+4. Changes save automatically
+
+### Linking Users to Resources
+
+Users can be linked to resources for time/expense tracking:
+
+1. Find the user in the list
+2. Click **Link resource** in the "Linked Resource" column
+3. Select a resource from the dropdown
+4. Click the save icon
+
+### Creating New Users
+
+1. Click **+ Add User** in the header
+2. Fill in:
+   - Email address
+   - Password
+   - Full name
+   - Role
+3. Click **Create User**
+
+### Test Users
+
+Admins can toggle test user visibility:
+1. Click **Show Test** in the header
+2. Test users appear with amber highlighting
+3. Click **Hide Test** to hide them again
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+### Can't Log In
 
-**Can't edit a milestone?**
-- Check your role permissions (Admin or Supplier PM required)
-- Ensure the milestone isn't locked
-- Contact your admin if issues persist
+- Verify your email is correct
+- Check for caps lock
+- Contact your administrator for password reset
 
-**Timesheet not saving?**
-- Check all required fields are filled
-- Ensure date is within allowed range
+### Page Won't Load
+
+1. Refresh the page (Ctrl/Cmd + R)
+2. Clear browser cache
+3. Try a different browser
+4. Check your internet connection
+
+### Data Not Saving
+
+- Ensure all required fields are filled
+- Check you have permission to edit
+- Look for error messages in red
+
+### AI Chat Not Responding
+
+- Wait a few seconds - complex queries take longer
 - Try refreshing the page
+- Contact support if issues persist
 
-**Can't see certain data?**
-- Data visibility is role-based
-- Contact your admin to verify permissions
+### Need More Help?
 
-**Invoice shows wrong amounts?**
-- Check expense "Paid by" settings (Partner vs Supplier)
-- Verify expense "Chargeable" status
-- Ensure timesheets are validated
-
-### Getting Help
-- Click the **?** help icon for contextual help
-- Use the AI Chat Assistant for questions
-- Contact your system administrator
+Contact your system administrator or the project team.
 
 ---
 
-*AMSF001 Project Tracker User Guide | Last Updated: 3 December 2025*
+*AMSF001 User Guide | Version 5.0 | 5 December 2025*
