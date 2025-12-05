@@ -1,36 +1,39 @@
+/**
+ * Quality Standards Page - Apple Design System
+ * 
+ * Track quality compliance across deliverables
+ * 
+ * @version 2.0 - Apple Design System
+ * @refactored 5 December 2025
+ */
+
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { qualityStandardsService } from '../services';
 import { supabase } from '../lib/supabase';
 import { 
   Award, CheckCircle, AlertCircle, Clock, TrendingUp,
-  AlertTriangle, Info, Plus, Edit2, Trash2, Save, X
+  AlertTriangle, Info, Plus, Save, X, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader, StatCard, ConfirmDialog } from '../components/common';
+import { LoadingSpinner, ConfirmDialog } from '../components/common';
+import './QualityStandards.css';
 
 export default function QualityStandards() {
   const navigate = useNavigate();
-  
-  // Use shared contexts instead of local state for auth and project
-  const { user, role: userRole } = useAuth();
+  const { user } = useAuth();
   const { projectId } = useProject();
   const currentUserId = user?.id || null;
-
-  // Use the permissions hook - clean, pre-bound permission functions
   const { canManageQualityStandards } = usePermissions();
-
-  // Permission check - Note: Customer PM should NOT edit QS per User Manual
   const canEdit = canManageQualityStandards;
 
   const [qualityStandards, setQualityStandards] = useState([]);
   const [assessmentCounts, setAssessmentCounts] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, qs: null });
   const [saving, setSaving] = useState(false);
   
@@ -42,7 +45,6 @@ export default function QualityStandards() {
     current_value: 0
   });
 
-  // Fetch data when projectId becomes available (from ProjectContext)
   useEffect(() => {
     if (projectId) {
       fetchQualityStandards(projectId);
@@ -59,11 +61,7 @@ export default function QualityStandards() {
       });
       setQualityStandards(data || []);
 
-      // Fetch assessment counts using centralized service
-      // This properly filters out assessments from deleted deliverables
       const assessments = await qualityStandardsService.getAssessments(pid);
-      
-      // Count assessments per QS
       const counts = {};
       if (assessments && assessments.length > 0) {
         assessments.forEach(a => {
@@ -82,7 +80,13 @@ export default function QualityStandards() {
       console.error('Error fetching quality standards:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await fetchQualityStandards();
   }
 
   async function handleAdd(e) {
@@ -92,6 +96,7 @@ export default function QualityStandards() {
       return;
     }
 
+    setSaving(true);
     try {
       await qualityStandardsService.create({
         project_id: projectId,
@@ -106,45 +111,12 @@ export default function QualityStandards() {
       await fetchQualityStandards();
       setShowAddForm(false);
       setNewQS({ qs_ref: '', name: '', description: '', target: 100, current_value: 0 });
-      alert('Quality Standard added successfully!');
     } catch (error) {
       console.error('Error adding quality standard:', error);
       alert('Failed to add: ' + error.message);
+    } finally {
+      setSaving(false);
     }
-  }
-
-  function handleEdit(qs) {
-    setEditingId(qs.id);
-    setEditForm({
-      qs_ref: qs.qs_ref,
-      name: qs.name,
-      description: qs.description || '',
-      target: qs.target || 100,
-      current_value: qs.current_value || 0
-    });
-  }
-
-  async function handleSave(id) {
-    try {
-      await qualityStandardsService.update(id, {
-        qs_ref: editForm.qs_ref,
-        name: editForm.name,
-        description: editForm.description,
-        target: parseInt(editForm.target) || 100,
-        current_value: parseInt(editForm.current_value) || 0
-      });
-
-      await fetchQualityStandards();
-      setEditingId(null);
-      alert('Quality Standard updated!');
-    } catch (error) {
-      console.error('Error updating:', error);
-      alert('Failed to update: ' + error.message);
-    }
-  }
-
-  async function handleDelete(qs) {
-    setDeleteDialog({ isOpen: true, qs });
   }
 
   async function handleConfirmDelete() {
@@ -153,15 +125,12 @@ export default function QualityStandards() {
 
     setSaving(true);
     try {
-      // First delete assessments (no service method for junction table)
       await supabase
         .from('deliverable_qs_assessments')
         .delete()
         .eq('quality_standard_id', qs.id);
 
-      // Then delete the QS using service
       await qualityStandardsService.delete(qs.id);
-
       await fetchQualityStandards();
       setDeleteDialog({ isOpen: false, qs: null });
     } catch (error) {
@@ -176,45 +145,20 @@ export default function QualityStandards() {
     const assessments = assessmentCounts[qs.id] || { total: 0, met: 0 };
     
     if (assessments.total === 0) {
-      return { 
-        label: 'Not Started', 
-        color: '#64748b', 
-        bg: '#f1f5f9',
-        icon: Clock
-      };
+      return { label: 'Not Started', class: 'not-started', icon: Clock };
     }
 
     const percentage = (assessments.met / assessments.total) * 100;
     const target = qs.target || 100;
 
     if (percentage >= target) {
-      return { 
-        label: 'Achieved', 
-        color: '#16a34a', 
-        bg: '#dcfce7',
-        icon: CheckCircle
-      };
+      return { label: 'Achieved', class: 'achieved', icon: CheckCircle };
     } else if (percentage >= target * 0.8) {
-      return { 
-        label: 'On Track', 
-        color: '#2563eb', 
-        bg: '#dbeafe',
-        icon: TrendingUp
-      };
+      return { label: 'On Track', class: 'on-track', icon: TrendingUp };
     } else if (percentage >= target * 0.6) {
-      return { 
-        label: 'At Risk', 
-        color: '#ea580c', 
-        bg: '#ffedd5',
-        icon: AlertTriangle
-      };
+      return { label: 'At Risk', class: 'at-risk', icon: AlertTriangle };
     } else {
-      return { 
-        label: 'Critical', 
-        color: '#dc2626', 
-        bg: '#fee2e2',
-        icon: AlertCircle
-      };
+      return { label: 'Critical', class: 'critical', icon: AlertCircle };
     }
   }
 
@@ -238,318 +182,229 @@ export default function QualityStandards() {
   if (loading && !projectId) return <LoadingSpinner message="Loading quality standards..." size="large" fullPage />;
 
   return (
-    <div className="page-container">
-      <PageHeader
-        icon={Award}
-        title="Quality Standards"
-        subtitle="Track quality compliance across deliverables"
-      >
-        {canEdit && !showAddForm && (
-          <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-            <Plus size={18} /> Add Quality Standard
-          </button>
-        )}
-      </PageHeader>
-
-      {/* Stats Cards */}
-      <div className="stats-grid">
-        <StatCard
-          icon={Award}
-          label="Total Standards"
-          value={totalQS}
-          color="#3b82f6"
-        />
-        <StatCard
-          icon={CheckCircle}
-          label="Achieved"
-          value={achievedQS}
-          color="#16a34a"
-        />
-        <StatCard
-          icon={AlertTriangle}
-          label="At Risk"
-          value={atRiskQS}
-          color="#ea580c"
-        />
-        <StatCard
-          icon={Clock}
-          label="Not Started"
-          value={notStartedQS}
-          color="#64748b"
-        />
-      </div>
-
-      {/* Add Form */}
-      {showAddForm && canEdit && (
-        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary)' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Add New Quality Standard</h3>
-          <form onSubmit={handleAdd}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-              <div>
-                <label className="form-label">Reference *</label>
-                <input 
-                  type="text" 
-                  className="form-input"
-                  placeholder="e.g., QS08"
-                  value={newQS.qs_ref}
-                  onChange={(e) => setNewQS({ ...newQS, qs_ref: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Name *</label>
-                <input 
-                  type="text" 
-                  className="form-input"
-                  placeholder="e.g., Documentation Quality"
-                  value={newQS.name}
-                  onChange={(e) => setNewQS({ ...newQS, name: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-            <div style={{ marginTop: '1rem' }}>
-              <label className="form-label">Description</label>
-              <textarea 
-                className="form-input"
-                rows={3}
-                placeholder="Describe what this quality standard measures..."
-                value={newQS.description}
-                onChange={(e) => setNewQS({ ...newQS, description: e.target.value })}
-              />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-              <div>
-                <label className="form-label">Target (%)</label>
-                <input 
-                  type="number" 
-                  className="form-input"
-                  min="0"
-                  max="100"
-                  value={newQS.target}
-                  onChange={(e) => setNewQS({ ...newQS, target: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="form-label">Current Value (%)</label>
-                <input 
-                  type="number" 
-                  className="form-input"
-                  min="0"
-                  max="100"
-                  value={newQS.current_value}
-                  onChange={(e) => setNewQS({ ...newQS, current_value: e.target.value })}
-                />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-              <button type="submit" className="btn btn-primary">
-                <Save size={16} /> Save Quality Standard
+    <div className="qs-page">
+      {/* Header */}
+      <header className="qs-header">
+        <div className="qs-header-content">
+          <div className="qs-header-left">
+            <h1>Quality Standards</h1>
+            <p>Track quality compliance across deliverables</p>
+          </div>
+          <div className="qs-header-actions">
+            <button 
+              className="qs-btn qs-btn-secondary" 
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
+              Refresh
+            </button>
+            {canEdit && !showAddForm && (
+              <button className="qs-btn qs-btn-primary" onClick={() => setShowAddForm(true)}>
+                <Plus size={18} />
+                Add Quality Standard
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
-                <X size={16} /> Cancel
-              </button>
-            </div>
-          </form>
+            )}
+          </div>
         </div>
-      )}
+      </header>
 
-      {/* Quality Standards Table */}
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Ref</th>
-              <th>Name</th>
-              <th>Target</th>
-              <th>Current</th>
-              <th>Assessments</th>
-              <th>Status</th>
-              {canEdit && <th>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {qualityStandards.length === 0 ? (
-              <tr>
-                <td colSpan={canEdit ? 7 : 6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                  No quality standards found. {canEdit && 'Click "Add Quality Standard" to create one.'}
-                </td>
-              </tr>
-            ) : (
-              qualityStandards.map(qs => {
-                const status = getQSStatus(qs);
-                const StatusIcon = status.icon;
-                const assessments = assessmentCounts[qs.id] || { total: 0, met: 0 };
-                const isEditing = editingId === qs.id;
+      {/* Content */}
+      <div className="qs-content">
+        {/* Summary Cards */}
+        <div className="qs-summary-grid">
+          <div className="qs-summary-card accent">
+            <div className="qs-summary-icon">
+              <Award size={24} />
+            </div>
+            <div className="qs-summary-value">{totalQS}</div>
+            <div className="qs-summary-label">Total Standards</div>
+          </div>
+          
+          <div className="qs-summary-card success">
+            <div className="qs-summary-icon">
+              <CheckCircle size={24} />
+            </div>
+            <div className="qs-summary-value">{achievedQS}</div>
+            <div className="qs-summary-label">Achieved</div>
+          </div>
+          
+          <div className="qs-summary-card warning">
+            <div className="qs-summary-icon">
+              <AlertTriangle size={24} />
+            </div>
+            <div className="qs-summary-value">{atRiskQS}</div>
+            <div className="qs-summary-label">At Risk</div>
+          </div>
+          
+          <div className="qs-summary-card muted">
+            <div className="qs-summary-icon">
+              <Clock size={24} />
+            </div>
+            <div className="qs-summary-value">{notStartedQS}</div>
+            <div className="qs-summary-label">Not Started</div>
+          </div>
+        </div>
 
-                return (
-                  <tr 
-                    key={qs.id}
-                    onClick={() => !isEditing && navigate(`/quality-standards/${qs.id}`)}
-                    style={{ cursor: isEditing ? 'default' : 'pointer' }}
-                    className={isEditing ? '' : 'table-row-clickable'}
-                  >
-                    <td onClick={(e) => isEditing && e.stopPropagation()}>
-                      {isEditing ? (
-                        <input 
-                          type="text"
-                          className="form-input"
-                          value={editForm.qs_ref}
-                          onChange={(e) => setEditForm({ ...editForm, qs_ref: e.target.value })}
-                          style={{ width: '80px' }}
-                        />
-                      ) : (
-                        <span style={{ 
-                          fontFamily: 'monospace', 
-                          fontWeight: '600',
-                          color: '#8b5cf6'
-                        }}>
-                          {qs.qs_ref}
-                        </span>
-                      )}
-                    </td>
-                    <td onClick={(e) => isEditing && e.stopPropagation()}>
-                      {isEditing ? (
-                        <input 
-                          type="text"
-                          className="form-input"
-                          value={editForm.name}
-                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                        />
-                      ) : (
-                        <span style={{ fontWeight: '500' }}>{qs.name}</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {isEditing ? (
-                        <input 
-                          type="number"
-                          className="form-input"
-                          min="0"
-                          max="100"
-                          value={editForm.target}
-                          onChange={(e) => setEditForm({ ...editForm, target: e.target.value })}
-                          style={{ width: '70px', textAlign: 'center' }}
-                        />
-                      ) : (
-                        `${qs.target}%`
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {isEditing ? (
-                        <input 
-                          type="number"
-                          className="form-input"
-                          min="0"
-                          max="100"
-                          value={editForm.current_value}
-                          onChange={(e) => setEditForm({ ...editForm, current_value: e.target.value })}
-                          style={{ width: '70px', textAlign: 'center' }}
-                        />
-                      ) : (
-                        <span style={{ 
-                          fontWeight: '600',
-                          color: qs.current_value >= qs.target ? '#16a34a' : '#64748b'
-                        }}>
-                          {qs.current_value}%
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {assessments.total > 0 ? (
-                        <span style={{ color: '#64748b' }}>
-                          {assessments.met} of {assessments.total} passed
-                        </span>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                          None yet
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        fontSize: '0.85rem',
-                        fontWeight: '500',
-                        backgroundColor: status.bg,
-                        color: status.color
-                      }}>
-                        <StatusIcon size={14} />
-                        {status.label}
-                      </span>
-                    </td>
-                    {canEdit && (
-                      <td onClick={(e) => e.stopPropagation()}>
-                        {isEditing ? (
-                          <div className="action-buttons">
-                            <button 
-                              className="btn-icon btn-success" 
-                              onClick={() => handleSave(qs.id)}
-                              title="Save"
-                            >
-                              <Save size={16} />
-                            </button>
-                            <button 
-                              className="btn-icon btn-secondary" 
-                              onClick={() => setEditingId(null)}
-                              title="Cancel"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
+        {/* Add Form */}
+        {showAddForm && canEdit && (
+          <div className="qs-add-form">
+            <div className="qs-add-form-header">
+              <h3 className="qs-add-form-title">
+                <Plus size={20} style={{ color: 'var(--ds-teal)' }} />
+                Add New Quality Standard
+              </h3>
+              <button className="qs-add-form-close" onClick={() => setShowAddForm(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdd}>
+              <div className="qs-form-row two-col">
+                <div className="qs-form-group">
+                  <label>Reference *</label>
+                  <input
+                    type="text"
+                    value={newQS.qs_ref}
+                    onChange={(e) => setNewQS({ ...newQS, qs_ref: e.target.value })}
+                    placeholder="e.g., QS09"
+                    style={{ fontFamily: 'var(--ds-font-mono)', fontWeight: 600 }}
+                    required
+                  />
+                </div>
+                <div className="qs-form-group">
+                  <label>Name *</label>
+                  <input
+                    type="text"
+                    value={newQS.name}
+                    onChange={(e) => setNewQS({ ...newQS, name: e.target.value })}
+                    placeholder="e.g., Documentation Quality"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="qs-form-group" style={{ marginBottom: 16 }}>
+                <label>Description</label>
+                <textarea
+                  value={newQS.description}
+                  onChange={(e) => setNewQS({ ...newQS, description: e.target.value })}
+                  placeholder="Describe what this quality standard measures..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="qs-form-row targets">
+                <div className="qs-form-group">
+                  <label>Target (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newQS.target}
+                    onChange={(e) => setNewQS({ ...newQS, target: e.target.value })}
+                  />
+                </div>
+                <div className="qs-form-group">
+                  <label>Current Value (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newQS.current_value}
+                    onChange={(e) => setNewQS({ ...newQS, current_value: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="qs-form-actions">
+                <button type="button" className="qs-btn qs-btn-secondary" onClick={() => setShowAddForm(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="qs-btn qs-btn-primary" disabled={saving}>
+                  <Save size={16} />
+                  {saving ? 'Saving...' : 'Save Quality Standard'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Quality Standards Table */}
+        <div className="qs-table-card">
+          <div className="qs-table-header">
+            <h2 className="qs-table-title">Quality Standards</h2>
+            <span className="qs-table-count">{qualityStandards.length} standard{qualityStandards.length !== 1 ? 's' : ''}</span>
+          </div>
+          
+          {qualityStandards.length === 0 ? (
+            <div className="qs-empty">
+              <div className="qs-empty-icon">
+                <Award size={32} />
+              </div>
+              <div className="qs-empty-title">No quality standards found</div>
+              <div className="qs-empty-text">
+                {canEdit ? 'Click "Add Quality Standard" to create one.' : 'No quality standards have been defined yet.'}
+              </div>
+            </div>
+          ) : (
+            <table className="qs-table">
+              <thead>
+                <tr>
+                  <th>Ref</th>
+                  <th>Name</th>
+                  <th>Target</th>
+                  <th>Current</th>
+                  <th>Assessments</th>
+                </tr>
+              </thead>
+              <tbody>
+                {qualityStandards.map(qs => {
+                  const status = getQSStatus(qs);
+                  const assessments = assessmentCounts[qs.id] || { total: 0, met: 0 };
+                  const currentPercent = assessments.total > 0 
+                    ? Math.round((assessments.met / assessments.total) * 100)
+                    : qs.current_value || 0;
+
+                  return (
+                    <tr key={qs.id} onClick={() => navigate(`/quality-standards/${qs.id}`)}>
+                      <td><span className="qs-ref">{qs.qs_ref}</span></td>
+                      <td><span className="qs-name">{qs.name}</span></td>
+                      <td><span className="qs-target">{qs.target}%</span></td>
+                      <td>
+                        <span className={`qs-current ${status.class}`}>{currentPercent}%</span>
+                      </td>
+                      <td>
+                        {assessments.total > 0 ? (
+                          <span className="qs-assessments">
+                            {assessments.met} of {assessments.total} passed
+                          </span>
                         ) : (
-                          <div className="action-buttons">
-                            <button 
-                              className="btn-icon" 
-                              onClick={() => handleEdit(qs)}
-                              title="Edit"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button 
-                              className="btn-icon btn-danger" 
-                              onClick={() => handleDelete(qs)}
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
+                          <span className="qs-assessments-none">None yet</span>
                         )}
                       </td>
-                    )}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
 
-      {/* Info Box */}
-      <div style={{
-        marginTop: '1.5rem',
-        padding: '1rem',
-        backgroundColor: '#f0fdf4',
-        borderLeft: '4px solid #16a34a',
-        borderRadius: '4px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-          <Info size={20} style={{ color: '#16a34a', marginTop: '2px' }} />
-          <div>
-            <h4 style={{ margin: '0 0 0.5rem 0', color: '#166534' }}>Quality Standards Overview</h4>
-            <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#166534', fontSize: '0.9rem' }}>
-              <li><strong>Not Started:</strong> No deliverables have been assessed against this standard yet</li>
-              <li><strong>Achieved:</strong> Current score meets or exceeds target</li>
-              <li><strong>On Track:</strong> Within 80% of target</li>
-              <li><strong>At Risk:</strong> 60-80% of target</li>
-              <li><strong>Critical:</strong> Below 60% of target (only for assessed standards)</li>
-              {canEdit && <li><strong>Permissions:</strong> Admin and Supplier PM can add/edit quality standards</li>}
-            </ul>
+        {/* Info Box */}
+        <div className="qs-info-box">
+          <div className="qs-info-header">
+            <Info size={18} />
+            Quality Standards Overview
           </div>
+          <ul className="qs-info-list">
+            <li><strong>Not Started</strong> — No deliverables have been assessed against this standard yet</li>
+            <li><strong>Achieved</strong> — Current score meets or exceeds target</li>
+            <li><strong>On Track</strong> — Within 80% of target</li>
+            <li><strong>At Risk</strong> — 60-80% of target</li>
+            <li><strong>Critical</strong> — Below 60% of target</li>
+            <li>Click any row to view details and manage assessments</li>
+          </ul>
         </div>
       </div>
 
