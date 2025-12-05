@@ -1,15 +1,26 @@
-// src/pages/Users.jsx
-// Updated: Supplier PM has full admin capabilities
+/**
+ * Users Page - User Management
+ * 
+ * Clean Apple design with:
+ * - No dashboard stat cards
+ * - Inline role editing
+ * - Resource linking
+ * - Test user toggle (admin/supplier_pm only)
+ * 
+ * @version 2.0 - Apple design cleanup
+ * @updated 5 December 2025
+ */
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import './Users.css';
 import { 
-  UserCircle, Plus, Edit2, Trash2, Save, X, RefreshCw, 
-  Shield, Eye, EyeOff, TestTube, AlertTriangle, Link, Unlink
+  Users as UsersIcon, Plus, Save, X, RefreshCw, 
+  Shield, Eye, EyeOff, TestTube, Link, Unlink, ChevronDown
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../contexts/ToastContext';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { LoadingSpinner } from '../components/common';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -18,15 +29,11 @@ export default function Users() {
   const [userRole, setUserRole] = useState('viewer');
   const [currentUserId, setCurrentUserId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
+  const [editingRoleId, setEditingRoleId] = useState(null);
   const [linkingId, setLinkingId] = useState(null);
   const [selectedResourceId, setSelectedResourceId] = useState('');
   
-  // Test user context
-  const { showTestUsers, toggleTestUsers, canToggleTestUsers, testUserIds } = useTestUsers();
-  
-  // Toast notifications
+  const { showTestUsers, toggleTestUsers, canToggleTestUsers } = useTestUsers();
   const { showSuccess, showError, showWarning } = useToast();
 
   const [newUser, setNewUser] = useState({
@@ -67,30 +74,25 @@ export default function Users() {
     }
   }
 
-  // Supplier PM has same rights as Admin
   const canManageUsers = userRole === 'admin' || userRole === 'supplier_pm';
 
   async function fetchData() {
     try {
       setLoading(true);
       
-      // Build query - exclude test users unless toggle is on
       let query = supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
       
-      // Filter out test users if toggle is off
       if (!showTestUsers) {
         query = query.or('is_test_user.is.null,is_test_user.eq.false');
       }
       
       const { data, error } = await query;
-      
       if (error) throw error;
       setUsers(data || []);
 
-      // Fetch resources for linking
       const { data: resourcesData } = await supabase
         .from('resources')
         .select('id, name, email, user_id')
@@ -111,7 +113,6 @@ export default function Users() {
     }
 
     try {
-      // Create user in auth
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newUser.email,
         password: newUser.password,
@@ -120,7 +121,6 @@ export default function Users() {
 
       if (authError) throw authError;
 
-      // Create profile
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -128,7 +128,7 @@ export default function Users() {
           email: newUser.email,
           full_name: newUser.full_name || newUser.email.split('@')[0],
           role: newUser.role,
-          is_test_user: false // Real users are never test users
+          is_test_user: false
         });
 
       if (profileError) throw profileError;
@@ -152,48 +152,14 @@ export default function Users() {
 
       if (error) throw error;
       await fetchData();
-      setEditingId(null);
+      setEditingRoleId(null);
+      showSuccess('Role updated');
     } catch (error) {
       console.error('Error updating role:', error);
       showError('Failed to update role');
     }
   }
 
-  async function handleDeleteUser(userId) {
-    // Prevent deleting yourself
-    if (userId === currentUserId) {
-      showWarning('You cannot delete your own account');
-      return;
-    }
-
-    // Prevent deleting test users when not in test mode
-    const user = users.find(u => u.id === userId);
-    if (user?.is_test_user && !showTestUsers) {
-      showWarning('Cannot delete test users');
-      return;
-    }
-
-    if (!confirm('Delete this user? This cannot be undone.')) return;
-
-    try {
-      // Delete profile first
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-
-      if (profileError) throw profileError;
-
-      // Note: Deleting from auth.users may require admin API
-      await fetchData();
-      showSuccess('User deleted');
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      showError('Failed to delete user');
-    }
-  }
-
-  // Link user to resource
   async function handleLinkResource(userId) {
     if (!selectedResourceId) {
       showWarning('Please select a resource');
@@ -218,7 +184,6 @@ export default function Users() {
     }
   }
 
-  // Unlink user from resource
   async function handleUnlinkResource(resourceId) {
     if (!confirm('Unlink this resource from the user?')) return;
 
@@ -250,14 +215,13 @@ export default function Users() {
     return resources.filter(r => !r.user_id);
   }
 
-  // Count test users for the badge
   const testUserCount = users.filter(u => u.is_test_user).length;
 
   if (!canManageUsers) {
     return (
-      <div className="page-container">
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <Shield size={48} style={{ color: '#ef4444', marginBottom: '1rem' }} />
+      <div className="users-page">
+        <div className="access-denied">
+          <Shield size={48} />
           <h2>Access Denied</h2>
           <p>You don't have permission to manage users.</p>
         </div>
@@ -268,424 +232,245 @@ export default function Users() {
   if (loading) return <LoadingSpinner message="Loading users..." size="large" fullPage />;
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">
-          <UserCircle size={28} />
-          <div>
-            <h1>User Management</h1>
-            <p>Manage user accounts and permissions</p>
-          </div>
-        </div>
-        <button className="btn btn-secondary" onClick={fetchData}>
-          <RefreshCw size={18} /> Refresh
-        </button>
-      </div>
-
-      {/* Test User Toggle - Only visible to Admin/Supplier PM */}
-      {canToggleTestUsers && (
-        <div 
-          className="card" 
-          style={{ 
-            marginBottom: '1.5rem', 
-            backgroundColor: showTestUsers ? '#fef3c7' : '#f8fafc',
-            borderLeft: showTestUsers ? '4px solid #f59e0b' : '4px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '1rem 1.5rem'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <TestTube size={20} style={{ color: showTestUsers ? '#d97706' : '#64748b' }} />
+    <div className="users-page">
+      {/* Header */}
+      <header className="users-header">
+        <div className="header-content">
+          <div className="header-title">
+            <UsersIcon size={28} strokeWidth={1.5} />
             <div>
-              <div style={{ fontWeight: '500', color: showTestUsers ? '#92400e' : '#374151' }}>
-                {showTestUsers ? 'Test Users Visible' : 'Test Users Hidden'}
-              </div>
-              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                {showTestUsers 
-                  ? `Showing ${testUserCount} test user(s) and their content`
-                  : 'Test users and their content are hidden from all views'
-                }
-              </div>
+              <h1>Users</h1>
+              <p>{users.length} user{users.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
-          <button
-            onClick={toggleTestUsers}
-            className="btn"
-            style={{
-              backgroundColor: showTestUsers ? '#fbbf24' : '#e2e8f0',
-              color: showTestUsers ? '#78350f' : '#374151',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            {showTestUsers ? <EyeOff size={16} /> : <Eye size={16} />}
-            {showTestUsers ? 'Hide Test Users' : 'Show Test Users'}
-          </button>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-label">TOTAL USERS</div>
-          <div className="stat-value">{users.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">ADMINS</div>
-          <div className="stat-value" style={{ color: '#7c3aed' }}>
-            {users.filter(u => u.role === 'admin').length}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">PROJECT MANAGERS</div>
-          <div className="stat-value" style={{ color: '#059669' }}>
-            {users.filter(u => u.role === 'supplier_pm' || u.role === 'customer_pm').length}
-          </div>
-        </div>
-      </div>
-
-      {/* Create User Form - Available to Admin and Supplier PM */}
-      {canManageUsers && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          {!showCreateForm ? (
-            <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
-              <Plus size={18} /> Create User Account
+          <div className="header-actions">
+            {canToggleTestUsers && (
+              <button
+                onClick={toggleTestUsers}
+                className={`btn-toggle ${showTestUsers ? 'active' : ''}`}
+              >
+                {showTestUsers ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showTestUsers ? 'Hide Test' : 'Show Test'}
+              </button>
+            )}
+            <button className="btn-secondary" onClick={fetchData}>
+              <RefreshCw size={16} />
             </button>
-          ) : (
-            <div>
-              <h3 style={{ marginBottom: '1rem' }}>Create New User Account</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div>
-                  <label className="form-label">Email *</label>
-                  <input 
-                    type="email"
-                    className="form-input"
-                    placeholder="user@example.com"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Password *</label>
-                  <input 
-                    type="password"
-                    className="form-input"
-                    placeholder="Secure password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Full Name</label>
-                  <input 
-                    type="text"
-                    className="form-input"
-                    placeholder="John Smith"
-                    value={newUser.full_name}
-                    onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Role</label>
-                  <select 
-                    className="form-input"
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  >
-                    {roles.map(r => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
-                    ))}
-                  </select>
-                </div>
+            <button className="btn-primary" onClick={() => setShowCreateForm(true)}>
+              <Plus size={16} />
+              Add User
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="users-content">
+        {/* Create User Form */}
+        {showCreateForm && (
+          <div className="create-form-card">
+            <h3>Create New User</h3>
+            <div className="form-grid">
+              <div className="form-field">
+                <label>Email *</label>
+                <input 
+                  type="email"
+                  placeholder="user@example.com"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                />
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-primary" onClick={handleCreateUser}>
-                  <Plus size={16} /> Create User
-                </button>
-                <button className="btn btn-secondary" onClick={() => setShowCreateForm(false)}>
-                  <X size={16} /> Cancel
-                </button>
+              <div className="form-field">
+                <label>Password *</label>
+                <input 
+                  type="password"
+                  placeholder="Secure password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                />
+              </div>
+              <div className="form-field">
+                <label>Full Name</label>
+                <input 
+                  type="text"
+                  placeholder="John Smith"
+                  value={newUser.full_name}
+                  onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                />
+              </div>
+              <div className="form-field">
+                <label>Role</label>
+                <select 
+                  value={newUser.role}
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                >
+                  {roles.map(r => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
-          )}
-        </div>
-      )}
+            <div className="form-actions">
+              <button className="btn-primary" onClick={handleCreateUser}>
+                <Plus size={16} /> Create User
+              </button>
+              <button className="btn-secondary" onClick={() => setShowCreateForm(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
-      {/* Users Table */}
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Email</th>
-              <th>Linked Resource</th>
-              <th>Role</th>
-              <th>Created</th>
-              {showTestUsers && <th>Type</th>}
-              {canManageUsers && <th>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {users.length === 0 ? (
+        {/* Test User Banner */}
+        {showTestUsers && testUserCount > 0 && (
+          <div className="test-banner">
+            <TestTube size={16} />
+            <span>Showing {testUserCount} test user{testUserCount !== 1 ? 's' : ''}</span>
+          </div>
+        )}
+
+        {/* Users Table */}
+        <div className="table-card">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={canManageUsers ? 7 : 6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                  No users found
-                </td>
+                <th>User</th>
+                <th>Email</th>
+                <th>Linked Resource</th>
+                <th>Role</th>
+                <th>Created</th>
+                {showTestUsers && <th>Type</th>}
               </tr>
-            ) : (
-              users.map(user => {
-                const roleConfig = getRoleConfig(user.role);
-                const isTestUser = user.is_test_user;
-                const linkedResource = getLinkedResource(user.id);
-                const isCurrentUser = user.id === currentUserId;
-                
-                return (
-                  <tr 
-                    key={user.id}
-                    style={{ 
-                      backgroundColor: isTestUser ? '#fffbeb' : 'transparent'
-                    }}
-                  >
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '50%',
-                          backgroundColor: isTestUser ? '#fbbf24' : '#10b981',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontWeight: '600',
-                          fontSize: '0.85rem'
-                        }}>
-                          {(user.full_name || user.email || 'U')[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <span style={{ fontWeight: '500' }}>
-                            {user.full_name || 'No name'}
-                          </span>
-                          {isCurrentUser && (
-                            <span style={{ 
-                              marginLeft: '0.5rem',
-                              fontSize: '0.75rem', 
-                              color: '#10b981',
-                              fontWeight: '600'
-                            }}>
-                              (you)
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={showTestUsers ? 6 : 5} className="empty-state">
+                    No users found
+                  </td>
+                </tr>
+              ) : (
+                users.map(user => {
+                  const roleConfig = getRoleConfig(user.role);
+                  const isTestUser = user.is_test_user;
+                  const linkedResource = getLinkedResource(user.id);
+                  const isCurrentUser = user.id === currentUserId;
+                  
+                  return (
+                    <tr key={user.id} className={isTestUser ? 'test-user-row' : ''}>
+                      <td>
+                        <div className="user-cell">
+                          <div className={`user-avatar ${isTestUser ? 'test' : ''}`}>
+                            {(user.full_name || user.email || 'U')[0].toUpperCase()}
+                          </div>
+                          <div className="user-info">
+                            <span className="user-name">
+                              {user.full_name || 'No name'}
                             </span>
-                          )}
+                            {isCurrentUser && <span className="you-badge">you</span>}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td style={{ color: '#64748b' }}>{user.email}</td>
-                    <td>
-                      {linkingId === user.id ? (
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <select
-                            className="form-input"
-                            value={selectedResourceId}
-                            onChange={(e) => setSelectedResourceId(e.target.value)}
-                            style={{ width: '150px', fontSize: '0.85rem' }}
-                          >
-                            <option value="">Select resource...</option>
-                            {getAvailableResources().map(r => (
-                              <option key={r.id} value={r.id}>{r.name}</option>
-                            ))}
-                          </select>
-                          <button 
-                            className="btn-icon btn-success"
-                            onClick={() => handleLinkResource(user.id)}
-                            title="Link"
-                          >
-                            <Save size={14} />
-                          </button>
-                          <button 
-                            className="btn-icon btn-secondary"
-                            onClick={() => { setLinkingId(null); setSelectedResourceId(''); }}
-                            title="Cancel"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ) : linkedResource ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Link size={14} style={{ color: '#10b981' }} />
-                          <span style={{ color: '#10b981', fontWeight: '500' }}>
-                            {linkedResource.name}
-                          </span>
-                          {canManageUsers && (
-                            <button
-                              className="btn-icon"
-                              onClick={() => handleUnlinkResource(linkedResource.id)}
-                              title="Unlink resource"
-                              style={{ padding: '0.25rem' }}
+                      </td>
+                      <td className="email-cell">{user.email}</td>
+                      <td>
+                        {linkingId === user.id ? (
+                          <div className="link-form">
+                            <select
+                              value={selectedResourceId}
+                              onChange={(e) => setSelectedResourceId(e.target.value)}
                             >
+                              <option value="">Select...</option>
+                              {getAvailableResources().map(r => (
+                                <option key={r.id} value={r.id}>{r.name}</option>
+                              ))}
+                            </select>
+                            <button className="btn-icon success" onClick={() => handleLinkResource(user.id)}>
+                              <Save size={14} />
+                            </button>
+                            <button className="btn-icon" onClick={() => { setLinkingId(null); setSelectedResourceId(''); }}>
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : linkedResource ? (
+                          <div className="linked-resource">
+                            <Link size={14} />
+                            <span>{linkedResource.name}</span>
+                            <button className="btn-icon-small" onClick={() => handleUnlinkResource(linkedResource.id)} title="Unlink">
                               <Unlink size={12} />
                             </button>
-                          )}
-                        </div>
-                      ) : (
-                        <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>
-                          Not linked
-                          {canManageUsers && (
-                            <button
-                              onClick={() => setLinkingId(user.id)}
-                              style={{
-                                marginLeft: '0.5rem',
-                                background: 'none',
-                                border: 'none',
-                                color: '#3b82f6',
-                                cursor: 'pointer',
-                                fontSize: '0.8rem',
-                                textDecoration: 'underline'
-                              }}
-                            >
-                              Link
-                            </button>
-                          )}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {editingId === user.id ? (
-                        <select
-                          className="form-input"
-                          value={editForm.role}
-                          onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                          style={{ width: '140px' }}
-                        >
-                          {roles.map(r => (
-                            <option key={r.value} value={r.value}>{r.label}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span style={{
-                          padding: '0.25rem 0.75rem',
-                          backgroundColor: roleConfig.color + '20',
-                          color: roleConfig.color,
-                          borderRadius: '4px',
-                          fontSize: '0.85rem',
-                          fontWeight: '500'
-                        }}>
-                          {roleConfig.label}
-                          {isCurrentUser && ' (you)'}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ color: '#64748b', fontSize: '0.9rem' }}>
-                      {user.created_at ? new Date(user.created_at).toLocaleDateString('en-GB') : '-'}
-                    </td>
-                    {showTestUsers && (
-                      <td>
-                        {isTestUser ? (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            padding: '0.25rem 0.5rem',
-                            backgroundColor: '#fef3c7',
-                            color: '#92400e',
-                            borderRadius: '4px',
-                            fontSize: '0.8rem',
-                            fontWeight: '500'
-                          }}>
-                            <TestTube size={12} /> Test
-                          </span>
-                        ) : (
-                          <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Real</span>
-                        )}
-                      </td>
-                    )}
-                    {canManageUsers && (
-                      <td>
-                        {editingId === user.id ? (
-                          <div style={{ display: 'flex', gap: '0.25rem' }}>
-                            <button 
-                              className="btn-icon btn-success"
-                              onClick={() => handleUpdateRole(user.id, editForm.role)}
-                              title="Save"
-                            >
-                              <Save size={16} />
-                            </button>
-                            <button 
-                              className="btn-icon btn-secondary"
-                              onClick={() => setEditingId(null)}
-                              title="Cancel"
-                            >
-                              <X size={16} />
-                            </button>
                           </div>
                         ) : (
-                          <div style={{ display: 'flex', gap: '0.25rem' }}>
-                            <button 
-                              className="btn-icon"
-                              onClick={() => {
-                                setEditingId(user.id);
-                                setEditForm({ role: user.role });
-                              }}
-                              title="Edit Role"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            {!isTestUser && !isCurrentUser && (
-                              <button 
-                                className="btn-icon btn-danger"
-                                onClick={() => handleDeleteUser(user.id)}
-                                title="Delete"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
+                          <button className="link-button" onClick={() => setLinkingId(user.id)}>
+                            Link resource
+                          </button>
                         )}
                       </td>
-                    )}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                      <td>
+                        {editingRoleId === user.id ? (
+                          <div className="role-edit">
+                            <select
+                              value={user.role}
+                              onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                              autoFocus
+                              onBlur={() => setEditingRoleId(null)}
+                            >
+                              {roles.map(r => (
+                                <option key={r.value} value={r.value}>{r.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <button 
+                            className="role-badge"
+                            style={{ 
+                              backgroundColor: roleConfig.color + '15',
+                              color: roleConfig.color 
+                            }}
+                            onClick={() => setEditingRoleId(user.id)}
+                          >
+                            {roleConfig.label}
+                            <ChevronDown size={12} />
+                          </button>
+                        )}
+                      </td>
+                      <td className="date-cell">
+                        {user.created_at ? new Date(user.created_at).toLocaleDateString('en-GB') : '-'}
+                      </td>
+                      {showTestUsers && (
+                        <td>
+                          {isTestUser ? (
+                            <span className="type-badge test">
+                              <TestTube size={12} /> Test
+                            </span>
+                          ) : (
+                            <span className="type-badge real">Real</span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      {/* Role Descriptions */}
-      <div className="card" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc' }}>
-        <h4 style={{ marginBottom: '1rem' }}>Role Descriptions</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <div>
-            <span style={{ fontWeight: '600', color: '#7c3aed' }}>Admin</span>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
-              Full system access. No workflow notifications.
-            </p>
-          </div>
-          <div>
-            <span style={{ fontWeight: '600', color: '#059669' }}>Supplier PM</span>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
-              Full system access + workflow participant. Validates timesheets & expenses.
-            </p>
-          </div>
-          <div>
-            <span style={{ fontWeight: '600', color: '#d97706' }}>Customer PM</span>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
-              Workflow participant. Validates timesheets, expenses & reviews deliverables.
-            </p>
-          </div>
-          <div>
-            <span style={{ fontWeight: '600', color: '#2563eb' }}>Contributor</span>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
-              Submits timesheets & expenses. Gets rejection notifications.
-            </p>
-          </div>
-          <div>
-            <span style={{ fontWeight: '600', color: '#64748b' }}>Viewer</span>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
-              Read-only access to dashboards and reports.
-            </p>
+        {/* Role Legend */}
+        <div className="role-legend">
+          <h4>Role Permissions</h4>
+          <div className="legend-grid">
+            {roles.map(role => (
+              <div key={role.value} className="legend-item">
+                <span className="legend-dot" style={{ backgroundColor: role.color }}></span>
+                <span className="legend-label" style={{ color: role.color }}>{role.label}</span>
+                <span className="legend-desc">
+                  {role.value === 'admin' && 'Full system access'}
+                  {role.value === 'supplier_pm' && 'Full access + validates timesheets/expenses'}
+                  {role.value === 'customer_pm' && 'Reviews deliverables, validates timesheets'}
+                  {role.value === 'contributor' && 'Submits timesheets & expenses'}
+                  {role.value === 'viewer' && 'Read-only dashboard access'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
