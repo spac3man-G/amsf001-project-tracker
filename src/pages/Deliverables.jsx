@@ -4,14 +4,19 @@
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
  * Click on any deliverable to view details and perform workflow actions.
  * 
- * @version 3.1 - Removed dashboard cards for clean layout
- * @updated 5 December 2025
+ * @version 3.2 - Refactored to use deliverableCalculations.js for status constants
+ * @updated 6 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService } from '../services';
-import { Package, Plus, X, Save, CheckCircle, Clock, AlertCircle, Send, ThumbsUp, RotateCcw, RefreshCw } from 'lucide-react';
+import { Package, Plus, X, Save, RefreshCw } from 'lucide-react';
+import { 
+  DELIVERABLE_STATUS,
+  DELIVERABLE_STATUS_CONFIG,
+  getStatusOptions 
+} from '../lib/deliverableCalculations';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -22,15 +27,7 @@ import { LoadingSpinner, PageHeader } from '../components/common';
 import { DeliverableDetailModal } from '../components/deliverables';
 import './Deliverables.css';
 
-const STATUS_OPTIONS = ['Not Started', 'In Progress', 'Submitted for Review', 'Returned for More Work', 'Review Complete', 'Delivered'];
-const STATUS_COLORS = {
-  'Delivered': { bg: '#dcfce7', color: '#16a34a', icon: CheckCircle },
-  'Review Complete': { bg: '#dbeafe', color: '#2563eb', icon: ThumbsUp },
-  'Submitted for Review': { bg: '#fef3c7', color: '#d97706', icon: Send },
-  'In Progress': { bg: '#e0e7ff', color: '#4f46e5', icon: Clock },
-  'Returned for More Work': { bg: '#fee2e2', color: '#dc2626', icon: RotateCcw },
-  'Not Started': { bg: '#f1f5f9', color: '#64748b', icon: AlertCircle }
-};
+// Status options and colors now imported from deliverableCalculations.js
 
 function KPISelector({ kpis, selectedIds, onChange, label = "Link to KPIs" }) {
   return (
@@ -99,7 +96,7 @@ export default function Deliverables() {
   // Detail modal state
   const [detailModal, setDetailModal] = useState({ isOpen: false, deliverable: null });
 
-  const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, kpi_ids: [], qs_ids: [] });
+  const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: DELIVERABLE_STATUS.NOT_STARTED, progress: 0, kpi_ids: [], qs_ids: [] });
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
@@ -140,7 +137,7 @@ export default function Deliverables() {
       await deliverablesService.syncKPILinks(data.id, newDeliverable.kpi_ids);
       await deliverablesService.syncQSLinks(data.id, newDeliverable.qs_ids);
 
-      setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, kpi_ids: [], qs_ids: [] });
+      setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: DELIVERABLE_STATUS.NOT_STARTED, progress: 0, kpi_ids: [], qs_ids: [] });
       setShowAddForm(false);
       fetchData();
       refreshMetrics();
@@ -170,9 +167,9 @@ export default function Deliverables() {
   async function handleStatusChange(d, newStatus) {
     try {
       let newProgress = d.progress;
-      if (newStatus === 'Not Started') newProgress = 0;
-      else if (['Submitted for Review', 'Review Complete', 'Delivered'].includes(newStatus)) newProgress = 100;
-      else if (newStatus === 'Returned for More Work') newProgress = 50;
+      if (newStatus === DELIVERABLE_STATUS.NOT_STARTED) newProgress = 0;
+      else if ([DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW, DELIVERABLE_STATUS.REVIEW_COMPLETE, DELIVERABLE_STATUS.DELIVERED].includes(newStatus)) newProgress = 100;
+      else if (newStatus === DELIVERABLE_STATUS.RETURNED_FOR_MORE_WORK) newProgress = 50;
 
       await deliverablesService.update(d.id, { status: newStatus, progress: newProgress });
       fetchData();
@@ -197,7 +194,7 @@ export default function Deliverables() {
     if (linkedQS.length > 0 && !linkedQS.every(dqs => qsAssessments[dqs.quality_standard_id] !== undefined)) { showWarning('Please assess all linked Quality Standards.'); return; }
 
     try {
-      await deliverablesService.update(completingDeliverable.id, { status: 'Delivered', progress: 100 });
+      await deliverablesService.update(completingDeliverable.id, { status: DELIVERABLE_STATUS.DELIVERED, progress: 100 });
 
       if (linkedKPIs.length > 0) {
         const kpiAssessmentData = linkedKPIs.map(dk => ({
@@ -250,9 +247,9 @@ export default function Deliverables() {
   let filteredDeliverables = deliverables;
   if (filterMilestone) filteredDeliverables = filteredDeliverables.filter(d => d.milestone_id === filterMilestone);
   if (filterStatus) filteredDeliverables = filteredDeliverables.filter(d => d.status === filterStatus);
-  if (showAwaitingReview) filteredDeliverables = filteredDeliverables.filter(d => d.status === 'Submitted for Review');
+  if (showAwaitingReview) filteredDeliverables = filteredDeliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW);
 
-  const submittedForReview = deliverables.filter(d => d.status === 'Submitted for Review').length;
+  const submittedForReview = deliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW).length;
   const canEdit = canEditDeliverable;
   const canReview = canReviewDeliverable;
   const canDelete = canDeleteDeliverable;
@@ -294,7 +291,7 @@ export default function Deliverables() {
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="del-filter-select">
             <option value="">All Statuses</option>
-            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            {getStatusOptions().map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {submittedForReview > 0 && (
             <button 
@@ -367,7 +364,7 @@ export default function Deliverables() {
               {filteredDeliverables.length === 0 ? (
                 <tr><td colSpan={5} className="del-empty-cell">No deliverables found</td></tr>
               ) : filteredDeliverables.map(d => {
-                const statusInfo = STATUS_COLORS[d.status] || STATUS_COLORS['Not Started'];
+                const statusInfo = DELIVERABLE_STATUS_CONFIG[d.status] || DELIVERABLE_STATUS_CONFIG[DELIVERABLE_STATUS.NOT_STARTED];
                 const StatusIcon = statusInfo.icon;
                 return (
                   <tr key={d.id} onClick={() => handleRowClick(d)}>
