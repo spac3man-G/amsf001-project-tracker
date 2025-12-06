@@ -1,16 +1,24 @@
 // src/components/chat/ChatWidget.jsx
 // Floating AI chat widget with expandable panel
-// Version 3.3 - Added context loading indicator
+// Version 4.0 - Added suggested questions, date picker, natural language dates
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   MessageCircle, X, Send, Trash2, Bot, User, Loader2, Sparkles, 
-  Database, RefreshCw, XCircle, Copy, Check, Download, BarChart3, Zap 
+  Database, RefreshCw, XCircle, Copy, Check, Download, BarChart3, Zap,
+  Calendar, ChevronDown, Lightbulb
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { getSuggestedQuestions, containsDateQuery } from '../../lib/chatSuggestions';
+import { parseNaturalDate, formatDateRange, getDateSuggestions } from '../../lib/naturalDateParser';
 import './ChatWidget.css';
 
 export default function ChatWidget() {
+  const location = useLocation();
+  const { role } = useAuth();
+  
   const {
     isOpen,
     toggleChat,
@@ -31,8 +39,22 @@ export default function ChatWidget() {
   const [input, setInput] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showStats, setShowStats] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const datePickerRef = useRef(null);
+
+  // Get suggested questions based on current page
+  const suggestedQuestions = useMemo(() => {
+    return getSuggestedQuestions(location.pathname, role);
+  }, [location.pathname, role]);
+
+  // Check if input might benefit from date picker
+  const showDateHint = useMemo(() => {
+    return input.length > 5 && containsDateQuery(input);
+  }, [input]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -54,11 +76,40 @@ export default function ChatWidget() {
     }
   }, [copiedIndex]);
 
+  // Close date picker when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        setShowDatePicker(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Hide suggestions after first message
+  useEffect(() => {
+    if (messages.length > 0) {
+      setShowSuggestions(false);
+    }
+  }, [messages.length]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
-      sendMessage(input);
+      // Check for natural language date in the query
+      const dateResult = parseNaturalDate(input.trim());
+      let finalInput = input;
+      
+      // If a date range was selected from picker, append it
+      if (dateRange.start && dateRange.end) {
+        finalInput = `${input} (from ${dateRange.start} to ${dateRange.end})`;
+        setDateRange({ start: '', end: '' });
+      }
+      
+      sendMessage(finalInput);
       setInput('');
+      setShowDatePicker(false);
     }
   };
 
@@ -76,6 +127,26 @@ export default function ChatWidget() {
     }
   };
 
+  const handleSuggestionClick = (question) => {
+    setInput(question);
+    inputRef.current?.focus();
+  };
+
+  const handleQuickDateSelect = (dateText) => {
+    const result = parseNaturalDate(dateText);
+    if (result) {
+      setDateRange({
+        start: result.start.toISOString().split('T')[0],
+        end: result.end.toISOString().split('T')[0]
+      });
+      // If there's existing input, append the date context
+      if (input.trim()) {
+        setInput(`${input.trim()} ${dateText}`);
+      }
+      setShowDatePicker(false);
+    }
+  };
+
   // Welcome message for empty chat
   const welcomeMessage = {
     role: 'assistant',
@@ -85,7 +156,8 @@ export default function ChatWidget() {
 • **"Show my timesheets this month"** - Query your time entries
 • **"What milestones are at risk?"** - Check project progress
 • **"What's the budget status?"** - View spend vs forecast
-• **"What can my role do?"** - Understand your permissions
+
+💡 **Tip:** I understand natural dates like "last month", "Q3", or "past 2 weeks"
 
 All data is scoped to your role, so just ask naturally!`,
   };
@@ -97,6 +169,8 @@ All data is scoped to your role, so just ask naturally!`,
     (tokenUsage.input * 0.25 / 1000000) + 
     (tokenUsage.output * 1.25 / 1000000)
   ).toFixed(4);
+
+  const dateSuggestions = getDateSuggestions();
 
   return (
     <>
@@ -152,6 +226,27 @@ All data is scoped to your role, so just ask naturally!`,
             </button>
           </div>
         </div>
+
+        {/* Suggested Questions - shown when chat is empty or on new page */}
+        {(messages.length === 0 || showSuggestions) && suggestedQuestions.length > 0 && (
+          <div className="chat-suggestions">
+            <div className="chat-suggestions-header">
+              <Lightbulb size={14} />
+              <span>Try asking:</span>
+            </div>
+            <div className="chat-suggestions-list">
+              {suggestedQuestions.map((q, i) => (
+                <button
+                  key={i}
+                  className="chat-suggestion-btn"
+                  onClick={() => handleSuggestionClick(q.text)}
+                >
+                  {q.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="chat-messages">
@@ -238,26 +333,96 @@ All data is scoped to your role, so just ask naturally!`,
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Date Picker Panel */}
+        {showDatePicker && (
+          <div className="chat-date-picker" ref={datePickerRef}>
+            <div className="chat-date-picker-header">
+              <Calendar size={14} />
+              <span>Select Date Range</span>
+              <button onClick={() => setShowDatePicker(false)}>
+                <X size={14} />
+              </button>
+            </div>
+            
+            <div className="chat-date-quick">
+              {dateSuggestions.slice(0, 8).map((ds, i) => (
+                <button
+                  key={i}
+                  className="chat-date-quick-btn"
+                  onClick={() => handleQuickDateSelect(ds.text)}
+                >
+                  {ds.text}
+                </button>
+              ))}
+            </div>
+            
+            <div className="chat-date-custom">
+              <div className="chat-date-field">
+                <label>From</label>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                />
+              </div>
+              <div className="chat-date-field">
+                <label>To</label>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
+            </div>
+            
+            {dateRange.start && dateRange.end && (
+              <div className="chat-date-preview">
+                Selected: {formatDateRange(new Date(dateRange.start), new Date(dateRange.end))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Input */}
         <form className="chat-input-form" onSubmit={handleSubmit}>
-          <textarea
-            ref={inputRef}
-            className="chat-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask me anything about the project..."
-            rows={1}
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            className="chat-send-btn"
-            disabled={!input.trim() || isLoading}
-            aria-label="Send message"
-          >
-            <Send size={18} />
-          </button>
+          {/* Date hint */}
+          {showDateHint && !showDatePicker && (
+            <div className="chat-date-hint" onClick={() => setShowDatePicker(true)}>
+              <Calendar size={12} />
+              <span>Add date range</span>
+            </div>
+          )}
+          
+          <div className="chat-input-wrapper">
+            <button
+              type="button"
+              className={`chat-date-toggle ${showDatePicker ? 'active' : ''}`}
+              onClick={() => setShowDatePicker(!showDatePicker)}
+              title="Select date range"
+            >
+              <Calendar size={16} />
+            </button>
+            
+            <textarea
+              ref={inputRef}
+              className="chat-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about your project..."
+              rows={1}
+              disabled={isLoading}
+            />
+            
+            <button
+              type="submit"
+              className="chat-send-btn"
+              disabled={!input.trim() || isLoading}
+              aria-label="Send message"
+            >
+              <Send size={18} />
+            </button>
+          </div>
         </form>
 
         {/* Footer with stats */}

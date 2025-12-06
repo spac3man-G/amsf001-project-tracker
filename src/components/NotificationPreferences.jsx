@@ -5,7 +5,7 @@ import { Bell, Mail, Save, CheckCircle } from 'lucide-react';
 export default function NotificationPreferences() {
   const [preferences, setPreferences] = useState({
     receive_info_notifications: true,
-    receive_daily_email: true,
+    receive_daily_email: false,  // Default: off (in-app only)
     info_timesheet_validated: true,
     info_expense_validated: true,
     info_deliverable_delivered: true,
@@ -38,7 +38,7 @@ export default function NotificationPreferences() {
       if (data) {
         setPreferences({
           receive_info_notifications: data.receive_info_notifications ?? true,
-          receive_daily_email: data.receive_daily_email ?? true,
+          receive_daily_email: data.receive_daily_email ?? false,  // Default: off
           info_timesheet_validated: data.info_timesheet_validated ?? true,
           info_expense_validated: data.info_expense_validated ?? true,
           info_deliverable_delivered: data.info_deliverable_delivered ?? true,
