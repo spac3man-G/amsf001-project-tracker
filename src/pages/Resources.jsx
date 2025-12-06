@@ -1,32 +1,56 @@
 /**
  * Resources Page - Apple Design System (Clean)
  * 
- * Manage project team allocation and utilization.
+ * Manage project team members and their rates.
  * Click on any resource to view details.
  * 
- * @version 2.1 - Removed dashboard cards for clean layout
- * @updated 5 December 2025
+ * Shows days used (from validated timesheets) and value calculations.
+ * Cost price and margins visible to Supplier PM and Admin only.
+ * 
+ * @version 3.0 - Refactored to use centralised utilities
+ * @updated 6 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resourcesService, timesheetsService } from '../services';
 import { timesheetContributesToSpend, hoursToDays } from '../config/metricsConfig';
-import { Users, Plus, Save, X, Award, Building2, Link2, TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
+import { 
+  Users, Plus, Save, X, Award, RefreshCw
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
-import { usePermissions } from '../hooks/usePermissions';
+import { useResourcePermissions } from '../hooks/useResourcePermissions';
 import { LoadingSpinner, ConfirmDialog } from '../components/common';
+import {
+  RESOURCE_TYPE,
+  sfiaToDisplay,
+  sfiaToDatabase,
+  getSfiaCssClass,
+  getSfiaOptions,
+  getResourceTypeConfig,
+  calculateMargin,
+  getMarginConfig,
+  calculateSellValue
+} from '../lib/resourceCalculations';
 import './Resources.css';
 
 export default function Resources() {
   const navigate = useNavigate();
-  const { user, role: userRole } = useAuth();
+  const { user } = useAuth();
   const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
   const currentUserId = user?.id || null;
-  const { canManageResources, canSeeResourceType, canSeeCostPrice } = usePermissions();
+  
+  // Use the new resource permissions hook
+  const { 
+    canCreate, 
+    canSeeResourceType, 
+    canSeeCostPrice,
+    canSeeMargins,
+    isAdmin 
+  } = useResourcePermissions();
 
   const [resources, setResources] = useState([]);
   const [timesheetHours, setTimesheetHours] = useState({});
@@ -37,8 +61,15 @@ export default function Resources() {
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, resource: null, dependents: null });
   const [saving, setSaving] = useState(false);
   const [newResource, setNewResource] = useState({
-    resource_ref: '', name: '', email: '', role: '', sfia_level: 'L4',
-    sell_price: '', cost_price: '', discount_percent: 0, days_allocated: '', days_used: 0, resource_type: 'internal'
+    resource_ref: '', 
+    name: '', 
+    email: '', 
+    role: '', 
+    sfia_level: 'L4',
+    sell_price: '', 
+    cost_price: '', 
+    discount_percent: 0, 
+    resource_type: RESOURCE_TYPE.INTERNAL
   });
 
   const fetchData = useCallback(async () => {
@@ -48,6 +79,7 @@ export default function Resources() {
       const data = await resourcesService.getAll(projectId, { includePartner: false });
       setResources(data);
 
+      // Get validated timesheet hours per resource
       const timesheets = await timesheetsService.getAllFiltered(projectId, true);
       const hoursByResource = {};
       timesheets.forEach(ts => {
@@ -73,31 +105,6 @@ export default function Resources() {
     await fetchData();
   }
 
-  function sfiaToDisplay(level) {
-    if (!level) return 'L4';
-    if (typeof level === 'string' && level.startsWith('L')) return level;
-    return `L${level}`;
-  }
-  
-  function sfiaToDatabase(level) {
-    if (!level) return 4;
-    if (typeof level === 'number') return level;
-    if (typeof level === 'string' && level.startsWith('L')) return parseInt(level.substring(1)) || 4;
-    return parseInt(level) || 4;
-  }
-
-  function calculateMargin(dailyRate, costPrice) {
-    if (!dailyRate || dailyRate === 0 || !costPrice) return null;
-    return ((dailyRate - costPrice) / dailyRate) * 100;
-  }
-
-  function getMarginStyle(marginPercent) {
-    if (marginPercent === null) return { color: '#9ca3af', label: 'N/A', icon: Minus };
-    if (marginPercent >= 25) return { color: '#16a34a', label: 'Good', icon: TrendingUp };
-    if (marginPercent >= 10) return { color: '#d97706', label: 'Low', icon: Minus };
-    return { color: '#dc2626', label: 'Critical', icon: TrendingDown };
-  }
-
   async function handleAdd() {
     try {
       const existingProfile = await resourcesService.getProfileByEmail(newResource.email);
@@ -113,14 +120,23 @@ export default function Resources() {
         sfia_level: sfiaToDatabase(newResource.sfia_level),
         sell_price: parseFloat(newResource.sell_price),
         cost_price: newResource.cost_price ? parseFloat(newResource.cost_price) : null,
-        days_allocated: parseInt(newResource.days_allocated),
         discount_percent: parseFloat(newResource.discount_percent) || 0,
         created_by: currentUserId
       });
 
       await fetchData();
       setShowAddForm(false);
-      setNewResource({ resource_ref: '', name: '', email: '', role: '', sfia_level: 'L4', sell_price: '', cost_price: '', discount_percent: 0, days_allocated: '', days_used: 0, resource_type: 'internal' });
+      setNewResource({ 
+        resource_ref: '', 
+        name: '', 
+        email: '', 
+        role: '', 
+        sfia_level: 'L4', 
+        sell_price: '', 
+        cost_price: '', 
+        discount_percent: 0, 
+        resource_type: RESOURCE_TYPE.INTERNAL 
+      });
       showSuccess('Resource added!');
     } catch (error) {
       console.error('Error adding resource:', error);
@@ -131,7 +147,14 @@ export default function Resources() {
   async function handleDelete(resource) {
     try {
       const counts = await resourcesService.getDependencyCounts(resource.id);
-      setDeleteDialog({ isOpen: true, resource, dependents: { timesheets: counts.timesheetCount, expenses: counts.expenseCount } });
+      setDeleteDialog({ 
+        isOpen: true, 
+        resource, 
+        dependents: { 
+          timesheets: counts.timesheetCount, 
+          expenses: counts.expenseCount 
+        } 
+      });
     } catch (err) {
       setDeleteDialog({ isOpen: true, resource, dependents: null });
     }
@@ -154,24 +177,16 @@ export default function Resources() {
     }
   }
 
-  const getSfiaClass = (level) => {
-    const displayLevel = sfiaToDisplay(level);
-    switch(displayLevel) {
-      case 'L6': return 'sfia-l6';
-      case 'L5': return 'sfia-l5';
-      case 'L4': return 'sfia-l4';
-      default: return 'sfia-default';
-    }
-  };
-
-  const getResourceTypeStyle = (type) => {
-    if (type === 'third_party') return { className: 'type-third-party', label: '3rd Party' };
-    return { className: 'type-internal', label: 'Internal' };
-  };
-
-  const filteredResources = resources.filter(r => filterType === 'all' || (r.resource_type || 'internal') === filterType);
-  const internalCount = resources.filter(r => (r.resource_type || 'internal') === 'internal').length;
-  const thirdPartyCount = resources.filter(r => r.resource_type === 'third_party').length;
+  // Filter resources by type
+  const filteredResources = resources.filter(r => 
+    filterType === 'all' || (r.resource_type || RESOURCE_TYPE.INTERNAL) === filterType
+  );
+  const internalCount = resources.filter(r => 
+    (r.resource_type || RESOURCE_TYPE.INTERNAL) === RESOURCE_TYPE.INTERNAL
+  ).length;
+  const thirdPartyCount = resources.filter(r => 
+    r.resource_type === RESOURCE_TYPE.THIRD_PARTY
+  ).length;
 
   if (loading) return <LoadingSpinner message="Loading resources..." size="large" fullPage />;
 
@@ -185,14 +200,14 @@ export default function Resources() {
             </div>
             <div>
               <h1>Team Resources</h1>
-              <p>Manage project team allocation and utilization</p>
+              <p>Manage project team members and rates</p>
             </div>
           </div>
           <div className="res-header-actions">
             <button className="res-btn res-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
-            {userRole === 'admin' && (
+            {canCreate && (
               <button className="res-btn res-btn-primary" onClick={() => setShowAddForm(true)}>
                 <Plus size={18} /> Add Resource
               </button>
@@ -206,23 +221,74 @@ export default function Resources() {
           <div className="res-add-form">
             <h3 className="res-add-form-title">Add New Resource</h3>
             <div className="res-form-grid">
-              <input className="res-input" placeholder="Reference" value={newResource.resource_ref} onChange={(e) => setNewResource({...newResource, resource_ref: e.target.value})} />
-              <input className="res-input" placeholder="Name" value={newResource.name} onChange={(e) => setNewResource({...newResource, name: e.target.value})} />
-              <input className="res-input" placeholder="Email" type="email" value={newResource.email} onChange={(e) => setNewResource({...newResource, email: e.target.value})} />
-              <input className="res-input" placeholder="Role" value={newResource.role} onChange={(e) => setNewResource({...newResource, role: e.target.value})} />
-              <select className="res-input" value={newResource.sfia_level} onChange={(e) => setNewResource({...newResource, sfia_level: e.target.value})}>
-                <option value="L3">L3</option><option value="L4">L4</option><option value="L5">L5</option><option value="L6">L6</option>
+              <input 
+                className="res-input" 
+                placeholder="Reference" 
+                value={newResource.resource_ref} 
+                onChange={(e) => setNewResource({...newResource, resource_ref: e.target.value})} 
+              />
+              <input 
+                className="res-input" 
+                placeholder="Name" 
+                value={newResource.name} 
+                onChange={(e) => setNewResource({...newResource, name: e.target.value})} 
+              />
+              <input 
+                className="res-input" 
+                placeholder="Email" 
+                type="email" 
+                value={newResource.email} 
+                onChange={(e) => setNewResource({...newResource, email: e.target.value})} 
+              />
+              <input 
+                className="res-input" 
+                placeholder="Role" 
+                value={newResource.role} 
+                onChange={(e) => setNewResource({...newResource, role: e.target.value})} 
+              />
+              <select 
+                className="res-input" 
+                value={newResource.sfia_level} 
+                onChange={(e) => setNewResource({...newResource, sfia_level: e.target.value})}
+              >
+                {getSfiaOptions().map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
-              <input className="res-input" placeholder="Sell Price (£)" type="number" value={newResource.sell_price} onChange={(e) => setNewResource({...newResource, sell_price: e.target.value})} />
-              {canSeeCostPrice && <input className="res-input" placeholder="Cost Price (£)" type="number" value={newResource.cost_price} onChange={(e) => setNewResource({...newResource, cost_price: e.target.value})} />}
-              <input className="res-input" placeholder="Days Allocated" type="number" value={newResource.days_allocated} onChange={(e) => setNewResource({...newResource, days_allocated: e.target.value})} />
-              <select className="res-input" value={newResource.resource_type} onChange={(e) => setNewResource({...newResource, resource_type: e.target.value})}>
-                <option value="internal">Internal</option><option value="third_party">Third-Party</option>
-              </select>
+              <input 
+                className="res-input" 
+                placeholder="Sell Price (£/day)" 
+                type="number" 
+                value={newResource.sell_price} 
+                onChange={(e) => setNewResource({...newResource, sell_price: e.target.value})} 
+              />
+              {canSeeCostPrice && (
+                <input 
+                  className="res-input" 
+                  placeholder="Cost Price (£/day)" 
+                  type="number" 
+                  value={newResource.cost_price} 
+                  onChange={(e) => setNewResource({...newResource, cost_price: e.target.value})} 
+                />
+              )}
+              {canSeeResourceType && (
+                <select 
+                  className="res-input" 
+                  value={newResource.resource_type} 
+                  onChange={(e) => setNewResource({...newResource, resource_type: e.target.value})}
+                >
+                  <option value={RESOURCE_TYPE.INTERNAL}>Internal</option>
+                  <option value={RESOURCE_TYPE.THIRD_PARTY}>Third-Party</option>
+                </select>
+              )}
             </div>
             <div className="res-form-actions">
-              <button className="res-btn res-btn-primary" onClick={handleAdd}><Save size={16} /> Save</button>
-              <button className="res-btn res-btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
+              <button className="res-btn res-btn-primary" onClick={handleAdd}>
+                <Save size={16} /> Save
+              </button>
+              <button className="res-btn res-btn-secondary" onClick={() => setShowAddForm(false)}>
+                <X size={16} /> Cancel
+              </button>
             </div>
           </div>
         )}
@@ -232,14 +298,20 @@ export default function Resources() {
             <div className="res-table-header-left">
               <h2 className="res-table-title">Team Resources</h2>
               {canSeeResourceType && (
-                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="res-filter-select">
+                <select 
+                  value={filterType} 
+                  onChange={(e) => setFilterType(e.target.value)} 
+                  className="res-filter-select"
+                >
                   <option value="all">All ({resources.length})</option>
-                  <option value="internal">Internal ({internalCount})</option>
-                  <option value="third_party">Third-Party ({thirdPartyCount})</option>
+                  <option value={RESOURCE_TYPE.INTERNAL}>Internal ({internalCount})</option>
+                  <option value={RESOURCE_TYPE.THIRD_PARTY}>Third-Party ({thirdPartyCount})</option>
                 </select>
               )}
             </div>
-            <span className="res-table-count">{filteredResources.length} resource{filteredResources.length !== 1 ? 's' : ''}</span>
+            <span className="res-table-count">
+              {filteredResources.length} resource{filteredResources.length !== 1 ? 's' : ''}
+            </span>
           </div>
 
           <table className="res-table">
@@ -249,11 +321,10 @@ export default function Resources() {
                 {canSeeResourceType && <th>Type</th>}
                 <th>Role</th>
                 <th>SFIA</th>
-                <th>Rate</th>
-                {canSeeCostPrice && <th>Cost</th>}
-                {canSeeCostPrice && <th>Margin</th>}
-                <th>Days</th>
-                <th>Util</th>
+                <th>Sell Rate</th>
+                {canSeeCostPrice && <th>Cost Rate</th>}
+                {canSeeMargins && <th>Margin</th>}
+                <th>Days Used</th>
                 <th>Value</th>
               </tr>
             </thead>
@@ -261,12 +332,12 @@ export default function Resources() {
               {filteredResources.map(resource => {
                 const hoursWorked = timesheetHours[resource.id] || 0;
                 const daysUsed = hoursToDays(hoursWorked);
-                const daysAllocated = resource.days_allocated || 0;
-                const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
-                const typeStyle = getResourceTypeStyle(resource.resource_type);
+                const typeConfig = getResourceTypeConfig(resource.resource_type);
+                const TypeIcon = typeConfig.icon;
                 const margin = calculateMargin(resource.sell_price, resource.cost_price);
-                const marginStyle = getMarginStyle(margin);
-                const MarginIcon = marginStyle.icon;
+                const marginConfig = getMarginConfig(margin.percent);
+                const MarginIcon = marginConfig.icon;
+                const totalValue = calculateSellValue(daysUsed, resource.sell_price);
                 
                 return (
                   <tr key={resource.id} onClick={() => navigate(`/resources/${resource.id}`)}>
@@ -278,37 +349,40 @@ export default function Resources() {
                     </td>
                     {canSeeResourceType && (
                       <td>
-                        <span className={`res-type-badge ${typeStyle.className}`}>
-                          {resource.resource_type === 'third_party' ? <Link2 size={14} /> : <Building2 size={14} />}
-                          {typeStyle.label}
+                        <span 
+                          className={`res-type-badge ${typeConfig.cssClass}`}
+                          style={{ backgroundColor: typeConfig.bg, color: typeConfig.color }}
+                        >
+                          <TypeIcon size={14} />
+                          {typeConfig.shortLabel}
                         </span>
                       </td>
                     )}
                     <td>{resource.role}</td>
                     <td>
-                      <span className={`res-sfia-badge ${getSfiaClass(resource.sfia_level)}`}>
-                        <Award size={14} />{sfiaToDisplay(resource.sfia_level)}
+                      <span className={`res-sfia-badge ${getSfiaCssClass(resource.sfia_level)}`}>
+                        <Award size={14} />
+                        {sfiaToDisplay(resource.sfia_level)}
                       </span>
                     </td>
                     <td className="res-mono">£{resource.sell_price}</td>
-                    {canSeeCostPrice && <td className="res-mono">{resource.cost_price ? `£${resource.cost_price}` : <span className="res-na">—</span>}</td>}
                     {canSeeCostPrice && (
+                      <td className="res-mono">
+                        {resource.cost_price ? `£${resource.cost_price}` : <span className="res-na">—</span>}
+                      </td>
+                    )}
+                    {canSeeMargins && (
                       <td>
-                        <span className="res-margin" style={{ color: marginStyle.color }}>
-                          <MarginIcon size={14} />{margin !== null ? `${margin.toFixed(0)}%` : 'N/A'}
+                        <span className="res-margin" style={{ color: marginConfig.color }}>
+                          <MarginIcon size={14} />
+                          {margin.percent !== null ? `${margin.percent.toFixed(0)}%` : 'N/A'}
                         </span>
                       </td>
                     )}
-                    <td><span className="res-days">{daysUsed.toFixed(1)}/{daysAllocated}</span></td>
                     <td>
-                      <div className="res-util">
-                        <div className="res-util-bar">
-                          <div className="res-util-fill" style={{ width: `${Math.min(utilization, 100)}%`, backgroundColor: utilization > 100 ? '#dc2626' : '#3b82f6' }} />
-                        </div>
-                        <span className="res-util-text">{Math.round(utilization)}%</span>
-                      </div>
+                      <span className="res-days">{daysUsed.toFixed(1)}</span>
                     </td>
-                    <td className="res-value">£{((resource.sell_price || 0) * (resource.days_allocated || 0)).toLocaleString()}</td>
+                    <td className="res-value">£{totalValue.toLocaleString()}</td>
                   </tr>
                 );
               })}
@@ -323,9 +397,15 @@ export default function Resources() {
         onConfirm={handleConfirmDelete}
         title="Delete Resource?"
         message={deleteDialog.resource ? (
-          <>Delete "<strong>{deleteDialog.resource.name}</strong>"?
+          <>
+            Delete "<strong>{deleteDialog.resource.name}</strong>"?
             {deleteDialog.dependents && (deleteDialog.dependents.timesheets > 0 || deleteDialog.dependents.expenses > 0) && (
-              <><br /><br /><span style={{ color: '#dc2626' }}>⚠️ Also deletes: {deleteDialog.dependents.timesheets} timesheets, {deleteDialog.dependents.expenses} expenses</span></>
+              <>
+                <br /><br />
+                <span style={{ color: '#dc2626' }}>
+                  ⚠️ Also deletes: {deleteDialog.dependents.timesheets} timesheets, {deleteDialog.dependents.expenses} expenses
+                </span>
+              </>
             )}
           </>
         ) : ''}

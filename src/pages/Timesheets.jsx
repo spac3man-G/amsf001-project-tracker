@@ -5,15 +5,17 @@
  * Includes clickable rows for detail view with edit/validate capabilities.
  * Now with date range filtering (This Week, Last Week, Month, Custom).
  * 
- * @version 3.2 - Added date range filter
- * @updated 5 December 2025
+ * Uses centralised timesheet calculations for status display and workflow.
+ * 
+ * @version 4.0 - Refactored to use timesheetCalculations.js
+ * @updated 6 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { timesheetsService, milestonesService, resourcesService } from '../services';
-import { VALID_STATUSES, timesheetContributesToSpend, calculateCostValue } from '../config/metricsConfig';
+import { timesheetContributesToSpend, calculateCostValue } from '../config/metricsConfig';
 import { 
-  Clock, Plus, Save, X, Calendar, CheckCircle, User, CalendarDays, RefreshCw
+  Clock, Plus, Save, X, Calendar, User, CalendarDays, RefreshCw
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,23 +24,15 @@ import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, ConfirmDialog } from '../components/common';
 import { TimesheetDetailModal, TimesheetDateFilter } from '../components/timesheets';
+import {
+  TIMESHEET_STATUS,
+  ENTRY_TYPE,
+  getStatusDisplayName,
+  getStatusCssClass,
+  getNextSunday,
+  getTodayDate
+} from '../lib/timesheetCalculations';
 import './Timesheets.css';
-
-const STATUSES = ['Draft', 'Submitted', 'Approved', 'Rejected'];
-const STATUS_DISPLAY_NAMES = {
-  'Draft': 'Draft',
-  'Submitted': 'Submitted',
-  'Approved': 'Validated',
-  'Rejected': 'Rejected'
-};
-
-function getNextSunday() {
-  const today = new Date();
-  const daysUntilSunday = 7 - today.getDay();
-  const nextSunday = new Date(today);
-  nextSunday.setDate(today.getDate() + (today.getDay() === 0 ? 0 : daysUntilSunday));
-  return nextSunday.toISOString().split('T')[0];
-}
 
 export default function Timesheets() {
   const { user, role: userRole, linkedResource } = useAuth();
@@ -48,7 +42,14 @@ export default function Timesheets() {
   const currentUserId = user?.id || null;
   const currentUserResourceId = linkedResource?.id || null;
 
-  const { canAddTimesheet, canEditTimesheet, canDeleteTimesheet, canSubmitTimesheet, canValidateTimesheet, getAvailableResources } = usePermissions();
+  const { 
+    canAddTimesheet, 
+    canEditTimesheet, 
+    canDeleteTimesheet, 
+    canSubmitTimesheet, 
+    canValidateTimesheet, 
+    getAvailableResources 
+  } = usePermissions();
 
   const [timesheets, setTimesheets] = useState([]);
   const [resources, setResources] = useState([]);
@@ -59,7 +60,7 @@ export default function Timesheets() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [filterResource, setFilterResource] = useState('all');
-  const [entryMode, setEntryMode] = useState('daily');
+  const [entryMode, setEntryMode] = useState(ENTRY_TYPE.DAILY);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, timesheetId: null, timesheetData: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, timesheet: null });
 
@@ -68,8 +69,14 @@ export default function Timesheets() {
   const [selectedPeriod, setSelectedPeriod] = useState('');
 
   const [newTimesheet, setNewTimesheet] = useState({
-    resource_id: '', milestone_id: '', work_date: new Date().toISOString().split('T')[0],
-    week_ending: getNextSunday(), hours_worked: '', description: '', status: 'Draft', entry_type: 'daily'
+    resource_id: '', 
+    milestone_id: '', 
+    work_date: getTodayDate(),
+    week_ending: getNextSunday(), 
+    hours_worked: '', 
+    description: '', 
+    status: TIMESHEET_STATUS.DRAFT, 
+    entry_type: ENTRY_TYPE.DAILY
   });
 
   const fetchData = useCallback(async () => {
@@ -79,10 +86,15 @@ export default function Timesheets() {
       const timesheetsData = await timesheetsService.getAllFiltered(projectId, showTestUsers);
       setTimesheets(timesheetsData);
 
-      const filteredResources = await resourcesService.getAllWithTestFilter(projectId, showTestUsers ? [] : testUserIds);
+      const filteredResources = await resourcesService.getAllWithTestFilter(
+        projectId, 
+        showTestUsers ? [] : testUserIds
+      );
       setResources(filteredResources);
 
-      const milestonesData = await milestonesService.getAll(projectId, { orderBy: { column: 'milestone_ref', ascending: true } });
+      const milestonesData = await milestonesService.getAll(projectId, { 
+        orderBy: { column: 'milestone_ref', ascending: true } 
+      });
       setMilestones(milestonesData);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -94,7 +106,12 @@ export default function Timesheets() {
   }, [projectId, showTestUsers, testUserIds, showError]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { if (currentUserResourceId) setNewTimesheet(prev => ({ ...prev, resource_id: currentUserResourceId })); }, [currentUserResourceId]);
+  
+  useEffect(() => { 
+    if (currentUserResourceId) {
+      setNewTimesheet(prev => ({ ...prev, resource_id: currentUserResourceId })); 
+    }
+  }, [currentUserResourceId]);
 
   // Date range handlers
   function handlePeriodSelect(period, range) {
@@ -121,11 +138,18 @@ export default function Timesheets() {
     // Month format (YYYY-MM)
     if (selectedPeriod && selectedPeriod.length === 7 && selectedPeriod.includes('-')) {
       const [year, month] = selectedPeriod.split('-').map(Number);
-      return new Date(year, month - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      return new Date(year, month - 1, 1).toLocaleDateString('en-GB', { 
+        month: 'long', 
+        year: 'numeric' 
+      });
     }
     
-    const start = dateRange.start ? new Date(dateRange.start).toLocaleDateString('en-GB') : 'Start';
-    const end = dateRange.end ? new Date(dateRange.end).toLocaleDateString('en-GB') : 'End';
+    const start = dateRange.start 
+      ? new Date(dateRange.start).toLocaleDateString('en-GB') 
+      : 'Start';
+    const end = dateRange.end 
+      ? new Date(dateRange.end).toLocaleDateString('en-GB') 
+      : 'End';
     return `${start} - ${end}`;
   }
 
@@ -135,61 +159,134 @@ export default function Timesheets() {
   }
 
   async function handleAdd() {
-    if (!newTimesheet.resource_id || !newTimesheet.hours_worked) { showWarning('Please fill in all required fields'); return; }
+    if (!newTimesheet.resource_id || !newTimesheet.hours_worked) { 
+      showWarning('Please fill in all required fields'); 
+      return; 
+    }
     try {
       const resource = resources.find(r => r.id === newTimesheet.resource_id);
-      const dateToUse = entryMode === 'daily' ? newTimesheet.work_date : newTimesheet.week_ending;
+      const dateToUse = entryMode === ENTRY_TYPE.DAILY 
+        ? newTimesheet.work_date 
+        : newTimesheet.week_ending;
+      
       await timesheetsService.create({
-        project_id: projectId, resource_id: newTimesheet.resource_id, milestone_id: newTimesheet.milestone_id || null,
-        user_id: resource?.user_id || currentUserId, created_by: currentUserId, date: dateToUse, work_date: dateToUse,
-        week_ending: entryMode === 'weekly' ? newTimesheet.week_ending : null, hours_worked: parseFloat(newTimesheet.hours_worked),
-        hours: parseFloat(newTimesheet.hours_worked), description: newTimesheet.description, comments: newTimesheet.description,
-        status: newTimesheet.status, entry_type: entryMode
+        project_id: projectId, 
+        resource_id: newTimesheet.resource_id, 
+        milestone_id: newTimesheet.milestone_id || null,
+        user_id: resource?.user_id || currentUserId, 
+        created_by: currentUserId, 
+        date: dateToUse, 
+        work_date: dateToUse,
+        week_ending: entryMode === ENTRY_TYPE.WEEKLY ? newTimesheet.week_ending : null, 
+        hours_worked: parseFloat(newTimesheet.hours_worked),
+        hours: parseFloat(newTimesheet.hours_worked), 
+        description: newTimesheet.description, 
+        comments: newTimesheet.description,
+        status: newTimesheet.status, 
+        entry_type: entryMode
       });
+      
       await fetchData();
       setShowAddForm(false);
-      setNewTimesheet({ resource_id: currentUserResourceId || '', milestone_id: '', work_date: new Date().toISOString().split('T')[0], week_ending: getNextSunday(), hours_worked: '', description: '', status: 'Draft', entry_type: entryMode });
+      setNewTimesheet({ 
+        resource_id: currentUserResourceId || '', 
+        milestone_id: '', 
+        work_date: getTodayDate(), 
+        week_ending: getNextSunday(), 
+        hours_worked: '', 
+        description: '', 
+        status: TIMESHEET_STATUS.DRAFT, 
+        entry_type: entryMode 
+      });
       showSuccess('Timesheet added successfully!');
-    } catch (error) { console.error('Error adding timesheet:', error); showError('Failed to add timesheet: ' + error.message); }
+    } catch (error) { 
+      console.error('Error adding timesheet:', error); 
+      showError('Failed to add timesheet: ' + error.message); 
+    }
   }
 
   async function handleSave(id, formData = null) {
     const form = formData || editForm;
     try {
       await timesheetsService.update(id, { 
-        resource_id: form.resource_id, milestone_id: form.milestone_id || null, 
-        date: form.work_date, work_date: form.work_date, week_ending: form.week_ending || null, 
-        hours: parseFloat(form.hours_worked), hours_worked: parseFloat(form.hours_worked), 
-        comments: form.description, description: form.description, status: form.status 
+        resource_id: form.resource_id, 
+        milestone_id: form.milestone_id || null, 
+        date: form.work_date, 
+        work_date: form.work_date, 
+        week_ending: form.week_ending || null, 
+        hours: parseFloat(form.hours_worked), 
+        hours_worked: parseFloat(form.hours_worked), 
+        comments: form.description, 
+        description: form.description, 
+        status: form.status 
       });
       await fetchData(); 
       setEditingId(null); 
       showSuccess('Timesheet updated!');
-    } catch (error) { console.error('Error updating timesheet:', error); showError('Failed to update: ' + error.message); }
+    } catch (error) { 
+      console.error('Error updating timesheet:', error); 
+      showError('Failed to update: ' + error.message); 
+    }
   }
 
   function handleDeleteClick(ts) {
     const resource = resources.find(r => r.id === ts.resource_id);
     const hours = parseFloat(ts.hours_worked) || 0;
-    setDeleteDialog({ isOpen: true, timesheetId: ts.id, timesheetData: { resourceName: ts.resources?.name || resource?.name || 'Unknown', date: ts.work_date || ts.date, hours, costImpact: calculateCostValue(hours, resource?.cost_price), status: ts.status } });
+    setDeleteDialog({ 
+      isOpen: true, 
+      timesheetId: ts.id, 
+      timesheetData: { 
+        resourceName: ts.resources?.name || resource?.name || 'Unknown', 
+        date: ts.work_date || ts.date, 
+        hours, 
+        costImpact: calculateCostValue(hours, resource?.cost_price), 
+        status: ts.status 
+      } 
+    });
   }
 
   async function confirmDelete() {
     if (!deleteDialog.timesheetId) return;
-    try { await timesheetsService.delete(deleteDialog.timesheetId, currentUserId); await fetchData(); setDeleteDialog({ isOpen: false, timesheetId: null, timesheetData: null }); showSuccess('Timesheet deleted'); }
-    catch (error) { console.error('Error deleting timesheet:', error); showError('Failed to delete: ' + error.message); }
+    try { 
+      await timesheetsService.delete(deleteDialog.timesheetId, currentUserId); 
+      await fetchData(); 
+      setDeleteDialog({ isOpen: false, timesheetId: null, timesheetData: null }); 
+      showSuccess('Timesheet deleted'); 
+    }
+    catch (error) { 
+      console.error('Error deleting timesheet:', error); 
+      showError('Failed to delete: ' + error.message); 
+    }
   }
 
-  async function handleSubmit(id) { try { await timesheetsService.submit(id); await fetchData(); showSuccess('Timesheet submitted for validation!'); } catch (error) { showError('Failed to submit: ' + error.message); } }
-  async function handleValidate(id) { try { await timesheetsService.validate(id); await fetchData(); showSuccess('Timesheet validated!'); } catch (error) { showError('Failed to validate: ' + error.message); } }
-  async function handleReject(id) { const reason = prompt('Rejection reason (optional):'); try { await timesheetsService.reject(id, reason); await fetchData(); showWarning('Timesheet rejected'); } catch (error) { showError('Failed to reject: ' + error.message); } }
-
-  function getStatusClass(status) { 
-    switch (status) { 
-      case 'Approved': return 'status-validated'; 
-      case 'Submitted': return 'status-submitted'; 
-      case 'Rejected': return 'status-rejected'; 
-      default: return 'status-draft'; 
+  async function handleSubmit(id) { 
+    try { 
+      await timesheetsService.submit(id); 
+      await fetchData(); 
+      showSuccess('Timesheet submitted for validation!'); 
+    } catch (error) { 
+      showError('Failed to submit: ' + error.message); 
+    } 
+  }
+  
+  async function handleValidate(id) { 
+    try { 
+      await timesheetsService.validate(id); 
+      await fetchData(); 
+      showSuccess('Timesheet validated!'); 
+    } catch (error) { 
+      showError('Failed to validate: ' + error.message); 
+    } 
+  }
+  
+  async function handleReject(id) { 
+    const reason = prompt('Rejection reason (optional):'); 
+    try { 
+      await timesheetsService.reject(id, reason); 
+      await fetchData(); 
+      showWarning('Timesheet rejected'); 
+    } catch (error) { 
+      showError('Failed to reject: ' + error.message); 
     } 
   }
 
@@ -220,7 +317,9 @@ export default function Timesheets() {
 
   const hoursByResource = resources.map(r => ({ 
     name: r.name, 
-    hours: filteredTimesheets.filter(ts => ts.resource_id === r.id).reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0) 
+    hours: filteredTimesheets
+      .filter(ts => ts.resource_id === r.id)
+      .reduce((sum, ts) => sum + parseFloat(ts.hours_worked || ts.hours || 0), 0) 
   })).filter(r => r.hours > 0);
   
   const availableResources = getAvailableResources(resources);
@@ -241,7 +340,11 @@ export default function Timesheets() {
             </div>
           </div>
           <div className="ts-header-actions">
-            <button className="ts-btn ts-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
+            <button 
+              className="ts-btn ts-btn-secondary" 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+            >
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
             {!showAddForm && canAddTimesheet && (
@@ -280,7 +383,11 @@ export default function Timesheets() {
 
         <div className="ts-filters">
           <span className="ts-filter-label">Filter:</span>
-          <select value={filterResource} onChange={(e) => setFilterResource(e.target.value)} className="ts-filter-select">
+          <select 
+            value={filterResource} 
+            onChange={(e) => setFilterResource(e.target.value)} 
+            className="ts-filter-select"
+          >
             <option value="all">All Resources</option>
             {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
@@ -292,10 +399,18 @@ export default function Timesheets() {
             <div className="ts-entry-mode">
               <label className="ts-mode-label">Entry Type</label>
               <div className="ts-mode-buttons">
-                <button type="button" onClick={() => setEntryMode('daily')} className={`ts-mode-btn ${entryMode === 'daily' ? 'active' : ''}`}>
+                <button 
+                  type="button" 
+                  onClick={() => setEntryMode(ENTRY_TYPE.DAILY)} 
+                  className={`ts-mode-btn ${entryMode === ENTRY_TYPE.DAILY ? 'active' : ''}`}
+                >
                   <Calendar size={18} /> Daily Entry
                 </button>
-                <button type="button" onClick={() => setEntryMode('weekly')} className={`ts-mode-btn ${entryMode === 'weekly' ? 'active' : ''}`}>
+                <button 
+                  type="button" 
+                  onClick={() => setEntryMode(ENTRY_TYPE.WEEKLY)} 
+                  className={`ts-mode-btn ${entryMode === ENTRY_TYPE.WEEKLY ? 'active' : ''}`}
+                >
                   <CalendarDays size={18} /> Weekly Summary
                 </button>
               </div>
@@ -306,41 +421,76 @@ export default function Timesheets() {
             <div className="ts-form-grid">
               <div className="ts-form-group">
                 <label>Resource *</label>
-                <select value={newTimesheet.resource_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}>
+                <select 
+                  value={newTimesheet.resource_id} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}
+                >
                   <option value="">Select Resource</option>
-                  {availableResources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  {availableResources.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
                 </select>
               </div>
-              {entryMode === 'daily' ? (
+              {entryMode === ENTRY_TYPE.DAILY ? (
                 <div className="ts-form-group">
                   <label>Date *</label>
-                  <input type="date" value={newTimesheet.work_date} onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })} />
+                  <input 
+                    type="date" 
+                    value={newTimesheet.work_date} 
+                    onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })} 
+                  />
                 </div>
               ) : (
                 <div className="ts-form-group">
                   <label>Week Ending *</label>
-                  <input type="date" value={newTimesheet.week_ending} onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} />
+                  <input 
+                    type="date" 
+                    value={newTimesheet.week_ending} 
+                    onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} 
+                  />
                 </div>
               )}
               <div className="ts-form-group">
                 <label>Milestone</label>
-                <select value={newTimesheet.milestone_id} onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}>
+                <select 
+                  value={newTimesheet.milestone_id} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}
+                >
                   <option value="">-- No specific milestone --</option>
-                  {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
+                  {milestones.map(m => (
+                    <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>
+                  ))}
                 </select>
               </div>
               <div className="ts-form-group">
                 <label>Hours *</label>
-                <input type="number" step="0.5" min="0.5" max={entryMode === 'daily' ? '12' : '60'} placeholder={entryMode === 'daily' ? 'e.g., 8' : 'e.g., 40'} value={newTimesheet.hours_worked} onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} />
+                <input 
+                  type="number" 
+                  step="0.5" 
+                  min="0.5" 
+                  max={entryMode === ENTRY_TYPE.DAILY ? '12' : '60'} 
+                  placeholder={entryMode === ENTRY_TYPE.DAILY ? 'e.g., 8' : 'e.g., 40'} 
+                  value={newTimesheet.hours_worked} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} 
+                />
               </div>
               <div className="ts-form-group ts-full-width">
                 <label>Description</label>
-                <textarea rows={2} placeholder="What did you work on?" value={newTimesheet.description} onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} />
+                <textarea 
+                  rows={2} 
+                  placeholder="What did you work on?" 
+                  value={newTimesheet.description} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} 
+                />
               </div>
             </div>
             <div className="ts-form-actions">
-              <button className="ts-btn ts-btn-primary" onClick={handleAdd}><Save size={16} /> Save</button>
-              <button className="ts-btn ts-btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
+              <button className="ts-btn ts-btn-primary" onClick={handleAdd}>
+                <Save size={16} /> Save
+              </button>
+              <button className="ts-btn ts-btn-secondary" onClick={() => setShowAddForm(false)}>
+                <X size={16} /> Cancel
+              </button>
             </div>
           </div>
         )}
@@ -348,7 +498,9 @@ export default function Timesheets() {
         <div className="ts-table-card">
           <div className="ts-table-header">
             <h2 className="ts-table-title">Timesheet Entries</h2>
-            <span className="ts-table-count">{filteredTimesheets.length} entr{filteredTimesheets.length !== 1 ? 'ies' : 'y'}</span>
+            <span className="ts-table-count">
+              {filteredTimesheets.length} entr{filteredTimesheets.length !== 1 ? 'ies' : 'y'}
+            </span>
           </div>
           
           <table className="ts-table">
@@ -364,9 +516,16 @@ export default function Timesheets() {
             </thead>
             <tbody>
               {filteredTimesheets.length === 0 ? (
-                <tr><td colSpan={6} className="ts-empty-cell">No timesheets found for the selected period.</td></tr>
+                <tr>
+                  <td colSpan={6} className="ts-empty-cell">
+                    No timesheets found for the selected period.
+                  </td>
+                </tr>
               ) : filteredTimesheets.map(ts => (
-                <tr key={ts.id} onClick={() => setDetailModal({ isOpen: true, timesheet: ts })}>
+                <tr 
+                  key={ts.id} 
+                  onClick={() => setDetailModal({ isOpen: true, timesheet: ts })}
+                >
                   <td>
                     <div className="ts-resource-cell">
                       <User size={16} />
@@ -376,13 +535,23 @@ export default function Timesheets() {
                   <td>
                     <div className="ts-date-cell">
                       <Calendar size={14} />
-                      {(ts.work_date || ts.date) ? new Date(ts.work_date || ts.date).toLocaleDateString('en-GB') : '—'}
+                      {(ts.work_date || ts.date) 
+                        ? new Date(ts.work_date || ts.date).toLocaleDateString('en-GB') 
+                        : '—'}
                     </div>
                   </td>
                   <td>{ts.milestones?.milestone_ref || '—'}</td>
-                  <td className="ts-hours">{parseFloat(ts.hours_worked || ts.hours || 0).toFixed(1)}h</td>
-                  <td className="ts-description">{ts.description || ts.comments || 'No description'}</td>
-                  <td><span className={`ts-status-badge ${getStatusClass(ts.status)}`}>{STATUS_DISPLAY_NAMES[ts.status] || ts.status}</span></td>
+                  <td className="ts-hours">
+                    {parseFloat(ts.hours_worked || ts.hours || 0).toFixed(1)}h
+                  </td>
+                  <td className="ts-description">
+                    {ts.description || ts.comments || 'No description'}
+                  </td>
+                  <td>
+                    <span className={`ts-status-badge ${getStatusCssClass(ts.status)}`}>
+                      {getStatusDisplayName(ts.status)}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -398,11 +567,17 @@ export default function Timesheets() {
         message={deleteDialog.timesheetData ? (
           <div>
             <p>Delete this timesheet entry?</p>
-            <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', padding: '0.75rem', marginTop: '0.75rem' }}>
+            <div style={{ 
+              backgroundColor: '#fef3c7', 
+              border: '1px solid #f59e0b', 
+              borderRadius: '6px', 
+              padding: '0.75rem', 
+              marginTop: '0.75rem' 
+            }}>
               <ul style={{ margin: '0', paddingLeft: '1.25rem', color: '#92400e', fontSize: '0.9rem' }}>
                 <li>Resource: {deleteDialog.timesheetData.resourceName}</li>
                 <li>Hours: {deleteDialog.timesheetData.hours}h</li>
-                <li>Status: {STATUS_DISPLAY_NAMES[deleteDialog.timesheetData.status] || deleteDialog.timesheetData.status}</li>
+                <li>Status: {getStatusDisplayName(deleteDialog.timesheetData.status)}</li>
               </ul>
             </div>
           </div>

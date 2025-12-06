@@ -3,17 +3,18 @@
  * 
  * Form for editing resource details including:
  * - Basic info (name, email, role, reference)
- * - SFIA level and allocation
- * - Rate information
+ * - SFIA level
+ * - Rate information (sell price, cost price)
  * - Resource type and partner assignment
  * 
- * @version 1.0
+ * @version 2.0 - Updated to use centralised utilities, removed allocation
  * @created 1 December 2025
- * @extracted-from ResourceDetail.jsx
+ * @updated 6 December 2025
  */
 
 import React from 'react';
 import { Save, X } from 'lucide-react';
+import { RESOURCE_TYPE, getSfiaOptions } from '../../lib/resourceCalculations';
 
 export default function ResourceEditForm({
   form,
@@ -39,6 +40,8 @@ export default function ResourceEditForm({
     fontWeight: '500',
     fontSize: '0.875rem'
   };
+
+  const sfiaOptions = getSfiaOptions();
 
   return (
     <div style={{ padding: '1rem' }}>
@@ -96,45 +99,34 @@ export default function ResourceEditForm({
             value={form.sfia_level}
             onChange={(e) => onFormChange({...form, sfia_level: e.target.value})}
           >
-            <option value="L3">Level 3</option>
-            <option value="L4">Level 4</option>
-            <option value="L5">Level 5</option>
-            <option value="L6">Level 6</option>
+            {sfiaOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>Level {opt.label.replace('L', '')}</option>
+            ))}
           </select>
-        </div>
-
-        {/* Days Allocated */}
-        <div>
-          <label style={labelStyle}>Days Allocated</label>
-          <input
-            type="number"
-            style={inputStyle}
-            value={form.days_allocated}
-            onChange={(e) => onFormChange({...form, days_allocated: e.target.value})}
-          />
         </div>
 
         {/* Daily Rate */}
         <div>
-          <label style={labelStyle}>Sell Price (£) - Customer</label>
+          <label style={labelStyle}>Sell Price (£/day)</label>
           <input
             type="number"
             style={inputStyle}
             value={form.sell_price}
             onChange={(e) => onFormChange({...form, sell_price: e.target.value})}
+            placeholder="Customer daily rate"
           />
         </div>
 
         {/* Cost Price - Admin/Supplier PM only */}
         {canSeeCostPrice && (
           <div>
-            <label style={labelStyle}>Cost Price (£) - Internal</label>
+            <label style={labelStyle}>Cost Price (£/day)</label>
             <input
               type="number"
               style={inputStyle}
               value={form.cost_price}
               onChange={(e) => onFormChange({...form, cost_price: e.target.value})}
-              placeholder="Optional"
+              placeholder="Internal cost (optional)"
             />
           </div>
         )}
@@ -161,16 +153,16 @@ export default function ResourceEditForm({
                 onChange={(e) => onFormChange({
                   ...form, 
                   resource_type: e.target.value,
-                  partner_id: e.target.value === 'internal' ? '' : form.partner_id
+                  partner_id: e.target.value === RESOURCE_TYPE.INTERNAL ? '' : form.partner_id
                 })}
               >
-                <option value="internal">Internal Supplier Resource</option>
-                <option value="third_party">Third-Party Partner</option>
+                <option value={RESOURCE_TYPE.INTERNAL}>Internal Supplier Resource</option>
+                <option value={RESOURCE_TYPE.THIRD_PARTY}>Third-Party Partner</option>
               </select>
             </div>
 
             {/* Partner Selection - only when third_party */}
-            {form.resource_type === 'third_party' && (
+            {form.resource_type === RESOURCE_TYPE.THIRD_PARTY && (
               <div>
                 <label style={labelStyle}>Partner</label>
                 <select

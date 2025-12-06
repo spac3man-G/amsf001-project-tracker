@@ -4,8 +4,11 @@
  * Full-screen modal for viewing, editing, and validating individual timesheets.
  * Includes full edit form and action buttons.
  * 
- * @version 1.0
+ * Uses centralised timesheet calculations for status display and workflow.
+ * 
+ * @version 2.0 - Refactored to use timesheetCalculations.js
  * @created 3 December 2025
+ * @updated 6 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,23 +17,12 @@ import {
   Clock, Calendar, User, FileText, Briefcase
 } from 'lucide-react';
 import { calculateBillableValue } from '../../config/metricsConfig';
-
-const STATUSES = ['Draft', 'Submitted', 'Approved', 'Rejected'];
-const STATUS_DISPLAY_NAMES = {
-  'Draft': 'Draft',
-  'Submitted': 'Submitted',
-  'Approved': 'Validated',
-  'Rejected': 'Rejected'
-};
-
-function getStatusColor(status) {
-  switch (status) {
-    case 'Approved': return { bg: '#dcfce7', color: '#166534' };
-    case 'Submitted': return { bg: '#dbeafe', color: '#1e40af' };
-    case 'Rejected': return { bg: '#fee2e2', color: '#991b1b' };
-    default: return { bg: '#f1f5f9', color: '#64748b' };
-  }
-}
+import {
+  TIMESHEET_STATUS,
+  getStatusDisplayName,
+  getStatusConfig,
+  getStatusValues
+} from '../../lib/timesheetCalculations';
 
 export default function TimesheetDetailModal({
   isOpen,
@@ -68,7 +60,7 @@ export default function TimesheetDetailModal({
 
   if (!isOpen || !timesheet) return null;
 
-  const statusColors = getStatusColor(timesheet.status);
+  const statusConfig = getStatusConfig(timesheet.status);
   const resource = resources?.find(r => r.id === timesheet.resource_id);
   const milestone = milestones?.find(m => m.id === timesheet.milestone_id);
   const hours = parseFloat(timesheet.hours_worked || timesheet.hours || 0);
@@ -144,10 +136,10 @@ export default function TimesheetDetailModal({
               borderRadius: '6px',
               fontSize: '0.875rem',
               fontWeight: '500',
-              backgroundColor: statusColors.bg,
-              color: statusColors.color
+              backgroundColor: statusConfig.bg,
+              color: statusConfig.color
             }}>
-              {STATUS_DISPLAY_NAMES[timesheet.status] || timesheet.status}
+              {statusConfig.label}
             </span>
             <button 
               onClick={handleClose}
@@ -251,7 +243,9 @@ export default function TimesheetDetailModal({
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                   >
-                    {STATUSES.map(s => <option key={s} value={s}>{STATUS_DISPLAY_NAMES[s] || s}</option>)}
+                    {getStatusValues().map(s => (
+                      <option key={s} value={s}>{getStatusDisplayName(s)}</option>
+                    ))}
                   </select>
                 </div>
               )}

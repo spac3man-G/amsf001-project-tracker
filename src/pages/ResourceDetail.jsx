@@ -8,30 +8,38 @@
  * - Timesheet and expense summaries
  * - Margin calculations (admin/supplier PM only)
  * 
- * @version 2.0
- * @refactored 1 December 2025
+ * @version 3.0 - Refactored to use centralised utilities, removed allocation tracking
+ * @updated 6 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  User, ArrowLeft, Building2, Link2, 
-  Clock, DollarSign, TrendingUp, TrendingDown, 
-  Minus, AlertCircle, X, Edit2
+  User, ArrowLeft, Clock, DollarSign, AlertCircle, X, Edit2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
-import { usePermissions } from '../hooks/usePermissions';
-import { VALID_STATUSES, timesheetContributesToSpend, hoursToDays } from '../config/metricsConfig';
+import { useResourcePermissions } from '../hooks/useResourcePermissions';
+import { VALID_STATUSES, hoursToDays } from '../config/metricsConfig';
 import { LoadingSpinner, StatCard } from '../components/common';
 import { resourcesService, partnersService, timesheetsService, expensesService } from '../services';
+import {
+  RESOURCE_TYPE,
+  sfiaToDisplay,
+  sfiaToDatabase,
+  getSfiaOptions,
+  getResourceTypeConfig,
+  calculateMargin,
+  getMarginConfig,
+  calculateSellValue,
+  calculateCostValue
+} from '../lib/resourceCalculations';
 
 // Extracted components
 import {
   ResourceEditForm,
   ResourceDateFilter,
   ResourceDetailsDisplay,
-  AllocationCard,
   TimesheetsCard,
   ExpensesCard
 } from '../components/resources';
@@ -41,7 +49,14 @@ export default function ResourceDetail() {
   const navigate = useNavigate();
   const { user, role: userRole } = useAuth();
   const { projectId } = useProject();
-  const { canManageResources, canSeeCostPrice, canSeeResourceType } = usePermissions();
+  
+  // Use the new resource permissions hook
+  const { 
+    canEdit: canEditResource, 
+    canSeeCostPrice, 
+    canSeeResourceType,
+    canSeeMargins 
+  } = useResourcePermissions();
 
   // State
   const [resource, setResource] = useState(null);
@@ -97,6 +112,7 @@ export default function ResourceDetail() {
         return;
       }
 
+      // Get timesheet summary for stats
       const timesheetsForSummary = await timesheetsService.getAll(resourceData.project_id, {
         filters: [{ column: 'resource_id', operator: 'eq', value: id }],
         select: 'id, hours_worked, hours, status, was_rejected'
@@ -107,7 +123,6 @@ export default function ResourceDetail() {
         timesheetsForSummary.forEach(ts => {
           const hours = parseFloat(ts.hours_worked || ts.hours || 0);
           totalHours += hours;
-          // Use centralized config for status checking
           if (VALID_STATUSES.timesheets.completed.includes(ts.status)) {
             approvedHours += hours;
           } else if (ts.status === 'Submitted' && !ts.was_rejected) {
@@ -118,10 +133,16 @@ export default function ResourceDetail() {
 
       setResource({
         ...resourceData,
-        timesheetSummary: { totalEntries: timesheetsForSummary?.length || 0, totalHours, approvedHours, pendingHours, daysWorked: hoursToDays(totalHours) }
+        timesheetSummary: { 
+          totalEntries: timesheetsForSummary?.length || 0, 
+          totalHours, 
+          approvedHours, 
+          pendingHours, 
+          daysWorked: hoursToDays(totalHours) 
+        }
       });
 
-      // Fetch filtered timesheets
+      // Fetch filtered timesheets for display
       const tsFilters = [{ column: 'resource_id', operator: 'eq', value: id }];
       if (dateRange.start) tsFilters.push({ column: 'date', operator: 'gte', value: dateRange.start });
       if (dateRange.end) tsFilters.push({ column: 'date', operator: 'lte', value: dateRange.end });
@@ -160,7 +181,10 @@ export default function ResourceDetail() {
       const [year, month] = monthValue.split('-').map(Number);
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0);
-      setDateRange({ start: startDate.toISOString().split('T')[0], end: endDate.toISOString().split('T')[0] });
+      setDateRange({ 
+        start: startDate.toISOString().split('T')[0], 
+        end: endDate.toISOString().split('T')[0] 
+      });
     } else {
       setDateRange({ start: null, end: null });
     }
@@ -191,19 +215,6 @@ export default function ResourceDetail() {
   }
 
   // Edit handling
-  function sfiaToDisplay(level) {
-    if (!level) return 'L4';
-    if (typeof level === 'string' && level.startsWith('L')) return level;
-    return `L${level}`;
-  }
-
-  function sfiaToDatabase(level) {
-    if (!level) return 4;
-    if (typeof level === 'number') return level;
-    if (typeof level === 'string' && level.startsWith('L')) return parseInt(level.substring(1)) || 4;
-    return parseInt(level) || 4;
-  }
-
   function startEditing() {
     setEditForm({
       name: resource.name || '',
@@ -214,8 +225,7 @@ export default function ResourceDetail() {
       sell_price: resource.sell_price || '',
       cost_price: resource.cost_price || '',
       discount_percent: resource.discount_percent || 0,
-      days_allocated: resource.days_allocated || '',
-      resource_type: resource.resource_type || 'internal',
+      resource_type: resource.resource_type || RESOURCE_TYPE.INTERNAL,
       partner_id: resource.partner_id || ''
     });
     setIsEditing(true);
@@ -234,9 +244,10 @@ export default function ResourceDetail() {
         sfia_level: sfiaToDatabase(editForm.sfia_level),
         sell_price: parseFloat(editForm.sell_price) || 0,
         discount_percent: parseFloat(editForm.discount_percent) || 0,
-        days_allocated: parseInt(editForm.days_allocated) || 0,
         resource_type: editForm.resource_type,
-        partner_id: editForm.resource_type === 'third_party' ? (editForm.partner_id || null) : null
+        partner_id: editForm.resource_type === RESOURCE_TYPE.THIRD_PARTY 
+          ? (editForm.partner_id || null) 
+          : null
       };
 
       if (canSeeCostPrice) {
@@ -252,21 +263,6 @@ export default function ResourceDetail() {
     } finally {
       setSaving(false);
     }
-  }
-
-  // Helper functions
-  function getMarginStyle(marginPercent) {
-    if (marginPercent === null || marginPercent === undefined) {
-      return { color: '#9ca3af', bg: '#f1f5f9', label: 'N/A', icon: Minus };
-    }
-    if (marginPercent >= 25) return { color: '#16a34a', bg: '#dcfce7', label: 'Good', icon: TrendingUp };
-    if (marginPercent >= 10) return { color: '#d97706', bg: '#fef3c7', label: 'Low', icon: Minus };
-    return { color: '#dc2626', bg: '#fee2e2', label: 'Critical', icon: TrendingDown };
-  }
-
-  function getResourceTypeStyle(type) {
-    if (type === 'third_party') return { bg: '#fef3c7', color: '#92400e', icon: Link2, label: 'Third-Party Partner' };
-    return { bg: '#dbeafe', color: '#1e40af', icon: Building2, label: 'Internal Supplier' };
   }
 
   if (loading) return <LoadingSpinner message="Loading resource..." size="large" fullPage />;
@@ -287,23 +283,26 @@ export default function ResourceDetail() {
   }
 
   // Calculate stats
-  const margin = resourcesService.calculateMargin(resource.sell_price, resource.cost_price);
-  const marginStyle = getMarginStyle(margin.percent);
-  const MarginIcon = marginStyle.icon;
-  const typeStyle = getResourceTypeStyle(resource.resource_type);
-  const TypeIcon = typeStyle.icon;
+  const margin = calculateMargin(resource.sell_price, resource.cost_price);
+  const marginConfig = getMarginConfig(margin.percent);
+  const MarginIcon = marginConfig.icon;
+  const typeConfig = getResourceTypeConfig(resource.resource_type);
+  const TypeIcon = typeConfig.icon;
   
-  const daysAllocated = resource.days_allocated || 0;
   const daysUsed = resource.timesheetSummary?.daysWorked || 0;
-  const utilization = daysAllocated > 0 ? (daysUsed / daysAllocated) * 100 : 0;
-  const totalValue = (resource.sell_price || 0) * daysAllocated;
+  const sellValue = calculateSellValue(daysUsed, resource.sell_price);
+  const costValue = canSeeCostPrice ? calculateCostValue(daysUsed, resource.cost_price) : null;
 
   return (
     <div className="page-container">
       {/* Header */}
       <div className="page-header">
         <div className="page-title">
-          <button onClick={() => navigate('/resources')} className="btn btn-secondary" style={{ marginRight: '1rem', padding: '0.5rem' }}>
+          <button 
+            onClick={() => navigate('/resources')} 
+            className="btn btn-secondary" 
+            style={{ marginRight: '1rem', padding: '0.5rem' }}
+          >
             <ArrowLeft size={20} />
           </button>
           <User size={28} />
@@ -312,19 +311,25 @@ export default function ResourceDetail() {
               <h1>{resource.name}</h1>
               {canSeeResourceType && (
                 <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                  padding: '0.35rem 0.75rem', backgroundColor: typeStyle.bg, color: typeStyle.color,
-                  borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500'
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '0.35rem',
+                  padding: '0.35rem 0.75rem', 
+                  backgroundColor: typeConfig.bg, 
+                  color: typeConfig.color,
+                  borderRadius: '6px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: '500'
                 }}>
                   <TypeIcon size={14} />
-                  {typeStyle.label}
+                  {typeConfig.label}
                 </span>
               )}
             </div>
             <p style={{ color: '#64748b' }}>{resource.role} • {resource.email}</p>
           </div>
         </div>
-        {canManageResources && !isEditing && (
+        {canEditResource && !isEditing && (
           <button className="btn btn-primary" onClick={startEditing}>
             <Edit2 size={18} /> Edit Resource
           </button>
@@ -333,10 +338,22 @@ export default function ResourceDetail() {
 
       {/* Error message */}
       {error && (
-        <div style={{ padding: '1rem', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ 
+          padding: '1rem', 
+          backgroundColor: '#fee2e2', 
+          color: '#dc2626', 
+          borderRadius: '8px', 
+          marginBottom: '1.5rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '0.5rem' 
+        }}>
           <AlertCircle size={18} />
           {error}
-          <button onClick={() => setError(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}>
+          <button 
+            onClick={() => setError(null)} 
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
             <X size={18} />
           </button>
         </div>
@@ -344,25 +361,45 @@ export default function ResourceDetail() {
 
       {/* Stats Row */}
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <StatCard icon={DollarSign} label="Sell Price" value={`£${resource.sell_price || 0}`} subtext="Customer rate" color="#10b981" />
+        <StatCard 
+          icon={Clock} 
+          label="Days Used" 
+          value={daysUsed.toFixed(1)} 
+          subtext={`${resource.timesheetSummary?.totalHours?.toFixed(1) || 0} hours logged`}
+          color="#3b82f6" 
+        />
+        <StatCard 
+          icon={DollarSign} 
+          label="Sell Value" 
+          value={`£${sellValue.toLocaleString()}`} 
+          subtext={`@ £${resource.sell_price}/day`}
+          color="#10b981" 
+        />
         {canSeeCostPrice && (
-          <StatCard icon={DollarSign} label="Cost Price" value={resource.cost_price ? `£${resource.cost_price}` : 'Not set'} subtext="Internal cost" color="#3b82f6" />
+          <StatCard 
+            icon={DollarSign} 
+            label="Cost Value" 
+            value={costValue !== null ? `£${costValue.toLocaleString()}` : 'N/A'} 
+            subtext={resource.cost_price ? `@ £${resource.cost_price}/day` : 'No cost set'}
+            color="#6366f1" 
+          />
         )}
-        {canSeeCostPrice && (
-          <div className="stat-card" style={{ borderLeft: `4px solid ${marginStyle.color}` }}>
+        {canSeeMargins && (
+          <div className="stat-card" style={{ borderLeft: `4px solid ${marginConfig.color}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <MarginIcon size={20} style={{ color: marginStyle.color }} />
+              <MarginIcon size={20} style={{ color: marginConfig.color }} />
               <span className="stat-label">Margin</span>
             </div>
-            <div className="stat-value" style={{ color: marginStyle.color }}>
+            <div className="stat-value" style={{ color: marginConfig.color }}>
               {margin.percent !== null ? `${margin.percent.toFixed(1)}%` : 'N/A'}
             </div>
             {margin.amount !== null && (
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>£{margin.amount.toFixed(0)} per day</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                £{margin.amount.toFixed(0)} per day
+              </div>
             )}
           </div>
         )}
-        <StatCard icon={Clock} label="Utilization" value={`${Math.round(utilization)}%`} subtext={`${daysUsed.toFixed(1)} / ${daysAllocated} days`} color={utilization > 80 ? '#10b981' : utilization > 0 ? '#3b82f6' : '#64748b'} />
       </div>
 
       {/* Date Range Filter */}
@@ -376,12 +413,18 @@ export default function ResourceDetail() {
       />
 
       {/* Main Content Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: isEditing ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: isEditing ? '1fr' : '1fr 1fr', 
+        gap: '1.5rem' 
+      }}>
         
         {/* Resource Details Card */}
         <div className="card">
           <div className="card-header">
-            <h2 className="card-title">{isEditing ? 'Edit Resource Details' : 'Resource Details'}</h2>
+            <h2 className="card-title">
+              {isEditing ? 'Edit Resource Details' : 'Resource Details'}
+            </h2>
           </div>
           
           {isEditing ? (
@@ -398,8 +441,8 @@ export default function ResourceDetail() {
           ) : (
             <ResourceDetailsDisplay
               resource={resource}
-              daysAllocated={daysAllocated}
-              totalValue={totalValue}
+              daysUsed={daysUsed}
+              sellValue={sellValue}
               canSeeResourceType={canSeeResourceType}
             />
           )}
@@ -408,20 +451,20 @@ export default function ResourceDetail() {
         {/* Right Column - only shown when not editing */}
         {!isEditing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <AllocationCard
-              daysUsed={daysUsed}
-              daysAllocated={daysAllocated}
-              totalHours={resource.timesheetSummary?.totalHours}
-              approvedHours={resource.timesheetSummary?.approvedHours}
+            <TimesheetsCard 
+              timesheets={timesheets} 
+              dateRangeLabel={getDateRangeLabel()} 
             />
-            <TimesheetsCard timesheets={timesheets} dateRangeLabel={getDateRangeLabel()} />
           </div>
         )}
       </div>
 
       {/* Expenses - full width below */}
       {!isEditing && (
-        <ExpensesCard expenses={expenses} dateRangeLabel={getDateRangeLabel()} />
+        <ExpensesCard 
+          expenses={expenses} 
+          dateRangeLabel={getDateRangeLabel()} 
+        />
       )}
     </div>
   );

@@ -1,0 +1,233 @@
+/**
+ * useTimesheetPermissions Hook
+ * 
+ * Provides timesheet-specific permission checks for the submission
+ * and validation workflow. This hook centralises all permission
+ * logic for timesheet-related actions.
+ * 
+ * Workflow: Draft → Submitted → Validated/Rejected
+ * - Contributors/Supplier PM submit their own timesheets
+ * - Customer PM validates (approves/rejects)
+ * - Admin has full access
+ * 
+ * @version 1.0
+ * @created 6 December 2025
+ */
+
+import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from './usePermissions';
+import {
+  isEditable,
+  isComplete,
+  canBeSubmitted,
+  canBeValidated,
+  canBeDeleted
+} from '../lib/timesheetCalculations';
+
+/**
+ * Hook for timesheet-specific permissions.
+ * 
+ * @param {Object} timesheet - Optional timesheet object for context-aware permissions
+ * @returns {Object} Permission flags and helper functions
+ * 
+ * @example
+ * // Without timesheet (for general permissions)
+ * const { canAdd, canAddForOthers } = useTimesheetPermissions();
+ * 
+ * @example
+ * // With timesheet (for object-specific permissions)
+ * const { canEdit, canSubmit, canValidate, canDelete } = useTimesheetPermissions(timesheet);
+ */
+export function useTimesheetPermissions(timesheet = null) {
+  const { user, role: userRole, profile, linkedResource } = useAuth();
+  const basePermissions = usePermissions();
+  
+  // Core role checks
+  const isAdmin = userRole === 'admin';
+  const isSupplierPM = userRole === 'supplier_pm';
+  const isCustomerPM = userRole === 'customer_pm';
+  const isContributor = userRole === 'contributor';
+  
+  // User identity
+  const currentUserId = user?.id || null;
+  const currentUserName = profile?.full_name || user?.email || 'Unknown';
+  const currentUserResourceId = linkedResource?.id || null;
+  
+  // Ownership check
+  const isOwner = (() => {
+    if (!timesheet || !currentUserId) return false;
+    // Check created_by or linked resource's user_id
+    return timesheet.created_by === currentUserId || 
+           timesheet.user_id === currentUserId ||
+           timesheet.resource_id === currentUserResourceId;
+  })();
+  
+  // ============================================
+  // SIMPLE PERMISSIONS (no timesheet needed)
+  // ============================================
+  
+  /**
+   * Can the user add new timesheets?
+   * Admin, Supplier PM, Contributors can add.
+   */
+  const canAdd = basePermissions.canAddTimesheet;
+  
+  /**
+   * Can the user add timesheets for other resources?
+   * Admin and Supplier PM can add for others.
+   */
+  const canAddForOthers = basePermissions.canAddTimesheetForOthers;
+  
+  /**
+   * Can the user validate any timesheets?
+   * Customer PM and Admin can validate.
+   */
+  const canValidateAny = basePermissions.canApproveTimesheet;
+  
+  // ============================================
+  // OBJECT-AWARE PERMISSIONS (need timesheet)
+  // ============================================
+  
+  /**
+   * Can the user view this timesheet?
+   * All authenticated users can view.
+   */
+  const canView = true;
+  
+  /**
+   * Can the user edit this timesheet?
+   * - Admin/Supplier PM can edit any editable timesheet
+   * - Owner can edit their own if Draft or Rejected
+   */
+  const canEdit = (() => {
+    if (!timesheet) return false;
+    
+    // Check workflow state first
+    if (!isEditable(timesheet.status)) return false;
+    
+    // Admin and Supplier PM can edit any
+    if (isAdmin || isSupplierPM) return true;
+    
+    // Owner can edit their own
+    return isOwner;
+  })();
+  
+  /**
+   * Can the user delete this timesheet?
+   * - Admin can delete any
+   * - Owner can delete their own Draft timesheets
+   */
+  const canDelete = (() => {
+    if (!timesheet) return false;
+    
+    // Admin can delete any
+    if (isAdmin) return true;
+    
+    // Must be Draft to delete
+    if (!canBeDeleted(timesheet.status)) return false;
+    
+    // Supplier PM can delete any Draft
+    if (isSupplierPM) return true;
+    
+    // Owner can delete their own Draft
+    return isOwner;
+  })();
+  
+  /**
+   * Can the user submit this timesheet for validation?
+   * - Must be in submittable state (Draft or Rejected)
+   * - Admin/Supplier PM can submit any
+   * - Owner can submit their own
+   */
+  const canSubmit = (() => {
+    if (!timesheet) return false;
+    
+    // Check workflow state
+    if (!canBeSubmitted(timesheet.status)) return false;
+    
+    // Admin and Supplier PM can submit any
+    if (isAdmin || isSupplierPM) return true;
+    
+    // Owner can submit their own
+    return isOwner;
+  })();
+  
+  /**
+   * Can the user validate (approve) this timesheet?
+   * - Must be in Submitted status
+   * - Customer PM or Admin can validate
+   */
+  const canValidate = (() => {
+    if (!timesheet) return false;
+    
+    // Check workflow state
+    if (!canBeValidated(timesheet.status)) return false;
+    
+    // Customer PM or Admin can validate
+    return isAdmin || isCustomerPM;
+  })();
+  
+  /**
+   * Can the user reject this timesheet?
+   * Same rules as validate - semantic alias
+   */
+  const canReject = canValidate;
+  
+  // ============================================
+  // STATUS FLAGS
+  // ============================================
+  
+  /**
+   * Is this timesheet in an editable state?
+   */
+  const timesheetIsEditable = timesheet ? isEditable(timesheet.status) : true;
+  
+  /**
+   * Is this timesheet completed (validated)?
+   */
+  const timesheetIsComplete = timesheet ? isComplete(timesheet.status) : false;
+  
+  // ============================================
+  // RETURN OBJECT
+  // ============================================
+  
+  return {
+    // User identity
+    currentUserId,
+    currentUserName,
+    currentUserResourceId,
+    userRole,
+    
+    // Role checks
+    isAdmin,
+    isSupplierPM,
+    isCustomerPM,
+    isContributor,
+    
+    // Ownership
+    isOwner,
+    
+    // Simple permissions (no timesheet needed)
+    canAdd,
+    canAddForOthers,
+    canValidateAny,
+    
+    // Object-aware permissions
+    canView,
+    canEdit,
+    canDelete,
+    canSubmit,
+    canValidate,
+    canReject,
+    
+    // Status flags
+    isEditable: timesheetIsEditable,
+    isComplete: timesheetIsComplete,
+    
+    // Resource helpers (pass-through from base permissions)
+    getAvailableResources: basePermissions.getAvailableResources,
+    getDefaultResourceId: basePermissions.getDefaultResourceId
+  };
+}
+
+export default useTimesheetPermissions;
