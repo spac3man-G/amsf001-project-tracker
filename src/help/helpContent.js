@@ -196,6 +196,16 @@ export const helpContent = {
     description: 'View and manage individual deliverables, submit for review, and complete the delivery sign-off process.',
     sections: [
       {
+        heading: 'Edit Permissions',
+        type: 'list',
+        content: [
+          'Name - Only Supplier PM can edit',
+          'Milestone - Only Supplier PM can edit',
+          'Description - Supplier PM or Contributor can edit',
+          'Progress - Supplier PM or Contributor can edit'
+        ]
+      },
+      {
         heading: 'Review Process',
         type: 'list',
         content: [
@@ -217,9 +227,9 @@ export const helpContent = {
       }
     ],
     tips: [
-      'The Supplier PM should sign first',
-      'Once both sign, the deliverable is marked as Delivered',
-      'Delivered items contribute to milestone progress'
+      'Fields you cannot edit appear disabled with an explanation',
+      'The Supplier PM should sign first to confirm delivery',
+      'Once both sign, the deliverable is marked as Delivered'
     ],
     relatedTopics: ['deliverables', 'milestones']
   },

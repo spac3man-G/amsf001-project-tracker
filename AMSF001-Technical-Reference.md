@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - Technical Reference
 
-**Last Updated:** 5 December 2025  
-**Version:** 2.0  
+**Last Updated:** 6 December 2025  
+**Version:** 3.0  
 **Production Readiness:** 100%
 
 ---
@@ -10,16 +10,19 @@
 
 1. [Quick Reference](#1-quick-reference)
 2. [Architecture Overview](#2-architecture-overview)
-3. [Apple Design System](#3-apple-design-system)
-4. [Supabase Configuration](#4-supabase-configuration)
-5. [Vercel Configuration](#5-vercel-configuration)
-6. [Service Layer](#6-service-layer)
-7. [UI Component Patterns](#7-ui-component-patterns)
-8. [AI Chat System](#8-ai-chat-system)
-9. [SQL Migrations](#9-sql-migrations)
-10. [Local Development](#10-local-development)
-11. [Recent Changes](#11-recent-changes)
-12. [Troubleshooting](#12-troubleshooting)
+3. [Shared Utilities Architecture](#3-shared-utilities-architecture)
+4. [Dual-Signature Workflows](#4-dual-signature-workflows)
+5. [Apple Design System](#5-apple-design-system)
+6. [Supabase Configuration](#6-supabase-configuration)
+7. [Vercel Configuration](#7-vercel-configuration)
+8. [Service Layer](#8-service-layer)
+9. [UI Component Patterns](#9-ui-component-patterns)
+10. [AI Chat System](#10-ai-chat-system)
+11. [In-App Help System](#11-in-app-help-system)
+12. [SQL Migrations](#12-sql-migrations)
+13. [Local Development](#13-local-development)
+14. [Recent Changes](#14-recent-changes)
+15. [Troubleshooting](#15-troubleshooting)
 
 ---
 
@@ -42,6 +45,7 @@
 | Source Code | /Users/glennnickols/Projects/amsf001-project-tracker/src |
 | SQL Scripts | /Users/glennnickols/Projects/amsf001-project-tracker/sql |
 | API Functions | /Users/glennnickols/Projects/amsf001-project-tracker/api |
+| Help Content | /Users/glennnickols/Projects/amsf001-project-tracker/src/help |
 
 ### Key Commands
 
@@ -74,16 +78,18 @@ git add -A && git commit -m "message" && git push
 src/
 ├── components/              # Reusable UI components
 │   ├── ui/                 # Core UI (ActionButtons, Card, FilterBar)
-│   ├── common/             # Shared components (LoadingSpinner, etc.)
+│   ├── common/             # Shared components (SignatureBox, LoadingSpinner)
 │   ├── chat/               # AI Chat components
+│   ├── help/               # Help drawer and button
 │   ├── timesheets/         # Timesheet components + modal
 │   ├── expenses/           # Expense components + modal
 │   ├── deliverables/       # Deliverable components + modal
 │   ├── milestones/         # Milestone table component
 │   └── networkstandards/   # Network standards + modal
-├── contexts/               # React contexts (Auth, Project, Toast)
-├── hooks/                  # Custom hooks (usePermissions, useFormValidation)
-├── lib/                    # Utilities (supabase client, permissions)
+├── contexts/               # React contexts (Auth, Project, Toast, Help)
+├── hooks/                  # Custom hooks (usePermissions, useMilestonePermissions, useDeliverablePermissions)
+├── lib/                    # Utilities (supabase, permissions, calculations, formatters)
+├── help/                   # Help content definitions
 ├── pages/                  # Page components (with dedicated CSS)
 ├── services/               # Data service layer (18 services)
 └── styles/                 # Global CSS
@@ -96,12 +102,212 @@ src/
 | admin | 5 | Full system access, no workflow notifications |
 | supplier_pm | 4 | Full access + validates timesheets/expenses |
 | customer_pm | 3 | Reviews deliverables, validates timesheets |
-| contributor | 2 | Submits timesheets & expenses |
+| contributor | 2 | Submits timesheets & expenses, edits deliverable progress |
 | viewer | 1 | Read-only dashboard access |
 
 ---
 
-## 3. Apple Design System
+## 3. Shared Utilities Architecture
+
+### Overview
+
+The application uses centralised utility modules to eliminate code duplication and ensure consistent business logic across components.
+
+### Calculation Modules
+
+| File | Purpose |
+|------|---------|
+| `src/lib/milestoneCalculations.js` | Milestone status, progress, financial calculations |
+| `src/lib/deliverableCalculations.js` | Deliverable status, workflow state, sign-off logic |
+| `src/lib/formatters.js` | Date, currency, and number formatting |
+| `src/lib/metricsConfig.js` | Hour-to-day conversions, financial metrics |
+
+### milestoneCalculations.js
+
+```javascript
+// Status constants
+export const MILESTONE_STATUS = { NOT_STARTED, IN_PROGRESS, COMPLETED };
+export const COMMITMENT_STATUS = { NOT_SIGNED, AWAITING_SUPPLIER, AWAITING_CUSTOMER, COMMITTED };
+export const CERTIFICATE_STATUS = { NONE, PENDING, AWAITING_SUPPLIER, AWAITING_CUSTOMER, BOTH_SIGNED };
+
+// Core functions
+export function calculateMilestoneStatus(progress);
+export function calculateCommitmentStatus(milestone);
+export function calculateCertificateStatus(certificate);
+export function calculateProgressFromDeliverables(deliverables);
+export function canSupplierSign(milestone);
+export function canCustomerSign(milestone);
+```
+
+### deliverableCalculations.js
+
+```javascript
+// Status constants
+export const DELIVERABLE_STATUS = { 
+  NOT_STARTED, IN_PROGRESS, SUBMITTED_FOR_REVIEW, 
+  RETURNED_FOR_MORE_WORK, REVIEW_COMPLETE, DELIVERED 
+};
+export const SIGN_OFF_STATUS = { NOT_SIGNED, AWAITING_SUPPLIER, AWAITING_CUSTOMER, SIGNED };
+
+// Core functions
+export function getStatusConfig(status);           // Returns { bg, color, icon }
+export function getAutoTransitionStatus(current, progress);
+export function isProgressSliderDisabled(status);
+export function canSubmitForReview(deliverable);
+export function canReviewDeliverable(deliverable);
+export function canStartDeliverySignOff(deliverable);
+export function isDeliverableComplete(deliverable);
+export function calculateSignOffStatus(deliverable);
+export function canSupplierSign(deliverable);
+export function canCustomerSign(deliverable);
+```
+
+### formatters.js
+
+```javascript
+export function formatDate(dateString);           // "15 Jan 2025"
+export function formatDateTime(dateString);       // "15 Jan 2025, 14:30"
+export function formatCurrency(amount, symbol);   // "£1,234.56"
+export function formatNumber(num, decimals);      // "1,234.56"
+export function formatPercentage(value);          // "85%"
+```
+
+### Permission Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `usePermissions` | General role-based permissions |
+| `useMilestonePermissions` | Milestone-specific actions (sign, edit, delete) |
+| `useDeliverablePermissions` | Deliverable-specific actions (submit, review, sign) |
+
+### useDeliverablePermissions Hook
+
+```javascript
+const {
+  // Role checks
+  isAdmin, isSupplierPM, isCustomerPM, isContributor,
+  
+  // Basic permissions
+  canCreate, canEdit, canDelete,
+  
+  // Workflow permissions
+  canSubmit, canReview, canAcceptReview, canRejectReview,
+  
+  // Dual-signature permissions
+  canSignAsSupplier, canSignAsCustomer, isFullySigned
+} = useDeliverablePermissions(deliverable);
+```
+
+### Field-Level Edit Permissions (Deliverables)
+
+| Field | Who Can Edit |
+|-------|-------------|
+| Name | Supplier PM, Admin |
+| Milestone | Supplier PM, Admin |
+| Description | Supplier PM, Admin, Contributor |
+| Progress | Supplier PM, Admin, Contributor |
+
+---
+
+## 4. Dual-Signature Workflows
+
+### Overview
+
+Critical project agreements require both Supplier PM and Customer PM signatures. This ensures mutual commitment before work begins or payments are triggered.
+
+### Workflow Types
+
+| Workflow | When Used | Trigger |
+|----------|-----------|---------|
+| Baseline Commitment | Before milestone work begins | Locks baseline dates and budget |
+| Acceptance Certificate | When milestone reaches 100% | Authorises billing |
+| Deliverable Sign-off | When deliverable review is complete | Marks deliverable as Delivered |
+
+### Signature Flow
+
+```
+                 Either party can sign first
+                          │
+           ┌──────────────┴──────────────┐
+           ▼                              ▼
+    ┌─────────────┐                ┌─────────────┐
+    │  Supplier   │                │  Customer   │
+    │  PM Signs   │                │  PM Signs   │
+    └──────┬──────┘                └──────┬──────┘
+           │                              │
+           ▼                              ▼
+    ┌─────────────┐                ┌─────────────┐
+    │  Awaiting   │                │  Awaiting   │
+    │  Customer   │                │  Supplier   │
+    └──────┬──────┘                └──────┬──────┘
+           │                              │
+           └──────────────┬───────────────┘
+                          ▼
+                 ┌─────────────────┐
+                 │   BOTH SIGNED   │
+                 │  (Action fires) │
+                 └─────────────────┘
+```
+
+### Database Columns (Deliverables)
+
+```sql
+-- Added by P10-deliverable-signatures.sql
+supplier_pm_id UUID,
+supplier_pm_name TEXT,
+supplier_pm_signed_at TIMESTAMPTZ,
+customer_pm_id UUID,
+customer_pm_name TEXT,
+customer_pm_signed_at TIMESTAMPTZ,
+sign_off_status TEXT DEFAULT 'Not Signed'
+```
+
+### Sign-Off Status Values
+
+| Status | Meaning |
+|--------|---------|
+| Not Signed | No signatures yet |
+| Awaiting Supplier | Customer signed, waiting for Supplier |
+| Awaiting Customer | Supplier signed, waiting for Customer |
+| Signed | Both parties have signed |
+
+### Service Method: signDeliverable
+
+```javascript
+// src/services/deliverables.service.js
+async signDeliverable(deliverableId, signerRole, userId, userName) {
+  // 1. Get current deliverable
+  // 2. Update appropriate signature fields
+  // 3. Calculate new sign-off status
+  // 4. If both signed: status = 'Delivered', progress = 100
+  // 5. Return updated deliverable
+}
+```
+
+### Shared Component: SignatureBox
+
+```jsx
+// src/components/common/SignatureBox.jsx
+<DualSignature
+  supplier={{
+    signedBy: milestone.supplier_pm_name,
+    signedAt: milestone.supplier_pm_signed_at,
+    canSign: permissions.canSignAsSupplier,
+    onSign: handleSupplierSign
+  }}
+  customer={{
+    signedBy: milestone.customer_pm_name,
+    signedAt: milestone.customer_pm_signed_at,
+    canSign: permissions.canSignAsCustomer,
+    onSign: handleCustomerSign
+  }}
+  saving={isSaving}
+/>
+```
+
+---
+
+## 5. Apple Design System
 
 ### Overview
 
@@ -128,10 +334,6 @@ The application uses a custom Apple-inspired design system implemented consisten
 --color-bg-secondary: #f5f5f7;
 --color-bg-tertiary: #fafafa;
 
-/* Border Colors */
---color-border: #d2d2d7;
---color-border-light: #e8e8ed;
-
 /* Border Radius */
 --radius-sm: 6px;
 --radius-md: 10px;
@@ -140,26 +342,7 @@ The application uses a custom Apple-inspired design system implemented consisten
 /* Shadows */
 --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
 --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
-
-/* Typography */
---font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
---font-mono: 'SF Mono', SFMono-Regular, Consolas, monospace;
 ```
-
-### Page CSS Files
-
-| Page | CSS File | Accent Color |
-|------|----------|--------------|
-| Milestones | Milestones.css | Teal (#0d9488) |
-| Deliverables | Deliverables.css | Blue (#007aff) |
-| Resources | Resources.css | Teal (#0d9488) |
-| Expenses | Expenses.css | Teal (#0d9488) |
-| Partners | Partners.css | Teal (#0d9488) |
-| Timesheets | Timesheets.css | Teal (#0d9488) |
-| KPIs | KPIs.css | Teal (#0d9488) |
-| Quality Standards | QualityStandards.css | Teal (#0d9488) |
-| Users | Users.css | Purple (#af52de) |
-| RAID Log | RaidLog.css | Red/Orange (#ef4444) |
 
 ### Design Principles
 
@@ -169,54 +352,9 @@ The application uses a custom Apple-inspired design system implemented consisten
 4. **Inline Actions Only** - Status toggles use stopPropagation
 5. **Consistent Tables** - Clean borders, hover states, proper spacing
 
-### Header Pattern
-
-```jsx
-<header className="page-header">
-  <div className="header-content">
-    <div className="header-title">
-      <Icon size={28} strokeWidth={1.5} />
-      <div>
-        <h1>Page Title</h1>
-        <p>{count} item{count !== 1 ? 's' : ''}</p>
-      </div>
-    </div>
-    <div className="header-actions">
-      <button className="btn-primary">
-        <Plus size={16} /> Add New
-      </button>
-    </div>
-  </div>
-</header>
-```
-
-### Table Pattern
-
-```jsx
-<div className="table-card">
-  <table>
-    <thead>
-      <tr>
-        <th>Column</th>
-      </tr>
-    </thead>
-    <tbody>
-      {items.map(item => (
-        <tr 
-          key={item.id}
-          onClick={() => navigate(`/path/${item.id}`)}
-        >
-          <td>{item.value}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
-```
-
 ---
 
-## 4. Supabase Configuration
+## 6. Supabase Configuration
 
 ### Project Details
 
@@ -228,48 +366,22 @@ The application uses a custom Apple-inspired design system implemented consisten
 | Database | PostgreSQL 15 |
 | Plan | Pro |
 
-### API Keys
-
-```env
-VITE_SUPABASE_URL=https://ljqpmrcqxzgcfojrkxce.supabase.co
-VITE_SUPABASE_ANON_KEY=[From Supabase Dashboard > Settings > API]
-SUPABASE_SERVICE_ROLE_KEY=[Server-side only - for AI Chat queries]
-```
-
-### Database Tables (35+)
-
-**Core Tables:**
-- projects, milestones, deliverables, milestone_certificates
-- resources, timesheets, expenses, resource_allocations
-- partners, partner_invoices, partner_invoice_lines
-- kpis, quality_standards, risks, issues
-- profiles, audit_log, deleted_items
-- dashboard_layouts, notifications
-
-**AI Feature Tables:**
-- receipt_scans, expense_classification_rules
-
 ### RLS Policies Summary
 
 | Table | SELECT | INSERT | UPDATE | DELETE |
 |-------|--------|--------|--------|--------|
 | milestones | All auth users | Admin, Supplier PM | Admin, Supplier PM | Admin, Supplier PM |
 | deliverables | All auth users | Admin, Supplier PM | Admin, Supplier PM, Contributors | Admin, Supplier PM |
-| timesheets | All auth users | All (own) | Own or Admin | Own Draft or Admin |
-| expenses | All auth users | All (own) | Own or Admin | Own Draft or Admin |
+| timesheets | All auth users | All (own) | Own or Admin/PM | Own Draft or Admin |
+| expenses | All auth users | All (own) | Own or Admin/PM | Own Draft or Admin |
 
 ### Permission Matrix
 
 The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.js`) as the **single source of truth** for role-based access control.
 
-**Key Files:**
-- `src/lib/permissionMatrix.js` - Defines all permissions
-- `src/lib/permissions.js` - Backward-compatible exports
-- `src/hooks/usePermissions.js` - React hook for components
-
 ---
 
-## 5. Vercel Configuration
+## 7. Vercel Configuration
 
 ### Project Details
 
@@ -278,7 +390,7 @@ The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.
 | Project Name | amsf001-project-tracker |
 | Framework | Vite |
 | Node Version | 22.x |
-| Plan | Pro |
+| Team ID | team_earXYyEn9jCrxby80dRBGlfP |
 
 ### Environment Variables
 
@@ -289,20 +401,9 @@ The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.
 | ANTHROPIC_API_KEY | Claude AI API key | For AI features |
 | SUPABASE_SERVICE_ROLE_KEY | Service role key | For AI Chat |
 
-### Build Settings
-
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "framework": "vite"
-}
-```
-
 ---
 
-## 6. Service Layer
+## 8. Service Layer
 
 ### Services (18 total)
 
@@ -310,151 +411,112 @@ The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.
 src/services/
 ├── index.js                    # Barrel export
 ├── base.service.js             # Base CRUD operations
-├── auth.service.js             # Authentication
-├── projects.service.js         # Project management
-├── milestones.service.js       # Milestones
-├── deliverables.service.js     # Deliverables
-├── resources.service.js        # Resources
-├── timesheets.service.js       # Timesheets
-├── expenses.service.js         # Expenses
-├── partners.service.js         # Partners
-├── invoicing.service.js        # Partner invoicing
-├── kpis.service.js             # KPIs
-├── qualityStandards.service.js # Quality standards
-├── dashboard.service.js        # Dashboard layouts
-├── auditLog.service.js         # Audit logging
-├── deletedItems.service.js     # Soft delete recovery
-├── receiptScanner.service.js   # AI receipt scanning
-└── notifications.service.js    # Notifications
+├── deliverables.service.js     # Deliverables + signDeliverable()
+├── milestones.service.js       # Milestones + certificates
+├── timesheets.service.js       # Timesheets + submit/validate
+├── expenses.service.js         # Expenses + submit/validate
+└── ... (14 more services)
 ```
 
-### Important Pattern: Avoid .single()
+### Key Service Methods
 
-All services use `.select()` + array access instead of `.single()` to avoid RLS-related errors:
+**deliverablesService:**
+- `signDeliverable(id, role, userId, userName)` - Record dual signature
+- `syncKPILinks(id, kpiIds)` - Link KPIs to deliverable
+- `syncQSLinks(id, qsIds)` - Link Quality Standards
+- `upsertKPIAssessments(id, assessments, userId)` - Record KPI results
+- `upsertQSAssessments(id, assessments, userId)` - Record QS results
 
-```javascript
-// ❌ Don't use - fails with RLS
-const { data, error } = await supabase
-  .from('table')
-  .update(updates)
-  .eq('id', id)
-  .single();
-
-// ✅ Use this pattern
-const { data, error } = await supabase
-  .from('table')
-  .update(updates)
-  .eq('id', id)
-  .select();
-
-return data?.[0];
-```
+**milestonesService:**
+- `signBaseline(id, role, userId, userName)` - Sign baseline commitment
+- `createCertificate(milestoneId, data)` - Create acceptance certificate
+- `signCertificate(certId, role, userId, userName)` - Sign certificate
 
 ---
 
-## 7. UI Component Patterns
-
-### Click-to-Navigate Pattern
-
-All list pages use full row clickability - **no separate view/edit/delete buttons in tables**:
-
-```jsx
-<tr 
-  onClick={() => navigate(`/path/${item.id}`)}
-  style={{ cursor: 'pointer' }}
->
-  <td>{item.name}</td>
-  <td>{item.status}</td>
-</tr>
-```
-
-### Pages Following This Pattern
-
-| Page | Navigation Target | Notes |
-|------|-------------------|-------|
-| Milestones | /milestones/:id | Certificate badge inline |
-| Deliverables | /deliverables/:id | Status badge inline |
-| Resources | /resources/:id | Utilization bar inline |
-| Partners | /partners/:id | Status toggle with stopPropagation |
-| Expenses | Detail Modal | Filter bar retained |
-| Timesheets | Detail Modal | Filter bar retained |
-| KPIs | /kpis/:id | Category badges inline |
-| Quality Standards | /quality-standards/:id | Status badges inline |
-| Users | N/A (inline editing) | Role dropdown inline |
-
-### Inline Actions with stopPropagation
-
-For actions that shouldn't navigate:
-
-```jsx
-<td onClick={(e) => e.stopPropagation()}>
-  <button onClick={() => toggleStatus(item.id)}>
-    Toggle
-  </button>
-</td>
-```
+## 9. UI Component Patterns
 
 ### Detail Modal Components
 
 ```
 src/components/
-├── timesheets/TimesheetDetailModal.jsx    # Validate/Reject
-├── expenses/ExpenseDetailModal.jsx        # Validate/Reject
-├── deliverables/DeliverableDetailModal.jsx # Submit/Review/Deliver
-└── networkstandards/NetworkStandardDetailModal.jsx # Edit status
+├── deliverables/DeliverableDetailModal.jsx  # View, edit, workflow, sign-off
+├── timesheets/TimesheetDetailModal.jsx      # Validate/Reject
+├── expenses/ExpenseDetailModal.jsx          # Validate/Reject
+└── common/SignatureBox.jsx                  # Shared signature UI
 ```
+
+### DeliverableDetailModal Features
+
+- **View Mode**: Shows milestone, due date, progress, KPIs, QS, sign-off status
+- **Edit Mode**: Field-level permissions (name/milestone: Supplier PM only)
+- **Workflow Actions**: Submit for Review, Accept/Reject Review
+- **Dual-Signature**: Sign as Supplier PM or Customer PM
+- **Status Display**: Auto-generated badges with icons
 
 ---
 
-## 8. AI Chat System
+## 10. AI Chat System
 
 ### Three-Tier Architecture
 
-```
-User Question
-    ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ TIER 1: INSTANT (0ms API, ~100ms total)                         │
-│ LOCAL_RESPONSE_PATTERNS in ChatContext.jsx                      │
-│ Answers from prefetchedContext without any API call             │
-└─────────────────────────────────────────────────────────────────┘
-    ↓ (if no pattern match)
-┌─────────────────────────────────────────────────────────────────┐
-│ TIER 2: STREAMING HAIKU (1-2 seconds)                           │
-│ /api/chat-stream - STREAMING_PATTERNS check                     │
-│ Uses Haiku model with pre-fetched context only                  │
-└─────────────────────────────────────────────────────────────────┘
-    ↓ (if COMPLEX_PATTERNS detected)
-┌─────────────────────────────────────────────────────────────────┐
-│ TIER 3: FULL SONNET WITH TOOLS (3-5 seconds)                    │
-│ /api/chat - 12 database tools available                         │
-│ Parallel execution, 5s timeout, 5min cache                      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| api/chat.js | Sonnet with database tools |
-| api/chat-stream.js | Streaming Haiku responses |
-| api/chat-context.js | Pre-fetch project context |
-| src/contexts/ChatContext.jsx | Tier 1 local responses |
-| src/components/chat/ChatWidget.jsx | UI component |
-
-### Performance Optimizations
-
-- **Query Timeouts:** 5-second hard limit on database queries
-- **Parallel Execution:** Multiple tools run concurrently
-- **Extended Cache:** 5-minute TTL for tool results
-- **Partial Failures:** Return available data if one tool fails
+| Tier | Response Time | Model | Purpose |
+|------|---------------|-------|---------|
+| 1 | ~100ms | None (local) | Pre-fetched context answers |
+| 2 | 1-2s | Haiku (streaming) | Simple queries |
+| 3 | 3-5s | Sonnet (tools) | Complex database queries |
 
 ---
 
-## 9. SQL Migrations
+## 11. In-App Help System
 
-### Location
-`/Users/glennnickols/Projects/amsf001-project-tracker/sql/`
+### Architecture
+
+| Layer | File | Purpose |
+|-------|------|---------|
+| Content | `src/help/helpContent.js` | Page-specific help definitions |
+| State | `src/contexts/HelpContext.jsx` | Open/close state, keyboard shortcuts |
+| UI | `src/components/help/HelpDrawer.jsx` | Slide-out drawer component |
+| Trigger | `src/components/help/HelpButton.jsx` | Floating action button |
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `?` or `F1` | Toggle help drawer |
+| `Escape` | Close help drawer |
+
+### Help Content Structure
+
+```javascript
+{
+  title: 'Page Title',
+  icon: LucideIconComponent,
+  description: 'Brief description of the page',
+  sections: [
+    { heading: 'Section', type: 'list', content: ['Item 1', 'Item 2'] },
+    { heading: 'Section', type: 'text', content: 'Paragraph text' }
+  ],
+  tips: ['Tip 1', 'Tip 2'],
+  relatedTopics: ['otherPage', 'anotherPage']
+}
+```
+
+### Route-to-Help Mapping
+
+| Route | Help Key |
+|-------|----------|
+| `/dashboard` | dashboard |
+| `/milestones` | milestones |
+| `/milestones/:id` | milestoneDetail |
+| `/deliverables` | deliverables |
+| `/resources` | resources |
+| `/timesheets` | timesheets |
+| `/expenses` | expenses |
+
+---
+
+## 12. SQL Migrations
 
 ### Migration Status
 
@@ -468,34 +530,21 @@ User Question
 | P7-receipt-scanner.sql | Receipt scanner tables | ✅ Deployed |
 | P8-deliverables-contributor-access.sql | Contributors edit | ✅ Deployed |
 | P9-milestone-update-rls.sql | Milestone RLS | ✅ Deployed |
+| P10-deliverable-signatures.sql | Deliverable dual-signature | ⏳ Pending |
 | audit-triggers.sql | Audit logging | ✅ Deployed |
 | soft-delete-implementation.sql | Soft delete | ✅ Deployed |
-| data-integrity-constraints.sql | Data validation | ✅ Deployed |
 
 ---
 
-## 10. Local Development
-
-### Prerequisites
-- Node.js 18.x or later
-- npm 9.x or later
-- Git
+## 13. Local Development
 
 ### Setup
 
 ```bash
-# Clone repository
 git clone https://github.com/spac3man-G/amsf001-project-tracker.git
 cd amsf001-project-tracker
-
-# Install dependencies
 npm install
-
-# Create .env file
-cp .env.example .env
-# Edit .env with your Supabase keys
-
-# Start development server
+cp .env.example .env  # Edit with your keys
 npm run dev
 ```
 
@@ -509,74 +558,50 @@ npm run dev
 
 ---
 
-## 11. Recent Changes
+## 14. Recent Changes
 
-### 5 December 2025 - Apple Design System Complete
+### 6 December 2025 - Deliverables Phase 3 & Help System
 
-**UI Cleanup - All List Pages**
-- Removed dashboard summary cards from all list pages
-- Removed edit/delete action columns from all tables
-- Implemented click-to-navigate pattern consistently
-- Created dedicated CSS files with Apple design tokens
+**Deliverable Dual-Signature Workflow**
+- Added signature columns to deliverables table (P10 migration)
+- Implemented `signDeliverable()` service method
+- Updated DeliverableDetailModal with sign-off section
+- Field-level edit permissions (name/milestone: Supplier PM only)
+- Removed `assigned_to` field (not used in this system)
 
-**Pages Updated:**
-- Milestones.jsx/css - Clean table, certificate badges
-- Deliverables.jsx/css - Status badges, click to detail
-- Resources.jsx/css - Utilization bars, type filter retained
-- Expenses.jsx/css - Filter bar retained, no action column
-- Partners.jsx/css - Status toggle inline with stopPropagation
-- Timesheets.jsx/css - Filter bar, detail modal
-- KPIs.jsx/css - Category badges
-- QualityStandards.jsx/css - Status badges
-- Users.jsx/css - Inline role editing (clickable badge)
-- RaidLog.jsx/css - Risk/Issue tabs, priority badges
+**In-App Help System**
+- Created HelpContext for state management
+- Built HelpDrawer slide-out component
+- Added floating HelpButton
+- Keyboard shortcuts: ? and F1 to toggle, Escape to close
+- 13 pages of contextual help content
+- Related topics navigation
 
-**AI Chat Performance**
-- Added query timeouts (5s hard limit)
-- Implemented parallel tool execution
-- Extended cache TTL to 5 minutes
-- Added partial failure handling
-- Fixed field name mismatches in API queries
+**Documentation Updates**
+- User Guide v6.0 with comprehensive workflow documentation
+- Technical Reference v3.0 with shared utilities architecture
 
-**Commits:**
-- `5d83ca3c` - Apple design for Users page
-- `14cb1b65` - Fix missing Expenses.css
-- `33df7469` - Apple design for all list pages
-- `26a93a62` - Chat API field name audit
-- `cae0ffc6` - Chat performance improvements
-- `4b31f719` - Context loading indicator
+### 5 December 2025 - Milestone Refactoring
 
-### 4 December 2025
+**Shared Utilities**
+- Created `milestoneCalculations.js` for status/progress logic
+- Created `formatters.js` for date/currency formatting
+- Created `useMilestonePermissions` hook
+- Implemented `SignatureBox` shared component
 
-**Financial Calculations Refactoring**
-- Centralized hour-to-day calculations in metricsConfig.js
-- Renamed database columns: daily_rate → sell_price, budget → billable
-
-**Dashboard Widgets**
-- Added TimesheetsWidget and ExpensesWidget
-- Updated grid from 3 to 4 columns
-
-### 3 December 2025
-
-**UI Consistency**
-- Implemented full row clickability across all list pages
-- Added detail modals for Timesheets, Expenses, Deliverables
-
-**AI Model Upgrade**
-- Upgraded to Claude 4.5 Sonnet
-
-**Terminology**
-- Changed "Approved" → "Validated" throughout
+**Apple Design System**
+- Completed design system across all pages
+- Click-to-navigate pattern everywhere
+- Removed dashboard cards from list pages
 
 ---
 
-## 12. Troubleshooting
+## 15. Troubleshooting
 
 ### Build Failures
 
 **Error:** Could not resolve "./PageName.css"
-- **Cause:** CSS file referenced but doesn't exist
-- **Solution:** Create the missing CSS file or remove the import
+- Create the missing CSS file or remove the import
 
 **Error:** Module not found
 ```bash
@@ -587,55 +612,16 @@ npm install
 ### Database Issues
 
 **Error:** RLS policy violation
-- Check user has correct role in profiles table
-- Verify RLS policies exist for the operation
-- Use: `SELECT * FROM pg_policies WHERE tablename = 'tablename'`
+- Check user role in profiles table
+- Verify RLS policies: `SELECT * FROM pg_policies WHERE tablename = 'tablename'`
 
-### Vercel Deployment Issues
+### Dual-Signature Not Working
 
-**Error:** Build fails on Vercel but works locally
-- Check environment variables are set in Vercel dashboard
-- Verify Node.js version matches (22.x)
-
-### AI Features Not Working
-
-**Error:** AI Chat returns errors
-- Verify `ANTHROPIC_API_KEY` is set in Vercel
-- Verify `SUPABASE_SERVICE_ROLE_KEY` is set in Vercel
-- Check API function logs in Vercel dashboard
+**Symptoms:** Sign button doesn't appear or doesn't work
+- Verify user has correct role (Supplier PM or Customer PM)
+- Check deliverable is in correct status (Review Complete for sign-off)
+- Ensure P10 migration has been applied
 
 ---
 
-## Appendix: File Inventory
-
-### Documentation Files
-
-| File | Purpose |
-|------|---------|
-| README.md | Project overview |
-| AMSF001-Technical-Reference.md | This document |
-| AMSF001-User-Guide.md | End-user documentation |
-| AI-CHAT-ASSISTANT-SPEC.md | AI assistant specification |
-| SMART-RECEIPT-SCANNER-SPEC.md | Receipt scanner spec |
-| DASHBOARD-CUSTOMIZATION-SPEC.md | Dashboard drag-and-drop |
-| ROADMAP-2025-12.md | Development roadmap |
-| SESSION-SUMMARY-2025-12-*.md | Daily session summaries |
-
-### Page CSS Files
-
-| File | Page |
-|------|------|
-| src/pages/Milestones.css | Milestones list |
-| src/pages/Deliverables.css | Deliverables list |
-| src/pages/Resources.css | Resources list |
-| src/pages/Expenses.css | Expenses list |
-| src/pages/Partners.css | Partners list |
-| src/pages/Timesheets.css | Timesheets list |
-| src/pages/KPIs.css | KPIs list |
-| src/pages/QualityStandards.css | Quality standards list |
-| src/pages/Users.css | User management |
-| src/pages/RaidLog.css | RAID log |
-
----
-
-*AMSF001 Technical Reference | Version 2.0 | 5 December 2025*
+*AMSF001 Technical Reference | Version 3.0 | 6 December 2025*

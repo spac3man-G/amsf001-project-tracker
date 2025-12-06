@@ -56,7 +56,7 @@ The application uses role-based access control. Your role determines what you ca
 | **Admin** | Full system access, can manage users and all data |
 | **Supplier PM** | Manages project delivery, validates timesheets/expenses, signs certificates |
 | **Customer PM** | Reviews deliverables, validates timesheets, signs acceptance certificates |
-| **Contributor** | Submits timesheets and expenses, edits assigned deliverables |
+| **Contributor** | Submits timesheets and expenses, edits deliverable descriptions and progress |
 | **Viewer** | Read-only access to dashboard and reports |
 
 ### Role Permissions Summary
@@ -78,7 +78,7 @@ The application uses role-based access control. Your role determines what you ca
 | Submit expenses | ✓ | ✓ | – | ✓ | – |
 | Validate expenses | ✓ | ✓ | ✓ | – | – |
 
-*Contributors can only edit deliverables assigned to them
+*Contributors can edit deliverable description and progress, but not name or milestone assignment
 
 ---
 
@@ -274,7 +274,6 @@ Deliverables are the **work-level tracking units** – discrete outputs (documen
 | **Name** | Deliverable title |
 | **Description** | Detailed description |
 | **Milestone** | Parent milestone this belongs to |
-| **Assigned To** | Person responsible for delivery |
 | **Due Date** | Derived from the parent milestone's forecast end date |
 | **Progress** | Completion percentage (0-100%) |
 | **Status** | Current workflow status |
@@ -310,9 +309,21 @@ Not Started → In Progress → Submitted for Review → Review Complete → Del
 2. Click **+ Add Deliverable**
 3. Fill in the reference, name, and description
 4. Select the parent milestone
-5. Optionally assign to a team member
-6. Link to relevant KPIs and Quality Standards
-7. Click **Save**
+5. Link to relevant KPIs and Quality Standards
+6. Click **Save**
+
+**Editing Deliverables (Field-Level Permissions):**
+
+Different roles can edit different fields:
+
+| Field | Who Can Edit |
+|-------|-------------|
+| **Name** | Supplier PM, Admin |
+| **Milestone** | Supplier PM, Admin |
+| **Description** | Supplier PM, Admin, Contributor |
+| **Progress** | Supplier PM, Admin, Contributor |
+
+When you open edit mode, fields you cannot edit will appear disabled with a note explaining the restriction.
 
 **Updating Progress:**
 
