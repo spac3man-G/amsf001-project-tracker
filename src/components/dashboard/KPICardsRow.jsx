@@ -14,6 +14,7 @@ import { TrendingUp, CheckCircle, Clock, ThumbsUp } from 'lucide-react';
 import { kpisService, deliverablesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { supabase } from '../../lib/supabase';
+import { SkeletonMetricCard } from '../common';
 
 export default function KPICardsRow({ refreshTrigger }) {
   const navigate = useNavigate();
@@ -115,7 +116,9 @@ export default function KPICardsRow({ refreshTrigger }) {
           <TrendingUp size={18} />
           <span>KPI Metrics</span>
         </div>
-        <div className="metrics-cards-loading">Loading KPIs...</div>
+        <div className="metrics-cards-container">
+          {[1, 2, 3, 4, 5].map(i => <SkeletonMetricCard key={i} />)}
+        </div>
       </div>
     );
   }

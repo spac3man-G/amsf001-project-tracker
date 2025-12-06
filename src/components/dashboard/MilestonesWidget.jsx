@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { Milestone, CheckCircle, Clock, FileText, Circle } from 'lucide-react';
 import { milestonesService, deliverablesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
+import { SkeletonWidget } from '../common';
 
 export default function MilestonesWidget({ refreshTrigger }) {
   const navigate = useNavigate();
@@ -111,17 +112,7 @@ export default function MilestonesWidget({ refreshTrigger }) {
   };
 
   if (loading) {
-    return (
-      <div className="dashboard-widget" onClick={handleClick}>
-        <div className="widget-header">
-          <div className="widget-icon">
-            <Milestone size={20} />
-          </div>
-          <span className="widget-title">Milestones</span>
-        </div>
-        <div className="widget-loading">Loading...</div>
-      </div>
-    );
+    return <SkeletonWidget rows={4} />;
   }
 
   return (

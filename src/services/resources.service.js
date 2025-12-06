@@ -3,9 +3,10 @@
  * 
  * Handles all resource-related database operations using the Services Layer pattern.
  * Extends BaseService for standard CRUD with resource-specific methods.
+ * Includes caching for frequently accessed data.
  * 
- * @version 2.0
- * @updated 30 November 2025
+ * @version 2.1 - Added caching
+ * @updated 6 December 2025
  * @phase Production Hardening - Soft Delete & Sanitisation
  */
 
@@ -13,6 +14,9 @@ import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
 import { sanitizeSingleLine, sanitizeMultiLine, sanitizeEmail } from '../lib/sanitize';
 import { hoursToDays } from '../config/metricsConfig';
+import { getCacheKey, getFromCache, setInCache, invalidateNamespace, CACHE_TTL } from '../lib/cache';
+
+const CACHE_NAMESPACE = 'resources';
 
 export class ResourcesService extends BaseService {
   constructor() {
@@ -214,6 +218,9 @@ export class ResourcesService extends BaseService {
       console.error('ResourcesService.create error:', error);
       throw error;
     }
+    
+    // Invalidate cache after create
+    invalidateNamespace(CACHE_NAMESPACE);
     return data;
   }
 
@@ -242,6 +249,9 @@ export class ResourcesService extends BaseService {
       console.error('ResourcesService.update error:', error);
       throw error;
     }
+    
+    // Invalidate cache after update
+    invalidateNamespace(CACHE_NAMESPACE);
     return data;
   }
 
@@ -264,6 +274,9 @@ export class ResourcesService extends BaseService {
       console.error('ResourcesService.delete error:', error);
       throw error;
     }
+    
+    // Invalidate cache after delete
+    invalidateNamespace(CACHE_NAMESPACE);
     return data;
   }
 
@@ -286,6 +299,9 @@ export class ResourcesService extends BaseService {
       console.error('ResourcesService.restore error:', error);
       throw error;
     }
+    
+    // Invalidate cache after restore
+    invalidateNamespace(CACHE_NAMESPACE);
     return data;
   }
 
@@ -313,9 +329,13 @@ export class ResourcesService extends BaseService {
   }
 
   /**
-   * Get resources for select dropdown (minimal fields)
+   * Get resources for select dropdown (minimal fields, with caching)
    */
   async getForSelect(projectId) {
+    const cacheKey = getCacheKey(CACHE_NAMESPACE, projectId, 'select');
+    const cached = getFromCache(cacheKey);
+    if (cached) return cached;
+    
     const { data, error } = await supabase
       .from(this.tableName)
       .select('id, name, resource_type, role')
@@ -327,7 +347,10 @@ export class ResourcesService extends BaseService {
       console.error('ResourcesService.getForSelect error:', error);
       throw error;
     }
-    return data || [];
+    
+    const result = data || [];
+    setInCache(cacheKey, result, CACHE_TTL.LONG);
+    return result;
   }
 
   /**

@@ -2,8 +2,19 @@
 // Import from: import { ErrorBoundary, LoadingSpinner, StatCard, ... } from '../components/common';
 
 export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as SectionErrorBoundary, WidgetErrorBoundary, CardErrorBoundary, ErrorFallback } from './SectionErrorBoundary';
 export { default as LoadingSpinner } from './LoadingSpinner';
-export { default as Skeleton, SkeletonBase, SkeletonText, SkeletonStatCard, SkeletonTableRow, SkeletonCard } from './Skeleton';
+export { 
+  default as Skeleton, 
+  SkeletonBase, 
+  SkeletonText, 
+  SkeletonStatCard, 
+  SkeletonTableRow, 
+  SkeletonCard,
+  SkeletonWidget,
+  SkeletonMetricCard,
+  SkeletonFinanceWidget
+} from './Skeleton';
 export { default as StatCard } from './StatCard';
 export { default as Card, CardGrid } from './Card';
 export { default as DataTable } from './DataTable';

@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { Receipt, Clock, CheckCircle, CreditCard, Building2 } from 'lucide-react';
 import { expensesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
+import { SkeletonWidget } from '../common';
 
 export default function ExpensesWidget({ refreshTrigger }) {
   const navigate = useNavigate();
@@ -91,17 +92,7 @@ export default function ExpensesWidget({ refreshTrigger }) {
   };
 
   if (loading) {
-    return (
-      <div className="dashboard-widget" onClick={handleClick}>
-        <div className="widget-header">
-          <div className="widget-icon" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
-            <Receipt size={20} />
-          </div>
-          <span className="widget-title">Expenses</span>
-        </div>
-        <div className="widget-loading">Loading...</div>
-      </div>
-    );
+    return <SkeletonWidget rows={4} />;
   }
 
   return (

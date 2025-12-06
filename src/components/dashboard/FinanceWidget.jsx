@@ -17,6 +17,7 @@ import { milestonesService, timesheetsService, expensesService } from '../../ser
 import { useProject } from '../../contexts/ProjectContext';
 import { calculateBillableValue, isPMORole } from '../../config/metricsConfig';
 import { supabase } from '../../lib/supabase';
+import { SkeletonFinanceWidget } from '../common';
 
 export default function FinanceWidget({ refreshTrigger }) {
   const { projectId } = useProject();
@@ -170,17 +171,7 @@ export default function FinanceWidget({ refreshTrigger }) {
   };
 
   if (loading) {
-    return (
-      <div className="dashboard-widget finance-widget">
-        <div className="widget-header">
-          <div className="widget-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-            <PoundSterling size={20} />
-          </div>
-          <span className="widget-title">Finance</span>
-        </div>
-        <div className="widget-loading">Loading...</div>
-      </div>
-    );
+    return <SkeletonFinanceWidget />;
   }
 
   const isNegativeGap = stats.gap < 0;

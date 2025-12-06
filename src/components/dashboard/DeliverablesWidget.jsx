@@ -14,6 +14,7 @@ import { Package, CheckCircle, ThumbsUp, Clock, RotateCcw, RefreshCw, Circle } f
 import { deliverablesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { useTestUsers } from '../../contexts/TestUserContext';
+import { SkeletonWidget } from '../common';
 
 export default function DeliverablesWidget({ refreshTrigger }) {
   const navigate = useNavigate();
@@ -95,17 +96,7 @@ export default function DeliverablesWidget({ refreshTrigger }) {
   };
 
   if (loading) {
-    return (
-      <div className="dashboard-widget" onClick={handleClick}>
-        <div className="widget-header">
-          <div className="widget-icon" style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
-            <Package size={20} />
-          </div>
-          <span className="widget-title">Deliverables</span>
-        </div>
-        <div className="widget-loading">Loading...</div>
-      </div>
-    );
+    return <SkeletonWidget rows={6} />;
   }
 
   return (

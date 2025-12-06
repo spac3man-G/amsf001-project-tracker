@@ -9,9 +9,12 @@
  *   <Skeleton type="card" count={3} />
  *   <Skeleton type="table" rows={5} />
  *   <Skeleton type="stat-card" count={4} />
+ *   <Skeleton type="widget" /> - Dashboard widget
+ *   <Skeleton type="widget-row" count={4} /> - Widget breakdown rows
  * 
- * @version 1.0
+ * @version 2.0 - Added widget skeletons
  * @created 30 November 2025
+ * @updated 6 December 2025
  * @phase Phase 1 - Stabilisation
  */
 
@@ -117,6 +120,121 @@ function SkeletonCard({ hasHeader = true }) {
   );
 }
 
+// Dashboard widget skeleton
+function SkeletonWidget({ rows = 4 }) {
+  return (
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '1.25rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      border: '1px solid #e2e8f0'
+    }}>
+      {/* Widget header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '0.75rem',
+        marginBottom: '1rem',
+        paddingBottom: '0.75rem',
+        borderBottom: '1px solid #f1f5f9'
+      }}>
+        <SkeletonBase width="32px" height="32px" style={{ borderRadius: '8px' }} />
+        <SkeletonBase width="100px" height="1rem" />
+        <div style={{ marginLeft: 'auto' }}>
+          <SkeletonBase width="60px" height="0.875rem" />
+        </div>
+      </div>
+      
+      {/* Widget rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.75rem',
+            padding: '0.5rem 0'
+          }}>
+            <SkeletonBase width="24px" height="24px" style={{ borderRadius: '6px' }} />
+            <SkeletonBase width={`${60 + Math.random() * 30}%`} height="0.875rem" />
+            <div style={{ marginLeft: 'auto' }}>
+              <SkeletonBase width="30px" height="1rem" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// KPI/Metric card skeleton
+function SkeletonMetricCard() {
+  return (
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '1rem 1.25rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      border: '1px solid #e2e8f0',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '1rem'
+    }}>
+      <SkeletonBase width="40px" height="40px" style={{ borderRadius: '10px' }} />
+      <div style={{ flex: 1 }}>
+        <SkeletonBase width="70%" height="0.75rem" style={{ marginBottom: '0.5rem' }} />
+        <SkeletonBase width="40%" height="1.25rem" />
+      </div>
+      <SkeletonBase width="50px" height="1.5rem" style={{ borderRadius: '6px' }} />
+    </div>
+  );
+}
+
+// Finance widget skeleton (larger)
+function SkeletonFinanceWidget() {
+  return (
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '1.5rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      border: '1px solid #e2e8f0'
+    }}>
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginBottom: '1.5rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <SkeletonBase width="32px" height="32px" style={{ borderRadius: '8px' }} />
+          <SkeletonBase width="120px" height="1.25rem" />
+        </div>
+        <SkeletonBase width="80px" height="2rem" style={{ borderRadius: '8px' }} />
+      </div>
+      
+      {/* Stats grid */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(2, 1fr)', 
+        gap: '1rem',
+        marginBottom: '1.5rem'
+      }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+            <SkeletonBase width="60%" height="0.75rem" style={{ marginBottom: '0.5rem' }} />
+            <SkeletonBase width="80%" height="1.25rem" />
+          </div>
+        ))}
+      </div>
+      
+      {/* Progress bar */}
+      <SkeletonBase width="100%" height="8px" style={{ borderRadius: '4px' }} />
+    </div>
+  );
+}
+
 // Main Skeleton component with type variants
 export default function Skeleton({ type = 'text', count = 1, ...props }) {
   const renderContent = () => {
@@ -169,6 +287,69 @@ export default function Skeleton({ type = 'text', count = 1, ...props }) {
           </div>
         );
       
+      case 'widget':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {Array.from({ length: count }).map((_, i) => (
+              <SkeletonWidget key={i} rows={props.rows || 4} />
+            ))}
+          </div>
+        );
+      
+      case 'widget-grid':
+        return (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+            gap: '1rem' 
+          }}>
+            {Array.from({ length: count }).map((_, i) => (
+              <SkeletonWidget key={i} rows={props.rows || 4} />
+            ))}
+          </div>
+        );
+      
+      case 'metric-card':
+      case 'kpi':
+        return (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+            gap: '1rem' 
+          }}>
+            {Array.from({ length: count }).map((_, i) => (
+              <SkeletonMetricCard key={i} />
+            ))}
+          </div>
+        );
+      
+      case 'finance-widget':
+        return <SkeletonFinanceWidget />;
+      
+      case 'dashboard':
+        // Full dashboard skeleton
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <SkeletonBase width="180px" height="1.75rem" style={{ marginBottom: '0.5rem' }} />
+                <SkeletonBase width="250px" height="1rem" />
+              </div>
+              <SkeletonBase width="100px" height="40px" style={{ borderRadius: '8px' }} />
+            </div>
+            {/* Main widgets grid */}
+            <Skeleton type="widget-grid" count={4} rows={4} />
+            {/* KPI row */}
+            <Skeleton type="metric-card" count={5} />
+            {/* Finance row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <SkeletonFinanceWidget />
+              <SkeletonFinanceWidget />
+            </div>
+          </div>
+        );
+      
       case 'page':
         // Full page skeleton with header, stats, and table
         return (
@@ -218,4 +399,13 @@ export default function Skeleton({ type = 'text', count = 1, ...props }) {
 }
 
 // Named exports for specific skeleton types
-export { SkeletonBase, SkeletonText, SkeletonStatCard, SkeletonTableRow, SkeletonCard };
+export { 
+  SkeletonBase, 
+  SkeletonText, 
+  SkeletonStatCard, 
+  SkeletonTableRow, 
+  SkeletonCard,
+  SkeletonWidget,
+  SkeletonMetricCard,
+  SkeletonFinanceWidget
+};

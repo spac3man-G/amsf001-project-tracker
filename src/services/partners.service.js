@@ -3,6 +3,7 @@
  * 
  * Handles all partner-related data operations.
  * Partners are third-party companies that provide resources to the project.
+ * Includes caching for frequently accessed data.
  * 
  * Usage:
  *   import { partnersService } from '../services';
@@ -14,6 +15,9 @@
 
 import { supabase } from '../lib/supabase';
 import { BaseService } from './base.service';
+import { getCacheKey, getFromCache, setInCache, invalidateNamespace, CACHE_TTL } from '../lib/cache';
+
+const CACHE_NAMESPACE = 'partners';
 
 class PartnersService extends BaseService {
   constructor() {
@@ -21,26 +25,44 @@ class PartnersService extends BaseService {
   }
 
   /**
-   * Get all partners for a project, ordered by name
+   * Get all partners for a project, ordered by name (with caching)
    * @param {string} projectId - Project UUID
+   * @param {boolean} bypassCache - Skip cache and fetch fresh data
    * @returns {Promise<Array>} Array of partners
    */
-  async getAll(projectId) {
-    return super.getAll(projectId, {
+  async getAll(projectId, bypassCache = false) {
+    const cacheKey = getCacheKey(CACHE_NAMESPACE, projectId, 'all');
+    
+    if (!bypassCache) {
+      const cached = getFromCache(cacheKey);
+      if (cached) return cached;
+    }
+    
+    const data = await super.getAll(projectId, {
       orderBy: { column: 'name', ascending: true }
     });
+    
+    setInCache(cacheKey, data, CACHE_TTL.LONG);
+    return data;
   }
 
   /**
-   * Get only active partners
+   * Get only active partners (with caching)
    * @param {string} projectId - Project UUID
    * @returns {Promise<Array>} Array of active partners
    */
   async getActive(projectId) {
-    return super.getAll(projectId, {
+    const cacheKey = getCacheKey(CACHE_NAMESPACE, projectId, 'active');
+    const cached = getFromCache(cacheKey);
+    if (cached) return cached;
+    
+    const data = await super.getAll(projectId, {
       filters: [{ column: 'is_active', operator: 'eq', value: true }],
       orderBy: { column: 'name', ascending: true }
     });
+    
+    setInCache(cacheKey, data, CACHE_TTL.LONG);
+    return data;
   }
 
   /**
@@ -137,12 +159,40 @@ class PartnersService extends BaseService {
       throw new Error(`Partner "${partner.name}" already exists`);
     }
 
-    return super.create({
+    const result = await super.create({
       ...partner,
       name: partner.name.trim(),
       is_active: partner.is_active ?? true,
       payment_terms: partner.payment_terms || 'Net 30'
     });
+    
+    // Invalidate cache after create
+    invalidateNamespace(CACHE_NAMESPACE);
+    return result;
+  }
+  
+  /**
+   * Update a partner
+   * @param {string} id - Partner UUID
+   * @param {Object} updates - Fields to update
+   * @returns {Promise<Object>} Updated partner
+   */
+  async update(id, updates) {
+    const result = await super.update(id, updates);
+    invalidateNamespace(CACHE_NAMESPACE);
+    return result;
+  }
+  
+  /**
+   * Delete a partner
+   * @param {string} id - Partner UUID
+   * @param {string} userId - User performing delete
+   * @returns {Promise<boolean>} Success
+   */
+  async delete(id, userId = null) {
+    const result = await super.delete(id, userId);
+    invalidateNamespace(CACHE_NAMESPACE);
+    return result;
   }
 
   /**
@@ -183,26 +233,36 @@ class PartnersService extends BaseService {
       throw new Error('Partner not found');
     }
 
-    return this.update(partnerId, {
+    const result = await this.update(partnerId, {
       is_active: !partner.is_active
     });
+    
+    invalidateNamespace(CACHE_NAMESPACE);
+    return result;
   }
 
   /**
-   * Get partners for dropdown/select components
+   * Get partners for dropdown/select components (with caching)
    * @param {string} projectId - Project UUID
    * @param {boolean} activeOnly - Only return active partners
    * @returns {Promise<Array>} Array of { value, label } objects
    */
   async getForSelect(projectId, activeOnly = true) {
+    const cacheKey = getCacheKey(CACHE_NAMESPACE, projectId, `select-${activeOnly}`);
+    const cached = getFromCache(cacheKey);
+    if (cached) return cached;
+    
     const partners = activeOnly 
       ? await this.getActive(projectId)
       : await this.getAll(projectId);
 
-    return partners.map(p => ({
+    const result = partners.map(p => ({
       value: p.id,
       label: p.name
     }));
+    
+    setInCache(cacheKey, result, CACHE_TTL.LONG);
+    return result;
   }
 
   /**

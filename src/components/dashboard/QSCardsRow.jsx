@@ -14,6 +14,7 @@ import { Award } from 'lucide-react';
 import { qualityStandardsService, deliverablesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { supabase } from '../../lib/supabase';
+import { SkeletonMetricCard } from '../common';
 
 export default function QSCardsRow({ refreshTrigger }) {
   const navigate = useNavigate();
@@ -115,7 +116,9 @@ export default function QSCardsRow({ refreshTrigger }) {
           <Award size={18} />
           <span>Quality Standards Metrics</span>
         </div>
-        <div className="metrics-cards-loading">Loading Quality Standards...</div>
+        <div className="metrics-cards-container">
+          {[1, 2, 3, 4, 5].map(i => <SkeletonMetricCard key={i} />)}
+        </div>
       </div>
     );
   }

@@ -19,6 +19,7 @@ import { milestonesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../contexts/ToastContext';
+import { SkeletonFinanceWidget } from '../common';
 
 export default function BillingWidget({ editable = false, fullPage = false, refreshTrigger }) {
   const navigate = useNavigate();
@@ -116,17 +117,7 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
   const totalReceived = milestones.filter(m => m.is_received).reduce((sum, m) => sum + (m.billable || 0), 0);
 
   if (loading) {
-    return (
-      <div className="dashboard-widget billing-widget">
-        <div className="widget-header">
-          <div className="widget-icon" style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}>
-            <PoundSterling size={20} />
-          </div>
-          <span className="widget-title">Billing</span>
-        </div>
-        <div className="widget-loading">Loading...</div>
-      </div>
-    );
+    return <SkeletonFinanceWidget />;
   }
 
   return (

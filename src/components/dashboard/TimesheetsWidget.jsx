@@ -15,6 +15,7 @@ import { Clock, Send, CheckCircle } from 'lucide-react';
 import { timesheetsService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { calculateBillableValue } from '../../config/metricsConfig';
+import { SkeletonWidget } from '../common';
 
 export default function TimesheetsWidget({ refreshTrigger }) {
   const navigate = useNavigate();
@@ -94,17 +95,7 @@ export default function TimesheetsWidget({ refreshTrigger }) {
   };
 
   if (loading) {
-    return (
-      <div className="dashboard-widget" onClick={handleClick}>
-        <div className="widget-header">
-          <div className="widget-icon" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
-            <Clock size={20} />
-          </div>
-          <span className="widget-title">Timesheets</span>
-        </div>
-        <div className="widget-loading">Loading...</div>
-      </div>
-    );
+    return <SkeletonWidget rows={2} />;
   }
 
   const totalCount = stats.submittedCount + stats.validatedCount;
