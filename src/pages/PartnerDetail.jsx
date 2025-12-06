@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { VALID_STATUSES, timesheetContributesToSpend, calculateCostValue, hoursToDays } from '../config/metricsConfig';
+import { TIMESHEET_STATUS } from '../lib/timesheetCalculations';
 import { LoadingSpinner, PageHeader, StatCard } from '../components/common';
 import { partnersService, resourcesService, invoicingService, timesheetsService, expensesService } from '../services';
 
@@ -129,7 +130,7 @@ export default function PartnerDetail() {
             if (VALID_STATUSES.timesheets.completed.includes(ts.status)) { 
               approvedHours += hours; 
               approvedValue += dailyValue; 
-            } else if (ts.status === 'Submitted') { 
+            } else if (ts.status === TIMESHEET_STATUS.SUBMITTED) { 
               pendingHours += hours; 
               pendingValue += dailyValue; 
             }

@@ -21,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useResourcePermissions } from '../hooks/useResourcePermissions';
 import { VALID_STATUSES, hoursToDays } from '../config/metricsConfig';
+import { TIMESHEET_STATUS } from '../lib/timesheetCalculations';
 import { LoadingSpinner, StatCard } from '../components/common';
 import { resourcesService, partnersService, timesheetsService, expensesService } from '../services';
 import {
@@ -125,7 +126,7 @@ export default function ResourceDetail() {
           totalHours += hours;
           if (VALID_STATUSES.timesheets.completed.includes(ts.status)) {
             approvedHours += hours;
-          } else if (ts.status === 'Submitted' && !ts.was_rejected) {
+          } else if (ts.status === TIMESHEET_STATUS.SUBMITTED && !ts.was_rejected) {
             pendingHours += hours;
           }
         });

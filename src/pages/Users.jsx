@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../contexts/ToastContext';
-import { LoadingSpinner } from '../components/common';
+import { LoadingSpinner, ConfirmDialog } from '../components/common';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -32,6 +32,7 @@ export default function Users() {
   const [editingRoleId, setEditingRoleId] = useState(null);
   const [linkingId, setLinkingId] = useState(null);
   const [selectedResourceId, setSelectedResourceId] = useState('');
+  const [unlinkDialog, setUnlinkDialog] = useState({ isOpen: false, resourceId: null, resourceName: null });
   
   const { showTestUsers, toggleTestUsers, canToggleTestUsers } = useTestUsers();
   const { showSuccess, showError, showWarning } = useToast();
@@ -184,17 +185,21 @@ export default function Users() {
     }
   }
 
-  async function handleUnlinkResource(resourceId) {
-    if (!confirm('Unlink this resource from the user?')) return;
+  function handleUnlinkClick(resourceId, resourceName) {
+    setUnlinkDialog({ isOpen: true, resourceId, resourceName });
+  }
 
+  async function confirmUnlink() {
+    if (!unlinkDialog.resourceId) return;
     try {
       const { error } = await supabase
         .from('resources')
         .update({ user_id: null })
-        .eq('id', resourceId);
+        .eq('id', unlinkDialog.resourceId);
 
       if (error) throw error;
       
+      setUnlinkDialog({ isOpen: false, resourceId: null, resourceName: null });
       await fetchData();
       showSuccess('Resource unlinked');
     } catch (error) {
@@ -394,7 +399,7 @@ export default function Users() {
                           <div className="linked-resource">
                             <Link size={14} />
                             <span>{linkedResource.name}</span>
-                            <button className="btn-icon-small" onClick={() => handleUnlinkResource(linkedResource.id)} title="Unlink">
+                            <button className="btn-icon-small" onClick={() => handleUnlinkClick(linkedResource.id, linkedResource.name)} title="Unlink">
                               <Unlink size={12} />
                             </button>
                           </div>
@@ -474,6 +479,17 @@ export default function Users() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={unlinkDialog.isOpen}
+        onClose={() => setUnlinkDialog({ isOpen: false, resourceId: null, resourceName: null })}
+        onConfirm={confirmUnlink}
+        title="Unlink Resource"
+        message={<>Unlink <strong>{unlinkDialog.resourceName}</strong> from this user?</>}
+        confirmText="Unlink"
+        cancelText="Cancel"
+        type="warning"
+      />
     </div>
   );
 }

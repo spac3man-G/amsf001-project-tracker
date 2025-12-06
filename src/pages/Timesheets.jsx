@@ -22,7 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, ConfirmDialog } from '../components/common';
+import { LoadingSpinner, ConfirmDialog, PromptDialog } from '../components/common';
 import { TimesheetDetailModal, TimesheetDateFilter } from '../components/timesheets';
 import {
   TIMESHEET_STATUS,
@@ -62,6 +62,7 @@ export default function Timesheets() {
   const [filterResource, setFilterResource] = useState('all');
   const [entryMode, setEntryMode] = useState(ENTRY_TYPE.DAILY);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, timesheetId: null, timesheetData: null });
+  const [rejectDialog, setRejectDialog] = useState({ isOpen: false, timesheetId: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, timesheet: null });
 
   // Date range filter state
@@ -279,15 +280,20 @@ export default function Timesheets() {
     } 
   }
   
-  async function handleReject(id) { 
-    const reason = prompt('Rejection reason (optional):'); 
-    try { 
-      await timesheetsService.reject(id, reason); 
-      await fetchData(); 
-      showWarning('Timesheet rejected'); 
-    } catch (error) { 
-      showError('Failed to reject: ' + error.message); 
-    } 
+  function handleRejectClick(id) {
+    setRejectDialog({ isOpen: true, timesheetId: id });
+  }
+
+  async function confirmReject(reason) {
+    if (!rejectDialog.timesheetId) return;
+    try {
+      await timesheetsService.reject(rejectDialog.timesheetId, reason);
+      setRejectDialog({ isOpen: false, timesheetId: null });
+      await fetchData();
+      showWarning('Timesheet rejected');
+    } catch (error) {
+      showError('Failed to reject: ' + error.message);
+    }
   }
 
   // Apply filters: resource + date range
@@ -601,8 +607,21 @@ export default function Timesheets() {
         onSave={handleSave}
         onSubmit={handleSubmit}
         onValidate={handleValidate}
-        onReject={handleReject}
+        onReject={handleRejectClick}
         onDelete={handleDeleteClick}
+      />
+
+      <PromptDialog
+        isOpen={rejectDialog.isOpen}
+        onClose={() => setRejectDialog({ isOpen: false, timesheetId: null })}
+        onConfirm={confirmReject}
+        title="Reject Timesheet"
+        message="Please provide a reason for rejecting this timesheet."
+        inputLabel="Rejection Reason"
+        inputPlaceholder="Enter reason (optional)"
+        confirmText="Reject"
+        cancelText="Cancel"
+        type="warning"
       />
     </div>
   );

@@ -10,6 +10,7 @@ export { default as DataTable } from './DataTable';
 export { default as PageHeader } from './PageHeader';
 export { default as StatusBadge, STATUS_STYLES } from './StatusBadge';
 export { default as ConfirmDialog } from './ConfirmDialog';
+export { default as PromptDialog } from './PromptDialog';
 export { default as ActionButtons } from './ActionButtons';
 export { default as FilterBar, FilterSelect, FilterToggle } from './FilterBar';
 export { Toast, ToastContainer } from './Toast';

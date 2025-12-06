@@ -22,7 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, ConfirmDialog } from '../components/common';
+import { LoadingSpinner, ConfirmDialog, PromptDialog } from '../components/common';
 import {
   ReceiptScanner,
   ExpenseFilters,
@@ -70,6 +70,7 @@ export default function Expenses() {
 
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, expenseId: null, expenseData: null });
   const [submitDialog, setSubmitDialog] = useState({ isOpen: false, expense: null });
+  const [rejectDialog, setRejectDialog] = useState({ isOpen: false, expenseId: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, expense: null });
 
   const fetchData = useCallback(async () => {
@@ -220,9 +221,21 @@ export default function Expenses() {
     try { await expensesService.validate(id); await fetchData(); showSuccess('Expense validated!'); } catch (error) { console.error('Error validating expense:', error); showError('Failed to validate: ' + error.message); }
   }
 
-  async function handleReject(id) {
-    const reason = prompt('Please provide a reason for rejection (optional):');
-    try { await expensesService.reject(id, reason); await fetchData(); showWarning('Expense rejected'); } catch (error) { console.error('Error rejecting expense:', error); showError('Failed to reject: ' + error.message); }
+  function handleRejectClick(id) {
+    setRejectDialog({ isOpen: true, expenseId: id });
+  }
+
+  async function confirmReject(reason) {
+    if (!rejectDialog.expenseId) return;
+    try {
+      await expensesService.reject(rejectDialog.expenseId, reason);
+      setRejectDialog({ isOpen: false, expenseId: null });
+      await fetchData();
+      showWarning('Expense rejected');
+    } catch (error) {
+      console.error('Error rejecting expense:', error);
+      showError('Failed to reject: ' + error.message);
+    }
   }
 
   function handleFileSelect(e) { const files = Array.from(e.target.files); setNewExpense({ ...newExpense, files: [...newExpense.files, ...files] }); }
@@ -393,9 +406,22 @@ export default function Expenses() {
         }}
         onSubmit={handleSubmitClick}
         onValidate={handleValidate}
-        onReject={handleReject}
+        onReject={handleRejectClick}
         onDelete={handleDeleteClick}
         onDownloadFile={downloadFile}
+      />
+
+      <PromptDialog
+        isOpen={rejectDialog.isOpen}
+        onClose={() => setRejectDialog({ isOpen: false, expenseId: null })}
+        onConfirm={confirmReject}
+        title="Reject Expense"
+        message="Please provide a reason for rejecting this expense."
+        inputLabel="Rejection Reason"
+        inputPlaceholder="Enter reason (optional)"
+        confirmText="Reject"
+        cancelText="Cancel"
+        type="warning"
       />
     </div>
   );
