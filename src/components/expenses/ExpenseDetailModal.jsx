@@ -470,7 +470,7 @@ export default function ExpenseDetailModal({
               <>
                 {canSubmitExpense(expense) && (
                   <button 
-                    onClick={() => { onSubmit(expense.id); handleClose(); }} 
+                    onClick={() => { onSubmit(expense); handleClose(); }} 
                     className="btn btn-secondary"
                   >
                     <Send size={16} /> Submit

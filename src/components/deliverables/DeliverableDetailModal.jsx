@@ -585,7 +585,7 @@ export default function DeliverableDetailModal({
             {canDeleteProp && !isEditing && !isComplete && (
               <button
                 className="btn btn-danger"
-                onClick={() => { onDelete(deliverable.id); handleClose(); }}
+                onClick={() => { onDelete(deliverable); handleClose(); }}
               >
                 <Trash2 size={16} /> Delete
               </button>

@@ -69,6 +69,7 @@ export default function Expenses() {
   const [filterProcurement, setFilterProcurement] = useState('all');
 
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, expenseId: null, expenseData: null });
+  const [submitDialog, setSubmitDialog] = useState({ isOpen: false, expense: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, expense: null });
 
   const fetchData = useCallback(async () => {
@@ -198,9 +199,21 @@ export default function Expenses() {
     }
   }
 
-  async function handleSubmit(id) {
-    if (!confirm('Submit this expense for validation?')) return;
-    try { await expensesService.submit(id); await fetchData(); showSuccess('Expense submitted for validation!'); } catch (error) { console.error('Error submitting expense:', error); showError('Failed to submit: ' + error.message); }
+  function handleSubmitClick(expense) {
+    setSubmitDialog({ isOpen: true, expense });
+  }
+
+  async function confirmSubmit() {
+    if (!submitDialog.expense) return;
+    try {
+      await expensesService.submit(submitDialog.expense.id);
+      setSubmitDialog({ isOpen: false, expense: null });
+      await fetchData();
+      showSuccess('Expense submitted for validation!');
+    } catch (error) {
+      console.error('Error submitting expense:', error);
+      showError('Failed to submit: ' + error.message);
+    }
   }
 
   async function handleValidate(id) {
@@ -333,7 +346,27 @@ export default function Expenses() {
             </div>
           </div>
         ) : 'Are you sure you want to delete this expense?'}
-        confirmText="Delete" cancelText="Cancel" variant="danger"
+        confirmText="Delete" cancelText="Cancel" type="danger"
+      />
+
+      {/* Submit Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={submitDialog.isOpen}
+        onClose={() => setSubmitDialog({ isOpen: false, expense: null })}
+        onConfirm={confirmSubmit}
+        title="Submit for Validation"
+        message={submitDialog.expense ? (
+          <>
+            Submit this expense for validation?
+            <br /><br />
+            <strong>{submitDialog.expense.category}</strong> - £{parseFloat(submitDialog.expense.amount || 0).toFixed(2)}
+            <br />
+            {submitDialog.expense.resource_name}
+          </>
+        ) : ''}
+        confirmText="Submit"
+        cancelText="Cancel"
+        type="info"
       />
 
       <ExpenseDetailModal
@@ -358,7 +391,7 @@ export default function Expenses() {
           await fetchData();
           showSuccess('Expense updated!');
         }}
-        onSubmit={handleSubmit}
+        onSubmit={handleSubmitClick}
         onValidate={handleValidate}
         onReject={handleReject}
         onDelete={handleDeleteClick}

@@ -1,0 +1,132 @@
+/**
+ * MultiSelectList Component Styles
+ * Apple Design System
+ */
+
+.multi-select-list {
+  margin-top: var(--space-md);
+}
+
+.multi-select-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.multi-select-clear {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.multi-select-clear:hover {
+  opacity: 0.7;
+}
+
+.multi-select-container {
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-sm);
+  background: var(--color-bg-primary);
+}
+
+.multi-select-empty {
+  padding: var(--space-lg);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.multi-select-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-xs);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.multi-select-item:last-child {
+  margin-bottom: 0;
+}
+
+.multi-select-item:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* Blue variant (default - KPIs) */
+.multi-select-item--blue.selected {
+  background-color: #dbeafe;
+  border-color: var(--color-primary);
+  border-width: 2px;
+}
+
+/* Purple variant (Quality Standards) */
+.multi-select-item--purple.selected {
+  background-color: #f3e8ff;
+  border-color: #8b5cf6;
+  border-width: 2px;
+}
+
+/* Green variant */
+.multi-select-item--green.selected {
+  background-color: #dcfce7;
+  border-color: #16a34a;
+  border-width: 2px;
+}
+
+.multi-select-checkbox {
+  margin-top: 3px;
+  cursor: pointer;
+}
+
+.multi-select-content {
+  flex: 1;
+  font-size: var(--font-size-sm);
+}
+
+.multi-select-count {
+  margin-top: var(--space-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Badge styles for item refs */
+.multi-select-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: white;
+  margin-right: var(--space-xs);
+}
+
+.multi-select-badge--blue {
+  background-color: var(--color-primary);
+}
+
+.multi-select-badge--purple {
+  background-color: #8b5cf6;
+}
+
+.multi-select-badge--green {
+  background-color: #16a34a;
+}
+
+.multi-select-item-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}

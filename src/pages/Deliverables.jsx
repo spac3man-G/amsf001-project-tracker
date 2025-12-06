@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService } from '../services';
-import { Package, Plus, X, Save, RefreshCw } from 'lucide-react';
+import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle } from 'lucide-react';
 import { 
   DELIVERABLE_STATUS,
   DELIVERABLE_STATUS_CONFIG,
@@ -23,51 +23,27 @@ import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { useMetrics } from '../contexts/MetricsContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, PageHeader } from '../components/common';
+import { LoadingSpinner, PageHeader, ConfirmDialog, MultiSelectList } from '../components/common';
+import { formatDate } from '../lib/formatters';
 import { DeliverableDetailModal } from '../components/deliverables';
 import './Deliverables.css';
 
 // Status options and colors now imported from deliverableCalculations.js
 
-function KPISelector({ kpis, selectedIds, onChange, label = "Link to KPIs" }) {
-  return (
-    <div style={{ marginTop: '1rem' }}>
-      <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span>{label}</span>{selectedIds.length > 0 && <button type="button" onClick={() => onChange([])} style={{ fontSize: '0.8rem', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>}</label>
-      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem' }}>
-        {kpis.map(kpi => {
-          const isSelected = selectedIds.includes(kpi.id);
-          return (
-            <div key={kpi.id} onClick={() => isSelected ? onChange(selectedIds.filter(id => id !== kpi.id)) : onChange([...selectedIds, kpi.id])} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', marginBottom: '0.5rem', backgroundColor: isSelected ? '#dbeafe' : '#f8fafc', border: isSelected ? '2px solid #3b82f6' : '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={isSelected} onChange={() => {}} style={{ marginTop: '3px' }} />
-              <div><span style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.125rem 0.375rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '700' }}>{kpi.kpi_ref}</span> <span style={{ fontWeight: '600' }}>{kpi.name}</span></div>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>{selectedIds.length} selected</div>
-    </div>
-  );
-}
+// Render functions for MultiSelectList items
+const renderKPIItem = (kpi) => (
+  <>
+    <span className="multi-select-badge multi-select-badge--blue">{kpi.kpi_ref}</span>
+    <span className="multi-select-item-name">{kpi.name}</span>
+  </>
+);
 
-function QSSelector({ qualityStandards, selectedIds, onChange, label = "Link to Quality Standards" }) {
-  return (
-    <div style={{ marginTop: '1rem' }}>
-      <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span>{label}</span>{selectedIds.length > 0 && <button type="button" onClick={() => onChange([])} style={{ fontSize: '0.8rem', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>}</label>
-      <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem' }}>
-        {qualityStandards.map(qs => {
-          const isSelected = selectedIds.includes(qs.id);
-          return (
-            <div key={qs.id} onClick={() => isSelected ? onChange(selectedIds.filter(id => id !== qs.id)) : onChange([...selectedIds, qs.id])} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', marginBottom: '0.5rem', backgroundColor: isSelected ? '#f3e8ff' : '#f8fafc', border: isSelected ? '2px solid #8b5cf6' : '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={isSelected} onChange={() => {}} style={{ marginTop: '3px' }} />
-              <div><span style={{ backgroundColor: '#8b5cf6', color: 'white', padding: '0.125rem 0.375rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '700' }}>{qs.qs_ref}</span> <span style={{ fontWeight: '600' }}>{qs.name}</span></div>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>{selectedIds.length} selected</div>
-    </div>
-  );
-}
+const renderQSItem = (qs) => (
+  <>
+    <span className="multi-select-badge multi-select-badge--purple">{qs.qs_ref}</span>
+    <span className="multi-select-item-name">{qs.name}</span>
+  </>
+);
 
 export default function Deliverables() {
   const { user, role: userRole } = useAuth();
@@ -95,6 +71,9 @@ export default function Deliverables() {
 
   // Detail modal state
   const [detailModal, setDetailModal] = useState({ isOpen: false, deliverable: null });
+
+  // Delete confirmation dialog state
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, deliverable: null });
 
   const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: DELIVERABLE_STATUS.NOT_STARTED, progress: 0, kpi_ids: [], qs_ids: [] });
 
@@ -218,12 +197,17 @@ export default function Deliverables() {
     } catch (error) { showError('Failed: ' + error.message); }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this deliverable?')) return;
+  function handleDeleteClick(deliverable) {
+    setDeleteDialog({ isOpen: true, deliverable });
+  }
+
+  async function confirmDelete() {
+    if (!deleteDialog.deliverable) return;
     try { 
-      await deliverablesService.delete(id, currentUserId); 
+      await deliverablesService.delete(deleteDialog.deliverable.id, currentUserId); 
+      setDeleteDialog({ isOpen: false, deliverable: null });
       fetchData(); 
-      showSuccess('Deleted'); 
+      showSuccess('Deliverable deleted'); 
     }
     catch (error) { showError('Failed: ' + error.message); }
   }
@@ -331,11 +315,27 @@ export default function Deliverables() {
                 </div>
                 <div className="del-form-group">
                   <label>Due Date</label>
-                  <div className="del-form-readonly">{(() => { const m = milestones.find(m => m.id === newDeliverable.milestone_id); return m?.forecast_end_date ? new Date(m.forecast_end_date).toLocaleDateString('en-GB') : 'Select milestone'; })()}</div>
+                  <div className="del-form-readonly">{(() => { const m = milestones.find(m => m.id === newDeliverable.milestone_id); return m?.forecast_end_date ? formatDate(m.forecast_end_date) : 'Select milestone'; })()}</div>
                 </div>
               </div>
-              <KPISelector kpis={kpis} selectedIds={newDeliverable.kpi_ids} onChange={(ids) => setNewDeliverable({ ...newDeliverable, kpi_ids: ids })} />
-              <QSSelector qualityStandards={qualityStandards} selectedIds={newDeliverable.qs_ids} onChange={(ids) => setNewDeliverable({ ...newDeliverable, qs_ids: ids })} />
+              <MultiSelectList
+                items={kpis}
+                selectedIds={newDeliverable.kpi_ids}
+                onChange={(ids) => setNewDeliverable({ ...newDeliverable, kpi_ids: ids })}
+                renderItem={renderKPIItem}
+                label="Link to KPIs"
+                emptyMessage="No KPIs available"
+                variant="blue"
+              />
+              <MultiSelectList
+                items={qualityStandards}
+                selectedIds={newDeliverable.qs_ids}
+                onChange={(ids) => setNewDeliverable({ ...newDeliverable, qs_ids: ids })}
+                renderItem={renderQSItem}
+                label="Link to Quality Standards"
+                emptyMessage="No Quality Standards available"
+                variant="purple"
+              />
               <div className="del-form-actions">
                 <button type="submit" className="del-btn del-btn-primary"><Save size={16} /> Save</button>
                 <button type="button" className="del-btn del-btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
@@ -405,7 +405,7 @@ export default function Deliverables() {
         onClose={() => setDetailModal({ isOpen: false, deliverable: null })}
         onSave={handleSaveFromModal}
         onStatusChange={handleStatusChange}
-        onDelete={handleDelete}
+        onDelete={handleDeleteClick}
         onOpenCompletion={openCompletionModal}
         onSign={handleSign}
       />
@@ -444,6 +444,24 @@ export default function Deliverables() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, deliverable: null })}
+        onConfirm={confirmDelete}
+        title="Delete Deliverable"
+        message={deleteDialog.deliverable ? (
+          <>
+            Are you sure you want to delete <strong>{deleteDialog.deliverable.deliverable_ref}</strong> - {deleteDialog.deliverable.name}?
+            <br /><br />
+            This action cannot be undone.
+          </>
+        ) : ''}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 }
