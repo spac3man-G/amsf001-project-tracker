@@ -14,10 +14,12 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { MetricsProvider } from './contexts/MetricsContext';
+import { HelpProvider } from './contexts/HelpContext';
 
 // Shared components - always loaded
 import { ErrorBoundary, LoadingSpinner, Skeleton } from './components/common';
 import { ChatWidget } from './components/chat';
+import { HelpDrawer, HelpButton } from './components/help';
 import Layout from './components/Layout';
 
 // Critical pages - loaded immediately
@@ -96,6 +98,7 @@ export default function App() {
                 <MetricsProvider>
                   <NotificationProvider>
                     <ChatProvider>
+                      <HelpProvider>
                     <Routes>
                       {/* Public routes */}
                       <Route path="/login" element={<Login />} />
@@ -224,9 +227,14 @@ export default function App() {
                     {/* AI Chat Widget */}
                     <ChatWidget />
                     
+                    {/* Help System */}
+                    <HelpDrawer />
+                    <HelpButton />
+                    
                     {/* Vercel Production Monitoring */}
                     <Analytics />
                     <SpeedInsights />
+                    </HelpProvider>
                     </ChatProvider>
                   </NotificationProvider>
                 </MetricsProvider>

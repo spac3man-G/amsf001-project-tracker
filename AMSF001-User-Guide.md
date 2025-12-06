@@ -1,32 +1,36 @@
 # AMSF001 Project Tracker - User Guide
 
-**Last Updated:** 5 December 2025  
-**Application Version:** 5.0
+**Last Updated:** 6 December 2025  
+**Application Version:** 6.0
 
 ---
 
 ## Table of Contents
 
-1. [Getting Started](#getting-started)
-2. [Dashboard](#dashboard)
-3. [Navigating the Application](#navigating-the-application)
-4. [Projects & Milestones](#projects--milestones)
-5. [Time & Expense Tracking](#time--expense-tracking)
-6. [Partner Management & Invoicing](#partner-management--invoicing)
-7. [AI Chat Assistant](#ai-chat-assistant)
-8. [User Administration](#user-administration)
-9. [Troubleshooting](#troubleshooting)
+1. [Getting Started](#1-getting-started)
+2. [Dashboard](#2-dashboard)
+3. [Navigating the Application](#3-navigating-the-application)
+4. [Milestones](#4-milestones)
+5. [Deliverables](#5-deliverables)
+6. [Time & Expense Tracking](#6-time--expense-tracking)
+7. [Partner Management & Invoicing](#7-partner-management--invoicing)
+8. [AI Chat Assistant](#8-ai-chat-assistant)
+9. [User Administration](#9-user-administration)
+10. [Workflows Reference](#10-workflows-reference)
+11. [Troubleshooting](#11-troubleshooting)
 
 ---
 
-## Getting Started
+## 1. Getting Started
 
 ### Logging In
+
 1. Navigate to https://amsf001-project-tracker.vercel.app
 2. Enter your email and password
-3. Click "Sign In"
+3. Click **Sign In**
 
 ### Navigation
+
 The main menu is on the left side:
 
 | Menu Item | Purpose |
@@ -37,7 +41,7 @@ The main menu is on the left side:
 | **Resources** | Team members and allocation |
 | **Timesheets** | Time entry and validation |
 | **Expenses** | Expense claims and validation |
-| **Partners** | Partner organizations and invoicing |
+| **Partners** | Partner organisations and invoicing |
 | **KPIs** | Key Performance Indicators |
 | **Quality Standards** | Quality metrics tracking |
 | **RAID Log** | Risks, Assumptions, Issues, Dependencies |
@@ -45,20 +49,44 @@ The main menu is on the left side:
 
 ### User Roles
 
-| Role | Access Level |
+The application uses role-based access control. Your role determines what you can view and edit.
+
+| Role | Description |
 |------|-------------|
-| **Admin** | Full system access |
-| **Supplier PM** | Manage project, validate timesheets/expenses |
-| **Customer PM** | Review deliverables, validate timesheets |
-| **Contributor** | Submit timesheets, expenses, edit deliverables |
-| **Viewer** | Read-only access |
+| **Admin** | Full system access, can manage users and all data |
+| **Supplier PM** | Manages project delivery, validates timesheets/expenses, signs certificates |
+| **Customer PM** | Reviews deliverables, validates timesheets, signs acceptance certificates |
+| **Contributor** | Submits timesheets and expenses, edits assigned deliverables |
+| **Viewer** | Read-only access to dashboard and reports |
+
+### Role Permissions Summary
+
+| Action | Admin | Supplier PM | Customer PM | Contributor | Viewer |
+|--------|:-----:|:-----------:|:-----------:|:-----------:|:------:|
+| View all data | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Create milestones | ✓ | ✓ | – | – | – |
+| Edit milestones | ✓ | ✓ | – | – | – |
+| Sign baseline commitment | ✓ | ✓ | ✓ | – | – |
+| Sign acceptance certificate | ✓ | ✓ | ✓ | – | – |
+| Create deliverables | ✓ | ✓ | – | – | – |
+| Edit deliverables | ✓ | ✓ | – | ✓* | – |
+| Submit for review | ✓ | ✓ | – | ✓ | – |
+| Accept/reject review | ✓ | – | ✓ | – | – |
+| Sign delivery | ✓ | ✓ | ✓ | – | – |
+| Submit timesheets | ✓ | ✓ | – | ✓ | – |
+| Validate timesheets | ✓ | ✓ | ✓ | – | – |
+| Submit expenses | ✓ | ✓ | – | ✓ | – |
+| Validate expenses | ✓ | ✓ | ✓ | – | – |
+
+*Contributors can only edit deliverables assigned to them
 
 ---
 
-## Dashboard
+## 2. Dashboard
 
 ### Overview
-Your command center showing the most important information at a glance. The dashboard displays KPIs, financial metrics, and project progress - all in one place.
+
+Your command centre showing the most important information at a glance. The dashboard displays KPIs, financial metrics, and project progress in customisable widgets.
 
 ### Dashboard Widgets
 
@@ -72,16 +100,17 @@ Your command center showing the most important information at a glance. The dash
 | **Expenses** | Awaiting and validated amounts |
 | **Milestones List** | All milestones with progress bars |
 
-### Customizing Your Dashboard
-1. Click the **Customize** button (top-right)
+### Customising Your Dashboard
+
+1. Click the **Customise** button (top-right)
 2. **Drag widgets** to rearrange them
 3. **Resize widgets** from corners
 4. Your layout **auto-saves**
-5. Click **Reset to Default** to restore
+5. Click **Reset to Default** to restore the original layout
 
 ---
 
-## Navigating the Application
+## 3. Navigating the Application
 
 ### Click-to-Navigate Pattern
 
@@ -97,7 +126,7 @@ All list pages use a **clean, click-anywhere-to-view** pattern:
 | Page | Click Row To... |
 |------|-----------------|
 | **Milestones** | Open milestone detail page |
-| **Deliverables** | Open deliverable detail page |
+| **Deliverables** | Open deliverable detail modal |
 | **Resources** | Open resource detail page |
 | **Partners** | Open partner detail page |
 | **KPIs** | Open KPI detail page |
@@ -108,8 +137,9 @@ All list pages use a **clean, click-anywhere-to-view** pattern:
 ### Editing Items
 
 To edit an item:
-1. **Click the row** to open the detail page
-2. On the detail page, click **Edit** to modify
+
+1. **Click the row** to open the detail page or modal
+2. Click the **Edit** button
 3. Make your changes
 4. Click **Save**
 
@@ -117,9 +147,12 @@ This keeps list views clean and focused on information.
 
 ---
 
-## Projects & Milestones
+## 4. Milestones
+
+Milestones are the **primary billing units** in the project. They represent major project phases that, when completed, trigger a payment from the customer to the supplier.
 
 ### Viewing Milestones
+
 1. Click **Milestones** in the menu
 2. See all milestones with progress, dates, and status
 3. **Click any row** to view full details
@@ -128,159 +161,381 @@ This keeps list views clean and focused on information.
 
 | Field | Description |
 |-------|-------------|
-| **Reference** | Unique identifier (MS-001) |
+| **Reference** | Unique identifier (e.g., MS-001) |
 | **Name** | Milestone title |
-| **Start/End Date** | Planned timeline |
-| **Progress** | Completion percentage |
-| **Status** | Not Started, In Progress, Completed |
-| **Certificate** | Signing status badge |
+| **Description** | Detailed description of the milestone |
+| **Baseline Dates** | Original contracted start and end dates |
+| **Forecast Dates** | Current projected start and end dates |
+| **Actual Start** | When work actually began |
+| **Progress** | Completion percentage (calculated from deliverables) |
+| **Status** | Not Started, In Progress, or Completed |
 
-### Certificate Badges
+### Financial Structure
 
-| Badge | Meaning |
-|-------|---------|
-| ✓ Both Signed | Customer and supplier signed |
-| Pending | Awaiting signatures |
-| – | No certificate yet |
+Each milestone has a three-tier financial structure:
 
-### Deliverables
+| Tier | Purpose | When Set |
+|------|---------|----------|
+| **Baseline** | Original contracted amount | At project start, locked by baseline commitment |
+| **Forecast** | Current projected amount | Updated during project as estimates change |
+| **Actual** | Final billable amount | Set when milestone is delivered |
 
-Each milestone contains deliverables - the actual work items:
+This structure allows tracking of budget changes while preserving the original contract values.
 
-1. From **Milestones**, click a milestone
-2. View its deliverables in the detail page
-3. Or go to **Deliverables** for a full list
-4. **Click any deliverable row** to see details
+### Milestone Status
 
----
+| Status | Meaning | Progress |
+|--------|---------|----------|
+| **Not Started** | Work has not begun | 0% |
+| **In Progress** | Work is underway | 1-99% |
+| **Completed** | All work finished | 100% |
 
-## Time & Expense Tracking
+Progress is automatically calculated from the linked deliverables.
 
-### Submitting Timesheets
+### Baseline Commitment (Dual-Signature)
 
-1. Go to **Timesheets**
-2. Click **+ Add Timesheet**
-3. Select the resource, date, and hours
-4. Add a description
-5. Click **Save** (Draft) or **Submit**
+Before work begins, the baseline schedule and budget must be formally agreed by both parties.
 
-### Timesheet Status
+**What is locked:**
+- Baseline start and end dates
+- Baseline billable amount
+- Original scope agreement
+
+**Signing the Baseline:**
+
+1. Open the milestone detail page
+2. Scroll to the **Baseline Commitment** section
+3. If you are the Supplier PM, click **Sign as Supplier PM**
+4. If you are the Customer PM, click **Sign as Customer PM**
+5. Once both parties have signed, the baseline is locked
+
+**Status Indicators:**
 
 | Status | Meaning |
 |--------|---------|
-| **Draft** | Editable, not yet submitted |
-| **Submitted** | Awaiting validation |
-| **Validated** | Approved for invoicing |
-| **Rejected** | Returned with comments |
+| **Not Signed** | Neither party has signed |
+| **Awaiting Customer** | Supplier has signed, waiting for customer |
+| **Awaiting Supplier** | Customer has signed, waiting for supplier |
+| **Committed** | Both parties have signed, baseline is locked |
 
-### Validating Timesheets (Managers)
+Once committed, baseline values cannot be changed. Any changes must go through the change control process.
+
+### Acceptance Certificates
+
+When a milestone is complete, it requires formal acceptance before billing.
+
+**Creating a Certificate:**
+
+1. Ensure milestone progress is 100%
+2. Open the milestone detail page
+3. Click **Create Certificate** or scroll to the certificate section
+4. The certificate is created in draft status
+
+**Signing the Certificate:**
+
+1. **Supplier PM** signs first to confirm delivery
+2. **Customer PM** signs to accept the deliverables
+3. Once both have signed, the certificate is complete and billing can proceed
+
+**Certificate Status Badges (on Milestones list):**
+
+| Badge | Meaning |
+|-------|---------|
+| ✓ Both Signed | Certificate complete, ready for billing |
+| Awaiting Customer | Supplier signed, customer signature pending |
+| Awaiting Supplier | Customer signed, supplier signature pending |
+| Pending | Certificate exists but no signatures yet |
+| – | No certificate created |
+
+### Linked Deliverables
+
+Each milestone contains one or more deliverables. You can view them:
+
+1. From the milestone detail page, see the **Deliverables** section
+2. Or go to **Deliverables** in the menu and filter by milestone
+
+---
+
+## 5. Deliverables
+
+Deliverables are the **work-level tracking units** – discrete outputs (documents, features, components) that contribute to milestone completion.
+
+### Viewing Deliverables
+
+1. Click **Deliverables** in the menu
+2. Use filters to narrow by milestone or status
+3. **Click any row** to open the detail modal
+
+### Deliverable Information
+
+| Field | Description |
+|-------|-------------|
+| **Reference** | Unique identifier (e.g., DEL-001) |
+| **Name** | Deliverable title |
+| **Description** | Detailed description |
+| **Milestone** | Parent milestone this belongs to |
+| **Assigned To** | Person responsible for delivery |
+| **Due Date** | Derived from the parent milestone's forecast end date |
+| **Progress** | Completion percentage (0-100%) |
+| **Status** | Current workflow status |
+
+### Deliverable Workflow
+
+Deliverables follow a structured workflow from creation to delivery:
+
+```
+Not Started → In Progress → Submitted for Review → Review Complete → Delivered
+                                    ↓
+                          Returned for More Work
+                                    ↓
+                            (back to In Progress)
+```
+
+### Status Definitions
+
+| Status | Description | Who Acts |
+|--------|-------------|----------|
+| **Not Started** | Work has not begun | – |
+| **In Progress** | Active work underway | Contributor/Supplier |
+| **Submitted for Review** | Ready for customer review | Customer PM |
+| **Returned for More Work** | Customer requested changes | Contributor/Supplier |
+| **Review Complete** | Customer approved, ready for sign-off | Both PMs |
+| **Delivered** | Formally accepted and complete | – |
+
+### Working with Deliverables
+
+**Creating a Deliverable:**
+
+1. Go to **Deliverables**
+2. Click **+ Add Deliverable**
+3. Fill in the reference, name, and description
+4. Select the parent milestone
+5. Optionally assign to a team member
+6. Link to relevant KPIs and Quality Standards
+7. Click **Save**
+
+**Updating Progress:**
+
+1. Click the deliverable row to open the detail modal
+2. Click **Edit**
+3. Adjust the progress slider
+4. Status automatically transitions:
+   - Progress 0% → "Not Started"
+   - Progress 1-99% → "In Progress"
+5. Click **Save**
+
+**Submitting for Review:**
+
+1. Complete the work (progress should be 100%)
+2. Open the deliverable detail modal
+3. Click **Submit for Review**
+4. Status changes to "Submitted for Review"
+5. Customer PM is now responsible for review
+
+**Customer Review Process:**
+
+1. Customer PM opens the deliverable
+2. Reviews the work against requirements
+3. Either:
+   - Click **Accept Review** → Status becomes "Review Complete"
+   - Click **Return for More Work** → Status returns to work state
+
+**Delivery Sign-off (Dual-Signature):**
+
+Once review is complete, both parties sign to formally accept:
+
+1. Open the deliverable (status: "Review Complete")
+2. The sign-off section appears
+3. **Supplier PM** signs to confirm delivery
+4. **Customer PM** signs to accept
+5. Once both sign, status becomes "Delivered" and progress locks at 100%
+
+### Linking KPIs and Quality Standards
+
+Deliverables can be linked to KPIs and Quality Standards for tracking:
+
+1. When creating or editing a deliverable
+2. Use the **Link to KPIs** selector
+3. Use the **Link to Quality Standards** selector
+4. Selected items appear as badges on the deliverable
+
+**Assessing KPIs and Quality Standards:**
+
+When marking a deliverable as delivered, you may need to assess whether linked criteria were met:
+
+1. Click **Assess & Sign Off** on a "Review Complete" deliverable
+2. For each linked KPI, select **Yes** (criteria met) or **No**
+3. For each linked Quality Standard, select **Yes** or **No**
+4. Complete the sign-off process
+
+---
+
+## 6. Time & Expense Tracking
+
+### Timesheets
+
+#### Submitting Timesheets
 
 1. Go to **Timesheets**
-2. Use filters to find **Submitted** timesheets
-3. **Click the row** to open the detail modal
-4. Review the information
-5. Click **Validate** or **Reject**
+2. Click **+ Add Timesheet**
+3. Select the resource (yourself or a team member)
+4. Enter the date and hours worked
+5. Add a description of work performed
+6. Click **Save** to save as draft, or **Submit** to send for validation
 
-### Submitting Expenses
+#### Timesheet Status
+
+| Status | Description | Next Action |
+|--------|-------------|-------------|
+| **Draft** | Saved but not submitted | Edit or Submit |
+| **Submitted** | Awaiting validation | Wait for PM review |
+| **Validated** | Approved for invoicing | Complete |
+| **Rejected** | Returned with comments | Review feedback, resubmit |
+
+#### Filtering Timesheets
+
+Use the filter bar to find timesheets:
+
+- **Quick Select:** This Week, Last Week, This Month, Last Month
+- **Month/Year:** Select a specific month
+- **Custom Range:** Set specific start and end dates
+- **Status:** Filter by Draft, Submitted, Validated, Rejected
+
+#### Validating Timesheets (Managers)
+
+1. Go to **Timesheets**
+2. Filter by **Submitted** status
+3. **Click the row** to open the detail modal
+4. Review: Resource, Date, Hours, Description
+5. Click **Validate** to approve or **Reject** with a reason
+
+### Expenses
+
+#### Submitting Expenses
 
 1. Go to **Expenses**
 2. Click **+ Add Expense**
-3. Fill in: Date, Amount, Category, Description
-4. Set **Chargeable to Customer** (Yes/No)
-5. Attach a receipt if needed
+3. Fill in:
+   - **Date:** When the expense was incurred
+   - **Amount:** Cost in pounds
+   - **Category:** Travel, Accommodation, Sustenance, Equipment, Materials, Other
+   - **Description:** What the expense was for
+4. Set **Chargeable to Customer:** Yes if the customer will pay, No if internal
+5. Optionally attach a receipt image
 6. Click **Save** or **Submit**
 
-### AI Receipt Scanning
+#### AI Receipt Scanning
+
+Save time by letting AI extract receipt details:
 
 1. When adding an expense, click **Scan Receipt**
 2. Upload or photograph your receipt
 3. AI extracts: Date, Amount, Category, Description
-4. Review and adjust as needed
-5. Save the expense
+4. Review the extracted information
+5. Adjust if needed, then save
 
-### Expense Categories
+#### Expense Categories
 
 | Category | Examples |
 |----------|----------|
-| Travel | Flights, trains, taxis, mileage |
-| Accommodation | Hotels, rentals |
-| Sustenance | Meals, refreshments |
-| Equipment | Hardware, software |
-| Materials | Supplies, consumables |
-| Other | Miscellaneous items |
+| **Travel** | Flights, trains, taxis, mileage |
+| **Accommodation** | Hotels, rentals |
+| **Sustenance** | Meals, refreshments during work |
+| **Equipment** | Hardware, software, tools |
+| **Materials** | Supplies, consumables |
+| **Other** | Miscellaneous items |
+
+#### Validating Expenses (Managers)
+
+1. Go to **Expenses**
+2. Filter by **Submitted** status
+3. **Click the row** to open the detail modal
+4. Review details and receipt
+5. Click **Validate** or **Reject**
 
 ---
 
-## Partner Management & Invoicing
+## 7. Partner Management & Invoicing
 
 ### Viewing Partners
 
 1. Go to **Partners** in the menu
-2. See all partners with status (Active/Inactive)
+2. See all partners with their status (Active/Inactive)
 3. **Click any row** to open the partner detail page
 
-### Partner Detail Page
+### Partner Information
 
 The partner detail page shows:
-- Contact information
-- Linked resources
-- Timesheet history
-- Expense history
-- Invoice generation
+
+- **Contact Details:** Name, email, phone, address
+- **Status:** Active or Inactive (toggle inline)
+- **Linked Resources:** Team members from this partner
+- **Timesheet History:** All timesheets for partner resources
+- **Expense History:** All expenses for partner resources
 
 ### Generating Invoices
 
-1. **Click a partner row** to open their detail page
+Create invoices for partner work:
+
+1. Open a partner's detail page
 2. In the **Invoice Preview** section:
-   - Select the period (month or date range)
+   - Select the period (month or custom date range)
    - Click **Generate Invoice**
-3. Review the invoice breakdown:
-   - **Timesheets** - Billable work hours
-   - **Expenses (Chargeable)** - Pass-through costs
-   - **Expenses (Non-Chargeable)** - Partner costs
-   - **Total** - Amount payable
+3. Review the breakdown:
+   - **Timesheets:** Billable work hours × day rate
+   - **Expenses (Chargeable):** Pass-through to customer
+   - **Expenses (Non-Chargeable):** Partner's internal costs
+   - **Total:** Amount payable to partner
 
-### Saving Invoices
+### Saving Invoices as PDF
 
-1. Click **Print / Save PDF** at the bottom
-2. Use your browser's print dialog
-3. Select **Save as PDF**
+1. Click **Print / Save PDF** at the bottom of the invoice
+2. In the browser print dialog, select **Save as PDF**
+3. Choose your save location
 
 ---
 
-## AI Chat Assistant
+## 8. AI Chat Assistant
 
 ### Opening the Assistant
 
-Click the **chat bubble icon** in the bottom-right corner to open the AI assistant.
+Click the **chat bubble icon** in the bottom-right corner of any page.
 
 ### What You Can Ask
 
-| Question Type | Example |
-|--------------|---------|
-| Budget queries | "What's the remaining budget?" |
-| Progress updates | "How many milestones are completed?" |
-| Resource info | "Who is allocated to MS-002?" |
-| Expense summaries | "Show me expenses for November" |
-| Timesheet status | "What timesheets need validation?" |
+| Category | Example Questions |
+|----------|-------------------|
+| **Budget** | "What's the remaining budget?" |
+| | "How much have we spent on MS-002?" |
+| **Progress** | "How many milestones are completed?" |
+| | "What's the overall project progress?" |
+| **Resources** | "Who is allocated to MS-002?" |
+| | "Show me resource utilisation" |
+| **Expenses** | "Show expenses for November" |
+| | "What expenses need validation?" |
+| **Timesheets** | "How many hours were logged last week?" |
+| | "What timesheets are pending?" |
+| **Deliverables** | "Which deliverables are overdue?" |
+| | "What's submitted for review?" |
 
-### Response Times
+### Response Speed
 
-| Query Type | Speed |
-|------------|-------|
-| Simple questions | ~100ms (instant) |
-| Summary queries | 1-2 seconds |
+| Query Type | Typical Speed |
+|------------|---------------|
+| Simple facts | ~100ms (instant) |
+| Summaries | 1-2 seconds |
 | Complex analysis | 3-5 seconds |
 
 ### Tips for Best Results
 
-- Be specific: "What's the budget for MS-003?" vs "Tell me about budgets"
-- Ask one thing at a time
-- Use natural language - no special syntax needed
+- **Be specific:** "What's the budget for MS-003?" works better than "Tell me about budgets"
+- **Ask one thing at a time** for clearest responses
+- **Use natural language** – no special syntax needed
+- **Reference items by name or code** when asking about specifics
 
 ---
 
-## User Administration
+## 9. User Administration
 
 ### Accessing User Management
 
@@ -289,12 +544,13 @@ Click the **chat bubble icon** in the bottom-right corner to open the AI assista
 
 ### User List
 
-The user list shows:
-- User name and avatar
+The list shows for each user:
+
+- Avatar and name
 - Email address
 - Linked resource (if any)
-- Role
-- Created date
+- Role badge
+- Account creation date
 
 ### Changing a User's Role
 
@@ -305,10 +561,10 @@ The user list shows:
 
 ### Linking Users to Resources
 
-Users can be linked to resources for time/expense tracking:
+Link users to resources for time and expense tracking:
 
 1. Find the user in the list
-2. Click **Link resource** in the "Linked Resource" column
+2. In the **Linked Resource** column, click **Link resource**
 3. Select a resource from the dropdown
 4. Click the save icon
 
@@ -324,39 +580,186 @@ Users can be linked to resources for time/expense tracking:
 
 ### Test Users
 
-Admins can toggle test user visibility:
+Admins can toggle visibility of test accounts:
+
 1. Click **Show Test** in the header
 2. Test users appear with amber highlighting
 3. Click **Hide Test** to hide them again
 
+Test users are useful for training and demonstrations without affecting real data.
+
 ---
 
-## Troubleshooting
+## 10. Workflows Reference
+
+### Timesheet Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   DRAFT ──────► SUBMITTED ──────► VALIDATED                    │
+│     │               │                                          │
+│     │               ▼                                          │
+│     │           REJECTED ─────► (edit) ──► SUBMITTED           │
+│     │               │                                          │
+│     └───────────────┘                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Actors:
+- Contributor: Creates draft, submits
+- Supplier PM / Customer PM: Validates or rejects
+```
+
+### Expense Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   DRAFT ──────► SUBMITTED ──────► VALIDATED                    │
+│     │               │                                          │
+│     │               ▼                                          │
+│     │           REJECTED ─────► (edit) ──► SUBMITTED           │
+│     │               │                                          │
+│     └───────────────┘                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Actors:
+- Contributor: Creates draft, submits
+- Supplier PM / Customer PM: Validates or rejects
+```
+
+### Deliverable Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   NOT STARTED ──► IN PROGRESS ──► SUBMITTED FOR REVIEW         │
+│                       ▲                    │                    │
+│                       │                    ▼                    │
+│                       │            ┌──────────────┐             │
+│                       │            │   Customer   │             │
+│                       │            │   Reviews    │             │
+│                       │            └──────┬───────┘             │
+│                       │                   │                     │
+│                       │         ┌─────────┴─────────┐           │
+│                       │         ▼                   ▼           │
+│                       │   RETURNED FOR        REVIEW COMPLETE   │
+│                       │   MORE WORK                 │           │
+│                       │         │                   ▼           │
+│                       └─────────┘           ┌──────────────┐    │
+│                                             │  Dual Sign   │    │
+│                                             │  (Both PMs)  │    │
+│                                             └──────┬───────┘    │
+│                                                    ▼            │
+│                                               DELIVERED         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Actors:
+- Contributor/Supplier: Creates, edits, submits for review
+- Customer PM: Accepts or returns review
+- Both PMs: Sign off on delivery
+```
+
+### Milestone Baseline Commitment
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   NOT SIGNED ──────────────────────────────────────────────►    │
+│       │                                                         │
+│       ├──► Supplier PM signs ──► AWAITING CUSTOMER ──┐          │
+│       │                                              │          │
+│       └──► Customer PM signs ──► AWAITING SUPPLIER ──┤          │
+│                                                      │          │
+│                                                      ▼          │
+│                                                 COMMITTED       │
+│                                            (Baseline Locked)    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Either party can sign first. Once both have signed, the baseline is locked.
+```
+
+### Milestone Acceptance Certificate
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   (Milestone 100% complete)                                     │
+│            │                                                    │
+│            ▼                                                    │
+│   CREATE CERTIFICATE ──► PENDING                                │
+│                             │                                   │
+│       ┌─────────────────────┴─────────────────────┐             │
+│       │                                           │             │
+│       ▼                                           ▼             │
+│   Supplier signs                             Customer signs     │
+│       │                                           │             │
+│       ▼                                           ▼             │
+│   AWAITING CUSTOMER                      AWAITING SUPPLIER      │
+│       │                                           │             │
+│       └─────────────────────┬─────────────────────┘             │
+│                             ▼                                   │
+│                        BOTH SIGNED                              │
+│                    (Ready for Billing)                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Supplier PM should sign first to confirm delivery.
+Customer PM signs to accept and authorise billing.
+```
+
+---
+
+## 11. Troubleshooting
 
 ### Can't Log In
 
-- Verify your email is correct
-- Check for caps lock
+- Verify your email address is correct
+- Check for caps lock on your password
 - Contact your administrator for password reset
 
 ### Page Won't Load
 
 1. Refresh the page (Ctrl/Cmd + R)
-2. Clear browser cache
-3. Try a different browser
+2. Clear browser cache (Ctrl/Cmd + Shift + Delete)
+3. Try a different browser (Chrome, Firefox, Safari)
 4. Check your internet connection
 
 ### Data Not Saving
 
-- Ensure all required fields are filled
-- Check you have permission to edit
-- Look for error messages in red
+- Ensure all required fields (marked *) are filled
+- Check you have permission to edit this item
+- Look for error messages in red below fields
+- Try refreshing and attempting again
+
+### Can't Submit Timesheet/Expense
+
+- Ensure all required fields are complete
+- Check you are linked to a resource (ask Admin)
+- Verify you have Contributor role or higher
+
+### Can't Sign Certificate/Commitment
+
+- Verify you have Supplier PM or Customer PM role
+- Check you're signed in with the correct account
+- Ensure the milestone/deliverable is in the correct status
 
 ### AI Chat Not Responding
 
-- Wait a few seconds - complex queries take longer
+- Wait a few seconds – complex queries take longer
 - Try refreshing the page
+- Simplify your question
 - Contact support if issues persist
+
+### Action Buttons Not Appearing
+
+- Check your role has permission for that action
+- Verify the item is in the correct status for that action
+- Refresh the page to ensure you have the latest data
 
 ### Need More Help?
 
@@ -364,4 +767,4 @@ Contact your system administrator or the project team.
 
 ---
 
-*AMSF001 User Guide | Version 5.0 | 5 December 2025*
+*AMSF001 User Guide | Version 6.0 | 6 December 2025*
