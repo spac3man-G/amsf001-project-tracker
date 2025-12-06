@@ -9,8 +9,9 @@
  * - Milestone: Supplier PM only
  * - Description: Supplier PM or Contributor
  * - Progress: Supplier PM or Contributor
+ * - KPI/QS Links: Supplier PM only
  * 
- * @version 2.2 - Removed assigned_to, added field-level permissions
+ * @version 2.3 - Added KPI/QS management in edit mode
  * @created 4 December 2025
  * @updated 6 December 2025
  */
@@ -42,6 +43,144 @@ import { DualSignature, SignatureComplete } from '../common/SignatureBox';
 
 import './DeliverableDetailModal.css';
 
+/**
+ * KPI Selector Component for edit mode
+ */
+function KPISelector({ kpis, selectedIds, onChange, disabled }) {
+  if (!kpis || kpis.length === 0) {
+    return (
+      <div className="linked-items-section edit-mode">
+        <div className="section-header">
+          <Target size={14} />
+          Link to KPIs
+        </div>
+        <div className="no-items-message">No KPIs available to link</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="linked-items-section edit-mode">
+      <div className="section-header">
+        <Target size={14} />
+        Link to KPIs
+        {selectedIds.length > 0 && !disabled && (
+          <button 
+            type="button" 
+            onClick={() => onChange([])} 
+            className="clear-button"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+      <div className="selector-list">
+        {kpis.map(kpi => {
+          const isSelected = selectedIds.includes(kpi.id);
+          return (
+            <div 
+              key={kpi.id} 
+              onClick={() => {
+                if (disabled) return;
+                if (isSelected) {
+                  onChange(selectedIds.filter(id => id !== kpi.id));
+                } else {
+                  onChange([...selectedIds, kpi.id]);
+                }
+              }}
+              className={`selector-item ${isSelected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
+            >
+              <input 
+                type="checkbox" 
+                checked={isSelected} 
+                onChange={() => {}} 
+                disabled={disabled}
+              />
+              <div className="selector-item-content">
+                <span className="item-badge kpi">{kpi.kpi_ref}</span>
+                <span className="item-name">{kpi.name}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="selector-count">{selectedIds.length} selected</div>
+      {disabled && (
+        <span className="hint">Only Supplier PM can edit KPI links</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Quality Standards Selector Component for edit mode
+ */
+function QSSelector({ qualityStandards, selectedIds, onChange, disabled }) {
+  if (!qualityStandards || qualityStandards.length === 0) {
+    return (
+      <div className="linked-items-section edit-mode">
+        <div className="section-header">
+          <Award size={14} />
+          Link to Quality Standards
+        </div>
+        <div className="no-items-message">No Quality Standards available to link</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="linked-items-section edit-mode">
+      <div className="section-header">
+        <Award size={14} />
+        Link to Quality Standards
+        {selectedIds.length > 0 && !disabled && (
+          <button 
+            type="button" 
+            onClick={() => onChange([])} 
+            className="clear-button"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+      <div className="selector-list">
+        {qualityStandards.map(qs => {
+          const isSelected = selectedIds.includes(qs.id);
+          return (
+            <div 
+              key={qs.id} 
+              onClick={() => {
+                if (disabled) return;
+                if (isSelected) {
+                  onChange(selectedIds.filter(id => id !== qs.id));
+                } else {
+                  onChange([...selectedIds, qs.id]);
+                }
+              }}
+              className={`selector-item ${isSelected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
+            >
+              <input 
+                type="checkbox" 
+                checked={isSelected} 
+                onChange={() => {}} 
+                disabled={disabled}
+              />
+              <div className="selector-item-content">
+                <span className="item-badge quality-standard">{qs.qs_ref}</span>
+                <span className="item-name">{qs.name}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="selector-count">{selectedIds.length} selected</div>
+      {disabled && (
+        <span className="hint">Only Supplier PM can edit Quality Standard links</span>
+      )}
+    </div>
+  );
+}
+
 export default function DeliverableDetailModal({
   isOpen,
   deliverable,
@@ -70,6 +209,7 @@ export default function DeliverableDetailModal({
   const canEditMilestone = permissions.isSupplierPM || permissions.isAdmin;
   const canEditDescription = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor;
   const canEditProgress = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor;
+  const canEditLinks = permissions.isSupplierPM || permissions.isAdmin;
 
   // Reset form when deliverable changes
   useEffect(() => {
@@ -273,6 +413,22 @@ export default function DeliverableDetailModal({
                   <span className="hint">Only Supplier PM or Contributor can edit progress</span>
                 )}
               </div>
+
+              {/* KPI Links - Supplier PM only */}
+              <KPISelector
+                kpis={kpis}
+                selectedIds={editForm.kpi_ids}
+                onChange={(ids) => setEditForm({ ...editForm, kpi_ids: ids })}
+                disabled={!canEditLinks}
+              />
+
+              {/* QS Links - Supplier PM only */}
+              <QSSelector
+                qualityStandards={qualityStandards}
+                selectedIds={editForm.qs_ids}
+                onChange={(ids) => setEditForm({ ...editForm, qs_ids: ids })}
+                disabled={!canEditLinks}
+              />
             </div>
           ) : (
             /* View Mode */

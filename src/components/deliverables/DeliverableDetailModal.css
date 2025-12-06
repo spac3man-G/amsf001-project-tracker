@@ -3,8 +3,9 @@
  * 
  * Apple Design System styling for the deliverable detail modal.
  * 
- * @version 1.0
+ * @version 1.1 - Added KPI/QS selector styles
  * @created 6 December 2025
+ * @updated 6 December 2025
  */
 
 /* ============================================
@@ -541,4 +542,147 @@
 .awaiting-badge.supplier {
   background-color: #dbeafe;
   color: #2563eb;
+}
+
+/* ============================================
+   KPI/QS Selectors (Edit Mode)
+   ============================================ */
+
+.linked-items-section.edit-mode {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.linked-items-section.edit-mode .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.linked-items-section.edit-mode .clear-button {
+  font-size: 0.75rem;
+  color: #dc2626;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.linked-items-section.edit-mode .clear-button:hover {
+  text-decoration: underline;
+}
+
+.selector-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selector-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.selector-item:hover:not(.disabled) {
+  border-color: #94a3b8;
+}
+
+.selector-item.selected {
+  border-width: 2px;
+}
+
+/* KPI selected state */
+.selector-item.selected:has(.item-badge.kpi) {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+}
+
+/* Quality Standard selected state */
+.selector-item.selected:has(.item-badge.quality-standard) {
+  background-color: #faf5ff;
+  border-color: #8b5cf6;
+}
+
+/* Fallback for browsers without :has() support */
+.selector-item.selected {
+  background-color: #f8fafc;
+  border-color: #3b82f6;
+}
+
+.selector-item.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.selector-item input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.selector-item.disabled input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
+.selector-item-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.item-badge {
+  flex-shrink: 0;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+}
+
+.item-badge.kpi {
+  background-color: #3b82f6;
+}
+
+.item-badge.quality-standard {
+  background-color: #8b5cf6;
+}
+
+.item-name {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #1d1d1f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selector-count {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.no-items-message {
+  padding: 1rem;
+  text-align: center;
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 0.875rem;
 }
