@@ -1,20 +1,85 @@
 # Multi-Tenancy RLS Implementation Guide
 
 ## Document Information
-- **Version:** 1.0
+- **Version:** 2.0
 - **Created:** 6 December 2025
+- **Updated:** 6 December 2025
 - **Purpose:** Comprehensive guide for implementing project-scoped Row Level Security (RLS) policies
-- **Status:** Ready for implementation
+- **Status:** ✅ COMPLETED
 
 ---
 
-## Overview
+## Implementation Summary
 
-### Current State
-The application has global roles stored in `profiles.role`, but a `user_projects` table exists and is populated with project-scoped roles. RLS policies currently reference `profiles.role` directly, which doesn't support true multi-tenancy.
+### What Was Done
+Complete migration from global role-based RLS (`profiles.role`) to project-scoped multi-tenancy RLS (`user_projects.role`) across all 28 database tables.
 
-### Target State
-All RLS policies should check `user_projects` for project-scoped role access, enabling users to have different roles on different projects.
+### Key Outcomes
+- ✅ Fixed Supplier PM permission bug on deliverable KPIs/Quality Standards
+- ✅ Proper multi-tenancy: Users only see/modify data for projects they belong to
+- ✅ Project-scoped roles: Same user can have different roles on different projects
+- ✅ Consistent naming: All policies follow `tablename_action_policy` pattern
+- ✅ Reduced policy bloat: From 93 messy policies to ~102 clean, organized policies
+
+### Migration Scripts Location
+```
+/sql/rls-migration/
+├── phase-1-junction-tables.sql
+├── phase-2-main-entities.sql
+├── phase-3-additional-tables.sql
+├── phase-4-verification.sql
+├── emergency-fix-user-projects.sql
+└── rollback-to-permissive.sql
+```
+
+---
+
+## ⚠️ Critical Lesson Learned: Circular RLS Dependency
+
+### The Problem
+After initial migration, ALL pages showed "Loading..." with no data. Root cause was a circular dependency in `user_projects` SELECT policy:
+
+```sql
+-- BROKEN: Queries user_projects to check user_projects access
+CREATE POLICY "user_projects_select_policy" 
+ON public.user_projects FOR SELECT TO authenticated 
+USING (
+  EXISTS (
+    SELECT 1 FROM user_projects my_up  -- Triggers RLS on itself!
+    WHERE my_up.project_id = user_projects.project_id
+    AND my_up.user_id = auth.uid()
+  )
+);
+```
+
+Since ALL other policies check `user_projects` via subqueries, this blocked everything.
+
+### The Fix
+```sql
+-- CORRECT: Simple direct check - no self-reference
+CREATE POLICY "user_projects_select_policy" 
+ON public.user_projects FOR SELECT TO authenticated 
+USING (user_projects.user_id = auth.uid());
+```
+
+This works because all RLS subqueries only ask "Is current user a member?" - never "Who else is on this project?"
+
+### Lesson
+When implementing RLS on a "membership" table that other policies reference, the SELECT policy must NOT query itself. Use a simple direct condition instead.
+
+---
+
+## Frontend Bug Fixed
+
+### QualityStandardDetail.jsx Permission Check
+```javascript
+// BEFORE (wrong - excluded supplier_pm!)
+const canEdit = userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm';
+
+// AFTER (correct - uses permission matrix)
+const { canEditQualityStandard } = usePermissions();
+const canEdit = canEditQualityStandard;
+```
 
 ---
 
@@ -128,28 +193,6 @@ updated_at  TIMESTAMP
 
 ---
 
-## Implementation Phases
-
-### Phase 1: Junction Tables (Immediate)
-Fix the current error blocking KPI/QS editing on deliverables.
-
-**Tables:** `deliverable_kpis`, `deliverable_quality_standards`
-
-### Phase 2: Main Entity Tables
-Update core business tables.
-
-**Tables:** `milestones`, `deliverables`, `resources`, `timesheets`, `expenses`, `kpis`, `quality_standards`
-
-### Phase 3: Additional Tables
-Update remaining tables.
-
-**Tables:** `partners`, `raid_items`, `projects`, `user_projects`, `audit_log`
-
-### Phase 4: Verification
-Audit all policies and test thoroughly.
-
----
-
 ## Notes
 
 ### Conditional Permissions Explained
@@ -184,16 +227,38 @@ For `projects` INSERT and DELETE, we check `profiles.role = 'admin'` (global adm
 
 ---
 
-## Testing Checklist
+## Testing Checklist (All Verified ✅)
 
-After each phase, verify:
+- [x] Admin can perform all CRUD operations
+- [x] Supplier PM can manage entities they're allowed to
+- [x] Supplier PM can add/remove KPIs and Quality Standards on deliverables
+- [x] Customer PM can validate timesheets/expenses
+- [x] Customer PM can update milestone/deliverable status
+- [x] Contributor can add own timesheets/expenses
+- [x] Contributor can update own draft items
+- [x] Contributor can update deliverable progress
+- [x] Viewer can only read data
+- [x] Users cannot see data from projects they're not members of
 
-- [ ] Admin can perform all CRUD operations
-- [ ] Supplier PM can manage entities they're allowed to
-- [ ] Customer PM can validate timesheets/expenses
-- [ ] Customer PM can update milestone/deliverable status
-- [ ] Contributor can add own timesheets/expenses
-- [ ] Contributor can update own draft items
-- [ ] Contributor can update deliverable progress
-- [ ] Viewer can only read data
-- [ ] Users cannot see data from projects they're not members of
+---
+
+## Rollback Procedure
+
+If issues arise, use the rollback script:
+```
+/sql/rls-migration/rollback-to-permissive.sql
+```
+
+This reverts all tables to permissive "authenticated can do anything" policies.
+
+---
+
+## Future Considerations
+
+### Optional Frontend Enhancement
+Current state: RLS uses `user_projects.role` (project-scoped), but frontend UI uses `profiles.role` (global). This works for single-project scenarios but for true multi-tenancy would need:
+
+1. **ProjectContext** - Fetch user's project role from `user_projects`
+2. **usePermissions** - Use project role instead of global role
+
+Not required for current functionality since user's `profiles.role` matches their `user_projects.role`.
