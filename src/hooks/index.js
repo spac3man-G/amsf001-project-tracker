@@ -3,8 +3,9 @@
  * 
  * Central export point for all custom hooks.
  * 
- * @version 1.0
+ * @version 1.1
  * @created 3 December 2025
+ * @updated 6 December 2025 - Added useDeliverablePermissions
  */
 
 // Form handling
@@ -14,6 +15,7 @@ export { useFormValidation } from './useFormValidation';
 // Permissions
 export { usePermissions } from './usePermissions';
 export { useMilestonePermissions } from './useMilestonePermissions';
+export { useDeliverablePermissions } from './useDeliverablePermissions';
 
 // Dashboard
 export { useDashboardLayout } from './useDashboardLayout';

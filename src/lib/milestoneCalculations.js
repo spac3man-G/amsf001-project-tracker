@@ -5,9 +5,16 @@
  * and certificate calculations. This is the SINGLE SOURCE OF TRUTH
  * for all milestone-related calculations used across the application.
  * 
- * @version 1.0
+ * @version 1.1
  * @created 5 December 2025
+ * @updated 6 December 2025 - Import DELIVERABLE_STATUS from deliverableCalculations.js
  */
+
+// Import deliverable status from single source of truth
+import { DELIVERABLE_STATUS } from './deliverableCalculations';
+
+// Re-export for backward compatibility
+export { DELIVERABLE_STATUS };
 
 // ============================================
 // STATUS CONSTANTS
@@ -20,18 +27,6 @@ export const MILESTONE_STATUS = Object.freeze({
   NOT_STARTED: 'Not Started',
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Completed'
-});
-
-/**
- * Deliverable status values
- */
-export const DELIVERABLE_STATUS = Object.freeze({
-  NOT_STARTED: 'Not Started',
-  DRAFT: 'Draft',
-  SUBMITTED: 'Submitted',
-  IN_REVIEW: 'In Review',
-  DELIVERED: 'Delivered',
-  REJECTED: 'Rejected'
 });
 
 /**
@@ -260,22 +255,18 @@ export function calculateVariance(forecast, baseline) {
 // ============================================
 
 /**
- * Get CSS class for milestone/deliverable status
+ * Get CSS class for milestone status
  * 
  * @param {string} status - Status string
  * @returns {string} CSS class name
  */
 export function getStatusCssClass(status) {
   switch (status) {
-    case DELIVERABLE_STATUS.DELIVERED:
     case MILESTONE_STATUS.COMPLETED:
       return 'status-completed';
     case MILESTONE_STATUS.IN_PROGRESS:
-    case DELIVERABLE_STATUS.IN_REVIEW:
-    case DELIVERABLE_STATUS.SUBMITTED:
       return 'status-in-progress';
-    case DELIVERABLE_STATUS.REJECTED:
-      return 'status-rejected';
+    case MILESTONE_STATUS.NOT_STARTED:
     default:
       return 'status-not-started';
   }

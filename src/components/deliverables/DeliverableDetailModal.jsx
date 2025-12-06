@@ -2,11 +2,11 @@
  * Deliverable Detail Modal
  * 
  * Full-screen modal for viewing, editing, and managing deliverable workflow.
- * Includes view/edit modes and workflow actions.
+ * Includes view/edit modes, workflow actions, and dual-signature sign-off.
  * 
- * @version 1.1
- * @updated 4 December 2025
- * @change Auto-transition status to "In Progress" when progress slider moves above 0%
+ * @version 2.0 - Refactored with proper patterns
+ * @created 4 December 2025
+ * @updated 6 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,18 +14,25 @@ import { Link } from 'react-router-dom';
 import { 
   X, Save, Send, CheckCircle, Trash2, Edit2,
   Package, Calendar, User, FileText, Clock,
-  ThumbsUp, RotateCcw, AlertCircle, Target, Award
+  ThumbsUp, RotateCcw, Target, Award
 } from 'lucide-react';
 
-const STATUS_OPTIONS = ['Not Started', 'In Progress', 'Submitted for Review', 'Returned for More Work', 'Review Complete', 'Delivered'];
-const STATUS_COLORS = {
-  'Delivered': { bg: '#dcfce7', color: '#16a34a', icon: CheckCircle },
-  'Review Complete': { bg: '#dbeafe', color: '#2563eb', icon: ThumbsUp },
-  'Submitted for Review': { bg: '#fef3c7', color: '#d97706', icon: Send },
-  'In Progress': { bg: '#e0e7ff', color: '#4f46e5', icon: Clock },
-  'Returned for More Work': { bg: '#fee2e2', color: '#dc2626', icon: RotateCcw },
-  'Not Started': { bg: '#f1f5f9', color: '#64748b', icon: AlertCircle }
-};
+// Centralised utilities
+import { 
+  DELIVERABLE_STATUS,
+  getStatusConfig,
+  getAutoTransitionStatus,
+  isProgressSliderDisabled,
+  canSubmitForReview,
+  canReviewDeliverable,
+  canStartDeliverySignOff,
+  isDeliverableComplete
+} from '../../lib/deliverableCalculations';
+import { formatDate, formatDateTime } from '../../lib/formatters';
+import { useDeliverablePermissions } from '../../hooks/useDeliverablePermissions';
+import { DualSignature, SignatureComplete } from '../common/SignatureBox';
+
+import './DeliverableDetailModal.css';
 
 export default function DeliverableDetailModal({
   isOpen,
@@ -33,9 +40,9 @@ export default function DeliverableDetailModal({
   milestones,
   kpis,
   qualityStandards,
-  canEdit,
-  canReview,
-  canDelete,
+  canEdit: canEditProp,
+  canReview: canReviewProp,
+  canDelete: canDeleteProp,
   onClose,
   onSave,
   onStatusChange,
@@ -44,17 +51,21 @@ export default function DeliverableDetailModal({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
 
+  // Get permissions from hook (for future use, currently using props for backward compatibility)
+  const permissions = useDeliverablePermissions(deliverable);
+
+  // Reset form when deliverable changes
   useEffect(() => {
     if (deliverable) {
       setEditForm({
         name: deliverable.name || '',
         description: deliverable.description || '',
         milestone_id: deliverable.milestone_id || '',
-        status: deliverable.status || 'Not Started',
+        status: deliverable.status || DELIVERABLE_STATUS.NOT_STARTED,
         progress: deliverable.progress || 0,
         assigned_to: deliverable.assigned_to || '',
-        due_date: deliverable.due_date || '',
         kpi_ids: deliverable.deliverable_kpis?.map(dk => dk.kpi_id) || [],
         qs_ids: deliverable.deliverable_quality_standards?.map(dqs => dqs.quality_standard_id) || []
       });
@@ -64,21 +75,33 @@ export default function DeliverableDetailModal({
 
   if (!isOpen || !deliverable) return null;
 
-  const statusInfo = STATUS_COLORS[deliverable.status] || STATUS_COLORS['Not Started'];
-  const StatusIcon = statusInfo.icon;
+  // Status display config
+  const statusConfig = getStatusConfig(deliverable.status);
+  const StatusIcon = statusConfig.icon;
+  
+  // Related data
   const milestone = milestones?.find(m => m.id === deliverable.milestone_id);
   const linkedKPIs = deliverable.deliverable_kpis || [];
   const linkedQS = deliverable.deliverable_quality_standards || [];
 
-  // Workflow state checks
-  const canSubmitForReview = canEdit && ['In Progress', 'Returned for More Work'].includes(deliverable.status);
-  const canApproveReview = canReview && deliverable.status === 'Submitted for Review';
-  const canMarkDelivered = canReview && deliverable.status === 'Review Complete';
-  const isComplete = deliverable.status === 'Delivered';
+  // Workflow state checks (using calculation functions)
+  const isComplete = isDeliverableComplete(deliverable);
+  const showSubmitForReview = canEditProp && canSubmitForReview(deliverable);
+  const showReviewActions = canReviewProp && canReviewDeliverable(deliverable);
+  const showMarkDelivered = canReviewProp && canStartDeliverySignOff(deliverable);
 
+  // Due date derived from milestone
+  const dueDate = milestone?.forecast_end_date || milestone?.end_date;
+
+  // Handlers
   async function handleSave() {
-    await onSave(deliverable.id, editForm);
-    setIsEditing(false);
+    setSaving(true);
+    try {
+      await onSave(deliverable.id, editForm);
+      setIsEditing(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleClose() {
@@ -91,98 +114,57 @@ export default function DeliverableDetailModal({
     handleClose();
   }
 
+  function handleProgressChange(newProgress) {
+    const updates = { progress: newProgress };
+    
+    // Auto-transition status based on progress
+    const newStatus = getAutoTransitionStatus(editForm.status, newProgress);
+    if (newStatus) {
+      updates.status = newStatus;
+    }
+    
+    setEditForm({ ...editForm, ...updates });
+  }
+
   return (
-    <div 
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '1rem'
-      }}
-      onClick={handleClose}
-    >
-      <div 
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          width: '100%',
-          maxWidth: '700px',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="deliverable-modal-overlay" onClick={handleClose}>
+      <div className="deliverable-modal" onClick={(e) => e.stopPropagation()}>
+        
         {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '1.25rem 1.5rem',
-          borderBottom: '1px solid #e2e8f0',
-          backgroundColor: '#f8fafc'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              padding: '0.5rem',
-              borderRadius: '8px',
-              backgroundColor: statusInfo.bg,
-              color: statusInfo.color
-            }}>
+        <div className="deliverable-modal-header">
+          <div className="deliverable-modal-header-left">
+            <div 
+              className="deliverable-modal-icon"
+              style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
+            >
               <Package size={20} />
             </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-                {deliverable.deliverable_ref}
-              </h2>
-              <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                {deliverable.name}
-              </span>
+            <div className="deliverable-modal-titles">
+              <h2>{deliverable.deliverable_ref}</h2>
+              <span className="subtitle">{deliverable.name}</span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              padding: '0.375rem 0.75rem',
-              borderRadius: '6px',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              backgroundColor: statusInfo.bg,
-              color: statusInfo.color
-            }}>
+          <div className="deliverable-modal-header-right">
+            <span 
+              className="status-badge"
+              style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
+            >
               <StatusIcon size={14} />
               {deliverable.status}
             </span>
-            <button 
-              onClick={handleClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0.5rem',
-                color: '#64748b'
-              }}
-            >
+            <button className="close-button" onClick={handleClose}>
               <X size={24} />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div style={{ padding: '1.5rem' }}>
+        <div className="deliverable-modal-content">
           {isEditing ? (
             /* Edit Form */
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                  Name *
-                </label>
+            <div className="deliverable-edit-form">
+              <div className="form-group">
+                <label>Name *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -191,10 +173,8 @@ export default function DeliverableDetailModal({
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                  Description
-                </label>
+              <div className="form-group">
+                <label>Description</label>
                 <textarea
                   className="form-input"
                   rows={3}
@@ -203,11 +183,9 @@ export default function DeliverableDetailModal({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Milestone
-                  </label>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Milestone</label>
                   <select
                     className="form-input"
                     value={editForm.milestone_id}
@@ -219,38 +197,22 @@ export default function DeliverableDetailModal({
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Due Date
-                  </label>
-                  <div 
-                    className="form-input" 
-                    style={{ 
-                      backgroundColor: '#f1f5f9', 
-                      color: '#64748b',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                  >
+                <div className="form-group">
+                  <label>Due Date</label>
+                  <div className="form-input readonly">
                     {(() => {
                       const selectedMilestone = milestones?.find(m => m.id === editForm.milestone_id);
-                      const dueDate = selectedMilestone?.forecast_end_date || selectedMilestone?.end_date;
-                      return dueDate 
-                        ? new Date(dueDate).toLocaleDateString('en-GB')
-                        : 'Set by milestone';
+                      const msDueDate = selectedMilestone?.forecast_end_date || selectedMilestone?.end_date;
+                      return msDueDate ? formatDate(msDueDate) : 'Set by milestone';
                     })()}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-                    Derived from milestone forecast date
-                  </div>
+                  <span className="hint">Derived from milestone forecast date</span>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Assigned To
-                  </label>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Assigned To</label>
                   <input
                     type="text"
                     className="form-input"
@@ -258,139 +220,95 @@ export default function DeliverableDetailModal({
                     onChange={(e) => setEditForm({ ...editForm, assigned_to: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
-                    Progress: {editForm.progress}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={editForm.progress}
-                    onChange={(e) => {
-                      const newProgress = parseInt(e.target.value);
-                      const updates = { progress: newProgress };
-                      
-                      // Auto-transition status based on progress
-                      if (newProgress > 0 && editForm.status === 'Not Started') {
-                        updates.status = 'In Progress';
-                      } else if (newProgress === 0 && editForm.status === 'In Progress') {
-                        updates.status = 'Not Started';
-                      }
-                      
-                      setEditForm({ ...editForm, ...updates });
-                    }}
-                    style={{ width: '100%' }}
-                    disabled={['Delivered', 'Submitted for Review', 'Review Complete'].includes(editForm.status)}
-                  />
+                <div className="form-group">
+                  <label>Progress: {editForm.progress}%</label>
+                  <div className="progress-slider">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={editForm.progress}
+                      onChange={(e) => handleProgressChange(parseInt(e.target.value))}
+                      disabled={isProgressSliderDisabled(editForm.status)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           ) : (
             /* View Mode */
-            <div style={{ display: 'grid', gap: '1.25rem' }}>
-              {/* Key Details */}
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(2, 1fr)', 
-                gap: '1rem',
-                padding: '1rem',
-                backgroundColor: '#f8fafc',
-                borderRadius: '8px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <FileText size={18} style={{ color: '#64748b' }} />
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Milestone</div>
-                    <div style={{ fontWeight: '500' }}>
+            <>
+              {/* Key Details Grid */}
+              <div className="deliverable-key-details">
+                <div className="detail-item">
+                  <FileText size={18} className="detail-item-icon" />
+                  <div className="detail-item-content">
+                    <div className="detail-item-label">Milestone</div>
+                    <div className="detail-item-value">
                       {milestone ? (
-                        <Link to={`/milestones/${milestone.id}`} style={{ color: '#3b82f6' }}>
+                        <Link to={`/milestones/${milestone.id}`}>
                           {milestone.milestone_ref} - {milestone.name}
                         </Link>
                       ) : 'Not assigned'}
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <User size={18} style={{ color: '#64748b' }} />
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Assigned To</div>
-                    <div style={{ fontWeight: '500' }}>{deliverable.assigned_to || 'Unassigned'}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Calendar size={18} style={{ color: '#64748b' }} />
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Due Date</div>
-                    <div style={{ fontWeight: '500' }}>
-                      {milestone?.forecast_end_date || milestone?.end_date
-                        ? new Date(milestone?.forecast_end_date || milestone?.end_date).toLocaleDateString('en-GB')
-                        : 'Not set'}
+                
+                <div className="detail-item">
+                  <User size={18} className="detail-item-icon" />
+                  <div className="detail-item-content">
+                    <div className="detail-item-label">Assigned To</div>
+                    <div className="detail-item-value">
+                      {deliverable.assigned_to || 'Unassigned'}
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Clock size={18} style={{ color: '#64748b' }} />
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Progress</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{ 
-                        width: '80px', 
-                        height: '8px', 
-                        backgroundColor: '#e2e8f0', 
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                      }}>
-                        <div style={{ 
-                          width: `${deliverable.progress || 0}%`, 
-                          height: '100%', 
-                          backgroundColor: isComplete ? '#16a34a' : '#4f46e5'
-                        }} />
+                
+                <div className="detail-item">
+                  <Calendar size={18} className="detail-item-icon" />
+                  <div className="detail-item-content">
+                    <div className="detail-item-label">Due Date</div>
+                    <div className="detail-item-value">
+                      {dueDate ? formatDate(dueDate) : 'Not set'}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="detail-item">
+                  <Clock size={18} className="detail-item-icon" />
+                  <div className="detail-item-content">
+                    <div className="detail-item-label">Progress</div>
+                    <div className="progress-display">
+                      <div className="progress-bar">
+                        <div 
+                          className={`progress-bar-fill ${isComplete ? 'complete' : 'in-progress'}`}
+                          style={{ width: `${deliverable.progress || 0}%` }}
+                        />
                       </div>
-                      <span style={{ fontWeight: '600' }}>{deliverable.progress || 0}%</span>
+                      <span className="progress-value">{deliverable.progress || 0}%</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Description */}
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
-                  Description
-                </div>
-                <div style={{ fontSize: '0.9375rem' }}>
+              <div className="deliverable-description">
+                <div className="section-label">Description</div>
+                <div className={`description-text ${!deliverable.description ? 'empty' : ''}`}>
                   {deliverable.description || 'No description provided'}
                 </div>
               </div>
 
               {/* Linked KPIs */}
               {linkedKPIs.length > 0 && (
-                <div>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem',
-                    fontSize: '0.75rem', 
-                    color: '#64748b', 
-                    textTransform: 'uppercase', 
-                    marginBottom: '0.5rem' 
-                  }}>
+                <div className="linked-items-section">
+                  <div className="section-header">
                     <Target size={14} />
                     Linked KPIs ({linkedKPIs.length})
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div className="linked-items-list">
                     {linkedKPIs.map(dk => (
-                      <span 
-                        key={dk.kpi_id}
-                        style={{ 
-                          padding: '0.25rem 0.625rem', 
-                          backgroundColor: '#dbeafe', 
-                          color: '#2563eb', 
-                          borderRadius: '4px', 
-                          fontSize: '0.8rem', 
-                          fontWeight: '500' 
-                        }}
-                      >
+                      <span key={dk.kpi_id} className="linked-item-badge kpi">
                         {dk.kpis?.kpi_ref || 'KPI'} - {dk.kpis?.name || 'Unknown'}
                       </span>
                     ))}
@@ -400,32 +318,14 @@ export default function DeliverableDetailModal({
 
               {/* Linked Quality Standards */}
               {linkedQS.length > 0 && (
-                <div>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem',
-                    fontSize: '0.75rem', 
-                    color: '#64748b', 
-                    textTransform: 'uppercase', 
-                    marginBottom: '0.5rem' 
-                  }}>
+                <div className="linked-items-section">
+                  <div className="section-header">
                     <Award size={14} />
                     Linked Quality Standards ({linkedQS.length})
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div className="linked-items-list">
                     {linkedQS.map(dqs => (
-                      <span 
-                        key={dqs.quality_standard_id}
-                        style={{ 
-                          padding: '0.25rem 0.625rem', 
-                          backgroundColor: '#f3e8ff', 
-                          color: '#7c3aed', 
-                          borderRadius: '4px', 
-                          fontSize: '0.8rem', 
-                          fontWeight: '500' 
-                        }}
-                      >
+                      <span key={dqs.quality_standard_id} className="linked-item-badge quality-standard">
                         {dqs.quality_standards?.qs_ref || 'QS'} - {dqs.quality_standards?.name || 'Unknown'}
                       </span>
                     ))}
@@ -433,87 +333,85 @@ export default function DeliverableDetailModal({
                 </div>
               )}
 
+              {/* Sign-off Section (for future dual-signature) */}
+              {isComplete && (
+                <div className="sign-off-section">
+                  <SignatureComplete message="Deliverable accepted and delivered" />
+                </div>
+              )}
+
               {/* Timestamps */}
-              <div style={{ 
-                display: 'flex', 
-                gap: '1.5rem', 
-                fontSize: '0.8125rem', 
-                color: '#64748b',
-                paddingTop: '0.75rem',
-                borderTop: '1px solid #e2e8f0'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <div className="deliverable-timestamps">
+                <div className="timestamp-item">
                   <Clock size={14} />
-                  Created: {deliverable.created_at ? new Date(deliverable.created_at).toLocaleString('en-GB') : 'Unknown'}
+                  Created: {deliverable.created_at ? formatDateTime(deliverable.created_at) : 'Unknown'}
                 </div>
                 {deliverable.updated_at && deliverable.updated_at !== deliverable.created_at && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <div className="timestamp-item">
                     <Clock size={14} />
-                    Updated: {new Date(deliverable.updated_at).toLocaleString('en-GB')}
+                    Updated: {formatDateTime(deliverable.updated_at)}
                   </div>
                 )}
               </div>
-            </div>
+            </>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '1rem 1.5rem',
-          borderTop: '1px solid #e2e8f0',
-          backgroundColor: '#f8fafc'
-        }}>
-          <div>
-            {canDelete && !isEditing && !isComplete && (
+        <div className="deliverable-modal-footer">
+          <div className="footer-left">
+            {canDeleteProp && !isEditing && !isComplete && (
               <button
-                onClick={() => { onDelete(deliverable.id); handleClose(); }}
                 className="btn btn-danger"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                onClick={() => { onDelete(deliverable.id); handleClose(); }}
               >
                 <Trash2 size={16} /> Delete
               </button>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          
+          <div className="footer-right">
             {isEditing ? (
               <>
-                <button onClick={() => setIsEditing(false)} className="btn btn-secondary">
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setIsEditing(false)}
+                  disabled={saving}
+                >
                   Cancel
                 </button>
-                <button onClick={handleSave} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                  <Save size={16} /> Save Changes
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </>
             ) : (
               <>
                 {/* Submit for Review */}
-                {canSubmitForReview && (
+                {showSubmitForReview && (
                   <button 
-                    onClick={() => handleStatusChangeAndClose('Submitted for Review')} 
                     className="btn btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                    onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW)}
                   >
                     <Send size={16} /> Submit for Review
                   </button>
                 )}
                 
                 {/* Reviewer Actions */}
-                {canApproveReview && (
+                {showReviewActions && (
                   <>
                     <button 
-                      onClick={() => handleStatusChangeAndClose('Returned for More Work')} 
                       className="btn btn-danger"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                      onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.RETURNED_FOR_MORE_WORK)}
                     >
                       <RotateCcw size={16} /> Return for More Work
                     </button>
                     <button 
-                      onClick={() => handleStatusChangeAndClose('Review Complete')} 
                       className="btn btn-success"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                      onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.REVIEW_COMPLETE)}
                     >
                       <ThumbsUp size={16} /> Accept Review
                     </button>
@@ -521,22 +419,20 @@ export default function DeliverableDetailModal({
                 )}
 
                 {/* Mark as Delivered */}
-                {canMarkDelivered && (
+                {showMarkDelivered && (
                   <button 
-                    onClick={() => { onOpenCompletion(deliverable); handleClose(); }} 
                     className="btn btn-success"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                    onClick={() => { onOpenCompletion(deliverable); handleClose(); }}
                   >
                     <CheckCircle size={16} /> Mark as Delivered
                   </button>
                 )}
 
                 {/* Edit Button */}
-                {canEdit && !isComplete && (
+                {canEditProp && !isComplete && (
                   <button 
-                    onClick={() => setIsEditing(true)} 
                     className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                    onClick={() => setIsEditing(true)}
                   >
                     <Edit2 size={16} /> Edit
                   </button>
