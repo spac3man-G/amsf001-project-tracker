@@ -1,5 +1,5 @@
 // src/App.jsx
-// Version 10.0 - Added Vercel Analytics and Speed Insights for production monitoring
+// Version 11.0 - Added ViewAsProvider for role impersonation
 
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
@@ -15,6 +15,7 @@ import { ChatProvider } from './contexts/ChatContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { MetricsProvider } from './contexts/MetricsContext';
 import { HelpProvider } from './contexts/HelpContext';
+import { ViewAsProvider } from './contexts/ViewAsContext';
 
 // Shared components - always loaded
 import { ErrorBoundary, LoadingSpinner, Skeleton } from './components/common';
@@ -93,12 +94,13 @@ export default function App() {
       <ErrorBoundary>
         <ToastProvider>
           <AuthProvider>
-            <ProjectProvider>
-              <TestUserProvider>
-                <MetricsProvider>
-                  <NotificationProvider>
-                    <ChatProvider>
-                      <HelpProvider>
+            <ViewAsProvider>
+              <ProjectProvider>
+                <TestUserProvider>
+                  <MetricsProvider>
+                    <NotificationProvider>
+                      <ChatProvider>
+                        <HelpProvider>
                     <Routes>
                       {/* Public routes */}
                       <Route path="/login" element={<Login />} />
@@ -240,6 +242,7 @@ export default function App() {
                 </MetricsProvider>
               </TestUserProvider>
             </ProjectProvider>
+          </ViewAsProvider>
           </AuthProvider>
         </ToastProvider>
       </ErrorBoundary>

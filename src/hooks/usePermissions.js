@@ -1,17 +1,15 @@
 /**
  * AMSF001 Project Tracker - usePermissions Hook
  * Location: src/hooks/usePermissions.js
- * Version 2.0 - Permission Matrix Integration
+ * Version 3.0 - View As Integration
  * 
  * This hook provides pre-bound permission functions that automatically
- * inject the current user's role and ID.
+ * inject the current user's EFFECTIVE role (which may be impersonated via View As).
  * 
- * Benefits:
- * - Eliminates need for local wrapper functions in pages
- * - Eliminates confusing import aliases (e.g., "as canEditExpensePerm")
- * - Cleaner, more readable code in components
- * - Single source of truth for permission logic (Permission Matrix)
- * - Automatically gets role/userId from AuthContext
+ * Changes in v3.0:
+ * - Now uses effectiveRole from ViewAsContext instead of actual role from AuthContext
+ * - Permissions reflect the impersonated role when View As is active
+ * - userId remains the actual user's ID (only role changes)
  * 
  * Usage:
  *   import { usePermissions } from '../hooks/usePermissions';
@@ -30,11 +28,35 @@
  */
 
 import { useAuth } from '../contexts/AuthContext';
+import { useViewAs } from '../contexts/ViewAsContext';
 import * as perms from '../lib/permissions';
 
 export function usePermissions() {
-  const { user, role: userRole } = useAuth();
+  const { user } = useAuth();
+  
+  // Get effectiveRole from ViewAsContext (supports impersonation)
+  // Falls back to 'viewer' if context not available
+  let effectiveRole = 'viewer';
+  let actualRole = 'viewer';
+  let isImpersonating = false;
+  
+  try {
+    const viewAs = useViewAs();
+    effectiveRole = viewAs.effectiveRole || 'viewer';
+    actualRole = viewAs.actualRole || 'viewer';
+    isImpersonating = viewAs.isImpersonating || false;
+  } catch (e) {
+    // ViewAsContext not available, fall back to AuthContext role
+    const auth = useAuth();
+    effectiveRole = auth.role || 'viewer';
+    actualRole = auth.role || 'viewer';
+  }
+  
+  // User ID is always the actual user (not impersonated)
   const currentUserId = user?.id || null;
+
+  // Use effectiveRole for all permission checks
+  const userRole = effectiveRole;
 
   // ============================================
   // DIRECT MATRIX ACCESS
@@ -60,7 +82,9 @@ export function usePermissions() {
 
   const permissions = {
     // Role info
-    userRole,
+    userRole,           // Effective role (may be impersonated)
+    actualRole,         // Actual role (never changes)
+    isImpersonating,    // Whether View As is active
     currentUserId,
     
     // Direct matrix access

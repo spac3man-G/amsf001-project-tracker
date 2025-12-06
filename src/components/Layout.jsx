@@ -1,9 +1,10 @@
 // src/components/Layout.jsx
-// Version 9.0 - Added reset navigation order functionality
+// Version 10.0 - Added View As role impersonation support
 // - User name/role only shown in header (top right)
 // - Clicking user info in header navigates to My Account
 // - Drag and drop navigation reordering for non-viewers
 // - Reset to default order button when custom order is active
+// - View As bar for admin/supplier_pm to preview other roles
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -16,6 +17,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
+import ViewAsBar, { ViewAsInline } from './ViewAsBar';
 import { useToast } from '../contexts/ToastContext';
 
 // Import from centralized navigation config
@@ -32,6 +34,7 @@ import {
 
 // Import AuthContext for user data
 import { useAuth } from '../contexts/AuthContext';
+import { useViewAs } from '../contexts/ViewAsContext';
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -39,7 +42,10 @@ export default function Layout({ children }) {
   const { showSuccess, showError } = useToast();
   
   // Use AuthContext for user data - single source of truth
-  const { user, profile, role, signOut } = useAuth();
+  const { user, profile, role: actualRole, signOut } = useAuth();
+  
+  // Use ViewAsContext for effective role (supports impersonation)
+  const { effectiveRole, isImpersonating, effectiveRoleConfig } = useViewAs();
   
   // Local state for UI
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -48,8 +54,8 @@ export default function Layout({ children }) {
   const [dragOverItem, setDragOverItem] = useState(null);
   const dragNode = useRef(null);
 
-  // Get role display configuration
-  const roleDisplay = useMemo(() => getRoleDisplay(role), [role]);
+  // Get role display configuration - use effective role for display
+  const roleDisplay = useMemo(() => getRoleDisplay(effectiveRole), [effectiveRole]);
 
   // Derive display name and initials from profile
   const displayName = useMemo(() => {
@@ -83,27 +89,27 @@ export default function Layout({ children }) {
   }
 
   // Check if this role can reorder navigation
-  const canReorder = useMemo(() => canReorderNavigation(role), [role]);
+  const canReorder = useMemo(() => canReorderNavigation(effectiveRole), [effectiveRole]);
 
   // Check if current order is customized (not default)
   const hasCustomOrder = useMemo(() => {
-    return customNavOrder && !isDefaultOrder(role, customNavOrder);
-  }, [role, customNavOrder]);
+    return customNavOrder && !isDefaultOrder(effectiveRole, customNavOrder);
+  }, [effectiveRole, customNavOrder]);
 
   // Get navigation items for current role, with custom ordering if saved
   const navItems = useMemo(() => {
-    const roleNav = getNavigationForRole(role);
+    const roleNav = getNavigationForRole(effectiveRole);
     if (customNavOrder && customNavOrder.length > 0) {
-      return applyCustomNavOrder(role, customNavOrder);
+      return applyCustomNavOrder(effectiveRole, customNavOrder);
     }
     return roleNav;
-  }, [role, customNavOrder]);
+  }, [effectiveRole, customNavOrder]);
 
   // Check if current page is read-only for this role
   const isCurrentPageReadOnly = useMemo(() => {
     const itemId = getNavItemIdByPath(location.pathname);
-    return itemId ? isReadOnlyForRole(role, itemId) : false;
-  }, [role, location.pathname]);
+    return itemId ? isReadOnlyForRole(effectiveRole, itemId) : false;
+  }, [effectiveRole, location.pathname]);
 
   // Drag and drop handlers (only for non-viewers)
   function handleDragStart(e, index) {
@@ -253,7 +259,7 @@ export default function Layout({ children }) {
                            (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
             const isDragging = draggedItem === index;
             const isDragOver = dragOverItem === index;
-            const isReadOnly = isReadOnlyForRole(role, item.id);
+            const isReadOnly = isReadOnlyForRole(effectiveRole, item.id);
             
             return (
               <div
@@ -410,6 +416,9 @@ export default function Layout({ children }) {
           top: 0,
           zIndex: 40
         }}>
+          {/* View As Role Selector (only shown for admin/supplier_pm) */}
+          <ViewAsBar />
+          
           {/* User Name and Role Display - Clickable to go to My Account */}
           <Link
             to="/account"
@@ -436,6 +445,9 @@ export default function Layout({ children }) {
                 color: '#1e293b'
               }}>
                 {displayName}
+                {isImpersonating && (
+                  <ViewAsInline />
+                )}
               </div>
               <span style={{
                 display: 'inline-block',
