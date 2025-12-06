@@ -4,7 +4,13 @@
  * Full-screen modal for viewing, editing, and managing deliverable workflow.
  * Includes view/edit modes, workflow actions, and dual-signature sign-off.
  * 
- * @version 2.1 - Added dual-signature workflow
+ * Field-level edit permissions:
+ * - Name: Supplier PM only
+ * - Milestone: Supplier PM only
+ * - Description: Supplier PM or Contributor
+ * - Progress: Supplier PM or Contributor
+ * 
+ * @version 2.2 - Removed assigned_to, added field-level permissions
  * @created 4 December 2025
  * @updated 6 December 2025
  */
@@ -13,7 +19,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   X, Save, Send, CheckCircle, Trash2, Edit2,
-  Package, Calendar, User, FileText, Clock,
+  Package, Calendar, FileText, Clock,
   ThumbsUp, RotateCcw, Target, Award, PenTool
 } from 'lucide-react';
 
@@ -50,14 +56,20 @@ export default function DeliverableDetailModal({
   onStatusChange,
   onDelete,
   onOpenCompletion,
-  onSign // New prop for dual-signature
+  onSign
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // Get permissions from hook
+  // Get permissions from hook (includes role info)
   const permissions = useDeliverablePermissions(deliverable);
+  
+  // Field-level edit permissions
+  const canEditName = permissions.isSupplierPM || permissions.isAdmin;
+  const canEditMilestone = permissions.isSupplierPM || permissions.isAdmin;
+  const canEditDescription = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor;
+  const canEditProgress = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor;
 
   // Reset form when deliverable changes
   useEffect(() => {
@@ -68,7 +80,6 @@ export default function DeliverableDetailModal({
         milestone_id: deliverable.milestone_id || '',
         status: deliverable.status || DELIVERABLE_STATUS.NOT_STARTED,
         progress: deliverable.progress || 0,
-        assigned_to: deliverable.assigned_to || '',
         kpi_ids: deliverable.deliverable_kpis?.map(dk => dk.kpi_id) || [],
         qs_ids: deliverable.deliverable_quality_standards?.map(dqs => dqs.quality_standard_id) || []
       });
@@ -183,6 +194,7 @@ export default function DeliverableDetailModal({
           {isEditing ? (
             /* Edit Form */
             <div className="deliverable-edit-form">
+              {/* Name - Supplier PM only */}
               <div className="form-group">
                 <label>Name *</label>
                 <input
@@ -190,9 +202,14 @@ export default function DeliverableDetailModal({
                   className="form-input"
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  disabled={!canEditName}
                 />
+                {!canEditName && (
+                  <span className="hint">Only Supplier PM can edit name</span>
+                )}
               </div>
 
+              {/* Description - Supplier PM or Contributor */}
               <div className="form-group">
                 <label>Description</label>
                 <textarea
@@ -200,22 +217,31 @@ export default function DeliverableDetailModal({
                   rows={3}
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  disabled={!canEditDescription}
                 />
+                {!canEditDescription && (
+                  <span className="hint">Only Supplier PM or Contributor can edit description</span>
+                )}
               </div>
 
               <div className="form-row">
+                {/* Milestone - Supplier PM only */}
                 <div className="form-group">
                   <label>Milestone</label>
                   <select
                     className="form-input"
                     value={editForm.milestone_id}
                     onChange={(e) => setEditForm({ ...editForm, milestone_id: e.target.value })}
+                    disabled={!canEditMilestone}
                   >
                     <option value="">-- Select milestone --</option>
                     {milestones?.map(m => (
                       <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>
                     ))}
                   </select>
+                  {!canEditMilestone && (
+                    <span className="hint">Only Supplier PM can edit milestone</span>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Due Date</label>
@@ -230,29 +256,22 @@ export default function DeliverableDetailModal({
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Assigned To</label>
+              {/* Progress - Supplier PM or Contributor */}
+              <div className="form-group">
+                <label>Progress: {editForm.progress}%</label>
+                <div className="progress-slider">
                   <input
-                    type="text"
-                    className="form-input"
-                    value={editForm.assigned_to}
-                    onChange={(e) => setEditForm({ ...editForm, assigned_to: e.target.value })}
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={editForm.progress}
+                    onChange={(e) => handleProgressChange(parseInt(e.target.value))}
+                    disabled={!canEditProgress || isProgressSliderDisabled(editForm.status)}
                   />
                 </div>
-                <div className="form-group">
-                  <label>Progress: {editForm.progress}%</label>
-                  <div className="progress-slider">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={editForm.progress}
-                      onChange={(e) => handleProgressChange(parseInt(e.target.value))}
-                      disabled={isProgressSliderDisabled(editForm.status)}
-                    />
-                  </div>
-                </div>
+                {!canEditProgress && (
+                  <span className="hint">Only Supplier PM or Contributor can edit progress</span>
+                )}
               </div>
             </div>
           ) : (
@@ -270,16 +289,6 @@ export default function DeliverableDetailModal({
                           {milestone.milestone_ref} - {milestone.name}
                         </Link>
                       ) : 'Not assigned'}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="detail-item">
-                  <User size={18} className="detail-item-icon" />
-                  <div className="detail-item-content">
-                    <div className="detail-item-label">Assigned To</div>
-                    <div className="detail-item-value">
-                      {deliverable.assigned_to || 'Unassigned'}
                     </div>
                   </div>
                 </div>

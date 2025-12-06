@@ -99,7 +99,7 @@ export default function Deliverables() {
   // Detail modal state
   const [detailModal, setDetailModal] = useState({ isOpen: false, deliverable: null });
 
-  const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', kpi_ids: [], qs_ids: [] });
+  const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, kpi_ids: [], qs_ids: [] });
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
@@ -134,13 +134,13 @@ export default function Deliverables() {
         project_id: projectId, deliverable_ref: newDeliverable.deliverable_ref, name: newDeliverable.name,
         description: newDeliverable.description, milestone_id: newDeliverable.milestone_id || null,
         status: newDeliverable.status, progress: parseInt(newDeliverable.progress) || 0,
-        assigned_to: newDeliverable.assigned_to, created_by: currentUserId
+        created_by: currentUserId
       });
 
       await deliverablesService.syncKPILinks(data.id, newDeliverable.kpi_ids);
       await deliverablesService.syncQSLinks(data.id, newDeliverable.qs_ids);
 
-      setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, assigned_to: '', kpi_ids: [], qs_ids: [] });
+      setNewDeliverable({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: 'Not Started', progress: 0, kpi_ids: [], qs_ids: [] });
       setShowAddForm(false);
       fetchData();
       refreshMetrics();
@@ -155,8 +155,7 @@ export default function Deliverables() {
         description: editForm.description, 
         milestone_id: editForm.milestone_id || null, 
         status: editForm.status, 
-        progress: parseInt(editForm.progress) || 0, 
-        assigned_to: editForm.assigned_to
+        progress: parseInt(editForm.progress) || 0
       });
 
       if (editForm.kpi_ids) await deliverablesService.syncKPILinks(id, editForm.kpi_ids);
@@ -332,10 +331,6 @@ export default function Deliverables() {
                     <option value="">Select</option>
                     {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}
                   </select>
-                </div>
-                <div className="del-form-group">
-                  <label>Assigned To</label>
-                  <input type="text" value={newDeliverable.assigned_to} onChange={(e) => setNewDeliverable({ ...newDeliverable, assigned_to: e.target.value })} />
                 </div>
                 <div className="del-form-group">
                   <label>Due Date</label>
