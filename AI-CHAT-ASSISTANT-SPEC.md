@@ -685,8 +685,50 @@ Would you like more details on either of these?
 
 ---
 
+## Appendix C: Mobile Chat Implementation (Added 6 Dec 2025)
+
+### Overview
+
+A dedicated full-screen mobile chat page at `/chat` provides an optimized experience for touch devices.
+
+### Access
+
+**URL:** `https://amsf001-project-tracker.vercel.app/chat`
+
+### Quick Action Buttons
+
+| Button | Query |
+|--------|-------|
+| 📊 Project Status | "What's the current project status?" |
+| ✅ My Actions | "What do I need to do?" |
+| ⏰ My Hours | "Show my timesheets this week" |
+| 💵 Budget | "What's the budget status?" |
+| 🎯 Milestones | "What milestones are due soon?" |
+| ⚠️ At Risk | "What's at risk in the project?" |
+| 📄 Deliverables | "Show deliverables awaiting review" |
+| ❓ What Can I Do? | "What can my role do in this project?" |
+
+### Mobile Optimizations
+
+- Full viewport height (`100dvh`)
+- Safe area insets for notched phones
+- 44px+ touch targets
+- Horizontal scrolling chips after first message
+- Landscape mode (8-column grid)
+- Desktop fallback (centered 420×700px card)
+
+### Files
+
+| File | Purpose |
+|------|--------|
+| `src/pages/MobileChat.jsx` | Main page component |
+| `src/pages/MobileChat.css` | Touch-optimized styles |
+
+---
+
 ## Document History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 1 Dec 2025 | Claude/Glenn | Initial specification |
+| 1.1 | 6 Dec 2025 | Claude/Glenn | Added Mobile Chat appendix |

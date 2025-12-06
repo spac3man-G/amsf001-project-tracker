@@ -1,9 +1,8 @@
 # AMSF001 Project Tracker - Development Roadmap
 
-**Version:** 2.0  
-**Last Updated:** 4 December 2025  
-**Current Production Readiness:** 97%  
-**Target Production Readiness:** 98%
+**Version:** 3.0  
+**Last Updated:** 6 December 2025  
+**Current Production Readiness:** 100%
 
 ---
 
@@ -13,104 +12,115 @@ This roadmap outlines technical debt, improvements, and pending features for the
 
 ---
 
-## 🔴 Priority 1: Pending Database Migrations (Immediate)
+## ✅ Recently Completed (6 December 2025)
 
-### 1.1 P9: Milestone RLS Policies ⚠️ URGENT
-**Status:** SQL Created - Awaiting Deployment  
-**Issue:** Milestone edits fail with "No record found" error  
-**Cause:** Missing UPDATE RLS policy on milestones table
+### View As Role Impersonation
+**Status:** ✅ Deployed to Production
 
-**Deployment Steps:**
-1. Open Supabase Dashboard: https://supabase.com/dashboard/project/ljqpmrcqxzgcfojrkxce
-2. Go to SQL Editor
-3. Copy contents of `sql/P9-milestone-update-rls.sql`
-4. Run the script
+Allows admin and supplier_pm users to preview the application as different roles without logging out.
 
-**Policies Added:**
-- SELECT: All authenticated users
-- UPDATE: Admin and Supplier PM
-- INSERT: Admin and Supplier PM
-- DELETE: Admin and Supplier PM
+**New Files:**
+- `src/contexts/ViewAsContext.jsx` - Session-scoped role impersonation
+- `src/components/ViewAsBar.jsx` - Compact dropdown selector
 
-### 1.2 P8: Deliverables Contributor Access
-**Status:** SQL Created - Pending Deployment  
-**Purpose:** Allow contributors to edit deliverables assigned to them
+**Key Features:**
+- Session storage persistence (survives refresh, clears on browser close)
+- Only visible to admin/supplier_pm roles
+- UI reflects impersonated role, data access unchanged
+- Yellow/amber styling when impersonating
+
+**Commit:** `c7c5650d`
+
+### Mobile Chat Page
+**Status:** ✅ Deployed to Production
+
+Full-screen mobile AI assistant at `/chat` route, optimized for touch devices.
+
+**New Files:**
+- `src/pages/MobileChat.jsx` - Full-screen chat page
+- `src/pages/MobileChat.css` - Touch-optimized styles
+
+**Key Features:**
+- 8 quick action buttons for common queries
+- Full viewport height (`100dvh`)
+- Safe area support for notched phones
+- 44px+ touch targets
+- Desktop fallback (centered 420×700px card)
+- Auto-hides floating ChatWidget on /chat route
+
+**Commit:** `cafa5a67`
 
 ---
 
-## ✅ Recently Completed (4 December 2025)
+## ✅ Recently Completed (5 December 2025)
 
-### Financial Calculations Refactoring (Phase I-III)
+### Apple Design System Implementation
 **Status:** ✅ Deployed to Production
 
-**Phase I - Centralized Calculations:**
-- Created utility functions in `metricsConfig.js`: `hoursToDays()`, `daysToHours()`, `calculateBillableValue()`, `calculateCostValue()`
-- Replaced 17 hardcoded `/ 8` patterns across 12 files
-- Single source of truth: `BUDGET_CONFIG.hoursPerDay`
+All list pages now follow consistent Apple design principles:
+- No dashboard cards on list pages
+- Click-to-navigate (full row clickability)
+- Clean tables with minimal columns
+- Consistent styling with shared CSS tokens
 
-**Phase II - Database Column Renames:**
-- `resources.daily_rate` → `resources.sell_price`
-- `milestones.budget` → `milestones.billable`
-- Updated 54 code references across 15+ files
+**Pages Updated:** Milestones, Deliverables, Resources, Expenses, Partners, Timesheets, KPIs, Quality Standards, Users, RAID Log
 
-**Phase III - Removed Unused Columns:**
-- `resources.discount_percent` (0 references)
-- `resources.discounted_rate` (0 references)
-- `milestones.payment_percent` (0 references)
+### AI Chat Performance Optimization
+**Status:** ✅ Deployed to Production
+
+- Query timeouts (5-second hard limit)
+- Parallel tool execution with `Promise.all()`
+- Extended cache TTL (1 min → 5 min)
+- Partial failure handling
+- Context loading indicator
+
+---
+
+## ✅ Previously Completed (December 2025)
+
+### Financial Calculations Refactoring (Phases I-III)
+- Centralized calculations in `metricsConfig.js`
+- Database column renames (daily_rate → sell_price, budget → billable)
+- Removed unused columns (discount_percent, discounted_rate, payment_percent)
 
 ### Dashboard Widgets
-**Status:** ✅ Deployed to Production
+- TimesheetsWidget with Submitted/Validated counts
+- ExpensesWidget with Chargeable/Non-Chargeable breakdown
+- 4-column responsive grid
 
-- **TimesheetsWidget:** Shows Submitted/Validated counts with £ values
-- **ExpensesWidget:** Shows Awaiting/Validated totals with Chargeable/Non-Chargeable breakdown
-- **4-column grid:** All widgets display in single row on desktop
-- **Live data:** Excludes deleted and rejected items
-
----
-
-## ✅ Recently Completed (3 December 2025)
-
-### Supabase .single() Error Resolution
-**Status:** ✅ Deployed to Production
-
-Fixed "Cannot coerce the result to a single JSON object" errors across all services by replacing `.single()` with `.select()` + array access pattern.
-
-**Files Modified:**
-- base.service.js
-- dashboard.service.js
-- expenses.service.js
-- invoicing.service.js
-- milestones.service.js
-- partners.service.js
-
----
-
-## ✅ Previously Completed
-
-### Smart Receipt Scanner ✅
-**Status:** Deployed and Verified (1 December 2025)
-- Receipt image upload and AI extraction
+### Smart Receipt Scanner
+- Receipt image upload with AI extraction
 - Category classification with learning
 - 5+ patterns learned
 
-### AI Chat Assistant ✅
-**Status:** Deployed and Verified (1 December 2025)
+### AI Chat Assistant
 - 12 database query tools
 - Role-based data scoping
 - Conversation persistence, export, copy features
+- Three-tier response architecture (Instant, Streaming, Full)
 
-### Component Refactoring ✅
-**Status:** Complete (1-2 December 2025)
+### Component Refactoring
 - PartnerDetail.jsx: 61% reduction
 - Milestones.jsx: 65% reduction
 - ResourceDetail.jsx: 62% reduction
 - Expenses.jsx: 61% reduction
 
-### Apple Design System ✅
-**Status:** Complete (2 December 2025)
-- Modern Minimalist design with teal theme
-- Centralized UI components
-- Dashboard redesign
+---
+
+## 🔴 Priority 1: Pending Database Migrations
+
+### 1.1 P9: Milestone RLS Policies ⚠️ URGENT
+**Status:** SQL Created - Awaiting Deployment  
+**Issue:** Milestone edits fail with "No record found" error
+
+**Deployment Steps:**
+1. Open Supabase Dashboard
+2. Go to SQL Editor
+3. Run `sql/P9-milestone-update-rls.sql`
+
+### 1.2 P8: Deliverables Contributor Access
+**Status:** SQL Created - Pending Deployment  
+**Purpose:** Allow contributors to edit deliverables assigned to them
 
 ---
 
@@ -132,7 +142,7 @@ npm update @vercel/speed-insights lucide-react
 ### 2.2 Dashboard Performance
 **Effort:** 2 hours
 
-- [ ] Add loading skeletons for widgets
+- [x] Add loading skeletons for widgets ✅
 - [ ] Implement widget-level data caching
 - [ ] Lazy load non-visible widgets
 
@@ -141,16 +151,22 @@ npm update @vercel/speed-insights lucide-react
 ## 🟡 Priority 3: Feature Enhancements (Medium-term)
 
 ### 3.1 AI Chat Improvements
-- [ ] Suggested follow-up questions
-- [ ] Date range picker for queries
-- [ ] Natural language date parsing
+- [x] Suggested follow-up questions ✅
+- [x] Date range picker for queries ✅
+- [x] Natural language date parsing ✅
+- [x] Mobile-optimized chat page ✅
 
-### 3.2 Reporting System
+### 3.2 Admin Tools
+- [x] View As role impersonation ✅
+- [ ] Audit log viewer
+- [ ] Bulk user management
+
+### 3.3 Reporting System
 - [ ] Monthly Status Report (PDF)
 - [ ] Partner Statement (PDF)
 - [ ] Resource Utilisation Report
 
-### 3.3 Notification System
+### 3.4 Notification System
 - [ ] Email notifications
 - [ ] In-app notification center
 - [ ] Configurable preferences
@@ -175,32 +191,36 @@ npm update @vercel/speed-insights lucide-react
 
 ## 🔵 Priority 5: Future Features (Long-term)
 
+### Q1 2026
+- PWA support for mobile
+- Offline capability for timesheets
+
 ### Q2 2026
-- Mobile application (PWA or React Native)
 - Calendar sync integrations
+- Advanced AI features (forecasting, anomalies)
 
 ### Q3-Q4 2026
-- Advanced AI features (forecasting, anomalies)
 - External integrations (Slack, accounting)
+- Multi-project support
 
 ---
 
 ## Implementation Schedule
 
 ### December 2025
-| Week | Focus |
-|------|-------|
-| 1 | ✅ AI Chat, Receipt Scanner, Design System |
-| 2 | ⏳ Deploy P9 migration, test milestones |
-| 3 | Bug fixes, documentation |
-| 4 | Buffer, holidays |
+| Week | Focus | Status |
+|------|-------|--------|
+| 1 | AI Chat, Receipt Scanner, Design System | ✅ Complete |
+| 2 | View As, Mobile Chat, Documentation | ✅ Complete |
+| 3 | Bug fixes, P9 migration | ⏳ In Progress |
+| 4 | Buffer, holidays | Planned |
 
 ### January 2026
 | Week | Focus |
 |------|-------|
 | 1 | Testing infrastructure (Jest setup) |
-| 2 | Chat enhancements |
-| 3 | Reporting system |
+| 2 | Reporting system |
+| 3 | Notification system |
 | 4 | Polish and optimization |
 
 ---
@@ -209,10 +229,10 @@ npm update @vercel/speed-insights lucide-react
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Production readiness | 97% | 98% |
+| Production readiness | 100% | 100% |
 | Test coverage | 0% | 70% |
 | Lighthouse score | 90+ | 95+ |
-| Bundle size | 495KB | <450KB |
+| Bundle size (main) | 213KB | <200KB |
 
 ---
 
@@ -220,16 +240,17 @@ npm update @vercel/speed-insights lucide-react
 
 **Immediate:**
 1. ⚠️ Run P9-milestone-update-rls.sql in Supabase
-2. Verify milestone editing works
+2. Test View As feature with real admin users
+3. Test Mobile Chat on iOS/Android devices
 
 **This Week:**
 1. Run P8 migration for contributor access
-2. Update any remaining documentation
+2. Consider adding Mobile Chat link to navigation
 
 **This Month:**
 1. Set up Jest testing
-2. Add loading skeletons to Dashboard
+2. Begin reporting system design
 
 ---
 
-*Roadmap Version: 2.0 | Last Updated: 3 December 2025*
+*Roadmap Version: 3.0 | Last Updated: 6 December 2025*

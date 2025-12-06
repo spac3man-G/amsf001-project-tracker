@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - Technical Reference
 
 **Last Updated:** 6 December 2025  
-**Version:** 3.0  
+**Version:** 3.1  
 **Production Readiness:** 100%
 
 ---
@@ -13,16 +13,18 @@
 3. [Shared Utilities Architecture](#3-shared-utilities-architecture)
 4. [Dual-Signature Workflows](#4-dual-signature-workflows)
 5. [Apple Design System](#5-apple-design-system)
-6. [Supabase Configuration](#6-supabase-configuration)
-7. [Vercel Configuration](#7-vercel-configuration)
-8. [Service Layer](#8-service-layer)
-9. [UI Component Patterns](#9-ui-component-patterns)
-10. [AI Chat System](#10-ai-chat-system)
-11. [In-App Help System](#11-in-app-help-system)
-12. [SQL Migrations](#12-sql-migrations)
-13. [Local Development](#13-local-development)
-14. [Recent Changes](#14-recent-changes)
-15. [Troubleshooting](#15-troubleshooting)
+6. [View As Role Impersonation](#6-view-as-role-impersonation)
+7. [Mobile Chat](#7-mobile-chat)
+8. [Supabase Configuration](#8-supabase-configuration)
+9. [Vercel Configuration](#9-vercel-configuration)
+10. [Service Layer](#10-service-layer)
+11. [UI Component Patterns](#11-ui-component-patterns)
+12. [AI Chat System](#12-ai-chat-system)
+13. [In-App Help System](#13-in-app-help-system)
+14. [SQL Migrations](#14-sql-migrations)
+15. [Local Development](#15-local-development)
+16. [Recent Changes](#16-recent-changes)
+17. [Troubleshooting](#17-troubleshooting)
 
 ---
 
@@ -33,6 +35,7 @@
 | Service | URL |
 |---------|-----|
 | Live Application | https://amsf001-project-tracker.vercel.app |
+| Mobile Chat | https://amsf001-project-tracker.vercel.app/chat |
 | Supabase Dashboard | https://supabase.com/dashboard/project/ljqpmrcqxzgcfojrkxce |
 | Vercel Dashboard | https://vercel.com/glenns-projects-56c63cc4/amsf001-project-tracker |
 | GitHub Repository | https://github.com/spac3man-G/amsf001-project-tracker |
@@ -354,7 +357,125 @@ The application uses a custom Apple-inspired design system implemented consisten
 
 ---
 
-## 6. Supabase Configuration
+## 6. View As Role Impersonation
+
+### Overview
+
+The View As feature allows admin and supplier_pm users to preview the application as different roles without logging out. This enables faster testing and user support.
+
+### How It Works
+
+```
+User (actual role: admin) → ViewAsContext → effectiveRole: customer_pm
+                                          ↓
+                                   usePermissions()
+                                          ↓
+                              All UI reflects customer_pm
+                              Data access still uses admin RLS
+```
+
+### Key Files
+
+| File | Purpose |
+|------|--------|
+| `src/contexts/ViewAsContext.jsx` | Session-scoped role impersonation context |
+| `src/components/ViewAsBar.jsx` | Compact dropdown selector in header |
+
+### Behaviors
+
+| Aspect | Behavior |
+|--------|----------|
+| Persistence | sessionStorage (survives refresh, clears on browser close) |
+| Visibility | Only admin/supplier_pm see the selector |
+| Data access | Unchanged (actual user's RLS policies apply) |
+| UI/Permissions | Based on effectiveRole |
+
+### Available Roles
+
+- Admin
+- Supplier PM
+- Customer PM
+- Contributor
+- Viewer
+
+### Usage
+
+```jsx
+import { useViewAs } from '../contexts/ViewAsContext';
+
+function MyComponent() {
+  const { effectiveRole, isImpersonating, setViewAs, clearViewAs } = useViewAs();
+  
+  // effectiveRole is the impersonated role (or actual role if not impersonating)
+  // isImpersonating is true when viewing as a different role
+}
+```
+
+---
+
+## 7. Mobile Chat
+
+### Overview
+
+A dedicated full-screen mobile chat page at `/chat` provides an optimized experience for touch devices, separate from the floating chat widget.
+
+### Access
+
+**URL:** `https://amsf001-project-tracker.vercel.app/chat`
+
+### Files
+
+| File | Purpose |
+|------|--------|
+| `src/pages/MobileChat.jsx` | Full-screen chat page component |
+| `src/pages/MobileChat.css` | Touch-optimized mobile styles |
+
+### Quick Action Buttons
+
+| Button | Query |
+|--------|-------|
+| 📊 Project Status | "What's the current project status?" |
+| ✅ My Actions | "What do I need to do?" |
+| ⏰ My Hours | "Show my timesheets this week" |
+| 💵 Budget | "What's the budget status?" |
+| 🎯 Milestones | "What milestones are due soon?" |
+| ⚠️ At Risk | "What's at risk in the project?" |
+| 📄 Deliverables | "Show deliverables awaiting review" |
+| ❓ What Can I Do? | "What can my role do in this project?" |
+
+### Mobile Optimizations
+
+| Feature | Implementation |
+|---------|--------------|
+| Full viewport | `100dvh` (dynamic viewport height) |
+| Safe areas | `env(safe-area-inset-*)` for notched phones |
+| Touch targets | 44px+ minimum tap targets |
+| Quick actions | Collapsible chips after first message |
+| Landscape | 8-column grid for quick actions |
+| Desktop fallback | Centered 420×700px card |
+
+### Route Configuration
+
+The `/chat` route uses `MobileChatRoute` which:
+- Requires authentication
+- Does NOT wrap in Layout (full-screen experience)
+- Auto-hides the floating ChatWidget
+
+```jsx
+// App.jsx
+function MobileChatRoute() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" />;
+  return <MobileChat />;
+}
+
+<Route path="/chat" element={<MobileChatRoute />} />
+```
+
+---
+
+## 8. Supabase Configuration
 
 ### Project Details
 
@@ -381,7 +502,7 @@ The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.
 
 ---
 
-## 7. Vercel Configuration
+## 9. Vercel Configuration
 
 ### Project Details
 
@@ -403,7 +524,7 @@ The application uses a centralized Permission Matrix (`src/lib/permissionMatrix.
 
 ---
 
-## 8. Service Layer
+## 10. Service Layer
 
 ### Services (18 total)
 
@@ -434,7 +555,7 @@ src/services/
 
 ---
 
-## 9. UI Component Patterns
+## 11. UI Component Patterns
 
 ### Detail Modal Components
 
@@ -456,7 +577,7 @@ src/components/
 
 ---
 
-## 10. AI Chat System
+## 12. AI Chat System
 
 ### Three-Tier Architecture
 
@@ -468,7 +589,7 @@ src/components/
 
 ---
 
-## 11. In-App Help System
+## 13. In-App Help System
 
 ### Architecture
 
@@ -516,7 +637,7 @@ src/components/
 
 ---
 
-## 12. SQL Migrations
+## 14. SQL Migrations
 
 ### Migration Status
 
@@ -536,7 +657,7 @@ src/components/
 
 ---
 
-## 13. Local Development
+## 15. Local Development
 
 ### Setup
 
@@ -558,9 +679,38 @@ npm run dev
 
 ---
 
-## 14. Recent Changes
+## 16. Recent Changes
 
-### 6 December 2025 - Deliverables Phase 3 & Help System
+### 6 December 2025 - View As + Mobile Chat
+
+**View As Role Impersonation**
+- Created `ViewAsContext.jsx` for session-scoped impersonation
+- Created `ViewAsBar.jsx` compact dropdown selector
+- Updated `usePermissions.js` to use effectiveRole
+- Only admin/supplier_pm can access View As feature
+- Commit: `c7c5650d`
+
+**Mobile Chat Page**
+- Created `MobileChat.jsx` full-screen chat page
+- Created `MobileChat.css` touch-optimized styles
+- 8 quick action buttons for common queries
+- Full viewport height with safe area support
+- Auto-hides floating ChatWidget on /chat route
+- Commit: `cafa5a67`
+
+### 5 December 2025 - Apple Design System + AI Performance
+
+**Apple Design System Completion**
+- All list pages now follow consistent design
+- Click-to-navigate pattern throughout
+- Clean tables without dashboard cards
+
+**AI Chat Performance**
+- Query timeouts (5-second hard limit)
+- Parallel tool execution
+- Extended cache TTL (5 minutes)
+
+### 4 December 2025 - Deliverables Phase 3 & Help System
 
 **Deliverable Dual-Signature Workflow**
 - Added signature columns to deliverables table (P10 migration)
@@ -596,7 +746,7 @@ npm run dev
 
 ---
 
-## 15. Troubleshooting
+## 17. Troubleshooting
 
 ### Build Failures
 
