@@ -1,5 +1,5 @@
 // src/App.jsx
-// Version 11.0 - Added ViewAsProvider for role impersonation
+// Version 12.0 - Added Mobile Chat route for mobile AI assistant
 
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
@@ -29,6 +29,7 @@ import Dashboard from './pages/Dashboard';
 
 // Lazy-loaded pages - split into separate chunks
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const MobileChat = lazy(() => import('./pages/MobileChat'));
 const Milestones = lazy(() => import('./pages/Milestones'));
 const MilestoneDetail = lazy(() => import('./pages/MilestoneDetail'));
 const Gantt = lazy(() => import('./pages/Gantt'));
@@ -88,6 +89,28 @@ function ProtectedRoute({ children }) {
   );
 }
 
+/**
+ * MobileChatRoute - Protected route without Layout wrapper
+ * Used for full-screen mobile chat experience
+ */
+function MobileChatRoute() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingSpinner message="Loading..." size="large" fullPage />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <Suspense fallback={<LoadingSpinner message="Loading chat..." size="large" fullPage />}>
+      <MobileChat />
+    </Suspense>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -112,6 +135,9 @@ export default function App() {
                           </Suspense>
                         } 
                       />
+                      
+                      {/* Mobile Chat - Full screen, no layout wrapper */}
+                      <Route path="/chat" element={<MobileChatRoute />} />
                       
                       {/* Protected routes */}
                       <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -1,6 +1,6 @@
 // src/components/chat/ChatWidget.jsx
 // Floating AI chat widget with expandable panel
-// Version 4.0 - Added suggested questions, date picker, natural language dates
+// Version 4.1 - Hide on mobile chat route
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -18,6 +18,11 @@ import './ChatWidget.css';
 export default function ChatWidget() {
   const location = useLocation();
   const { role } = useAuth();
+
+  // Hide widget on mobile chat route
+  if (location.pathname === '/chat') {
+    return null;
+  }
   
   const {
     isOpen,
