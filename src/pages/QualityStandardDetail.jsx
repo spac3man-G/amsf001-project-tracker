@@ -9,12 +9,13 @@ import {
   Save, X, Edit2, Target, FileText, Clipboard
 } from 'lucide-react';
 import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function QualityStandardDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { project } = useProject();
-  const { role: userRole } = useAuth();
+  const { canEditQualityStandard } = usePermissions();
   const [qs, setQS] = useState(null);
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export default function QualityStandardDetail() {
     }
   }
 
-  const canEdit = userRole === 'admin' || userRole === 'contributor' || userRole === 'customer_pm';
+  const canEdit = canEditQualityStandard;
 
   if (loading) return <LoadingSpinner message="Loading quality standard..." size="large" fullPage />;
   if (!qs) return <div className="loading">Quality Standard not found</div>;
