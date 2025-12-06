@@ -368,6 +368,91 @@ export class DeliverablesService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Sign deliverable as supplier or customer PM (dual-signature workflow)
+   * 
+   * @param {string} deliverableId - Deliverable UUID
+   * @param {'supplier' | 'customer'} signerRole - Which party is signing
+   * @param {string} userId - User's UUID
+   * @param {string} userName - User's display name
+   * @returns {Promise<Object>} Updated deliverable
+   */
+  async signDeliverable(deliverableId, signerRole, userId, userName) {
+    try {
+      // First, get current deliverable state
+      const current = await this.getById(deliverableId);
+      if (!current) {
+        throw new Error('Deliverable not found');
+      }
+
+      // Build signature updates
+      const updates = {};
+      const now = new Date().toISOString();
+
+      if (signerRole === 'supplier') {
+        updates.supplier_pm_id = userId;
+        updates.supplier_pm_name = userName;
+        updates.supplier_pm_signed_at = now;
+      } else if (signerRole === 'customer') {
+        updates.customer_pm_id = userId;
+        updates.customer_pm_name = userName;
+        updates.customer_pm_signed_at = now;
+      } else {
+        throw new Error('Invalid signer role');
+      }
+
+      // Determine new sign-off status
+      const supplierSigned = signerRole === 'supplier' || current.supplier_pm_signed_at;
+      const customerSigned = signerRole === 'customer' || current.customer_pm_signed_at;
+
+      if (supplierSigned && customerSigned) {
+        // Both signed - mark as fully signed and delivered
+        updates.sign_off_status = 'Signed';
+        updates.status = 'Delivered';
+        updates.progress = 100;
+        updates.delivered_date = now;
+        updates.delivered_by = userId;
+      } else if (supplierSigned) {
+        updates.sign_off_status = 'Awaiting Customer';
+      } else if (customerSigned) {
+        updates.sign_off_status = 'Awaiting Supplier';
+      }
+
+      // Apply updates
+      const result = await this.update(deliverableId, updates);
+      return result;
+    } catch (error) {
+      console.error('DeliverablesService signDeliverable error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset deliverable signatures (admin only)
+   * 
+   * @param {string} deliverableId - Deliverable UUID
+   * @returns {Promise<Object>} Updated deliverable
+   */
+  async resetSignatures(deliverableId) {
+    try {
+      const updates = {
+        supplier_pm_id: null,
+        supplier_pm_name: null,
+        supplier_pm_signed_at: null,
+        customer_pm_id: null,
+        customer_pm_name: null,
+        customer_pm_signed_at: null,
+        sign_off_status: 'Not Signed',
+        status: 'Review Complete' // Reset to pre-signature state
+      };
+
+      return await this.update(deliverableId, updates);
+    } catch (error) {
+      console.error('DeliverablesService resetSignatures error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

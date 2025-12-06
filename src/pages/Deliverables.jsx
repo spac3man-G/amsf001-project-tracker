@@ -232,6 +232,18 @@ export default function Deliverables() {
     catch (error) { showError('Failed: ' + error.message); }
   }
 
+  async function handleSign(deliverableId, signerRole) {
+    try {
+      const userName = user?.user_metadata?.name || user?.email || 'Unknown User';
+      await deliverablesService.signDeliverable(deliverableId, signerRole, currentUserId, userName);
+      fetchData();
+      refreshMetrics();
+      showSuccess(`Signed as ${signerRole === 'supplier' ? 'Supplier PM' : 'Customer PM'}`);
+    } catch (error) {
+      showError('Failed to sign: ' + error.message);
+    }
+  }
+
   function handleRowClick(d) {
     setDetailModal({ isOpen: true, deliverable: d });
   }
@@ -403,6 +415,7 @@ export default function Deliverables() {
         onStatusChange={handleStatusChange}
         onDelete={handleDelete}
         onOpenCompletion={openCompletionModal}
+        onSign={handleSign}
       />
 
       {/* Completion Modal */}

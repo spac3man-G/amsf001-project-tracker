@@ -4,7 +4,7 @@
  * Full-screen modal for viewing, editing, and managing deliverable workflow.
  * Includes view/edit modes, workflow actions, and dual-signature sign-off.
  * 
- * @version 2.0 - Refactored with proper patterns
+ * @version 2.1 - Added dual-signature workflow
  * @created 4 December 2025
  * @updated 6 December 2025
  */
@@ -14,19 +14,21 @@ import { Link } from 'react-router-dom';
 import { 
   X, Save, Send, CheckCircle, Trash2, Edit2,
   Package, Calendar, User, FileText, Clock,
-  ThumbsUp, RotateCcw, Target, Award
+  ThumbsUp, RotateCcw, Target, Award, PenTool
 } from 'lucide-react';
 
 // Centralised utilities
 import { 
   DELIVERABLE_STATUS,
+  SIGN_OFF_STATUS,
   getStatusConfig,
   getAutoTransitionStatus,
   isProgressSliderDisabled,
   canSubmitForReview,
   canReviewDeliverable,
   canStartDeliverySignOff,
-  isDeliverableComplete
+  isDeliverableComplete,
+  calculateSignOffStatus
 } from '../../lib/deliverableCalculations';
 import { formatDate, formatDateTime } from '../../lib/formatters';
 import { useDeliverablePermissions } from '../../hooks/useDeliverablePermissions';
@@ -47,13 +49,14 @@ export default function DeliverableDetailModal({
   onSave,
   onStatusChange,
   onDelete,
-  onOpenCompletion
+  onOpenCompletion,
+  onSign // New prop for dual-signature
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // Get permissions from hook (for future use, currently using props for backward compatibility)
+  // Get permissions from hook
   const permissions = useDeliverablePermissions(deliverable);
 
   // Reset form when deliverable changes
@@ -89,6 +92,13 @@ export default function DeliverableDetailModal({
   const showSubmitForReview = canEditProp && canSubmitForReview(deliverable);
   const showReviewActions = canReviewProp && canReviewDeliverable(deliverable);
   const showMarkDelivered = canReviewProp && canStartDeliverySignOff(deliverable);
+  
+  // Sign-off state
+  const signOffStatus = calculateSignOffStatus(deliverable);
+  const hasAnySignature = deliverable.supplier_pm_signed_at || deliverable.customer_pm_signed_at;
+  const showSignOffSection = deliverable.status === DELIVERABLE_STATUS.REVIEW_COMPLETE || 
+                             hasAnySignature || 
+                             isComplete;
 
   // Due date derived from milestone
   const dueDate = milestone?.forecast_end_date || milestone?.end_date;
@@ -124,6 +134,16 @@ export default function DeliverableDetailModal({
     }
     
     setEditForm({ ...editForm, ...updates });
+  }
+
+  async function handleSign(signerRole) {
+    if (!onSign) return;
+    setSaving(true);
+    try {
+      await onSign(deliverable.id, signerRole);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -333,10 +353,47 @@ export default function DeliverableDetailModal({
                 </div>
               )}
 
-              {/* Sign-off Section (for future dual-signature) */}
-              {isComplete && (
+              {/* Sign-off Section */}
+              {showSignOffSection && (
                 <div className="sign-off-section">
-                  <SignatureComplete message="Deliverable accepted and delivered" />
+                  <div className="section-header">
+                    <PenTool size={14} />
+                    Delivery Sign-off
+                  </div>
+                  
+                  {isComplete && signOffStatus === SIGN_OFF_STATUS.SIGNED ? (
+                    <SignatureComplete message="Deliverable accepted and delivered" />
+                  ) : (
+                    <DualSignature
+                      supplier={{
+                        signedBy: deliverable.supplier_pm_name,
+                        signedAt: deliverable.supplier_pm_signed_at,
+                        canSign: permissions.canSignAsSupplier && onSign,
+                        onSign: () => handleSign('supplier')
+                      }}
+                      customer={{
+                        signedBy: deliverable.customer_pm_name,
+                        signedAt: deliverable.customer_pm_signed_at,
+                        canSign: permissions.canSignAsCustomer && onSign,
+                        onSign: () => handleSign('customer')
+                      }}
+                      saving={saving}
+                      supplierButtonText="Sign as Supplier PM"
+                      customerButtonText="Sign as Customer PM"
+                    />
+                  )}
+                  
+                  {/* Sign-off status indicator */}
+                  {!isComplete && hasAnySignature && (
+                    <div className="sign-off-status-indicator">
+                      {signOffStatus === SIGN_OFF_STATUS.AWAITING_CUSTOMER && (
+                        <span className="awaiting-badge customer">Awaiting Customer PM signature</span>
+                      )}
+                      {signOffStatus === SIGN_OFF_STATUS.AWAITING_SUPPLIER && (
+                        <span className="awaiting-badge supplier">Awaiting Supplier PM signature</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -418,13 +475,13 @@ export default function DeliverableDetailModal({
                   </>
                 )}
 
-                {/* Mark as Delivered */}
-                {showMarkDelivered && (
+                {/* Mark as Delivered - only show if no signatures yet */}
+                {showMarkDelivered && !hasAnySignature && (
                   <button 
                     className="btn btn-success"
                     onClick={() => { onOpenCompletion(deliverable); handleClose(); }}
                   >
-                    <CheckCircle size={16} /> Mark as Delivered
+                    <CheckCircle size={16} /> Assess & Sign Off
                   </button>
                 )}
 
