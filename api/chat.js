@@ -1476,9 +1476,10 @@ function buildHaikuPrompt(context) {
 
 ## User
 - Name: ${userContext?.name || 'Unknown'}
-- Role: ${userContext?.role || 'Unknown'}
+- Role on this project: ${userContext?.role || 'Unknown'}
 
-## Project: ${projectContext?.name || 'AMSF001'}
+## Project: ${projectContext?.name || 'AMSF001'} (${projectContext?.reference || 'Unknown'})
+Note: All data shown is specific to this project. The user may have different roles on other projects.
 
 ## Current Data
 ### Budget
@@ -1512,7 +1513,7 @@ function buildHaikuPrompt(context) {
 - Draft Timesheets: ${prefetchedContext?.pendingActions?.draftTimesheets || 0}
 - Awaiting Validation: ${prefetchedContext?.pendingActions?.awaitingValidation || 0}
 
-Answer naturally and helpfully. If you need more specific information than provided, say you can help find more details if they ask.`;
+Answer naturally and helpfully. If asked about switching projects or other projects, explain the user can use the Project Switcher dropdown in the header bar. If you need more specific information than provided, say you can help find more details if they ask.`;
 }
 
 // ============================================
@@ -1537,10 +1538,16 @@ You have access to tools that query the project database. Use them to answer que
 
 ## Current Context
 - User: ${userContext?.name || 'Unknown'} (${userContext?.email || 'Unknown'})
-- Role: ${userContext?.role || 'Unknown'}
 - Project: ${projectContext?.name || 'AMSF001'} (${projectContext?.reference || 'Unknown'})
+- Role on this project: ${userContext?.role || 'Unknown'}
 ${userContext?.linkedResourceName ? `- Linked Resource: ${userContext.linkedResourceName}` : ''}
-${userContext?.partnerName ? `- Partner: ${userContext.partnerName}` : ''}`;
+${userContext?.partnerName ? `- Partner: ${userContext.partnerName}` : ''}
+
+## Multi-Project Context
+- Users can be members of multiple projects with different roles on each
+- The user's current role is specific to the project they're viewing (${projectContext?.reference || 'current project'})
+- All queries and data are automatically scoped to the current project
+- If the user asks about switching projects, explain they can use the Project Switcher dropdown in the header`;
 
   // Add pre-fetched context if available (allows instant responses without tool calls)
   if (prefetchedContext) {
@@ -1601,11 +1608,13 @@ This data was just fetched and is current. Use it to answer questions directly w
 11. If some data queries fail but others succeed, provide what information you have and note what couldn't be retrieved
 
 ## Important Notes
-- All queries are automatically filtered based on the user's role and permissions
+- All queries are automatically filtered based on the user's role and permissions on the CURRENT project
+- The user's role is project-specific - they may have different roles on different projects
 - Partner users only see their own partner's data
 - Contributors only see their own timesheets and expenses
 - Cost prices are only visible to Admin and Supplier PM roles
-- Use pre-loaded data for general questions; use tools for specific details or filtering`;
+- Use pre-loaded data for general questions; use tools for specific details or filtering
+- If asked about other projects, explain that data is scoped to the current project and they can switch projects using the header dropdown`;
 
   return prompt;
 }

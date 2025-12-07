@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - User Guide
 
-**Last Updated:** 6 December 2025  
-**Application Version:** 6.0
+**Last Updated:** 7 December 2025  
+**Application Version:** 7.0
 
 ---
 
@@ -10,14 +10,15 @@
 1. [Getting Started](#1-getting-started)
 2. [Dashboard](#2-dashboard)
 3. [Navigating the Application](#3-navigating-the-application)
-4. [Milestones](#4-milestones)
-5. [Deliverables](#5-deliverables)
-6. [Time & Expense Tracking](#6-time--expense-tracking)
-7. [Partner Management & Invoicing](#7-partner-management--invoicing)
-8. [AI Chat Assistant](#8-ai-chat-assistant)
-9. [User Administration](#9-user-administration)
-10. [Workflows Reference](#10-workflows-reference)
-11. [Troubleshooting](#11-troubleshooting)
+4. [Project Management (Multi-Tenancy)](#4-project-management-multi-tenancy)
+5. [Milestones](#5-milestones)
+6. [Deliverables](#6-deliverables)
+7. [Time & Expense Tracking](#7-time--expense-tracking)
+8. [Partner Management & Invoicing](#8-partner-management--invoicing)
+9. [AI Chat Assistant](#9-ai-chat-assistant)
+10. [User Administration](#10-user-administration)
+11. [Workflows Reference](#11-workflows-reference)
+12. [Troubleshooting](#12-troubleshooting)
 
 ---
 
@@ -28,6 +29,7 @@
 1. Navigate to https://amsf001-project-tracker.vercel.app
 2. Enter your email and password
 3. Click **Sign In**
+4. You'll be taken to the Dashboard for your default project
 
 ### Navigation
 
@@ -47,9 +49,20 @@ The main menu is on the left side:
 | **RAID Log** | Risks, Assumptions, Issues, Dependencies |
 | **Users** | User management (Admin only) |
 
+### Understanding Your Access
+
+Your access is determined by two factors:
+
+1. **Which projects you're assigned to** - You can only see data for projects you're a member of
+2. **Your role on each project** - Your permissions may differ between projects
+
 ### User Roles
 
-The application uses role-based access control. Your role determines what you can view and edit.
+The application uses **project-scoped role-based access control**. This means:
+
+- Your role is specific to each project
+- You might be an Admin on one project and a Viewer on another
+- Switching projects may change what you can see and do
 
 | Role | Description |
 |------|-------------|
@@ -77,6 +90,7 @@ The application uses role-based access control. Your role determines what you ca
 | Validate timesheets | ✓ | ✓ | ✓ | – | – |
 | Submit expenses | ✓ | ✓ | – | ✓ | – |
 | Validate expenses | ✓ | ✓ | ✓ | – | – |
+| Use View As feature | ✓ | ✓ | – | – | – |
 
 *Contributors can edit deliverable description and progress, but not name or milestone assignment
 
@@ -147,7 +161,80 @@ This keeps list views clean and focused on information.
 
 ---
 
-## 4. Milestones
+## 4. Project Management (Multi-Tenancy)
+
+### Understanding Multi-Project Access
+
+The AMSF001 Project Tracker supports **multi-tenancy**, meaning:
+
+- Users can be members of multiple projects
+- Each project has completely separate data
+- Your role and permissions are **specific to each project**
+- Data from one project cannot be accessed from another
+
+### Switching Projects
+
+If you are assigned to multiple projects, you'll see a **Project Switcher** in the top header bar:
+
+1. **Click the Project Switcher** (shows your current project reference)
+2. A dropdown appears showing all your assigned projects
+3. Each project shows:
+   - **Project Reference** (e.g., AMSF001)
+   - **Project Name**
+   - **Your Role** on that project
+   - **DEFAULT** badge if it's your default project
+4. **Click a project** to switch to it
+5. The page will reload with data from the selected project
+
+### Project Selection Persistence
+
+- Your project selection is **saved in your browser**
+- When you return, you'll be on the same project
+- If that project is no longer available, your default project loads
+
+### Different Roles on Different Projects
+
+You may have different roles on different projects. For example:
+
+- **Project A:** Admin (full access)
+- **Project B:** Contributor (can only submit timesheets)
+
+When you switch projects:
+
+- Your role badge in the header updates
+- Available menu items may change
+- Your permissions for actions adjust automatically
+- The "View As" feature availability depends on your role
+
+### Single Project Users
+
+If you're only assigned to one project:
+
+- The Project Switcher **does not appear**
+- You automatically see data for your assigned project
+- No action is needed on your part
+
+### No Project Assignment
+
+If you log in but aren't assigned to any projects:
+
+- You'll see an error message: "No projects assigned"
+- Contact your administrator to be added to a project
+
+### Project Role vs Global Role
+
+The application uses **project-scoped roles**:
+
+| Concept | Description |
+|---------|-------------|
+| **Project Role** | Your role for a specific project (from project assignment) |
+| **Effective Role** | The role used for permission checks (may be impersonated via View As) |
+
+Your role badge in the header always shows your **effective role** for the current project.
+
+---
+
+## 5. Milestones
 
 Milestones are the **primary billing units** in the project. They represent major project phases that, when completed, trigger a payment from the customer to the supplier.
 
@@ -256,7 +343,7 @@ Each milestone contains one or more deliverables. You can view them:
 
 ---
 
-## 5. Deliverables
+## 6. Deliverables
 
 Deliverables are the **work-level tracking units** – discrete outputs (documents, features, components) that contribute to milestone completion.
 
@@ -381,7 +468,7 @@ When marking a deliverable as delivered, you may need to assess whether linked c
 
 ---
 
-## 6. Time & Expense Tracking
+## 7. Time & Expense Tracking
 
 ### Timesheets
 
@@ -466,7 +553,7 @@ Save time by letting AI extract receipt details:
 
 ---
 
-## 7. Partner Management & Invoicing
+## 8. Partner Management & Invoicing
 
 ### Viewing Partners
 
@@ -506,7 +593,7 @@ Create invoices for partner work:
 
 ---
 
-## 8. AI Chat Assistant
+## 9. AI Chat Assistant
 
 ### Opening the Assistant
 
@@ -528,6 +615,16 @@ Click the **chat bubble icon** in the bottom-right corner of any page.
 | | "What timesheets are pending?" |
 | **Deliverables** | "Which deliverables are overdue?" |
 | | "What's submitted for review?" |
+| **Projects** | "What project am I on?" |
+| | "What's my role on this project?" |
+
+### Project-Scoped Queries
+
+The AI assistant is **project-aware**:
+
+- All queries are automatically scoped to your current project
+- Switching projects changes what data the assistant can access
+- The assistant knows your role on the current project
 
 ### Response Speed
 
@@ -546,7 +643,7 @@ Click the **chat bubble icon** in the bottom-right corner of any page.
 
 ---
 
-## 9. User Administration
+## 10. User Administration
 
 ### Accessing User Management
 
@@ -563,12 +660,23 @@ The list shows for each user:
 - Role badge
 - Account creation date
 
+### Project Assignments
+
+Users are assigned to projects with specific roles. To manage project assignments:
+
+1. This is managed through the database (user_projects table)
+2. Each assignment includes:
+   - Which project the user can access
+   - Their role on that project
+   - Whether it's their default project
+
 ### Changing a User's Role
 
-1. Find the user in the list
-2. **Click their role badge** (e.g., "Contributor")
-3. Select the new role from the dropdown
-4. Changes save automatically
+Roles are now **project-specific**. To change a user's role on a project:
+
+1. This requires database access or admin tools
+2. The change affects only that project
+3. The user's role on other projects remains unchanged
 
 ### Linking Users to Resources
 
@@ -586,8 +694,9 @@ Link users to resources for time and expense tracking:
    - Email address
    - Password
    - Full name
-   - Role
+   - Role (this becomes their global role)
 3. Click **Create User**
+4. Add them to projects via project assignments
 
 ### Test Users
 
@@ -601,7 +710,7 @@ Test users are useful for training and demonstrations without affecting real dat
 
 ---
 
-## 10. Workflows Reference
+## 11. Workflows Reference
 
 ### Timesheet Workflow
 
@@ -725,13 +834,35 @@ Customer PM signs to accept and authorise billing.
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 ### Can't Log In
 
 - Verify your email address is correct
 - Check for caps lock on your password
 - Contact your administrator for password reset
+
+### No Projects Assigned
+
+If you see "No projects assigned" after logging in:
+
+- Contact your administrator to be added to a project
+- You need at least one project assignment to use the application
+
+### Project Switcher Not Appearing
+
+If you don't see the Project Switcher in the header:
+
+- You're only assigned to one project (this is normal)
+- Contact your administrator if you should have access to additional projects
+
+### Wrong Role Displayed
+
+If your role seems incorrect for the current project:
+
+- Check you're on the correct project (use Project Switcher)
+- Your role is project-specific – you may have different roles on different projects
+- Contact your administrator if your role assignment is wrong
 
 ### Page Won't Load
 
@@ -751,11 +882,11 @@ Customer PM signs to accept and authorise billing.
 
 - Ensure all required fields are complete
 - Check you are linked to a resource (ask Admin)
-- Verify you have Contributor role or higher
+- Verify you have Contributor role or higher on this project
 
 ### Can't Sign Certificate/Commitment
 
-- Verify you have Supplier PM or Customer PM role
+- Verify you have Supplier PM or Customer PM role on this project
 - Check you're signed in with the correct account
 - Ensure the milestone/deliverable is in the correct status
 
@@ -768,7 +899,7 @@ Customer PM signs to accept and authorise billing.
 
 ### Action Buttons Not Appearing
 
-- Check your role has permission for that action
+- Check your role has permission for that action on this project
 - Verify the item is in the correct status for that action
 - Refresh the page to ensure you have the latest data
 
@@ -778,4 +909,4 @@ Contact your system administrator or the project team.
 
 ---
 
-*AMSF001 User Guide | Version 6.0 | 6 December 2025*
+*AMSF001 User Guide | Version 7.0 | 7 December 2025*

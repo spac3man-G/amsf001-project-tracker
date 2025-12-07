@@ -4,15 +4,16 @@
  * Centralised help content for all pages in the application.
  * Each page has its own content object with title, sections, and tips.
  * 
- * @version 1.0
- * @created 6 December 2025
+ * @version 2.0
+ * @updated 7 December 2025
+ * @changes Added projectSwitcher help content for multi-tenancy
  */
 
 // Icons used in help content
 import { 
   LayoutDashboard, Flag, Package, Users, Clock, Receipt,
   Building2, Target, Award, AlertTriangle, UserCog,
-  CheckCircle, Send, RotateCcw, PenTool, FileText
+  CheckCircle, Send, RotateCcw, PenTool, FileText, FolderKanban
 } from 'lucide-react';
 
 /**
@@ -67,9 +68,51 @@ export const helpContent = {
     ],
     tips: [
       'Your dashboard layout is saved to your account',
-      'Widgets update automatically as data changes'
+      'Widgets update automatically as data changes',
+      'Data shown is specific to your current project'
     ],
-    relatedTopics: ['milestones', 'timesheets', 'expenses']
+    relatedTopics: ['milestones', 'timesheets', 'expenses', 'projectSwitcher']
+  },
+
+  // Project Switcher (NEW)
+  projectSwitcher: {
+    title: 'Project Switching',
+    icon: FolderKanban,
+    description: 'Switch between projects you have access to. Each project has separate data and you may have different roles on different projects.',
+    sections: [
+      {
+        heading: 'How Project Access Works',
+        type: 'list',
+        content: [
+          'You can only see data for projects you are assigned to',
+          'Your role may be different on each project',
+          'Switching projects changes all data you see',
+          'Your selection is remembered when you return'
+        ]
+      },
+      {
+        heading: 'Switching Projects',
+        type: 'list',
+        content: [
+          'Click the Project Switcher in the header bar',
+          'See all projects you can access',
+          'Each shows your role on that project',
+          'Click a project to switch to it'
+        ]
+      },
+      {
+        heading: 'Project-Specific Roles',
+        type: 'text',
+        content: 'Your role is project-scoped. You might be an Admin on one project and a Contributor on another. When you switch projects, your permissions change accordingly.'
+      }
+    ],
+    tips: [
+      'If you only have one project, the switcher won\'t appear',
+      'Your default project is marked with a badge',
+      'The View As feature uses your role on the current project',
+      'Ask your admin if you need access to additional projects'
+    ],
+    relatedTopics: ['users', 'dashboard', 'general']
   },
 
   // Milestones
@@ -255,6 +298,11 @@ export const helpContent = {
         heading: 'Utilisation',
         type: 'text',
         content: 'Utilisation shows how much of a resource\'s allocated time has been logged. The progress bar fills based on timesheets submitted.'
+      },
+      {
+        heading: 'Financial Visibility',
+        type: 'text',
+        content: 'Cost prices and margins are only visible to Admin and Supplier PM roles. Customer PM sees only sell prices.'
       }
     ],
     tips: [
@@ -471,7 +519,7 @@ export const helpContent = {
   users: {
     title: 'User Administration',
     icon: UserCog,
-    description: 'Manage user accounts, roles, and resource links. Admin access required.',
+    description: 'Manage user accounts, project assignments, and resource links. Admin access required.',
     sections: [
       {
         heading: 'User Roles',
@@ -485,9 +533,9 @@ export const helpContent = {
         ]
       },
       {
-        heading: 'Changing Roles',
+        heading: 'Project-Scoped Roles',
         type: 'text',
-        content: 'Click the role badge on any user row to change their role. Changes save automatically.'
+        content: 'Roles are now project-specific. A user might be Admin on one project and Contributor on another. Their permissions change based on which project they are viewing.'
       },
       {
         heading: 'Linking Resources',
@@ -498,9 +546,10 @@ export const helpContent = {
     tips: [
       'Test users can be toggled visible/hidden',
       'Users need a linked resource to submit timesheets',
-      'Role changes take effect immediately'
+      'Role changes take effect immediately',
+      'Users need project assignments to access project data'
     ],
-    relatedTopics: ['resources', 'timesheets']
+    relatedTopics: ['resources', 'timesheets', 'projectSwitcher']
   },
 
   // General/Default
@@ -520,6 +569,16 @@ export const helpContent = {
         ]
       },
       {
+        heading: 'Multi-Project Access',
+        type: 'list',
+        content: [
+          'Use the Project Switcher in the header to change projects',
+          'Your role may differ between projects',
+          'All data is scoped to your current project',
+          'The switcher only appears if you have multiple projects'
+        ]
+      },
+      {
         heading: 'Common Actions',
         type: 'list',
         content: [
@@ -533,9 +592,10 @@ export const helpContent = {
     tips: [
       'Press ? on any page to open this help panel',
       'Ask the AI Chat assistant for specific information',
-      'Contact your administrator if you need role changes'
+      'Contact your administrator if you need role changes',
+      'Your project selection is remembered between sessions'
     ],
-    relatedTopics: ['dashboard', 'milestones', 'deliverables']
+    relatedTopics: ['dashboard', 'milestones', 'deliverables', 'projectSwitcher']
   }
 };
 
