@@ -1,19 +1,25 @@
 // src/contexts/ViewAsContext.jsx
 // Provides "View As" role impersonation for admin and supplier_pm users
-// Version 1.0
+// Version 2.0 - Uses project-scoped role from ProjectContext
 // 
 // This allows admins and supplier PMs to preview the application as different roles
 // without logging out. Uses sessionStorage for persistence (survives refresh,
 // clears when browser session ends).
 //
+// Key changes in v2.0:
+// - Now uses projectRole from ProjectContext as the base role
+// - Falls back to profiles.role only if no project assignment exists
+// - Properly supports multi-tenancy where users have different roles per project
+//
 // Key features:
 // - Only admin and supplier_pm can use View As
 // - Persists in sessionStorage (not localStorage)
-// - Not project-scoped - applies to entire session
+// - Project-scoped - changing projects may change the effective role
 // - Provides effectiveRole to the permission system
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { useProject } from './ProjectContext';
 import { ROLES, ROLE_CONFIG } from '../lib/permissionMatrix';
 
 const ViewAsContext = createContext(null);
@@ -34,9 +40,22 @@ const IMPERSONATION_ROLES = [
 ];
 
 export function ViewAsProvider({ children }) {
-  const { role: actualRole, user } = useAuth();
+  const { role: globalRole, user } = useAuth();
+  const { projectRole, projectId } = useProject();
+  
   const [viewAsRole, setViewAsRoleState] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // The actual role is the project role (preferred) or global role (fallback)
+  // This is the user's true role for the current project context
+  const actualRole = useMemo(() => {
+    // Prefer project-scoped role if available
+    if (projectRole) {
+      return projectRole;
+    }
+    // Fall back to global role from profiles table
+    return globalRole || 'viewer';
+  }, [projectRole, globalRole]);
 
   // Check if the actual role can use View As
   const canUseViewAs = useMemo(() => {
@@ -68,7 +87,7 @@ export function ViewAsProvider({ children }) {
     setIsInitialized(true);
   }, [user, canUseViewAs]);
 
-  // Clear View As when user logs out or loses permission
+  // Clear View As when user loses permission (e.g., switches to a project where they're not admin)
   useEffect(() => {
     if (!canUseViewAs && viewAsRole) {
       setViewAsRoleState(null);
@@ -146,15 +165,31 @@ export function ViewAsProvider({ children }) {
     return ROLE_CONFIG[actualRole] || ROLE_CONFIG[ROLES.VIEWER];
   }, [actualRole]);
 
+  // Debug info for development
+  const debugInfo = useMemo(() => ({
+    globalRole,
+    projectRole,
+    projectId,
+    actualRole,
+    viewAsRole,
+    effectiveRole,
+    canUseViewAs,
+    isImpersonating,
+  }), [globalRole, projectRole, projectId, actualRole, viewAsRole, effectiveRole, canUseViewAs, isImpersonating]);
+
   const value = {
     // Core state
     canUseViewAs,
     isInitialized,
     
     // Roles
-    actualRole,
-    effectiveRole,
-    viewAsRole,
+    actualRole,      // The user's true role for current project (project role or global fallback)
+    effectiveRole,   // The role being used for permissions (may be impersonated)
+    viewAsRole,      // The impersonated role (null if not impersonating)
+    
+    // For debugging/display - the underlying role sources
+    globalRole,      // Role from profiles table (legacy/fallback)
+    projectRole,     // Role from user_projects table (preferred)
     
     // Impersonation status
     isImpersonating,
@@ -169,6 +204,9 @@ export function ViewAsProvider({ children }) {
     
     // Available roles for dropdown
     availableRoles: IMPERSONATION_ROLES,
+    
+    // Debug info (useful for development)
+    debugInfo,
   };
 
   return (

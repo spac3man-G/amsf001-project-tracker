@@ -1,10 +1,11 @@
 // src/components/Layout.jsx
-// Version 10.0 - Added View As role impersonation support
+// Version 11.0 - Added Project Switcher for multi-tenancy support
 // - User name/role only shown in header (top right)
 // - Clicking user info in header navigates to My Account
 // - Drag and drop navigation reordering for non-viewers
 // - Reset to default order button when custom order is active
 // - View As bar for admin/supplier_pm to preview other roles
+// - Project Switcher for users with multiple project assignments
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import ViewAsBar, { ViewAsInline } from './ViewAsBar';
+import ProjectSwitcher from './ProjectSwitcher';
 import { useToast } from '../contexts/ToastContext';
 
 // Import from centralized navigation config
@@ -416,6 +418,9 @@ export default function Layout({ children }) {
           top: 0,
           zIndex: 40
         }}>
+          {/* Project Switcher (only shown for users with multiple projects) */}
+          <ProjectSwitcher />
+          
           {/* View As Role Selector (only shown for admin/supplier_pm) */}
           <ViewAsBar />
           

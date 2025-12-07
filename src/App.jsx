@@ -1,5 +1,10 @@
 // src/App.jsx
-// Version 12.0 - Added Mobile Chat route for mobile AI assistant
+// Version 13.0 - Fixed provider order for multi-tenancy support
+//
+// Provider order is critical:
+// 1. AuthProvider - user authentication (no dependencies)
+// 2. ProjectProvider - fetches user's projects and project-scoped role (needs AuthContext)
+// 3. ViewAsProvider - role impersonation (needs AuthContext AND ProjectContext)
 
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
@@ -9,13 +14,13 @@ import { Suspense, lazy } from 'react';
 // Import context providers
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProjectProvider } from './contexts/ProjectContext';
+import { ViewAsProvider } from './contexts/ViewAsContext';
 import { TestUserProvider } from './contexts/TestUserContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { MetricsProvider } from './contexts/MetricsContext';
 import { HelpProvider } from './contexts/HelpContext';
-import { ViewAsProvider } from './contexts/ViewAsContext';
 
 // Shared components - always loaded
 import { ErrorBoundary, LoadingSpinner, Skeleton } from './components/common';
@@ -117,158 +122,160 @@ export default function App() {
       <ErrorBoundary>
         <ToastProvider>
           <AuthProvider>
-            <ViewAsProvider>
-              <ProjectProvider>
+            {/* ProjectProvider must come before ViewAsProvider 
+                because ViewAsProvider now uses projectRole from ProjectContext */}
+            <ProjectProvider>
+              <ViewAsProvider>
                 <TestUserProvider>
                   <MetricsProvider>
                     <NotificationProvider>
                       <ChatProvider>
                         <HelpProvider>
-                    <Routes>
-                      {/* Public routes */}
-                      <Route path="/login" element={<Login />} />
-                      <Route 
-                        path="/reset-password" 
-                        element={
-                          <Suspense fallback={<LoadingSpinner fullPage />}>
-                            <ResetPassword />
-                          </Suspense>
-                        } 
-                      />
-                      
-                      {/* Mobile Chat - Full screen, no layout wrapper */}
-                      <Route path="/chat" element={<MobileChatRoute />} />
-                      
-                      {/* Protected routes */}
-                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                      
-                      {/* Dashboard - not lazy loaded for fast initial render */}
-                      <Route path="/dashboard" element={
-                        <ProtectedRoute><Dashboard /></ProtectedRoute>
-                      } />
-                      
-                      {/* Milestones */}
-                      <Route path="/milestones" element={
-                        <ProtectedRoute><Milestones /></ProtectedRoute>
-                      } />
-                      <Route path="/milestones/:id" element={
-                        <ProtectedRoute><MilestoneDetail /></ProtectedRoute>
-                      } />
-                      
-                      {/* Gantt */}
-                      <Route path="/gantt" element={
-                        <ProtectedRoute><Gantt /></ProtectedRoute>
-                      } />
-                      
-                      {/* Deliverables */}
-                      <Route path="/deliverables" element={
-                        <ProtectedRoute><Deliverables /></ProtectedRoute>
-                      } />
-                      
-                      {/* Resources */}
-                      <Route path="/resources" element={
-                        <ProtectedRoute><Resources /></ProtectedRoute>
-                      } />
-                      <Route path="/resources/:id" element={
-                        <ProtectedRoute><ResourceDetail /></ProtectedRoute>
-                      } />
-                      
-                      {/* Partners */}
-                      <Route path="/partners" element={
-                        <ProtectedRoute><Partners /></ProtectedRoute>
-                      } />
-                      <Route path="/partners/:id" element={
-                        <ProtectedRoute><PartnerDetail /></ProtectedRoute>
-                      } />
-                      
-                      {/* Timesheets */}
-                      <Route path="/timesheets" element={
-                        <ProtectedRoute><Timesheets /></ProtectedRoute>
-                      } />
-                      
-                      {/* Expenses */}
-                      <Route path="/expenses" element={
-                        <ProtectedRoute><Expenses /></ProtectedRoute>
-                      } />
-                      
-                      {/* KPIs */}
-                      <Route path="/kpis" element={
-                        <ProtectedRoute><KPIs /></ProtectedRoute>
-                      } />
-                      <Route path="/kpis/:id" element={
-                        <ProtectedRoute><KPIDetail /></ProtectedRoute>
-                      } />
-                      
-                      {/* Quality Standards */}
-                      <Route path="/quality-standards" element={
-                        <ProtectedRoute><QualityStandards /></ProtectedRoute>
-                      } />
-                      <Route path="/quality-standards/:id" element={
-                        <ProtectedRoute><QualityStandardDetail /></ProtectedRoute>
-                      } />
-                      
-                      {/* RAID Log */}
-                      <Route path="/raid" element={
-                        <ProtectedRoute><RaidLog /></ProtectedRoute>
-                      } />
-                      
-                      {/* Reports */}
-                      <Route path="/reports" element={
-                        <ProtectedRoute><Reports /></ProtectedRoute>
-                      } />
-                      
-                      {/* Billing */}
-                      <Route path="/billing" element={
-                        <ProtectedRoute><Billing /></ProtectedRoute>
-                      } />
-                      
-                      {/* Users (Admin) */}
-                      <Route path="/users" element={
-                        <ProtectedRoute><Users /></ProtectedRoute>
-                      } />
-                      
-                      {/* Settings */}
-                      <Route path="/settings" element={
-                        <ProtectedRoute><Settings /></ProtectedRoute>
-                      } />
-                      <Route path="/account" element={
-                        <ProtectedRoute><AccountSettings /></ProtectedRoute>
-                      } />
+                          <Routes>
+                            {/* Public routes */}
+                            <Route path="/login" element={<Login />} />
+                            <Route 
+                              path="/reset-password" 
+                              element={
+                                <Suspense fallback={<LoadingSpinner fullPage />}>
+                                  <ResetPassword />
+                                </Suspense>
+                              } 
+                            />
+                            
+                            {/* Mobile Chat - Full screen, no layout wrapper */}
+                            <Route path="/chat" element={<MobileChatRoute />} />
+                            
+                            {/* Protected routes */}
+                            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                            
+                            {/* Dashboard - not lazy loaded for fast initial render */}
+                            <Route path="/dashboard" element={
+                              <ProtectedRoute><Dashboard /></ProtectedRoute>
+                            } />
+                            
+                            {/* Milestones */}
+                            <Route path="/milestones" element={
+                              <ProtectedRoute><Milestones /></ProtectedRoute>
+                            } />
+                            <Route path="/milestones/:id" element={
+                              <ProtectedRoute><MilestoneDetail /></ProtectedRoute>
+                            } />
+                            
+                            {/* Gantt */}
+                            <Route path="/gantt" element={
+                              <ProtectedRoute><Gantt /></ProtectedRoute>
+                            } />
+                            
+                            {/* Deliverables */}
+                            <Route path="/deliverables" element={
+                              <ProtectedRoute><Deliverables /></ProtectedRoute>
+                            } />
+                            
+                            {/* Resources */}
+                            <Route path="/resources" element={
+                              <ProtectedRoute><Resources /></ProtectedRoute>
+                            } />
+                            <Route path="/resources/:id" element={
+                              <ProtectedRoute><ResourceDetail /></ProtectedRoute>
+                            } />
+                            
+                            {/* Partners */}
+                            <Route path="/partners" element={
+                              <ProtectedRoute><Partners /></ProtectedRoute>
+                            } />
+                            <Route path="/partners/:id" element={
+                              <ProtectedRoute><PartnerDetail /></ProtectedRoute>
+                            } />
+                            
+                            {/* Timesheets */}
+                            <Route path="/timesheets" element={
+                              <ProtectedRoute><Timesheets /></ProtectedRoute>
+                            } />
+                            
+                            {/* Expenses */}
+                            <Route path="/expenses" element={
+                              <ProtectedRoute><Expenses /></ProtectedRoute>
+                            } />
+                            
+                            {/* KPIs */}
+                            <Route path="/kpis" element={
+                              <ProtectedRoute><KPIs /></ProtectedRoute>
+                            } />
+                            <Route path="/kpis/:id" element={
+                              <ProtectedRoute><KPIDetail /></ProtectedRoute>
+                            } />
+                            
+                            {/* Quality Standards */}
+                            <Route path="/quality-standards" element={
+                              <ProtectedRoute><QualityStandards /></ProtectedRoute>
+                            } />
+                            <Route path="/quality-standards/:id" element={
+                              <ProtectedRoute><QualityStandardDetail /></ProtectedRoute>
+                            } />
+                            
+                            {/* RAID Log */}
+                            <Route path="/raid" element={
+                              <ProtectedRoute><RaidLog /></ProtectedRoute>
+                            } />
+                            
+                            {/* Reports */}
+                            <Route path="/reports" element={
+                              <ProtectedRoute><Reports /></ProtectedRoute>
+                            } />
+                            
+                            {/* Billing */}
+                            <Route path="/billing" element={
+                              <ProtectedRoute><Billing /></ProtectedRoute>
+                            } />
+                            
+                            {/* Users (Admin) */}
+                            <Route path="/users" element={
+                              <ProtectedRoute><Users /></ProtectedRoute>
+                            } />
+                            
+                            {/* Settings */}
+                            <Route path="/settings" element={
+                              <ProtectedRoute><Settings /></ProtectedRoute>
+                            } />
+                            <Route path="/account" element={
+                              <ProtectedRoute><AccountSettings /></ProtectedRoute>
+                            } />
 
-                      {/* Workflow Summary */}
-                      <Route path="/workflow-summary" element={
-                        <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
-                      } />
+                            {/* Workflow Summary */}
+                            <Route path="/workflow-summary" element={
+                              <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
+                            } />
 
-                      {/* Admin Pages */}
-                      <Route path="/audit-log" element={
-                        <ProtectedRoute><AuditLog /></ProtectedRoute>
-                      } />
-                      <Route path="/deleted-items" element={
-                        <ProtectedRoute><DeletedItems /></ProtectedRoute>
-                      } />
-                      
-                      {/* Catch all */}
-                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                    </Routes>
-                    
-                    {/* AI Chat Widget */}
-                    <ChatWidget />
-                    
-                    {/* Help System */}
-                    <HelpDrawer />
-                    <HelpButton />
-                    
-                    {/* Vercel Production Monitoring */}
-                    <Analytics />
-                    <SpeedInsights />
-                    </HelpProvider>
-                    </ChatProvider>
-                  </NotificationProvider>
-                </MetricsProvider>
-              </TestUserProvider>
+                            {/* Admin Pages */}
+                            <Route path="/audit-log" element={
+                              <ProtectedRoute><AuditLog /></ProtectedRoute>
+                            } />
+                            <Route path="/deleted-items" element={
+                              <ProtectedRoute><DeletedItems /></ProtectedRoute>
+                            } />
+                            
+                            {/* Catch all */}
+                            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                          </Routes>
+                          
+                          {/* AI Chat Widget */}
+                          <ChatWidget />
+                          
+                          {/* Help System */}
+                          <HelpDrawer />
+                          <HelpButton />
+                          
+                          {/* Vercel Production Monitoring */}
+                          <Analytics />
+                          <SpeedInsights />
+                        </HelpProvider>
+                      </ChatProvider>
+                    </NotificationProvider>
+                  </MetricsProvider>
+                </TestUserProvider>
+              </ViewAsProvider>
             </ProjectProvider>
-          </ViewAsProvider>
           </AuthProvider>
         </ToastProvider>
       </ErrorBoundary>

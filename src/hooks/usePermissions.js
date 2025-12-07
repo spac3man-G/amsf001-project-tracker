@@ -1,13 +1,24 @@
 /**
  * AMSF001 Project Tracker - usePermissions Hook
  * Location: src/hooks/usePermissions.js
- * Version 3.0 - View As Integration
+ * Version 4.0 - Multi-tenancy Support
  * 
  * This hook provides pre-bound permission functions that automatically
  * inject the current user's EFFECTIVE role (which may be impersonated via View As).
  * 
+ * Role Resolution Chain:
+ * 1. ProjectContext fetches user's role from user_projects for current project
+ * 2. ViewAsContext uses project role as actualRole (falls back to profiles.role)
+ * 3. ViewAsContext provides effectiveRole (impersonated or actual)
+ * 4. This hook uses effectiveRole for all permission checks
+ * 
+ * Changes in v4.0:
+ * - Role now comes from project-scoped user_projects table
+ * - Supports different roles on different projects
+ * - View As impersonation still works on top of project role
+ * 
  * Changes in v3.0:
- * - Now uses effectiveRole from ViewAsContext instead of actual role from AuthContext
+ * - Uses effectiveRole from ViewAsContext instead of actual role from AuthContext
  * - Permissions reflect the impersonated role when View As is active
  * - userId remains the actual user's ID (only role changes)
  * 
