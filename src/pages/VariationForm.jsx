@@ -5,11 +5,11 @@
  * - Step 1: Basic Information
  * - Step 2: Affected Milestones
  * - Step 3: Impact Details
- * - Step 4: Deliverable Changes (Phase 3)
+ * - Step 4: Deliverable Due Date Updates
  * - Step 5: Review & Submit
  * 
- * @version 1.0
- * @created 8 December 2025
+ * @version 1.1
+ * @updated 8 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -17,6 +17,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   variationsService,
   milestonesService,
+  deliverablesService,
   VARIATION_STATUS,
   VARIATION_TYPE
 } from '../services';
@@ -34,9 +35,9 @@ import {
   Clock,
   Package,
   CheckCircle2,
-  Plus,
   Trash2,
-  Info
+  Info,
+  CalendarDays
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -76,6 +77,7 @@ export default function VariationForm() {
   const [saving, setSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [milestones, setMilestones] = useState([]);
+  const [deliverables, setDeliverables] = useState([]);
   const [autoSaveStatus, setAutoSaveStatus] = useState('saved');
 
   const [formData, setFormData] = useState({
@@ -85,7 +87,7 @@ export default function VariationForm() {
     reason: '',
     contract_terms_reference: '',
     affected_milestones: [],
-    deliverable_changes: [],
+    deliverable_date_updates: [], // Track which deliverables to update
     impact_summary: ''
   });
 
@@ -99,10 +101,17 @@ export default function VariationForm() {
 
   async function loadData() {
     try {
+      // Load milestones
       const ms = await milestonesService.getAll(projectId, {
         orderBy: { column: 'milestone_ref', ascending: true }
       });
       setMilestones(ms || []);
+
+      // Load deliverables
+      const dels = await deliverablesService.getAll(projectId, {
+        orderBy: { column: 'deliverable_ref', ascending: true }
+      });
+      setDeliverables(dels || []);
 
       if (id) {
         const v = await variationsService.getWithDetails(id);
@@ -120,7 +129,7 @@ export default function VariationForm() {
               reason: v.reason || '',
               contract_terms_reference: v.contract_terms_reference || '',
               affected_milestones: v.affected_milestones || [],
-              deliverable_changes: v.deliverable_changes || [],
+              deliverable_date_updates: [],
               impact_summary: v.impact_summary || ''
             });
           }
@@ -192,9 +201,9 @@ export default function VariationForm() {
           am.new_baseline_cost !== undefined || am.new_baseline_end
         );
       case 4:
-        return true;
+        return true; // Optional step
       case 5:
-        return true;
+        return formData.impact_summary && formData.impact_summary.trim().length > 0;
       default:
         return true;
     }
@@ -226,15 +235,104 @@ export default function VariationForm() {
   }
 
   function removeAffectedMilestone(index) {
+    const removed = formData.affected_milestones[index];
     const updated = [...formData.affected_milestones];
     updated.splice(index, 1);
     updateField('affected_milestones', updated);
+    
+    // Also remove any deliverable date updates for this milestone
+    if (removed?.milestone_id) {
+      const filteredDeliverables = formData.deliverable_date_updates.filter(
+        d => d.milestone_id !== removed.milestone_id
+      );
+      updateField('deliverable_date_updates', filteredDeliverables);
+    }
   }
 
   function updateAffectedMilestone(index, field, value) {
     const updated = [...formData.affected_milestones];
     updated[index] = { ...updated[index], [field]: value };
     updateField('affected_milestones', updated);
+  }
+
+  // Get deliverables for affected milestones
+  function getDeliverablesForAffectedMilestones() {
+    const affectedMilestoneIds = formData.affected_milestones.map(am => am.milestone_id);
+    return deliverables.filter(d => affectedMilestoneIds.includes(d.milestone_id));
+  }
+
+  // Toggle deliverable date update
+  function toggleDeliverableDateUpdate(deliverable, milestone, daysDiff) {
+    const existing = formData.deliverable_date_updates.find(d => d.deliverable_id === deliverable.id);
+    
+    if (existing) {
+      // Remove it
+      updateField('deliverable_date_updates', 
+        formData.deliverable_date_updates.filter(d => d.deliverable_id !== deliverable.id)
+      );
+    } else {
+      // Add it with calculated new date
+      const currentDueDate = deliverable.due_date || milestone.baseline_end_date || milestone.end_date;
+      let newDueDate = null;
+      
+      if (currentDueDate && daysDiff !== 0) {
+        const date = new Date(currentDueDate);
+        date.setDate(date.getDate() + daysDiff);
+        newDueDate = date.toISOString().split('T')[0];
+      }
+      
+      updateField('deliverable_date_updates', [
+        ...formData.deliverable_date_updates,
+        {
+          deliverable_id: deliverable.id,
+          deliverable_ref: deliverable.deliverable_ref,
+          deliverable_name: deliverable.name,
+          milestone_id: milestone.milestone_id,
+          original_due_date: currentDueDate,
+          new_due_date: newDueDate,
+          days_shift: daysDiff
+        }
+      ]);
+    }
+  }
+
+  // Select/deselect all deliverables for a milestone
+  function toggleAllDeliverablesForMilestone(milestoneId, daysDiff, select) {
+    const milestoneDeliverables = deliverables.filter(d => d.milestone_id === milestoneId);
+    const milestone = formData.affected_milestones.find(am => am.milestone_id === milestoneId);
+    
+    if (select) {
+      // Add all not already selected
+      const toAdd = milestoneDeliverables
+        .filter(d => !formData.deliverable_date_updates.some(du => du.deliverable_id === d.id))
+        .map(d => {
+          const currentDueDate = d.due_date || milestone?.original_baseline_end;
+          let newDueDate = null;
+          
+          if (currentDueDate && daysDiff !== 0) {
+            const date = new Date(currentDueDate);
+            date.setDate(date.getDate() + daysDiff);
+            newDueDate = date.toISOString().split('T')[0];
+          }
+          
+          return {
+            deliverable_id: d.id,
+            deliverable_ref: d.deliverable_ref,
+            deliverable_name: d.name,
+            milestone_id: milestoneId,
+            original_due_date: currentDueDate,
+            new_due_date: newDueDate,
+            days_shift: daysDiff
+          };
+        });
+      
+      updateField('deliverable_date_updates', [...formData.deliverable_date_updates, ...toAdd]);
+    } else {
+      // Remove all for this milestone
+      updateField('deliverable_date_updates', 
+        formData.deliverable_date_updates.filter(d => d.milestone_id !== milestoneId)
+      );
+    }
   }
 
   function calculateTotalImpacts() {
@@ -254,6 +352,14 @@ export default function VariationForm() {
     return { totalCost, totalDays };
   }
 
+  // Calculate days difference for a specific milestone
+  function getMilestoneDaysDiff(am) {
+    if (!am.original_baseline_end || !am.new_baseline_end) return 0;
+    const origEnd = new Date(am.original_baseline_end);
+    const newEnd = new Date(am.new_baseline_end);
+    return Math.round((newEnd - origEnd) / (1000 * 60 * 60 * 24));
+  }
+
   async function saveDraft() {
     setSaving(true);
     try {
@@ -269,6 +375,7 @@ export default function VariationForm() {
         });
         
         showSuccess('Draft saved');
+        return variation;
       } else {
         const newVariation = await variationsService.createVariation(projectId, {
           title: formData.title,
@@ -283,19 +390,26 @@ export default function VariationForm() {
         setVariation(newVariation);
         showSuccess('Draft created');
         navigate(`/variations/${newVariation.id}/edit`, { replace: true });
+        return newVariation;
       }
     } catch (error) {
       console.error('Error saving draft:', error);
       showError('Failed to save draft');
+      throw error;
     } finally {
       setSaving(false);
     }
   }
 
   async function submitForApproval() {
+    // Validate all steps
     for (let step = 1; step <= 5; step++) {
       if (!validateStep(step)) {
-        showWarning(`Please complete Step ${step} before submitting`);
+        if (step === 5) {
+          showWarning('Please provide an Impact Summary before submitting');
+        } else {
+          showWarning(`Please complete Step ${step} before submitting`);
+        }
         setCurrentStep(step);
         return;
       }
@@ -303,14 +417,50 @@ export default function VariationForm() {
 
     setSaving(true);
     try {
-      await saveDraft();
-      await variationsService.submitForApproval(variation.id, formData.impact_summary);
+      // First ensure we have a saved variation
+      let currentVariation = variation;
+      if (!currentVariation?.id) {
+        currentVariation = await saveDraft();
+      } else {
+        // Update the draft with latest form data
+        await variationsService.update(currentVariation.id, {
+          title: formData.title,
+          variation_type: formData.variation_type,
+          description: formData.description,
+          reason: formData.reason,
+          contract_terms_reference: formData.contract_terms_reference,
+          form_data: formData,
+          form_step: 5
+        });
+      }
+
+      if (!currentVariation?.id) {
+        throw new Error('Failed to create variation');
+      }
+
+      // Save affected milestones to variation_milestones table
+      for (const am of formData.affected_milestones) {
+        await variationsService.addAffectedMilestone(currentVariation.id, {
+          milestone_id: am.milestone_id,
+          is_new_milestone: am.is_new_milestone || false,
+          original_baseline_cost: am.original_baseline_cost,
+          new_baseline_cost: am.new_baseline_cost,
+          original_baseline_start: am.original_baseline_start,
+          new_baseline_start: am.new_baseline_start,
+          original_baseline_end: am.original_baseline_end,
+          new_baseline_end: am.new_baseline_end,
+          change_rationale: am.change_rationale
+        });
+      }
+
+      // Submit for approval
+      await variationsService.submitForApproval(currentVariation.id, formData.impact_summary);
       
       showSuccess('Variation submitted for approval');
-      navigate(`/variations/${variation.id}`);
+      navigate(`/variations/${currentVariation.id}`);
     } catch (error) {
       console.error('Error submitting variation:', error);
-      showError('Failed to submit variation');
+      showError('Failed to submit variation: ' + (error.message || 'Unknown error'));
     } finally {
       setSaving(false);
     }
@@ -325,6 +475,7 @@ export default function VariationForm() {
   }
 
   const { totalCost, totalDays } = calculateTotalImpacts();
+  const affectedDeliverables = getDeliverablesForAffectedMilestones();
 
   return (
     <div className="variation-form-page">
@@ -609,27 +760,118 @@ export default function VariationForm() {
             </div>
           )}
 
-          {/* Step 4: Deliverable Changes */}
+          {/* Step 4: Deliverable Due Date Updates */}
           {currentStep === 4 && (
             <div className="vf-step-content">
               <div className="vf-card">
-                <h2>Deliverable Changes</h2>
-                <p className="vf-card-desc">Specify any deliverables to add, remove, or modify. (Optional)</p>
-                
-                <div className="vf-info-box">
-                  <Info size={18} />
-                  <div>
-                    <strong>Coming Soon</strong>
-                    <p>Deliverable change management will be available in a future release. 
-                       For now, describe any deliverable changes in the Impact Summary on the next step.</p>
-                  </div>
-                </div>
+                <h2>Deliverable Due Dates</h2>
+                <p className="vf-card-desc">
+                  When milestone dates change, you may want to update the due dates of linked deliverables.
+                  Select which deliverables should have their due dates adjusted.
+                </p>
 
-                <div className="vf-empty">
-                  <Package size={32} />
-                  <p>No deliverable changes specified</p>
-                  <span>This step is optional - proceed to Review</span>
-                </div>
+                {affectedDeliverables.length === 0 ? (
+                  <div className="vf-empty">
+                    <Package size={32} />
+                    <p>No deliverables linked to affected milestones</p>
+                    <span>This step is optional - proceed to Review</span>
+                  </div>
+                ) : (
+                  <>
+                    {formData.affected_milestones.map((am, amIndex) => {
+                      const milestoneDeliverables = deliverables.filter(d => d.milestone_id === am.milestone_id);
+                      const daysDiff = getMilestoneDaysDiff(am);
+                      
+                      if (milestoneDeliverables.length === 0) return null;
+                      
+                      const allSelected = milestoneDeliverables.every(d => 
+                        formData.deliverable_date_updates.some(du => du.deliverable_id === d.id)
+                      );
+                      const someSelected = milestoneDeliverables.some(d => 
+                        formData.deliverable_date_updates.some(du => du.deliverable_id === d.id)
+                      );
+
+                      return (
+                        <div key={amIndex} className="vf-deliverable-group">
+                          <div className="vf-deliverable-group-header">
+                            <div className="vf-deliverable-group-info">
+                              <span className="vf-deliverable-group-ref">{am.milestone?.milestone_ref}</span>
+                              <span className="vf-deliverable-group-name">{am.milestone?.name}</span>
+                              {daysDiff !== 0 && (
+                                <span className={`vf-deliverable-group-shift ${daysDiff > 0 ? 'positive' : 'negative'}`}>
+                                  {daysDiff > 0 ? '+' : ''}{daysDiff} days
+                                </span>
+                              )}
+                            </div>
+                            {daysDiff !== 0 && (
+                              <button
+                                className={`vf-select-all-btn ${allSelected ? 'selected' : ''}`}
+                                onClick={() => toggleAllDeliverablesForMilestone(am.milestone_id, daysDiff, !allSelected)}
+                              >
+                                {allSelected ? 'Deselect All' : 'Select All'}
+                              </button>
+                            )}
+                          </div>
+
+                          {daysDiff === 0 ? (
+                            <div className="vf-deliverable-no-shift">
+                              <Info size={16} />
+                              <span>No date change for this milestone - deliverable dates will remain unchanged</span>
+                            </div>
+                          ) : (
+                            <div className="vf-deliverable-list">
+                              {milestoneDeliverables.map(d => {
+                                const isSelected = formData.deliverable_date_updates.some(du => du.deliverable_id === d.id);
+                                const currentDueDate = d.due_date || am.original_baseline_end;
+                                let newDueDate = null;
+                                
+                                if (currentDueDate) {
+                                  const date = new Date(currentDueDate);
+                                  date.setDate(date.getDate() + daysDiff);
+                                  newDueDate = date.toISOString().split('T')[0];
+                                }
+                                
+                                return (
+                                  <div 
+                                    key={d.id} 
+                                    className={`vf-deliverable-item ${isSelected ? 'selected' : ''}`}
+                                    onClick={() => toggleDeliverableDateUpdate(d, am, daysDiff)}
+                                  >
+                                    <div className="vf-deliverable-checkbox">
+                                      {isSelected && <Check size={14} />}
+                                    </div>
+                                    <div className="vf-deliverable-info">
+                                      <span className="vf-deliverable-ref">{d.deliverable_ref}</span>
+                                      <span className="vf-deliverable-name">{d.name}</span>
+                                    </div>
+                                    <div className="vf-deliverable-dates">
+                                      <span className="vf-deliverable-current">
+                                        {formatDate(currentDueDate) || 'No date'}
+                                      </span>
+                                      <ArrowRight size={14} />
+                                      <span className="vf-deliverable-new">
+                                        {formatDate(newDueDate) || 'No date'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {formData.deliverable_date_updates.length > 0 && (
+                      <div className="vf-deliverable-summary">
+                        <CalendarDays size={18} />
+                        <span>
+                          <strong>{formData.deliverable_date_updates.length}</strong> deliverable{formData.deliverable_date_updates.length !== 1 ? 's' : ''} will have due dates updated when this variation is applied
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -688,6 +930,21 @@ export default function VariationForm() {
                     </div>
                   ))}
                 </div>
+
+                {formData.deliverable_date_updates.length > 0 && (
+                  <div className="vf-review-section">
+                    <h3>Deliverable Date Updates ({formData.deliverable_date_updates.length})</h3>
+                    {formData.deliverable_date_updates.map((du, index) => (
+                      <div key={index} className="vf-review-deliverable">
+                        <span className="vf-review-del-ref">{du.deliverable_ref}</span>
+                        <span className="vf-review-del-name">{du.deliverable_name}</span>
+                        <span className="vf-review-del-dates">
+                          {formatDate(du.original_due_date)} → {formatDate(du.new_due_date)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="vf-review-section">
                   <h3>Total Impact</h3>
