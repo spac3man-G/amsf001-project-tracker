@@ -34,7 +34,8 @@ import {
   History,
   Archive,
   PoundSterling,
-  ShieldAlert
+  ShieldAlert,
+  CalendarDays
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -197,6 +198,14 @@ export const NAV_ITEMS = {
     label: 'Deleted Items',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
+  },
+  calendar: {
+    id: 'calendar',
+    path: '/calendar',
+    icon: CalendarDays,
+    label: 'Calendar',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    readOnlyRoles: [ROLES.VIEWER]
   }
 };
 
@@ -236,6 +245,7 @@ export const ROLE_NAV_ORDER = {
     'qualityStandards',
     'raid',
     'resources',
+    'calendar',
     'timesheets',
     'expenses',
     'billing',
@@ -256,6 +266,7 @@ export const ROLE_NAV_ORDER = {
     'qualityStandards',
     'raid',
     'resources',
+    'calendar',
     'timesheets',
     'expenses',
     'billing',
@@ -275,11 +286,13 @@ export const ROLE_NAV_ORDER = {
     'kpis',
     'qualityStandards',
     'raid',
+    'calendar',
     'timesheets',
     'expenses'
   ],
   [ROLES.CONTRIBUTOR]: [
     'workflowSummary',
+    'calendar',
     'timesheets',
     'expenses',
     'deliverables'
@@ -291,7 +304,8 @@ export const ROLE_NAV_ORDER = {
     'deliverables',
     'kpis',
     'qualityStandards',
-    'raid'
+    'raid',
+    'calendar'
   ]
 };
 

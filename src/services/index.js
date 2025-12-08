@@ -9,8 +9,8 @@
  *   // Or import the base class for custom services
  *   import { BaseService } from '../services';
  * 
- * @version 2.0
- * @updated 30 November 2025
+ * @version 2.2
+ * @updated 8 December 2025
  * @phase Phase 1 - Stabilisation
  */
 
@@ -40,3 +40,14 @@ export { raidService, default as RaidService } from './raid.service';
 
 // Metrics (centralized calculations)
 export { metricsService, default as MetricsService } from './metrics.service';
+
+// Calendar (availability, milestones, deliverables)
+export { 
+  calendarService, 
+  AVAILABILITY_STATUS, 
+  AVAILABILITY_PERIOD,
+  STATUS_CONFIG, 
+  PERIOD_CONFIG,
+  CALENDAR_EVENT_TYPE,
+  EVENT_TYPE_CONFIG
+} from './calendar.service';

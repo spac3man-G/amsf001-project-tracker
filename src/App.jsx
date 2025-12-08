@@ -1,5 +1,5 @@
 // src/App.jsx
-// Version 13.0 - Fixed provider order for multi-tenancy support
+// Version 15.0 - Replaced Availability with Project Calendar (availability, milestones, deliverables)
 //
 // Provider order is critical:
 // 1. AuthProvider - user authentication (no dependencies)
@@ -58,6 +58,7 @@ const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const DeletedItems = lazy(() => import('./pages/DeletedItems'));
+const Calendar = lazy(() => import('./pages/Calendar'));
 
 /**
  * PageLoader - Shows skeleton while lazy components load
@@ -217,6 +218,11 @@ export default function App() {
                             {/* RAID Log */}
                             <Route path="/raid" element={
                               <ProtectedRoute><RaidLog /></ProtectedRoute>
+                            } />
+                            
+                            {/* Project Calendar */}
+                            <Route path="/calendar" element={
+                              <ProtectedRoute><Calendar /></ProtectedRoute>
                             } />
                             
                             {/* Reports */}
