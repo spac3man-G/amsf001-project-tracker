@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sessionExpiring, setSessionExpiring] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   
   // Ref for session check interval
   const sessionCheckIntervalRef = useRef(null);
@@ -35,6 +36,7 @@ export function AuthProvider({ children }) {
     if (!authUser) {
       setProfile(null);
       setLinkedResource(null);
+      setMustChangePassword(false);
       return;
     }
 
@@ -53,6 +55,9 @@ export function AuthProvider({ children }) {
       }
 
       setProfile(profileData);
+      
+      // Check if user must change password
+      setMustChangePassword(profileData?.must_change_password === true);
 
       // Fetch linked resource (if any)
       const { data: resourceData } = await supabase
@@ -273,6 +278,11 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Clear the must change password flag after successful password change
+  function clearMustChangePassword() {
+    setMustChangePassword(false);
+  }
+
   // Manually refresh session
   async function refreshSession() {
     try {
@@ -304,6 +314,8 @@ export function AuthProvider({ children }) {
     refreshSession,
     isAuthenticated: !!user,
     sessionExpiring, // Expose session expiring state for UI warning
+    mustChangePassword, // Force password change flag
+    clearMustChangePassword, // Clear the flag after password change
   };
 
   return (

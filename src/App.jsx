@@ -27,6 +27,7 @@ import { ErrorBoundary, LoadingSpinner, Skeleton } from './components/common';
 import { ChatWidget } from './components/chat';
 import { HelpDrawer, HelpButton } from './components/help';
 import Layout from './components/Layout';
+import ForcePasswordChange from './components/ForcePasswordChange';
 
 // Critical pages - loaded immediately
 import Login from './pages/Login';
@@ -74,9 +75,10 @@ function PageLoader() {
 /**
  * ProtectedRoute - Wraps routes that require authentication
  * Uses AuthContext for single source of truth.
+ * Also handles forced password change flow.
  */
 function ProtectedRoute({ children }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, mustChangePassword, clearMustChangePassword, profile } = useAuth();
 
   if (isLoading) {
     return <LoadingSpinner message="Loading..." size="large" fullPage />;
@@ -84,6 +86,16 @@ function ProtectedRoute({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // If user must change password, show the password change screen
+  if (mustChangePassword) {
+    return (
+      <ForcePasswordChange 
+        userEmail={user?.email}
+        onSuccess={clearMustChangePassword}
+      />
+    );
   }
 
   return (

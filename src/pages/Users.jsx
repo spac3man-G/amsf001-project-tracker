@@ -113,31 +113,40 @@ export default function Users() {
       return;
     }
 
+    if (newUser.password.length < 8) {
+      showWarning('Password must be at least 8 characters');
+      return;
+    }
+
     try {
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newUser.email,
-        password: newUser.password,
-        email_confirm: true
-      });
-
-      if (authError) throw authError;
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
+      // Get the current user's session token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Call the API endpoint instead of using admin API directly
+      const response = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           email: newUser.email,
+          password: newUser.password,
           full_name: newUser.full_name || newUser.email.split('@')[0],
           role: newUser.role,
-          is_test_user: false
-        });
+          adminToken: session?.access_token,
+        }),
+      });
 
-      if (profileError) throw profileError;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create user');
+      }
 
       await fetchData();
       setShowCreateForm(false);
       setNewUser({ email: '', password: '', full_name: '', role: 'viewer' });
-      showSuccess('User created successfully!');
+      showSuccess('User created! They will need to set a secure password on first login.');
     } catch (error) {
       console.error('Error creating user:', error);
       showError('Failed to create user: ' + error.message);
