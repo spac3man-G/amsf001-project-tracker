@@ -122,12 +122,7 @@ class CalendarService {
           period,
           notes,
           created_at,
-          updated_at,
-          user:profiles!resource_availability_user_id_fkey (
-            id,
-            full_name,
-            email
-          )
+          updated_at
         `)
         .eq('project_id', projectId)
         .gte('date', startDate)
@@ -227,7 +222,7 @@ class CalendarService {
         .select(`
           user_id,
           role,
-          user:profiles!user_projects_user_id_fkey (
+          profiles (
             id,
             full_name,
             email
@@ -243,8 +238,8 @@ class CalendarService {
       
       return (data || []).map(up => ({
         id: up.user_id,
-        name: up.user?.full_name || up.user?.email || 'Unknown',
-        email: up.user?.email,
+        name: up.profiles?.full_name || up.profiles?.email || 'Unknown',
+        email: up.profiles?.email,
         role: up.role
       }));
     } catch (error) {
@@ -279,15 +274,14 @@ class CalendarService {
         `)
         .eq('project_id', projectId)
         .or('is_deleted.is.null,is_deleted.eq.false')
-        .order('forecast_end_date', { ascending: true });
+        .order('end_date', { ascending: true });
       
       if (error) {
         console.error('Error fetching milestones:', error);
         throw error;
       }
       
-      // Filter to milestones with forecast_end_date in range
-      // Use forecast_end_date, falling back to end_date
+      // Filter to milestones with forecast_end_date or end_date in range
       const filtered = (data || []).filter(m => {
         const dueDate = m.forecast_end_date || m.end_date;
         if (!dueDate) return false;
@@ -323,7 +317,7 @@ class CalendarService {
         `)
         .eq('project_id', projectId)
         .or('is_deleted.is.null,is_deleted.eq.false')
-        .order('forecast_end_date', { ascending: true });
+        .order('end_date', { ascending: true });
       
       if (error) {
         console.error('Error fetching milestones:', error);
