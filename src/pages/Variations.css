@@ -447,6 +447,41 @@
   color: var(--ds-text-secondary);
 }
 
+/* Actions Column */
+.var-actions-col {
+  width: 80px;
+  text-align: center;
+}
+
+.var-actions-cell {
+  text-align: center;
+}
+
+.var-delete-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-bg-primary);
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--ds-transition);
+}
+
+.var-delete-btn:hover {
+  background: var(--ds-red-light);
+  border-color: var(--ds-red);
+  color: var(--ds-red);
+}
+
+.var-no-action {
+  color: var(--ds-text-secondary);
+  font-size: 14px;
+}
+
 /* Empty State */
 .var-empty {
   padding: 64px 24px;

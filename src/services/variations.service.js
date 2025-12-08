@@ -734,6 +734,56 @@ export class VariationsService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Delete a draft variation (only drafts can be deleted)
+   * Also cleans up related records in variation_milestones and variation_deliverables
+   */
+  async deleteDraftVariation(variationId) {
+    try {
+      // First, verify the variation exists and is a draft
+      const variation = await this.getById(variationId);
+      if (!variation) {
+        throw new Error('Variation not found');
+      }
+      
+      if (variation.status !== VARIATION_STATUS.DRAFT) {
+        throw new Error('Only draft variations can be deleted. Submitted or approved variations must be rejected first.');
+      }
+
+      // Delete related records first (variation_milestones, variation_deliverables)
+      const { error: vmError } = await supabase
+        .from('variation_milestones')
+        .delete()
+        .eq('variation_id', variationId);
+      
+      if (vmError) {
+        console.warn('Error deleting variation_milestones:', vmError);
+      }
+
+      const { error: vdError } = await supabase
+        .from('variation_deliverables')
+        .delete()
+        .eq('variation_id', variationId);
+      
+      if (vdError) {
+        console.warn('Error deleting variation_deliverables:', vdError);
+      }
+
+      // Hard delete the variation (no soft delete for drafts)
+      const { error } = await supabase
+        .from('variations')
+        .delete()
+        .eq('id', variationId);
+
+      if (error) throw error;
+      
+      return true;
+    } catch (error) {
+      console.error('VariationsService deleteDraftVariation error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

@@ -35,7 +35,8 @@ import {
   FileText,
   AlertTriangle,
   User,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -52,7 +53,7 @@ export default function VariationDetail() {
   const { user, profile } = useAuth();
   const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
-  const { canCreateVariation, canSignAsSupplier, canSignAsCustomer } = usePermissions();
+  const { canCreateVariation, canDeleteVariation, canSignAsSupplier, canSignAsCustomer } = usePermissions();
 
   const currentUserId = user?.id;
   const currentUserName = profile?.full_name || user?.email || 'Unknown';
@@ -64,6 +65,7 @@ export default function VariationDetail() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -147,6 +149,17 @@ export default function VariationDetail() {
     }
   }
 
+  async function handleDelete() {
+    try {
+      await variationsService.deleteDraftVariation(id);
+      showSuccess(`Variation ${variation.variation_ref} deleted`);
+      navigate('/variations');
+    } catch (error) {
+      console.error('Error deleting variation:', error);
+      showError(error.message || 'Failed to delete variation');
+    }
+  }
+
   function getStatusBadgeClass(status) {
     const classMap = {
       [VARIATION_STATUS.DRAFT]: 'draft',
@@ -171,6 +184,7 @@ export default function VariationDetail() {
 
     const canEdit = isDraft && canCreateVariation;
     const canSubmit = isDraft && canCreateVariation;
+    const canDelete = isDraft && canDeleteVariation;
     
     const canSupplierSign = canSignAsSupplier && 
       (isSubmitted || isAwaitingSupplier) && 
@@ -185,7 +199,7 @@ export default function VariationDetail() {
 
     const canViewCertificate = isApplied && variation.certificate_number;
 
-    return { canEdit, canSubmit, canSupplierSign, canCustomerSign, canReject, canViewCertificate };
+    return { canEdit, canSubmit, canDelete, canSupplierSign, canCustomerSign, canReject, canViewCertificate };
   }
 
   if (loading) {
@@ -217,6 +231,12 @@ export default function VariationDetail() {
             </div>
           </div>
           <div className="vd-header-actions">
+            {actions.canDelete && (
+              <button className="vd-btn vd-btn-danger-outline" onClick={() => setShowDeleteConfirm(true)}>
+                <Trash2 size={18} />
+                Delete
+              </button>
+            )}
             {actions.canEdit && (
               <button className="vd-btn vd-btn-secondary" onClick={handleEdit}>
                 <Edit3 size={18} />
@@ -575,6 +595,17 @@ export default function VariationDetail() {
           onClose={() => setShowCertificateModal(false)}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Draft Variation"
+        message={`Are you sure you want to delete ${variation?.variation_ref}?\n\n"${variation?.title}"\n\nThis action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

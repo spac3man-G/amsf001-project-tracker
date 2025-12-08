@@ -6,9 +6,10 @@
  * - Create new variation wizard
  * - View variation details
  * - Dual-signature approval workflow
+ * - Delete draft variations
  * 
- * @version 1.0
- * @created 8 December 2025
+ * @version 1.1
+ * @updated 8 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -35,7 +36,8 @@ import {
   XCircle,
   Edit3,
   Send,
-  Info
+  Info,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -60,7 +62,7 @@ export default function Variations() {
   const { user, profile } = useAuth();
   const { projectId } = useProject();
   const { showSuccess, showError } = useToast();
-  const { canCreateVariation, canSignAsSupplier, canSignAsCustomer } = usePermissions();
+  const { canCreateVariation, canDeleteVariation, canSignAsSupplier, canSignAsCustomer } = usePermissions();
 
   // State
   const [variations, setVariations] = useState([]);
@@ -68,6 +70,7 @@ export default function Variations() {
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [summary, setSummary] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, variation: null });
 
   useEffect(() => {
     if (projectId) {
@@ -110,6 +113,31 @@ export default function Variations() {
 
   function handleViewVariation(variation) {
     navigate(`/variations/${variation.id}`);
+  }
+
+  function handleDeleteClick(e, variation) {
+    e.stopPropagation(); // Prevent row click from navigating
+    setDeleteConfirm({ open: true, variation });
+  }
+
+  async function handleDeleteConfirm() {
+    const variation = deleteConfirm.variation;
+    if (!variation) return;
+
+    try {
+      await variationsService.deleteDraftVariation(variation.id);
+      showSuccess(`Variation ${variation.variation_ref} deleted`);
+      setDeleteConfirm({ open: false, variation: null });
+      await fetchVariations();
+      await fetchSummary();
+    } catch (error) {
+      console.error('Error deleting variation:', error);
+      showError(error.message || 'Failed to delete variation');
+    }
+  }
+
+  function handleDeleteCancel() {
+    setDeleteConfirm({ open: false, variation: null });
   }
 
   // Filter variations based on status
@@ -274,6 +302,7 @@ export default function Variations() {
                   <th>Days Impact</th>
                   <th>Milestones</th>
                   <th>Created</th>
+                  {canDeleteVariation && <th className="var-actions-col">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -342,6 +371,21 @@ export default function Variations() {
                       <td>
                         <span className="var-date">{formatDate(variation.created_at)}</span>
                       </td>
+                      {canDeleteVariation && (
+                        <td className="var-actions-cell">
+                          {variation.status === VARIATION_STATUS.DRAFT ? (
+                            <button
+                              className="var-delete-btn"
+                              onClick={(e) => handleDeleteClick(e, variation)}
+                              title="Delete draft"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          ) : (
+                            <span className="var-no-action">—</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -365,6 +409,21 @@ export default function Variations() {
           </ul>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.open}
+        title="Delete Draft Variation"
+        message={
+          deleteConfirm.variation 
+            ? `Are you sure you want to delete ${deleteConfirm.variation.variation_ref}?\n\n"${deleteConfirm.variation.title}"\n\nThis action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 }
