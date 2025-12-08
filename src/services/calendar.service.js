@@ -214,32 +214,49 @@ class CalendarService {
   
   /**
    * Get project members
+   * Two-step process to avoid FK join issues
    */
   async getProjectMembers(projectId) {
     try {
-      const { data, error } = await supabase
+      // Step 1: Get user_projects for this project
+      const { data: assignments, error: assignError } = await supabase
         .from('user_projects')
-        .select(`
-          user_id,
-          role,
-          profiles (
-            id,
-            full_name,
-            email
-          )
-        `)
+        .select('user_id, role')
         .eq('project_id', projectId)
         .order('role');
       
-      if (error) {
-        console.error('Error fetching project members:', error);
-        throw error;
+      if (assignError) {
+        console.error('Error fetching user_projects:', assignError);
+        throw assignError;
       }
       
-      return (data || []).map(up => ({
+      if (!assignments || assignments.length === 0) {
+        return [];
+      }
+      
+      // Step 2: Get profiles for these users
+      const userIds = assignments.map(a => a.user_id);
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+      
+      if (profileError) {
+        console.error('Error fetching profiles:', profileError);
+        // Continue without profile data rather than failing
+      }
+      
+      // Map profiles by id for quick lookup
+      const profileMap = {};
+      (profiles || []).forEach(p => {
+        profileMap[p.id] = p;
+      });
+      
+      // Combine assignments with profiles
+      return assignments.map(up => ({
         id: up.user_id,
-        name: up.profiles?.full_name || up.profiles?.email || 'Unknown',
-        email: up.profiles?.email,
+        name: profileMap[up.user_id]?.full_name || profileMap[up.user_id]?.email || 'Unknown',
+        email: profileMap[up.user_id]?.email,
         role: up.role
       }));
     } catch (error) {

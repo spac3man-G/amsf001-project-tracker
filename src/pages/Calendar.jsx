@@ -277,15 +277,31 @@ function AvailabilityBadge({ status, period, size = 'normal' }) {
   );
 }
 
-function EventBadge({ type, reference, name, isOverdue, size = 'normal' }) {
+function EventBadge({ type, item, isOverdue, size = 'normal', onClick, onMouseEnter, onMouseLeave }) {
   const typeClass = type === CALENDAR_EVENT_TYPE.MILESTONE ? 'milestone' : 'deliverable';
+  const reference = type === CALENDAR_EVENT_TYPE.MILESTONE ? item.milestone_ref : item.deliverable_ref;
+  const name = item.name;
   
   if (size === 'mini') {
-    return <span className={`cal-mini-badge ${typeClass}`} title={`${reference}: ${name}`} />;
+    return (
+      <span 
+        className={`cal-mini-badge ${typeClass} clickable`} 
+        title={`${reference}: ${name}`}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      />
+    );
   }
   
   return (
-    <span className={`cal-event-badge ${typeClass} ${isOverdue ? 'overdue' : ''}`} title={name}>
+    <span 
+      className={`cal-event-badge ${typeClass} ${isOverdue ? 'overdue' : ''} clickable`} 
+      title={name}
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <span className="cal-event-ref">{reference}</span>
     </span>
   );
