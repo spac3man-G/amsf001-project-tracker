@@ -157,6 +157,15 @@ export function usePermissions() {
     canEditPartner: perms.canEditPartner(userRole),
     canDeletePartner: perms.canDeletePartner(userRole),
     
+    // Variation permissions
+    canCreateVariation: perms.canCreateVariation(userRole),
+    canEditVariation: perms.canEditVariation(userRole),
+    canDeleteVariation: perms.canDeleteVariation(userRole),
+    canSubmitVariation: perms.canSubmitVariation(userRole),
+    canSignVariationAsSupplier: perms.canSignVariationAsSupplier(userRole),
+    canSignVariationAsCustomer: perms.canSignVariationAsCustomer(userRole),
+    canRejectVariation: perms.canRejectVariation(userRole),
+    
     // Certificate permissions
     canSignAsSupplier: perms.canSignAsSupplier(userRole),
     canSignAsCustomer: perms.canSignAsCustomer(userRole),

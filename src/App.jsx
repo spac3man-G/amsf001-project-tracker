@@ -60,6 +60,9 @@ const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const DeletedItems = lazy(() => import('./pages/DeletedItems'));
 const Calendar = lazy(() => import('./pages/Calendar'));
+const Variations = lazy(() => import('./pages/Variations'));
+const VariationDetail = lazy(() => import('./pages/VariationDetail'));
+const VariationForm = lazy(() => import('./pages/VariationForm'));
 
 /**
  * PageLoader - Shows skeleton while lazy components load
@@ -235,6 +238,20 @@ export default function App() {
                             {/* Project Calendar */}
                             <Route path="/calendar" element={
                               <ProtectedRoute><Calendar /></ProtectedRoute>
+                            } />
+                            
+                            {/* Variations (Change Control) */}
+                            <Route path="/variations" element={
+                              <ProtectedRoute><Variations /></ProtectedRoute>
+                            } />
+                            <Route path="/variations/new" element={
+                              <ProtectedRoute><VariationForm /></ProtectedRoute>
+                            } />
+                            <Route path="/variations/:id" element={
+                              <ProtectedRoute><VariationDetail /></ProtectedRoute>
+                            } />
+                            <Route path="/variations/:id/edit" element={
+                              <ProtectedRoute><VariationForm /></ProtectedRoute>
                             } />
                             
                             {/* Reports */}

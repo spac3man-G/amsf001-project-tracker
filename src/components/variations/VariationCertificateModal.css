@@ -1,0 +1,262 @@
+/* =============================================================================
+   Variation Certificate Modal - Apple Design System
+   Version: 1.0
+   ============================================================================= */
+
+.vcm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.vcm-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.vcm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.vcm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #0d9488;
+}
+
+.vcm-header-left h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0;
+}
+
+.vcm-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vcm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.vcm-btn-secondary {
+  background: #f5f5f7;
+  color: #1d1d1f;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.vcm-btn-secondary:hover {
+  background: #e8e8ed;
+}
+
+.vcm-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: #f5f5f7;
+  color: #86868b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.vcm-close:hover {
+  background: #e8e8ed;
+  color: #1d1d1f;
+}
+
+.vcm-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* Certificate Styles (for viewing in modal) */
+.vcm-certificate {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 40px;
+}
+
+.vcm-certificate .cert-header {
+  text-align: center;
+  border-bottom: 2px solid #0d9488;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+
+.vcm-certificate .cert-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #0d9488;
+  margin: 0 0 8px;
+}
+
+.vcm-certificate .cert-number {
+  font-family: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
+  font-size: 14px;
+  color: #86868b;
+}
+
+.vcm-certificate .cert-section {
+  margin-bottom: 28px;
+}
+
+.vcm-certificate .cert-section h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+.vcm-certificate .cert-row {
+  display: flex;
+  padding: 8px 0;
+}
+
+.vcm-certificate .cert-label {
+  width: 160px;
+  font-weight: 500;
+  color: #86868b;
+  flex-shrink: 0;
+}
+
+.vcm-certificate .cert-value {
+  flex: 1;
+  color: #1d1d1f;
+}
+
+.vcm-certificate .cert-value.impact-positive {
+  color: #34c759;
+  font-weight: 600;
+}
+
+.vcm-certificate .cert-value.impact-negative {
+  color: #ff3b30;
+  font-weight: 600;
+}
+
+.vcm-certificate .cert-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.vcm-certificate .cert-table th,
+.vcm-certificate .cert-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 13px;
+}
+
+.vcm-certificate .cert-table th {
+  background: #f5f5f7;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.vcm-certificate .cert-signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.vcm-certificate .cert-sig-block h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #86868b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.vcm-certificate .cert-sig-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.vcm-certificate .cert-sig-date {
+  font-size: 12px;
+  color: #86868b;
+  margin-top: 4px;
+}
+
+.vcm-certificate .cert-sig-pending {
+  font-size: 14px;
+  color: #86868b;
+  font-style: italic;
+}
+
+.vcm-certificate .cert-footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 12px;
+  color: #86868b;
+  text-align: center;
+}
+
+.vcm-certificate .cert-footer p {
+  margin: 4px 0;
+}
+
+@media (max-width: 768px) {
+  .vcm-content {
+    padding: 16px;
+  }
+  
+  .vcm-certificate {
+    padding: 24px;
+  }
+  
+  .vcm-certificate .cert-signatures {
+    grid-template-columns: 1fr;
+  }
+  
+  .vcm-certificate .cert-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .vcm-certificate .cert-label {
+    width: auto;
+  }
+}

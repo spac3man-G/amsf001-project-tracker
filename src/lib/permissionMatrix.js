@@ -155,6 +155,21 @@ export const PERMISSION_MATRIX = {
   },
 
   // ----------------------------------------
+  // VARIATIONS (Change Control)
+  // ----------------------------------------
+  variations: {
+    view: AUTHENTICATED,                      // All can view
+    create: SUPPLIER_SIDE,                    // Supplier initiates variations
+    edit: SUPPLIER_SIDE,                      // Supplier edits drafts
+    delete: SUPPLIER_SIDE,                    // Supplier can delete drafts
+    submit: SUPPLIER_SIDE,                    // Submit for approval
+    signAsSupplier: SUPPLIER_SIDE,            // Supplier signs approval
+    signAsCustomer: CUSTOMER_SIDE,            // Customer signs approval
+    reject: MANAGERS,                         // Any manager can reject
+    apply: SUPPLIER_SIDE,                     // System applies after dual-sign
+  },
+
+  // ----------------------------------------
   // CERTIFICATES
   // ----------------------------------------
   certificates: {

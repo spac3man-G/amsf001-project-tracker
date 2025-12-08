@@ -51,3 +51,13 @@ export {
   CALENDAR_EVENT_TYPE,
   EVENT_TYPE_CONFIG
 } from './calendar.service';
+
+// Variations (change control)
+export { 
+  variationsService, 
+  VariationsService,
+  VARIATION_STATUS, 
+  VARIATION_TYPE,
+  STATUS_CONFIG as VARIATION_STATUS_CONFIG,
+  TYPE_CONFIG as VARIATION_TYPE_CONFIG
+} from './variations.service';

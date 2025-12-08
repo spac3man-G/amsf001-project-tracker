@@ -410,6 +410,38 @@ export function canDeletePartner(userRole) {
 }
 
 // ============================================
+// VARIATION PERMISSIONS
+// ============================================
+
+export function canCreateVariation(userRole) {
+  return hasPermission(userRole, 'variations', 'create');
+}
+
+export function canEditVariation(userRole) {
+  return hasPermission(userRole, 'variations', 'edit');
+}
+
+export function canDeleteVariation(userRole) {
+  return hasPermission(userRole, 'variations', 'delete');
+}
+
+export function canSubmitVariation(userRole) {
+  return hasPermission(userRole, 'variations', 'submit');
+}
+
+export function canSignVariationAsSupplier(userRole) {
+  return hasPermission(userRole, 'variations', 'signAsSupplier');
+}
+
+export function canSignVariationAsCustomer(userRole) {
+  return hasPermission(userRole, 'variations', 'signAsCustomer');
+}
+
+export function canRejectVariation(userRole) {
+  return hasPermission(userRole, 'variations', 'reject');
+}
+
+// ============================================
 // CERTIFICATE PERMISSIONS
 // ============================================
 
