@@ -35,7 +35,8 @@ import {
   Archive,
   PoundSterling,
   ShieldAlert,
-  CalendarDays
+  CalendarDays,
+  GitPullRequestDraft
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -206,6 +207,14 @@ export const NAV_ITEMS = {
     label: 'Calendar',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
+  },
+  variations: {
+    id: 'variations',
+    path: '/variations',
+    icon: GitPullRequestDraft,
+    label: 'Variations',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
+    readOnlyRoles: [ROLES.CUSTOMER_PM]
   }
 };
 
@@ -241,6 +250,7 @@ export const ROLE_NAV_ORDER = {
     'gantt',
     'milestones',
     'deliverables',
+    'variations',
     'kpis',
     'qualityStandards',
     'raid',
@@ -262,6 +272,7 @@ export const ROLE_NAV_ORDER = {
     'gantt',
     'milestones',
     'deliverables',
+    'variations',
     'kpis',
     'qualityStandards',
     'raid',
@@ -283,6 +294,7 @@ export const ROLE_NAV_ORDER = {
     'gantt',
     'milestones',
     'deliverables',
+    'variations',
     'kpis',
     'qualityStandards',
     'raid',
