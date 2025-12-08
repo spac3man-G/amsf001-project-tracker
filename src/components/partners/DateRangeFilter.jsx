@@ -6,15 +6,22 @@
  * - Custom date range inputs
  * - Clear button
  * - Current selection display
- * - Generate invoice button (when range selected)
+ * - Generate invoice button with type selection
  * 
- * @version 1.0
+ * @version 2.0
  * @created 1 December 2025
+ * @updated 8 December 2025 - Added invoice type selection
  * @extracted-from PartnerDetail.jsx
  */
 
-import React from 'react';
-import { Calendar, X, FileText, Loader } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, X, FileText, Loader, ChevronDown, Clock, Receipt } from 'lucide-react';
+
+const INVOICE_TYPES = [
+  { value: 'combined', label: 'Timesheets & Expenses', icon: FileText, description: 'Full invoice with all items' },
+  { value: 'timesheets', label: 'Timesheets Only', icon: Clock, description: 'Work hours and day rates only' },
+  { value: 'expenses', label: 'Expenses Only', icon: Receipt, description: 'Partner expenses only' }
+];
 
 export default function DateRangeFilter({
   dateRange,
@@ -26,6 +33,8 @@ export default function DateRangeFilter({
   generatingInvoice,
   getDateRangeLabel
 }) {
+  const [showInvoiceOptions, setShowInvoiceOptions] = useState(false);
+
   // Generate month options for the last 12 months
   function getMonthOptions() {
     const months = [];
@@ -37,6 +46,11 @@ export default function DateRangeFilter({
       months.push({ value, label });
     }
     return months;
+  }
+
+  function handleGenerateInvoice(invoiceType) {
+    setShowInvoiceOptions(false);
+    onGenerateInvoice(invoiceType);
   }
 
   const hasDateRange = dateRange.start && dateRange.end;
@@ -108,29 +122,126 @@ export default function DateRangeFilter({
         </div>
       </div>
       
-      {/* Generate Invoice Button - only show when date range is selected */}
+      {/* Generate Invoice Button with Type Selection */}
       {hasDateRange && (
         <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
-          <button
-            className="btn btn-primary"
-            onClick={onGenerateInvoice}
-            disabled={generatingInvoice}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            {generatingInvoice ? (
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowInvoiceOptions(!showInvoiceOptions)}
+              disabled={generatingInvoice}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              {generatingInvoice ? (
+                <>
+                  <Loader size={18} className="spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileText size={18} />
+                  Generate Invoice for {getDateRangeLabel()}
+                  <ChevronDown size={16} style={{ marginLeft: '0.25rem' }} />
+                </>
+              )}
+            </button>
+            
+            {/* Invoice Type Dropdown */}
+            {showInvoiceOptions && !generatingInvoice && (
               <>
-                <Loader size={18} className="spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <FileText size={18} />
-                Generate Invoice for {getDateRangeLabel()}
+                {/* Backdrop to close dropdown */}
+                <div 
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 10
+                  }}
+                  onClick={() => setShowInvoiceOptions(false)}
+                />
+                
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  border: '1px solid #e5e7eb',
+                  minWidth: '280px',
+                  zIndex: 20,
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' }}>
+                      Select Invoice Type
+                    </span>
+                  </div>
+                  
+                  {INVOICE_TYPES.map((type) => {
+                    const Icon = type.icon;
+                    return (
+                      <button
+                        key={type.value}
+                        onClick={() => handleGenerateInvoice(type.value)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          width: '100%',
+                          padding: '12px 16px',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background-color 0.15s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '8px',
+                          backgroundColor: type.value === 'combined' ? '#dcfce7' : 
+                                          type.value === 'timesheets' ? '#dbeafe' : '#fef3c7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <Icon size={18} style={{ 
+                            color: type.value === 'combined' ? '#16a34a' : 
+                                   type.value === 'timesheets' ? '#2563eb' : '#d97706' 
+                          }} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '500', color: '#1f2937', fontSize: '0.9rem' }}>
+                            {type.label}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '2px' }}>
+                            {type.description}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </>
             )}
-          </button>
+          </div>
         </div>
       )}
+      
+      <style jsx>{`
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

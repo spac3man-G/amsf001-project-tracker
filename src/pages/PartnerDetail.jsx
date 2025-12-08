@@ -256,7 +256,7 @@ export default function PartnerDetail() {
   }
 
   // Invoice generation
-  async function handleGenerateInvoice() {
+  async function handleGenerateInvoice(invoiceType = 'combined') {
     if (!dateRange.start || !dateRange.end) {
       setError('Please select a date range first');
       return;
@@ -271,7 +271,8 @@ export default function PartnerDetail() {
         periodStart: dateRange.start,
         periodEnd: dateRange.end,
         createdBy: user?.id,
-        notes: null
+        notes: null,
+        invoiceType
       });
       setGeneratedInvoice(invoice);
       setShowInvoiceModal(true);

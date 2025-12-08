@@ -149,6 +149,7 @@ export class InvoicingService extends BaseService {
    * @param {string} params.createdBy - User UUID
    * @param {string} params.notes - Optional notes
    * @param {boolean} params.includeSubmitted - Include submitted (not just approved) timesheets
+   * @param {string} params.invoiceType - Type of invoice: 'combined', 'timesheets', or 'expenses'
    */
   async generateInvoice(params) {
     const { 
@@ -158,8 +159,12 @@ export class InvoicingService extends BaseService {
       periodEnd, 
       createdBy, 
       notes,
-      includeSubmitted = true  // Default to including submitted timesheets
+      includeSubmitted = true,  // Default to including submitted timesheets
+      invoiceType = 'combined'  // Default to combined invoice
     } = params;
+    
+    const includeTimesheets = invoiceType === 'combined' || invoiceType === 'timesheets';
+    const includeExpenses = invoiceType === 'combined' || invoiceType === 'expenses';
 
     try {
       // 1. Get resources linked to this partner
@@ -178,28 +183,36 @@ export class InvoicingService extends BaseService {
       resources.forEach(r => { resourceMap[r.id] = r; });
 
       // 2. Get timesheets for period (approved or submitted based on option)
-      const validStatuses = includeSubmitted ? ['Approved', 'Submitted'] : ['Approved'];
-      
-      const { data: timesheets, error: tsError } = await supabase
-        .from('timesheets')
-        .select('id, date, hours_worked, hours, status, resource_id')
-        .in('resource_id', resourceIds)
-        .gte('date', periodStart)
-        .lte('date', periodEnd)
-        .in('status', validStatuses);
+      let timesheets = [];
+      if (includeTimesheets) {
+        const validStatuses = includeSubmitted ? ['Approved', 'Submitted'] : ['Approved'];
+        
+        const { data: tsData, error: tsError } = await supabase
+          .from('timesheets')
+          .select('id, date, hours_worked, hours, status, resource_id')
+          .in('resource_id', resourceIds)
+          .gte('date', periodStart)
+          .lte('date', periodEnd)
+          .in('status', validStatuses);
 
-      if (tsError) throw tsError;
+        if (tsError) throw tsError;
+        timesheets = tsData || [];
+      }
 
       // 3. Get ALL expenses for period (both supplier and partner procured)
-      const { data: allExpenses, error: expError } = await supabase
-        .from('expenses')
-        .select('id, expense_date, category, reason, amount, resource_id, resource_name, procurement_method, chargeable_to_customer, status')
-        .in('resource_id', resourceIds)
-        .gte('expense_date', periodStart)
-        .lte('expense_date', periodEnd)
-        .in('status', ['Approved', 'Submitted', 'Paid']);
+      let allExpenses = [];
+      if (includeExpenses) {
+        const { data: expData, error: expError } = await supabase
+          .from('expenses')
+          .select('id, expense_date, category, reason, amount, resource_id, resource_name, procurement_method, chargeable_to_customer, status')
+          .in('resource_id', resourceIds)
+          .gte('expense_date', periodStart)
+          .lte('expense_date', periodEnd)
+          .in('status', ['Approved', 'Submitted', 'Paid']);
 
-      if (expError) throw expError;
+        if (expError) throw expError;
+        allExpenses = expData || [];
+      }
 
       // Separate expenses by procurement method
       // Default to 'partner' if procurement_method is null (backward compatibility)
@@ -340,6 +353,11 @@ export class InvoicingService extends BaseService {
 
       // 8. Generate invoice number
       const invoiceNumber = await this.generateInvoiceNumber(projectId);
+      
+      // Generate invoice type label for notes
+      const invoiceTypeLabel = invoiceType === 'timesheets' ? 'Timesheets Only' :
+                               invoiceType === 'expenses' ? 'Expenses Only' : 
+                               'Combined (Timesheets & Expenses)';
 
       // 9. Create invoice record
       const { data: invoice, error: invError } = await supabase
@@ -358,8 +376,9 @@ export class InvoicingService extends BaseService {
           chargeable_total: chargeableTotal,
           non_chargeable_total: nonChargeableTotal,
           status: 'Draft',
-          notes: notes || null,
-          created_by: createdBy
+          notes: notes || `Invoice Type: ${invoiceTypeLabel}`,
+          created_by: createdBy,
+          invoice_type: invoiceType
         })
         .select()
         .single();
