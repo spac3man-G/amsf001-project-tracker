@@ -1157,3 +1157,22 @@
     font-size: 0.75rem;
   }
 }
+
+
+/* Events row in week view (when showing M&D with availability) */
+.cal-week-row.cal-events-row {
+  background-color: var(--color-gray-50);
+  border-bottom: 2px solid var(--color-gray-200);
+}
+
+.cal-week-row.cal-events-row .cal-resource-cell {
+  background-color: var(--color-primary-50);
+}
+
+.cal-week-row.cal-events-row .cal-day-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px;
+  align-items: flex-start;
+}

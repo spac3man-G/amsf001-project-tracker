@@ -869,6 +869,46 @@ function WeekView({ currentDate, members, currentUserId, userRole, showAvailabil
         ))}
       </div>
       
+      {/* Milestones & Deliverables row when enabled */}
+      {(showMilestones || showDeliverables) && (
+        <div className="cal-week-row cal-events-row">
+          <div className="cal-resource-cell">
+            <div className="cal-resource-name">Events</div>
+            <div className="cal-resource-role">Milestones & Deliverables</div>
+          </div>
+          {weekDates.map((date, idx) => {
+            const dayMilestones = getMilestonesForDate(date);
+            const dayDeliverables = getDeliverablesForDate(date);
+            return (
+              <div
+                key={idx}
+                className={`cal-day-cell not-editable ${dateUtils.isWeekend(date) ? 'weekend' : ''} ${dateUtils.isToday(date) ? 'today' : ''}`}
+                style={{ minHeight: '60px' }}
+              >
+                {showMilestones && dayMilestones.map(m => (
+                  <EventBadge 
+                    key={m.id} 
+                    type={CALENDAR_EVENT_TYPE.MILESTONE} 
+                    item={m}
+                    isOverdue={dateUtils.isPast(m.forecast_end_date || m.end_date)} 
+                    onClick={(e) => { e.stopPropagation(); onMilestoneClick && onMilestoneClick(m); }}
+                  />
+                ))}
+                {showDeliverables && dayDeliverables.map(d => (
+                  <EventBadge 
+                    key={d.id} 
+                    type={CALENDAR_EVENT_TYPE.DELIVERABLE} 
+                    item={d}
+                    isOverdue={dateUtils.isPast(d.due_date) && d.status !== 'Delivered'} 
+                    onClick={(e) => { e.stopPropagation(); onDeliverableClick && onDeliverableClick(d); }}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      
       {members.map(member => {
         const canEditThis = canEditAvailability(userRole, currentUserId, member.id);
         
