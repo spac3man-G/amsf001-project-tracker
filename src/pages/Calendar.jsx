@@ -278,9 +278,12 @@ function AvailabilityBadge({ status, period, size = 'normal' }) {
 }
 
 function EventBadge({ type, item, isOverdue, size = 'normal', onClick, onMouseEnter, onMouseLeave }) {
+  // Guard against undefined item
+  if (!item) return null;
+  
   const typeClass = type === CALENDAR_EVENT_TYPE.MILESTONE ? 'milestone' : 'deliverable';
   const reference = type === CALENDAR_EVENT_TYPE.MILESTONE ? item.milestone_ref : item.deliverable_ref;
-  const name = item.name;
+  const name = item.name || '';
   
   if (size === 'mini') {
     return (
