@@ -259,21 +259,8 @@ class CalendarService {
     try {
       const { data, error } = await supabase
         .from('milestones')
-        .select(`
-          id,
-          project_id,
-          milestone_ref,
-          name,
-          description,
-          start_date,
-          end_date,
-          forecast_end_date,
-          status,
-          completion_percentage,
-          billable
-        `)
+        .select('*')
         .eq('project_id', projectId)
-        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('end_date', { ascending: true });
       
       if (error) {
@@ -281,12 +268,14 @@ class CalendarService {
         throw error;
       }
       
-      // Filter to milestones with forecast_end_date or end_date in range
-      const filtered = (data || []).filter(m => {
-        const dueDate = m.forecast_end_date || m.end_date;
-        if (!dueDate) return false;
-        return dueDate >= startDate && dueDate <= endDate;
-      });
+      // Filter client-side: exclude soft-deleted and filter by date range
+      const filtered = (data || [])
+        .filter(m => m.is_deleted !== true) // Exclude soft-deleted
+        .filter(m => {
+          const dueDate = m.forecast_end_date || m.end_date;
+          if (!dueDate) return false;
+          return dueDate >= startDate && dueDate <= endDate;
+        });
       
       return filtered;
     } catch (error) {
@@ -302,21 +291,8 @@ class CalendarService {
     try {
       const { data, error } = await supabase
         .from('milestones')
-        .select(`
-          id,
-          project_id,
-          milestone_ref,
-          name,
-          description,
-          start_date,
-          end_date,
-          forecast_end_date,
-          status,
-          completion_percentage,
-          billable
-        `)
+        .select('*')
         .eq('project_id', projectId)
-        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('end_date', { ascending: true });
       
       if (error) {
@@ -324,7 +300,8 @@ class CalendarService {
         throw error;
       }
       
-      return data || [];
+      // Filter client-side: exclude soft-deleted
+      return (data || []).filter(m => m.is_deleted !== true);
     } catch (error) {
       console.error('getAllMilestones failed:', error);
       throw error;
@@ -336,7 +313,7 @@ class CalendarService {
   // ========================================
   
   /**
-   * Get deliverables for a date range (using due_date from milestone's forecast)
+   * Get deliverables for a date range (using due_date)
    */
   async getDeliverablesByDateRange(projectId, startDate, endDate) {
     try {
@@ -352,6 +329,7 @@ class CalendarService {
           due_date,
           status,
           progress,
+          is_deleted,
           milestones (
             milestone_ref,
             name,
@@ -359,7 +337,6 @@ class CalendarService {
           )
         `)
         .eq('project_id', projectId)
-        .or('is_deleted.is.null,is_deleted.eq.false')
         .gte('due_date', startDate)
         .lte('due_date', endDate)
         .order('due_date', { ascending: true });
@@ -369,7 +346,8 @@ class CalendarService {
         throw error;
       }
       
-      return data || [];
+      // Filter client-side: exclude soft-deleted
+      return (data || []).filter(d => d.is_deleted !== true);
     } catch (error) {
       console.error('getDeliverablesByDateRange failed:', error);
       throw error;
@@ -393,6 +371,7 @@ class CalendarService {
           due_date,
           status,
           progress,
+          is_deleted,
           milestones (
             milestone_ref,
             name,
@@ -400,7 +379,6 @@ class CalendarService {
           )
         `)
         .eq('project_id', projectId)
-        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('due_date', { ascending: true });
       
       if (error) {
@@ -408,7 +386,8 @@ class CalendarService {
         throw error;
       }
       
-      return data || [];
+      // Filter client-side: exclude soft-deleted
+      return (data || []).filter(d => d.is_deleted !== true);
     } catch (error) {
       console.error('getAllDeliverables failed:', error);
       throw error;
