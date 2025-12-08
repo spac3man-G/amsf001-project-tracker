@@ -751,6 +751,8 @@ export default function ProjectCalendar() {
                 showMilestones={currentViewConfig.showMilestones}
                 showDeliverables={currentViewConfig.showDeliverables}
                 onCellClick={handleCellClick}
+                onMilestoneClick={(m) => navigate(`/milestones/${m.id}`)}
+                onDeliverableClick={(d) => navigate(`/milestones/${d.milestone_id}`)}
                 getAvailabilityEntry={getAvailabilityEntry}
                 getMilestonesForDate={getMilestonesForDate}
                 getDeliverablesForDate={getDeliverablesForDate}
@@ -765,6 +767,12 @@ export default function ProjectCalendar() {
                 showMilestones={currentViewConfig.showMilestones}
                 showDeliverables={currentViewConfig.showDeliverables}
                 onCellClick={handleCellClick}
+                onMilestoneClick={(m) => navigate(`/milestones/${m.id}`)}
+                onDeliverableClick={(d) => navigate(`/milestones/${d.milestone_id}`)}
+                onDateClick={(date) => {
+                  setCurrentDate(date);
+                  setPeriodView('week');
+                }}
                 getAvailabilityEntry={getAvailabilityEntry}
                 getMilestonesForDate={getMilestonesForDate}
                 getDeliverablesForDate={getDeliverablesForDate}
@@ -799,7 +807,7 @@ export default function ProjectCalendar() {
 // WEEK VIEW COMPONENT
 // ========================================
 
-function WeekView({ currentDate, members, currentUserId, userRole, showAvailability, showMilestones, showDeliverables, onCellClick, getAvailabilityEntry, getMilestonesForDate, getDeliverablesForDate }) {
+function WeekView({ currentDate, members, currentUserId, userRole, showAvailability, showMilestones, showDeliverables, onCellClick, onMilestoneClick, onDeliverableClick, getAvailabilityEntry, getMilestonesForDate, getDeliverablesForDate }) {
   const weekDates = dateUtils.getWeekDates(currentDate);
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   
@@ -820,8 +828,24 @@ function WeekView({ currentDate, members, currentUserId, userRole, showAvailabil
             const dayDeliverables = getDeliverablesForDate(date);
             return (
               <div key={idx} className={`cal-day-cell not-editable ${dateUtils.isWeekend(date) ? 'weekend' : ''} ${dateUtils.isToday(date) ? 'today' : ''}`} style={{ minHeight: '120px' }}>
-                {showMilestones && dayMilestones.map(m => <EventBadge key={m.id} type={CALENDAR_EVENT_TYPE.MILESTONE} reference={m.milestone_ref} name={m.name} isOverdue={dateUtils.isPast(m.forecast_end_date || m.end_date)} />)}
-                {showDeliverables && dayDeliverables.map(d => <EventBadge key={d.id} type={CALENDAR_EVENT_TYPE.DELIVERABLE} reference={d.deliverable_ref} name={d.name} isOverdue={dateUtils.isPast(d.due_date) && d.status !== 'Delivered'} />)}
+                {showMilestones && dayMilestones.map(m => (
+                  <EventBadge 
+                    key={m.id} 
+                    type={CALENDAR_EVENT_TYPE.MILESTONE} 
+                    item={m}
+                    isOverdue={dateUtils.isPast(m.forecast_end_date || m.end_date)} 
+                    onClick={(e) => { e.stopPropagation(); onMilestoneClick && onMilestoneClick(m); }}
+                  />
+                ))}
+                {showDeliverables && dayDeliverables.map(d => (
+                  <EventBadge 
+                    key={d.id} 
+                    type={CALENDAR_EVENT_TYPE.DELIVERABLE} 
+                    item={d}
+                    isOverdue={dateUtils.isPast(d.due_date) && d.status !== 'Delivered'} 
+                    onClick={(e) => { e.stopPropagation(); onDeliverableClick && onDeliverableClick(d); }}
+                  />
+                ))}
               </div>
             );
           })}
@@ -843,7 +867,6 @@ function WeekView({ currentDate, members, currentUserId, userRole, showAvailabil
       </div>
       
       {members.map(member => {
-        // Check if current user can edit this member's availability
         const canEditThis = canEditAvailability(userRole, currentUserId, member.id);
         
         return (
@@ -877,11 +900,13 @@ function WeekView({ currentDate, members, currentUserId, userRole, showAvailabil
 // MONTH VIEW COMPONENT
 // ========================================
 
-function MonthView({ currentDate, members, currentUserId, userRole, showAvailability, showMilestones, showDeliverables, onCellClick, getAvailabilityEntry, getMilestonesForDate, getDeliverablesForDate }) {
+function MonthView({ currentDate, members, currentUserId, userRole, showAvailability, showMilestones, showDeliverables, onCellClick, onMilestoneClick, onDeliverableClick, onDateClick, getAvailabilityEntry, getMilestonesForDate, getDeliverablesForDate }) {
   const weeks = dateUtils.getMonthWeeks(currentDate);
   const currentMonth = currentDate.getMonth();
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   
+  // Month view without availability - just milestones/deliverables
+  // Clicking on a day with items drills down to week view
   if (!showAvailability || members.length === 0) {
     return (
       <div className="cal-month-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
@@ -894,11 +919,35 @@ function MonthView({ currentDate, members, currentUserId, userRole, showAvailabi
               const isOutsideMonth = date.getMonth() !== currentMonth;
               const dayMilestones = getMilestonesForDate(date);
               const dayDeliverables = getDeliverablesForDate(date);
+              const hasItems = dayMilestones.length > 0 || dayDeliverables.length > 0;
+              
               return (
-                <div key={dayIdx} className={`cal-month-cell not-editable ${dateUtils.isWeekend(date) ? 'weekend' : ''} ${dateUtils.isToday(date) ? 'today' : ''} ${isOutsideMonth ? 'outside-month' : ''}`} style={{ minHeight: '80px' }}>
+                <div 
+                  key={dayIdx} 
+                  className={`cal-month-cell ${hasItems ? 'has-items' : ''} ${dateUtils.isWeekend(date) ? 'weekend' : ''} ${dateUtils.isToday(date) ? 'today' : ''} ${isOutsideMonth ? 'outside-month' : ''}`} 
+                  style={{ minHeight: '80px', cursor: hasItems && !isOutsideMonth ? 'pointer' : 'default' }}
+                  onClick={() => hasItems && !isOutsideMonth && onDateClick && onDateClick(date)}
+                  title={hasItems ? 'Click to see week view' : ''}
+                >
                   <span className="cal-month-date">{dateUtils.formatDisplay(date, 'short')}</span>
-                  {showMilestones && dayMilestones.map(m => <EventBadge key={m.id} type={CALENDAR_EVENT_TYPE.MILESTONE} reference={m.milestone_ref} name={m.name} size="mini" />)}
-                  {showDeliverables && dayDeliverables.map(d => <EventBadge key={d.id} type={CALENDAR_EVENT_TYPE.DELIVERABLE} reference={d.deliverable_ref} name={d.name} size="mini" />)}
+                  {showMilestones && dayMilestones.map(m => (
+                    <EventBadge 
+                      key={m.id} 
+                      type={CALENDAR_EVENT_TYPE.MILESTONE} 
+                      item={m}
+                      size="mini" 
+                      onClick={(e) => { e.stopPropagation(); onMilestoneClick && onMilestoneClick(m); }}
+                    />
+                  ))}
+                  {showDeliverables && dayDeliverables.map(d => (
+                    <EventBadge 
+                      key={d.id} 
+                      type={CALENDAR_EVENT_TYPE.DELIVERABLE} 
+                      item={d}
+                      size="mini" 
+                      onClick={(e) => { e.stopPropagation(); onDeliverableClick && onDeliverableClick(d); }}
+                    />
+                  ))}
                 </div>
               );
             })}
@@ -908,6 +957,7 @@ function MonthView({ currentDate, members, currentUserId, userRole, showAvailabi
     );
   }
   
+  // Month view with availability rows
   return (
     <div className="cal-month-grid">
       <div className="cal-month-header">
@@ -915,7 +965,6 @@ function MonthView({ currentDate, members, currentUserId, userRole, showAvailabi
         {dayNames.map((day, idx) => <div key={idx} className="cal-month-header-cell">{day}</div>)}
       </div>
       {members.map(member => {
-        // Check if current user can edit this member's availability
         const canEditThis = canEditAvailability(userRole, currentUserId, member.id);
         
         return weeks.map((week, weekIdx) => (

@@ -1088,6 +1088,28 @@
   }
 }
 
+/* Clickable event badges */
+.cal-event-badge.clickable,
+.cal-mini-badge.clickable {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cal-event-badge.clickable:hover,
+.cal-mini-badge.clickable:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Month cells with items */
+.cal-month-cell.has-items {
+  background-color: rgba(139, 92, 246, 0.05);
+}
+
+.cal-month-cell.has-items:hover {
+  background-color: rgba(139, 92, 246, 0.1);
+}
+
 @media (max-width: 768px) {
   .cal-header-content {
     flex-direction: column;
