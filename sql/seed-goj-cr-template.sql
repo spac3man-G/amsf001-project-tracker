@@ -231,7 +231,7 @@ BEGIN
               "subtitle": "(Required for all Change Requests)",
               "fields": [
                 { "label": "Name", "source": "variation.customer_signer.full_name", "default": "" },
-                { "label": "Title", "source": "variation.customer_signer.job_title", "default": "Customer PM" },
+                { "label": "Title", "source": "variation.customer_signer.job_title", "default": "" },
                 { "label": "Date", "source": "variation.customer_signed_at", "format": "date", "default": "" },
                 { "label": "Signature", "type": "signature_line" }
               ]
@@ -241,7 +241,7 @@ BEGIN
               "subtitle": "(Required for all Change Requests)",
               "fields": [
                 { "label": "Name", "source": "variation.supplier_signer.full_name", "default": "" },
-                { "label": "Title", "source": "variation.supplier_signer.job_title", "default": "Supplier PM" },
+                { "label": "Title", "source": "variation.supplier_signer.job_title", "default": "" },
                 { "label": "Date", "source": "variation.supplier_signed_at", "format": "date", "default": "" },
                 { "label": "Signature", "type": "signature_line" }
               ]

@@ -210,8 +210,10 @@ export function useCRDocument(variation, project) {
       const data = {
         variation: {
           ...variation,
-          // Ensure creator data is included
-          creator: variation.creator || { full_name: 'Unknown' },
+          // Ensure creator data is included - use initiator_name if set, otherwise fall back to creator
+          creator: {
+            full_name: variation.initiator_name || variation.creator?.full_name || 'Unknown'
+          },
           // Add affected milestones with computed fields
           affected_milestones: (variation.affected_milestones || []).map(am => ({
             ref: am.milestone?.milestone_ref || 'NEW',

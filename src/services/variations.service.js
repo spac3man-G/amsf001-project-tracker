@@ -333,6 +333,25 @@ export class VariationsService extends BaseService {
   }
 
   /**
+   * Clear all affected milestones for a variation
+   * Used before re-adding milestones during submission to prevent duplicates
+   */
+  async clearAffectedMilestones(variationId) {
+    try {
+      const { error } = await supabase
+        .from('variation_milestones')
+        .delete()
+        .eq('variation_id', variationId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('VariationsService clearAffectedMilestones error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Add deliverable change to variation
    */
   async addDeliverableChange(variationId, changeData) {

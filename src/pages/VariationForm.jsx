@@ -104,6 +104,8 @@ export default function VariationForm() {
     priority: '',
     date_required: '',
     benefits: '',
+    initiator_name: '',
+    initiator_name: '',
     // Step 2: Milestones
     affected_milestones: [],
     // Step 4: Assumptions & Risks
@@ -160,6 +162,7 @@ export default function VariationForm() {
               priority: v.priority || '',
               date_required: v.date_required || '',
               benefits: v.benefits || '',
+              initiator_name: v.initiator_name || '',
               affected_milestones: v.affected_milestones || [],
               assumptions: v.assumptions || '',
               risks: v.risks || '',
@@ -411,6 +414,7 @@ export default function VariationForm() {
           priority: formData.priority || null,
           date_required: formData.date_required || null,
           benefits: formData.benefits || null,
+          initiator_name: formData.initiator_name || null,
           assumptions: formData.assumptions || null,
           risks: formData.risks || null,
           cost_summary: formData.cost_summary || null,
@@ -434,6 +438,7 @@ export default function VariationForm() {
           priority: formData.priority || null,
           date_required: formData.date_required || null,
           benefits: formData.benefits || null,
+          initiator_name: formData.initiator_name || null,
           assumptions: formData.assumptions || null,
           risks: formData.risks || null,
           cost_summary: formData.cost_summary || null,
@@ -490,6 +495,7 @@ export default function VariationForm() {
           priority: formData.priority || null,
           date_required: formData.date_required || null,
           benefits: formData.benefits || null,
+          initiator_name: formData.initiator_name || null,
           assumptions: formData.assumptions || null,
           risks: formData.risks || null,
           cost_summary: formData.cost_summary || null,
@@ -504,6 +510,9 @@ export default function VariationForm() {
       if (!currentVariation?.id) {
         throw new Error('Failed to create variation');
       }
+
+      // Clear existing affected milestones before re-adding (prevents duplicates)
+      await variationsService.clearAffectedMilestones(currentVariation.id);
 
       // Save affected milestones to variation_milestones table
       for (const am of formData.affected_milestones) {
@@ -615,6 +624,17 @@ export default function VariationForm() {
                     onChange={e => updateField('title', e.target.value)}
                     placeholder="e.g., Additional Security Requirements"
                   />
+                </div>
+
+                <div className="vf-field">
+                  <label>Initiator Name</label>
+                  <input
+                    type="text"
+                    value={formData.initiator_name}
+                    onChange={e => updateField('initiator_name', e.target.value)}
+                    placeholder="e.g., John Smith"
+                  />
+                  <span className="vf-field-hint">Person requesting this change</span>
                 </div>
 
                 <div className="vf-field">
@@ -1120,6 +1140,12 @@ export default function VariationForm() {
                     <span className="vf-review-label">Title</span>
                     <span className="vf-review-value">{formData.title || '-'}</span>
                   </div>
+                  {formData.initiator_name && (
+                    <div className="vf-review-row">
+                      <span className="vf-review-label">Initiator</span>
+                      <span className="vf-review-value">{formData.initiator_name}</span>
+                    </div>
+                  )}
                   <div className="vf-review-row">
                     <span className="vf-review-label">Type</span>
                     <span className="vf-review-value">
