@@ -61,3 +61,18 @@ export {
   STATUS_CONFIG as VARIATION_STATUS_CONFIG,
   TYPE_CONFIG as VARIATION_TYPE_CONFIG
 } from './variations.service';
+
+// Document Templates (template-driven document generation)
+export {
+  documentTemplatesService,
+  DocumentTemplatesService,
+  TEMPLATE_TYPE,
+  TEMPLATE_TYPE_CONFIG,
+  OUTPUT_FORMAT
+} from './documentTemplates.service';
+
+// Document Renderer (generates documents from templates)
+export {
+  documentRendererService,
+  DocumentRendererService
+} from './documentRenderer.service';

@@ -36,3 +36,11 @@ export {
   useExpenseMetrics,
   useBudgetMetrics
 } from './useMetrics';
+
+// Document Templates
+export {
+  useDocumentTemplates,
+  useDefaultTemplate,
+  useDocumentRenderer,
+  useCRDocument
+} from './useDocumentTemplates';

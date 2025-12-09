@@ -45,6 +45,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, ConfirmDialog } from '../components/common';
 import { formatDate, formatCurrency, formatDateTime } from '../lib/formatters';
 import VariationCertificateModal from '../components/variations/VariationCertificateModal';
+import CRDocumentModal from '../components/variations/CRDocumentModal';
 import './VariationDetail.css';
 
 export default function VariationDetail() {
@@ -65,6 +66,7 @@ export default function VariationDetail() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [showCRModal, setShowCRModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -247,6 +249,13 @@ export default function VariationDetail() {
               <button className="vd-btn vd-btn-primary" onClick={handleSubmit}>
                 <Send size={18} />
                 Submit for Approval
+              </button>
+            )}
+            {/* Generate CR Document - available for non-draft variations */}
+            {variation.status !== VARIATION_STATUS.DRAFT && (
+              <button className="vd-btn vd-btn-secondary" onClick={() => setShowCRModal(true)}>
+                <FileText size={18} />
+                Generate CR
               </button>
             )}
             {actions.canViewCertificate && (
@@ -593,6 +602,14 @@ export default function VariationDetail() {
         <VariationCertificateModal
           variation={variation}
           onClose={() => setShowCertificateModal(false)}
+        />
+      )}
+
+      {/* CR Document Modal */}
+      {showCRModal && (
+        <CRDocumentModal
+          variation={variation}
+          onClose={() => setShowCRModal(false)}
         />
       )}
 
