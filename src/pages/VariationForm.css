@@ -1051,3 +1051,155 @@
   color: var(--ds-text-secondary);
   font-family: var(--ds-font-mono);
 }
+
+
+/* ============================================
+   Phase 4: CR Document Fields Styles
+   Added: 9 December 2025
+   ============================================ */
+
+/* Priority Selection Grid */
+.vf-priority-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.vf-priority-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: var(--ds-bg-secondary);
+  border: 2px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vf-priority-option:hover {
+  border-color: var(--priority-color, var(--ds-blue));
+  background: var(--ds-bg-primary);
+}
+
+.vf-priority-option.selected {
+  border-color: var(--priority-color, var(--ds-blue));
+  background: color-mix(in srgb, var(--priority-color, var(--ds-blue)) 8%, white);
+}
+
+.vf-priority-radio {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--ds-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.15s ease;
+}
+
+.vf-priority-option.selected .vf-priority-radio {
+  background: var(--priority-color, var(--ds-blue));
+  border-color: var(--priority-color, var(--ds-blue));
+  color: white;
+}
+
+.vf-priority-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vf-priority-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ds-text-primary);
+}
+
+.vf-priority-option.selected .vf-priority-label {
+  color: var(--priority-color, var(--ds-blue));
+}
+
+.vf-priority-desc {
+  font-size: 12px;
+  color: var(--ds-text-secondary);
+  line-height: 1.4;
+}
+
+/* Priority Badge in Review */
+.vf-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vf-priority-badge.priority-h {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.vf-priority-badge.priority-m {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.vf-priority-badge.priority-l {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+/* Info Box */
+.vf-info-box {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  background: var(--ds-blue-light, #eff6ff);
+  border-radius: var(--ds-radius-md);
+  margin-top: 24px;
+  border: 1px solid var(--ds-blue-border, #bfdbfe);
+}
+
+.vf-info-box svg {
+  flex-shrink: 0;
+  color: var(--ds-blue, #3b82f6);
+}
+
+.vf-info-box strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  margin-bottom: 4px;
+}
+
+.vf-info-box p {
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Multiline Review Values */
+.vf-review-value.vf-review-multiline {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+/* Responsive adjustments for Priority Grid */
+@media (max-width: 768px) {
+  .vf-priority-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .vf-priority-option {
+    padding: 14px;
+  }
+}

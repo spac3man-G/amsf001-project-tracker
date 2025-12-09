@@ -2,14 +2,16 @@
  * Variation Form Page - Multi-Step Wizard
  * 
  * Create or edit variations with:
- * - Step 1: Basic Information
+ * - Step 1: Basic Information (title, type, priority, date_required, benefits)
  * - Step 2: Affected Milestones
  * - Step 3: Impact Details
- * - Step 4: Deliverable Due Date Updates
- * - Step 5: Review & Submit
+ * - Step 4: Assumptions & Risks
+ * - Step 5: Costs & Implementation
+ * - Step 6: Deliverable Due Date Updates
+ * - Step 7: Review & Submit
  * 
- * @version 1.1
- * @updated 8 December 2025
+ * @version 1.2
+ * @updated 9 December 2025 - Added CR document fields (Phase 4)
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -37,7 +39,11 @@ import {
   CheckCircle2,
   Trash2,
   Info,
-  CalendarDays
+  CalendarDays,
+  Flag,
+  Target,
+  ShieldAlert,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -51,8 +57,10 @@ const STEPS = [
   { id: 1, name: 'Basic Info', icon: FileText },
   { id: 2, name: 'Milestones', icon: Milestone },
   { id: 3, name: 'Impacts', icon: PoundSterling },
-  { id: 4, name: 'Deliverables', icon: Package },
-  { id: 5, name: 'Review', icon: CheckCircle2 }
+  { id: 4, name: 'Assumptions', icon: Target },
+  { id: 5, name: 'Costs', icon: Receipt },
+  { id: 6, name: 'Deliverables', icon: Package },
+  { id: 7, name: 'Review', icon: CheckCircle2 }
 ];
 
 const TYPE_OPTIONS = [
@@ -61,6 +69,12 @@ const TYPE_OPTIONS = [
   { value: VARIATION_TYPE.TIME_EXTENSION, label: 'Time Extension', desc: 'Schedule adjustment without scope change' },
   { value: VARIATION_TYPE.COST_ADJUSTMENT, label: 'Cost Adjustment', desc: 'Price change without scope/time change' },
   { value: VARIATION_TYPE.COMBINED, label: 'Combined', desc: 'Multiple impact types' }
+];
+
+const PRIORITY_OPTIONS = [
+  { value: 'H', label: 'High', desc: 'Critical - requires immediate attention', color: '#dc2626' },
+  { value: 'M', label: 'Medium', desc: 'Important - standard processing', color: '#f59e0b' },
+  { value: 'L', label: 'Low', desc: 'Minor - can be addressed as time permits', color: '#22c55e' }
 ];
 
 export default function VariationForm() {
@@ -81,13 +95,28 @@ export default function VariationForm() {
   const [autoSaveStatus, setAutoSaveStatus] = useState('saved');
 
   const [formData, setFormData] = useState({
+    // Step 1: Basic Info
     title: '',
     variation_type: '',
     description: '',
     reason: '',
     contract_terms_reference: '',
+    priority: '',
+    date_required: '',
+    benefits: '',
+    // Step 2: Milestones
     affected_milestones: [],
-    deliverable_date_updates: [], // Track which deliverables to update
+    // Step 4: Assumptions & Risks
+    assumptions: '',
+    risks: '',
+    // Step 5: Costs & Implementation
+    cost_summary: '',
+    impact_on_charges: '',
+    impact_on_service_levels: '',
+    implementation_timetable: '',
+    // Step 6: Deliverables
+    deliverable_date_updates: [],
+    // Step 7: Review
     impact_summary: ''
   });
 
@@ -128,7 +157,16 @@ export default function VariationForm() {
               description: v.description || '',
               reason: v.reason || '',
               contract_terms_reference: v.contract_terms_reference || '',
+              priority: v.priority || '',
+              date_required: v.date_required || '',
+              benefits: v.benefits || '',
               affected_milestones: v.affected_milestones || [],
+              assumptions: v.assumptions || '',
+              risks: v.risks || '',
+              cost_summary: v.cost_summary || '',
+              impact_on_charges: v.impact_on_charges || '',
+              impact_on_service_levels: v.impact_on_service_levels || '',
+              implementation_timetable: v.implementation_timetable || '',
               deliverable_date_updates: [],
               impact_summary: v.impact_summary || ''
             });
@@ -179,7 +217,7 @@ export default function VariationForm() {
   }
 
   async function nextStep() {
-    if (currentStep < 5) {
+    if (currentStep < 7) {
       await goToStep(currentStep + 1);
     }
   }
@@ -201,8 +239,12 @@ export default function VariationForm() {
           am.new_baseline_cost !== undefined || am.new_baseline_end
         );
       case 4:
-        return true; // Optional step
+        return true; // Assumptions & Risks - optional step
       case 5:
+        return true; // Costs & Implementation - optional step
+      case 6:
+        return true; // Deliverables - optional step
+      case 7:
         return formData.impact_summary && formData.impact_summary.trim().length > 0;
       default:
         return true;
@@ -266,12 +308,10 @@ export default function VariationForm() {
     const existing = formData.deliverable_date_updates.find(d => d.deliverable_id === deliverable.id);
     
     if (existing) {
-      // Remove it
       updateField('deliverable_date_updates', 
         formData.deliverable_date_updates.filter(d => d.deliverable_id !== deliverable.id)
       );
     } else {
-      // Add it with calculated new date
       const currentDueDate = deliverable.due_date || milestone.baseline_end_date || milestone.end_date;
       let newDueDate = null;
       
@@ -302,7 +342,6 @@ export default function VariationForm() {
     const milestone = formData.affected_milestones.find(am => am.milestone_id === milestoneId);
     
     if (select) {
-      // Add all not already selected
       const toAdd = milestoneDeliverables
         .filter(d => !formData.deliverable_date_updates.some(du => du.deliverable_id === d.id))
         .map(d => {
@@ -328,7 +367,6 @@ export default function VariationForm() {
       
       updateField('deliverable_date_updates', [...formData.deliverable_date_updates, ...toAdd]);
     } else {
-      // Remove all for this milestone
       updateField('deliverable_date_updates', 
         formData.deliverable_date_updates.filter(d => d.milestone_id !== milestoneId)
       );
@@ -352,7 +390,6 @@ export default function VariationForm() {
     return { totalCost, totalDays };
   }
 
-  // Calculate days difference for a specific milestone
   function getMilestoneDaysDiff(am) {
     if (!am.original_baseline_end || !am.new_baseline_end) return 0;
     const origEnd = new Date(am.original_baseline_end);
@@ -370,6 +407,16 @@ export default function VariationForm() {
           description: formData.description,
           reason: formData.reason,
           contract_terms_reference: formData.contract_terms_reference,
+          // New CR document fields
+          priority: formData.priority || null,
+          date_required: formData.date_required || null,
+          benefits: formData.benefits || null,
+          assumptions: formData.assumptions || null,
+          risks: formData.risks || null,
+          cost_summary: formData.cost_summary || null,
+          impact_on_charges: formData.impact_on_charges || null,
+          impact_on_service_levels: formData.impact_on_service_levels || null,
+          implementation_timetable: formData.implementation_timetable || null,
           form_data: formData,
           form_step: currentStep
         });
@@ -383,6 +430,16 @@ export default function VariationForm() {
           description: formData.description,
           reason: formData.reason,
           contract_terms_reference: formData.contract_terms_reference,
+          // New CR document fields
+          priority: formData.priority || null,
+          date_required: formData.date_required || null,
+          benefits: formData.benefits || null,
+          assumptions: formData.assumptions || null,
+          risks: formData.risks || null,
+          cost_summary: formData.cost_summary || null,
+          impact_on_charges: formData.impact_on_charges || null,
+          impact_on_service_levels: formData.impact_on_service_levels || null,
+          implementation_timetable: formData.implementation_timetable || null,
           form_data: formData,
           form_step: currentStep
         }, user?.id);
@@ -403,9 +460,9 @@ export default function VariationForm() {
 
   async function submitForApproval() {
     // Validate all steps
-    for (let step = 1; step <= 5; step++) {
+    for (let step = 1; step <= 7; step++) {
       if (!validateStep(step)) {
-        if (step === 5) {
+        if (step === 7) {
           showWarning('Please provide an Impact Summary before submitting');
         } else {
           showWarning(`Please complete Step ${step} before submitting`);
@@ -429,8 +486,18 @@ export default function VariationForm() {
           description: formData.description,
           reason: formData.reason,
           contract_terms_reference: formData.contract_terms_reference,
+          // New CR document fields
+          priority: formData.priority || null,
+          date_required: formData.date_required || null,
+          benefits: formData.benefits || null,
+          assumptions: formData.assumptions || null,
+          risks: formData.risks || null,
+          cost_summary: formData.cost_summary || null,
+          impact_on_charges: formData.impact_on_charges || null,
+          impact_on_service_levels: formData.impact_on_service_levels || null,
+          implementation_timetable: formData.implementation_timetable || null,
           form_data: formData,
-          form_step: 5
+          form_step: 7
         });
       }
 
@@ -571,6 +638,46 @@ export default function VariationForm() {
                   </div>
                 </div>
 
+                {/* New: Priority field */}
+                <div className="vf-field">
+                  <label>
+                    <Flag size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Priority
+                  </label>
+                  <div className="vf-priority-grid">
+                    {PRIORITY_OPTIONS.map(opt => (
+                      <div
+                        key={opt.value}
+                        className={`vf-priority-option ${formData.priority === opt.value ? 'selected' : ''}`}
+                        onClick={() => updateField('priority', opt.value)}
+                        style={{ '--priority-color': opt.color }}
+                      >
+                        <div className="vf-priority-radio">
+                          {formData.priority === opt.value && <Check size={14} />}
+                        </div>
+                        <div className="vf-priority-info">
+                          <span className="vf-priority-label">{opt.label}</span>
+                          <span className="vf-priority-desc">{opt.desc}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* New: Date Required field */}
+                <div className="vf-field">
+                  <label>
+                    <CalendarDays size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Date Required
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.date_required}
+                    onChange={e => updateField('date_required', e.target.value)}
+                  />
+                  <span className="vf-field-hint">When is this change needed by?</span>
+                </div>
+
                 <div className="vf-field">
                   <label>Description</label>
                   <textarea
@@ -587,6 +694,20 @@ export default function VariationForm() {
                     value={formData.reason}
                     onChange={e => updateField('reason', e.target.value)}
                     placeholder="Why is this variation necessary?"
+                    rows={3}
+                  />
+                </div>
+
+                {/* New: Benefits field */}
+                <div className="vf-field">
+                  <label>
+                    <Target size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Expected Benefits
+                  </label>
+                  <textarea
+                    value={formData.benefits}
+                    onChange={e => updateField('benefits', e.target.value)}
+                    placeholder="What benefits will this change deliver?"
                     rows={3}
                   />
                 </div>
@@ -760,8 +881,121 @@ export default function VariationForm() {
             </div>
           )}
 
-          {/* Step 4: Deliverable Due Date Updates */}
+          {/* Step 4: Assumptions & Risks */}
           {currentStep === 4 && (
+            <div className="vf-step-content">
+              <div className="vf-card">
+                <h2>Assumptions & Risks</h2>
+                <p className="vf-card-desc">Document any assumptions and identify potential risks associated with this change.</p>
+
+                <div className="vf-field">
+                  <label>
+                    <Info size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Key Assumptions
+                  </label>
+                  <textarea
+                    value={formData.assumptions}
+                    onChange={e => updateField('assumptions', e.target.value)}
+                    placeholder="List the key assumptions this change request is based on...&#10;&#10;For example:&#10;- Existing infrastructure can support the new requirements&#10;- Required resources will be available during implementation&#10;- Third-party dependencies will be delivered on schedule"
+                    rows={6}
+                  />
+                  <span className="vf-field-hint">What conditions must be true for this change to succeed?</span>
+                </div>
+
+                <div className="vf-field">
+                  <label>
+                    <ShieldAlert size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Identified Risks
+                  </label>
+                  <textarea
+                    value={formData.risks}
+                    onChange={e => updateField('risks', e.target.value)}
+                    placeholder="Identify potential risks and their mitigation strategies...&#10;&#10;For example:&#10;- Risk: Resource availability may be limited&#10;  Mitigation: Identify backup resources in advance&#10;- Risk: Integration complexity may cause delays&#10;  Mitigation: Allow buffer time in schedule"
+                    rows={6}
+                  />
+                  <span className="vf-field-hint">What could go wrong and how will you address it?</span>
+                </div>
+
+                <div className="vf-info-box">
+                  <Info size={18} />
+                  <div>
+                    <strong>Why document assumptions and risks?</strong>
+                    <p>Clearly documented assumptions help stakeholders understand the basis for estimates. 
+                       Identifying risks upfront enables proactive mitigation planning and sets realistic expectations.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Costs & Implementation */}
+          {currentStep === 5 && (
+            <div className="vf-step-content">
+              <div className="vf-card">
+                <h2>Costs & Implementation</h2>
+                <p className="vf-card-desc">Provide details on costs, billing impact, service levels, and implementation timeline.</p>
+
+                <div className="vf-field">
+                  <label>
+                    <Receipt size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Cost Summary
+                  </label>
+                  <textarea
+                    value={formData.cost_summary}
+                    onChange={e => updateField('cost_summary', e.target.value)}
+                    placeholder="Provide a breakdown of the costs...&#10;&#10;For example:&#10;- Labour: 40 hours @ £125/hr = £5,000&#10;- Materials/Equipment: £2,500&#10;- Third-party services: £1,500&#10;- Contingency (10%): £900&#10;- Total: £9,900"
+                    rows={6}
+                  />
+                  <span className="vf-field-hint">Break down the cost components of this change</span>
+                </div>
+
+                <div className="vf-field">
+                  <label>
+                    <PoundSterling size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Impact on Charges
+                  </label>
+                  <textarea
+                    value={formData.impact_on_charges}
+                    onChange={e => updateField('impact_on_charges', e.target.value)}
+                    placeholder="Describe how this change affects billing...&#10;&#10;For example:&#10;- One-time implementation charge of £9,900&#10;- No impact on recurring monthly charges&#10;- Or: Monthly service fee will increase by £500 from effective date"
+                    rows={4}
+                  />
+                  <span className="vf-field-hint">How will this change affect the client's billing?</span>
+                </div>
+
+                <div className="vf-field">
+                  <label>
+                    <AlertTriangle size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Impact on Service Levels
+                  </label>
+                  <textarea
+                    value={formData.impact_on_service_levels}
+                    onChange={e => updateField('impact_on_service_levels', e.target.value)}
+                    placeholder="Describe any impact on SLAs...&#10;&#10;For example:&#10;- No impact on existing SLAs&#10;- Or: Response time SLA will be temporarily relaxed during migration window&#10;- Or: New availability target of 99.9% will apply to additional component"
+                    rows={4}
+                  />
+                  <span className="vf-field-hint">Will this change affect any Service Level Agreements?</span>
+                </div>
+
+                <div className="vf-field">
+                  <label>
+                    <Clock size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                    Implementation Timetable
+                  </label>
+                  <textarea
+                    value={formData.implementation_timetable}
+                    onChange={e => updateField('implementation_timetable', e.target.value)}
+                    placeholder="Outline the implementation plan and timeline...&#10;&#10;For example:&#10;Week 1-2: Design and planning&#10;Week 3-4: Development and configuration&#10;Week 5: Testing and UAT&#10;Week 6: Deployment and go-live&#10;Week 7: Post-implementation support"
+                    rows={6}
+                  />
+                  <span className="vf-field-hint">What is the planned approach and schedule for implementation?</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Deliverable Due Date Updates */}
+          {currentStep === 6 && (
             <div className="vf-step-content">
               <div className="vf-card">
                 <h2>Deliverable Due Dates</h2>
@@ -785,9 +1019,6 @@ export default function VariationForm() {
                       if (milestoneDeliverables.length === 0) return null;
                       
                       const allSelected = milestoneDeliverables.every(d => 
-                        formData.deliverable_date_updates.some(du => du.deliverable_id === d.id)
-                      );
-                      const someSelected = milestoneDeliverables.some(d => 
                         formData.deliverable_date_updates.some(du => du.deliverable_id === d.id)
                       );
 
@@ -876,8 +1107,8 @@ export default function VariationForm() {
             </div>
           )}
 
-          {/* Step 5: Review & Submit */}
-          {currentStep === 5 && (
+          {/* Step 7: Review & Submit */}
+          {currentStep === 7 && (
             <div className="vf-step-content">
               <div className="vf-card">
                 <h2>Review & Submit</h2>
@@ -895,6 +1126,22 @@ export default function VariationForm() {
                       {TYPE_OPTIONS.find(t => t.value === formData.variation_type)?.label || '-'}
                     </span>
                   </div>
+                  {formData.priority && (
+                    <div className="vf-review-row">
+                      <span className="vf-review-label">Priority</span>
+                      <span className="vf-review-value">
+                        <span className={`vf-priority-badge priority-${formData.priority.toLowerCase()}`}>
+                          {PRIORITY_OPTIONS.find(p => p.value === formData.priority)?.label || formData.priority}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                  {formData.date_required && (
+                    <div className="vf-review-row">
+                      <span className="vf-review-label">Date Required</span>
+                      <span className="vf-review-value">{formatDate(formData.date_required)}</span>
+                    </div>
+                  )}
                   {formData.description && (
                     <div className="vf-review-row">
                       <span className="vf-review-label">Description</span>
@@ -905,6 +1152,18 @@ export default function VariationForm() {
                     <div className="vf-review-row">
                       <span className="vf-review-label">Reason</span>
                       <span className="vf-review-value">{formData.reason}</span>
+                    </div>
+                  )}
+                  {formData.benefits && (
+                    <div className="vf-review-row">
+                      <span className="vf-review-label">Expected Benefits</span>
+                      <span className="vf-review-value vf-review-multiline">{formData.benefits}</span>
+                    </div>
+                  )}
+                  {formData.contract_terms_reference && (
+                    <div className="vf-review-row">
+                      <span className="vf-review-label">Contract Reference</span>
+                      <span className="vf-review-value">{formData.contract_terms_reference}</span>
                     </div>
                   )}
                 </div>
@@ -930,6 +1189,56 @@ export default function VariationForm() {
                     </div>
                   ))}
                 </div>
+
+                {/* Assumptions & Risks Section */}
+                {(formData.assumptions || formData.risks) && (
+                  <div className="vf-review-section">
+                    <h3>Assumptions & Risks</h3>
+                    {formData.assumptions && (
+                      <div className="vf-review-row">
+                        <span className="vf-review-label">Assumptions</span>
+                        <span className="vf-review-value vf-review-multiline">{formData.assumptions}</span>
+                      </div>
+                    )}
+                    {formData.risks && (
+                      <div className="vf-review-row">
+                        <span className="vf-review-label">Risks</span>
+                        <span className="vf-review-value vf-review-multiline">{formData.risks}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Costs & Implementation Section */}
+                {(formData.cost_summary || formData.impact_on_charges || formData.impact_on_service_levels || formData.implementation_timetable) && (
+                  <div className="vf-review-section">
+                    <h3>Costs & Implementation</h3>
+                    {formData.cost_summary && (
+                      <div className="vf-review-row">
+                        <span className="vf-review-label">Cost Summary</span>
+                        <span className="vf-review-value vf-review-multiline">{formData.cost_summary}</span>
+                      </div>
+                    )}
+                    {formData.impact_on_charges && (
+                      <div className="vf-review-row">
+                        <span className="vf-review-label">Impact on Charges</span>
+                        <span className="vf-review-value vf-review-multiline">{formData.impact_on_charges}</span>
+                      </div>
+                    )}
+                    {formData.impact_on_service_levels && (
+                      <div className="vf-review-row">
+                        <span className="vf-review-label">Impact on Service Levels</span>
+                        <span className="vf-review-value vf-review-multiline">{formData.impact_on_service_levels}</span>
+                      </div>
+                    )}
+                    {formData.implementation_timetable && (
+                      <div className="vf-review-row">
+                        <span className="vf-review-label">Implementation Timetable</span>
+                        <span className="vf-review-value vf-review-multiline">{formData.implementation_timetable}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {formData.deliverable_date_updates.length > 0 && (
                   <div className="vf-review-section">
@@ -994,7 +1303,7 @@ export default function VariationForm() {
             </button>
             
             <div className="vf-footer-right">
-              {currentStep < 5 ? (
+              {currentStep < 7 ? (
                 <button
                   className="vf-btn vf-btn-primary"
                   onClick={nextStep}
