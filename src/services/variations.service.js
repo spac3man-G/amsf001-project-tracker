@@ -755,19 +755,27 @@ export class VariationsService extends BaseService {
   }
 
   /**
-   * Delete a draft variation (only drafts can be deleted)
+   * Delete a variation (draft, submitted, or rejected only)
+   * Approved or applied variations cannot be deleted
    * Also cleans up related records in variation_milestones and variation_deliverables
    */
   async deleteDraftVariation(variationId) {
     try {
-      // First, verify the variation exists and is a draft
+      // First, verify the variation exists and has a deletable status
       const variation = await this.getById(variationId);
       if (!variation) {
         throw new Error('Variation not found');
       }
       
-      if (variation.status !== VARIATION_STATUS.DRAFT) {
-        throw new Error('Only draft variations can be deleted. Submitted or approved variations must be rejected first.');
+      // Allow deletion of draft, submitted, and rejected variations
+      const deletableStatuses = [
+        VARIATION_STATUS.DRAFT,
+        VARIATION_STATUS.SUBMITTED,
+        VARIATION_STATUS.REJECTED
+      ];
+      
+      if (!deletableStatuses.includes(variation.status)) {
+        throw new Error('Only draft, submitted, or rejected variations can be deleted. Approved or applied variations cannot be deleted.');
       }
 
       // Delete related records first (variation_milestones, variation_deliverables)
@@ -789,7 +797,7 @@ export class VariationsService extends BaseService {
         console.warn('Error deleting variation_deliverables:', vdError);
       }
 
-      // Hard delete the variation (no soft delete for drafts)
+      // Hard delete the variation
       const { error } = await supabase
         .from('variations')
         .delete()

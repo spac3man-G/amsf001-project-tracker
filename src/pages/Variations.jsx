@@ -373,11 +373,11 @@ export default function Variations() {
                       </td>
                       {canDeleteVariation && (
                         <td className="var-actions-cell">
-                          {variation.status === VARIATION_STATUS.DRAFT ? (
+                          {[VARIATION_STATUS.DRAFT, VARIATION_STATUS.SUBMITTED, VARIATION_STATUS.REJECTED].includes(variation.status) ? (
                             <button
                               className="var-delete-btn"
                               onClick={(e) => handleDeleteClick(e, variation)}
-                              title="Delete draft"
+                              title="Delete variation"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -413,7 +413,7 @@ export default function Variations() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.open}
-        title="Delete Draft Variation"
+        title="Delete Variation"
         message={
           deleteConfirm.variation 
             ? `Are you sure you want to delete ${deleteConfirm.variation.variation_ref}?\n\n"${deleteConfirm.variation.title}"\n\nThis action cannot be undone.`
