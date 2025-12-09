@@ -1,7 +1,7 @@
 # AMSF001 Project Tracker - User Guide
 
-**Last Updated:** 7 December 2025  
-**Application Version:** 7.0
+**Last Updated:** 9 December 2025  
+**Application Version:** 7.1
 
 ---
 
@@ -13,12 +13,13 @@
 4. [Project Management (Multi-Tenancy)](#4-project-management-multi-tenancy)
 5. [Milestones](#5-milestones)
 6. [Deliverables](#6-deliverables)
-7. [Time & Expense Tracking](#7-time--expense-tracking)
-8. [Partner Management & Invoicing](#8-partner-management--invoicing)
-9. [AI Chat Assistant](#9-ai-chat-assistant)
-10. [User Administration](#10-user-administration)
-11. [Workflows Reference](#11-workflows-reference)
-12. [Troubleshooting](#12-troubleshooting)
+7. [Variations (Change Control)](#7-variations-change-control)
+8. [Time & Expense Tracking](#8-time--expense-tracking)
+9. [Partner Management & Invoicing](#9-partner-management--invoicing)
+10. [AI Chat Assistant](#10-ai-chat-assistant)
+11. [User Administration](#11-user-administration)
+12. [Workflows Reference](#12-workflows-reference)
+13. [Troubleshooting](#13-troubleshooting)
 
 ---
 
@@ -468,7 +469,195 @@ When marking a deliverable as delivered, you may need to assess whether linked c
 
 ---
 
-## 7. Time & Expense Tracking
+## 7. Variations (Change Control)
+
+Variations are formal change requests that modify the project scope, timeline, or budget after the baseline has been committed. They provide an auditable trail of all changes and require dual-signature approval.
+
+### Viewing Variations
+
+1. Click **Variations** in the menu
+2. See summary cards showing totals, pending approvals, and cost impact
+3. Use filters to narrow by status: All, Drafts, Pending Approval, Approved, Applied, Rejected
+4. **Click any row** to view full details
+
+### Variation Information
+
+| Field | Description |
+|-------|-------------|
+| **Reference** | Unique identifier (e.g., VAR-001) |
+| **Title** | Brief description of the change |
+| **Description** | Detailed explanation of what's changing and why |
+| **Type** | Scope Extension, Scope Reduction, Time Extension, or Cost Adjustment |
+| **Status** | Current workflow status |
+| **Cost Impact** | Financial change (positive = increase, negative = decrease) |
+| **Days Impact** | Schedule change in days |
+| **Affected Milestones** | Which milestones are impacted by this variation |
+
+### Variation Types
+
+| Type | Purpose | Typical Impact |
+|------|---------|----------------|
+| **Scope Extension** | Adding new work or deliverables | +Cost, +Days |
+| **Scope Reduction** | Removing planned work | -Cost, -Days |
+| **Time Extension** | Extending schedule without scope change | +Days |
+| **Cost Adjustment** | Budget change without scope/time change | ±Cost |
+
+### Variation Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   DRAFT ──────► SUBMITTED ──────► AWAITING SIGNATURES           │
+│     │               │                    │                      │
+│     │               │         ┌──────────┴──────────┐           │
+│     │               │         ▼                     ▼           │
+│     │               │   Supplier Signs        Customer Signs    │
+│     │               │         │                     │           │
+│     │               │         ▼                     ▼           │
+│     │               │   AWAITING CUSTOMER    AWAITING SUPPLIER  │
+│     │               │         │                     │           │
+│     │               │         └──────────┬──────────┘           │
+│     │               │                    ▼                      │
+│     │               │               APPROVED ──────► APPLIED    │
+│     │               │                                           │
+│     │               └──────► REJECTED                           │
+│     │                            │                              │
+│     │                            ▼                              │
+│     └────────────────────── (deletable)                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Status Definitions
+
+| Status | Description | Who Acts |
+|--------|-------------|----------|
+| **Draft** | Being prepared, not yet submitted | Supplier PM |
+| **Submitted** | Sent for review and signatures | Both PMs |
+| **Awaiting Customer** | Supplier signed, waiting for customer | Customer PM |
+| **Awaiting Supplier** | Customer signed, waiting for supplier | Supplier PM |
+| **Approved** | Both parties signed, ready to apply | System |
+| **Applied** | Changes applied to milestone baselines | – |
+| **Rejected** | Change request declined | – |
+
+### Creating a Variation
+
+1. Go to **Variations**
+2. Click **+ Create Variation**
+3. Complete the wizard steps:
+   - **Step 1:** Enter title, description, and select variation type
+   - **Step 2:** Select affected milestones
+   - **Step 3:** Specify cost and schedule impacts per milestone
+   - **Step 4:** Review and save or submit
+4. Click **Save as Draft** to continue later, or **Submit** to send for approval
+
+### Editing a Variation
+
+Only **Draft** variations can be edited:
+
+1. Click the variation row to open detail page
+2. Click **Edit** button
+3. Make changes using the wizard
+4. Save your changes
+
+### Submitting for Approval
+
+1. Open a Draft variation
+2. Review all details are complete
+3. Click **Submit for Approval**
+4. Status changes to "Submitted"
+5. Both Supplier PM and Customer PM will need to sign
+
+### Signing a Variation (Dual-Signature Approval)
+
+Like milestone baselines and certificates, variations require approval from both parties:
+
+**As Supplier PM:**
+1. Open the variation (status: Submitted or Awaiting Supplier)
+2. Review the proposed changes
+3. Click **Sign as Supplier PM**
+4. Your signature is recorded
+
+**As Customer PM:**
+1. Open the variation (status: Submitted or Awaiting Customer)
+2. Review the proposed changes
+3. Click **Sign as Customer PM**
+4. Your signature is recorded
+
+Once both parties have signed, the variation status changes to **Approved**.
+
+### Rejecting a Variation
+
+If a variation should not proceed:
+
+1. Open the variation
+2. Click **Reject**
+3. Enter a reason for rejection
+4. Status changes to "Rejected"
+
+Rejected variations remain in the system for audit purposes but can be deleted if no longer needed.
+
+### Deleting Variations
+
+Variations can be deleted in the following statuses:
+
+| Status | Can Delete? | Who Can Delete |
+|--------|:-----------:|----------------|
+| **Draft** | ✓ | Supplier PM, Admin |
+| **Submitted** | ✓ | Supplier PM, Admin |
+| **Rejected** | ✓ | Supplier PM, Admin |
+| **Awaiting Customer** | ✗ | – |
+| **Awaiting Supplier** | ✗ | – |
+| **Approved** | ✗ | – |
+| **Applied** | ✗ | – |
+
+To delete a variation:
+1. Find the variation in the list
+2. Click the **trash icon** in the Actions column
+3. Confirm the deletion
+
+**Note:** Once a variation has been partially signed (Awaiting Customer/Supplier) or fully approved/applied, it cannot be deleted to maintain audit integrity.
+
+### Applying Approved Variations
+
+Once approved, variations can be applied to update milestone baselines:
+
+1. Open an Approved variation
+2. Click **Apply Changes**
+3. The system updates affected milestone baselines:
+   - Baseline dates are adjusted by the days impact
+   - Baseline amounts are adjusted by the cost impact
+4. Status changes to "Applied"
+5. Original baseline values are preserved for audit
+
+### Generating Change Request Documents
+
+Formal change request documents can be generated for signature:
+
+1. Open the variation detail page
+2. Click **Generate CR Document**
+3. A wizard guides you through:
+   - **Initiator Details:** Name and role of person requesting the change
+   - **Change Description:** Reason and impact summary
+   - **Affected Milestones:** Review milestone impacts
+   - **Signature Block:** Spaces for both party signatures
+4. Click **Generate PDF**
+5. Download or print for physical signatures if needed
+
+### Summary Cards
+
+The Variations page displays summary metrics:
+
+| Card | Description |
+|------|-------------|
+| **Total Variations** | Count of all variations |
+| **Pending Approval** | Variations awaiting signatures |
+| **Applied** | Variations that have been applied |
+| **Net Cost Impact** | Total cost change from all applied variations |
+
+---
+
+## 8. Time & Expense Tracking
 
 ### Timesheets
 
@@ -553,7 +742,7 @@ Save time by letting AI extract receipt details:
 
 ---
 
-## 8. Partner Management & Invoicing
+## 9. Partner Management & Invoicing
 
 ### Viewing Partners
 
@@ -593,7 +782,7 @@ Create invoices for partner work:
 
 ---
 
-## 9. AI Chat Assistant
+## 10. AI Chat Assistant
 
 ### Opening the Assistant
 
@@ -643,7 +832,7 @@ The AI assistant is **project-aware**:
 
 ---
 
-## 10. User Administration
+## 11. User Administration
 
 ### Accessing User Management
 
@@ -710,7 +899,7 @@ Test users are useful for training and demonstrations without affecting real dat
 
 ---
 
-## 11. Workflows Reference
+## 12. Workflows Reference
 
 ### Timesheet Workflow
 
@@ -832,9 +1021,44 @@ Supplier PM should sign first to confirm delivery.
 Customer PM signs to accept and authorise billing.
 ```
 
+### Variation (Change Control) Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   DRAFT ──────────────────────────────────────────────────►     │
+│     │                                                           │
+│     ▼                                                           │
+│   SUBMITTED ───────────────────────────────────────────────►    │
+│     │                                                           │
+│     ├──► Supplier PM signs ──► AWAITING CUSTOMER ──┐            │
+│     │                                              │            │
+│     └──► Customer PM signs ──► AWAITING SUPPLIER ──┤            │
+│                                                    │            │
+│                                                    ▼            │
+│                                               APPROVED          │
+│                                                    │            │
+│                                                    ▼            │
+│                                               APPLIED           │
+│                                          (Baselines Updated)    │
+│                                                                 │
+│   At any point before approval:                                 │
+│   SUBMITTED ──► REJECTED (can be deleted)                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Deletable statuses: Draft, Submitted, Rejected
+Protected statuses: Awaiting Customer/Supplier, Approved, Applied
+
+Actors:
+- Supplier PM: Creates, edits drafts, submits, signs, applies
+- Customer PM: Reviews, signs, can reject
+- Both: Must sign for approval
+```
+
 ---
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 ### Can't Log In
 
@@ -909,4 +1133,4 @@ Contact your system administrator or the project team.
 
 ---
 
-*AMSF001 User Guide | Version 7.0 | 7 December 2025*
+*AMSF001 User Guide | Version 7.1 | 9 December 2025*
