@@ -61,7 +61,9 @@ export default function RaidDetailModal({
   async function handleSave() {
     setSaving(true);
     try {
-      await onUpdate(editData);
+      // Strip out relation objects that can't be saved to the database
+      const { owner, milestone, ...updateData } = editData;
+      await onUpdate(updateData);
     } catch (error) {
       console.error('Error saving:', error);
       alert('Failed to save changes');
