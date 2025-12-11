@@ -100,7 +100,8 @@ class MetricsService {
       return metrics;
     } catch (error) {
       console.error('MetricsService.getMilestoneMetrics error:', error);
-      throw error;
+      // Re-throw with a clear message
+      throw new Error(`Failed to fetch milestone metrics: ${error?.message || error?.toString() || 'Unknown error'}`);
     }
   }
 

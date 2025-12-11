@@ -270,9 +270,11 @@ class ReportDataFetcherService {
         results.set(section.id, { success: true, data });
       } catch (error) {
         console.error(`Error fetching data for section ${section.id}:`, error);
+        // Ensure we capture the error message properly
+        const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
         results.set(section.id, { 
           success: false, 
-          error: error.message,
+          error: errorMessage,
           data: null
         });
       }
