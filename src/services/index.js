@@ -76,3 +76,13 @@ export {
   documentRendererService,
   DocumentRendererService
 } from './documentRenderer.service';
+
+// Report Templates (Report Builder Wizard)
+export {
+  reportTemplatesService,
+  ReportTemplatesService,
+  REPORT_TYPE,
+  REPORT_TYPE_CONFIG,
+  REPORTING_PERIOD,
+  REPORTING_PERIOD_CONFIG
+} from './reportTemplates.service';
