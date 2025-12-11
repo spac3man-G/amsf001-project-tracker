@@ -68,10 +68,11 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      // Simple query - filter soft-deleted client-side
+      // Query milestones including baseline_billable for budget calculation
+      // Budget = SUM(baseline_billable) where baseline = original + approved variations
       const { data: rawMilestones, error } = await supabase
         .from('milestones')
-        .select('id, milestone_ref, name, status, progress, percent_complete, is_deleted')
+        .select('id, milestone_ref, name, status, progress, percent_complete, baseline_billable, billable, is_deleted')
         .eq('project_id', projectId)
         .order('milestone_ref');
 
@@ -80,12 +81,15 @@ class MetricsService {
       // Filter out soft-deleted records
       const milestones = rawMilestones?.filter(m => m.is_deleted !== true) || [];
 
+      // Total budget = sum of baseline_billable (committed contract value)
+      const totalBudget = milestones.reduce((sum, m) => sum + (parseFloat(m.baseline_billable) || 0), 0);
+
       const metrics = {
         total: milestones.length,
         completed: milestones.filter(m => VALID_STATUSES.milestones.completed.includes(m.status)).length,
         inProgress: milestones.filter(m => VALID_STATUSES.milestones.inProgress.includes(m.status)).length,
         notStarted: milestones.filter(m => VALID_STATUSES.milestones.notStarted.includes(m.status)).length,
-        totalBudget: 0, // Budget now tracked via resources, not milestones
+        totalBudget, // Sum of baseline_billable from all milestones
         averageProgress: milestones.length > 0 
           ? Math.round(milestones.reduce((sum, m) => sum + (m.progress || 0), 0) / milestones.length)
           : 0,
@@ -664,9 +668,9 @@ class MetricsService {
       ]);
 
       // Calculate combined budget metrics
-      // Use resources.totalBudget as the primary budget since milestone budgets are not tracked
+      // Budget = sum of milestone baseline_billable (committed contract value)
       const budget = {
-        totalBudget: resources.totalBudget,
+        totalBudget: milestones.totalBudget,
         timesheetSpend: timesheets.totalSpend,
         expenseSpend: expenses.totalAmount,
         totalSpend: timesheets.totalSpend + expenses.totalAmount,
@@ -674,12 +678,12 @@ class MetricsService {
         pmoSpend: timesheets.pmoSpend,
         deliveryBudget: resources.deliveryBudget,
         deliverySpend: timesheets.deliverySpend,
-        utilizationPercent: resources.totalBudget > 0
-          ? Math.round(((timesheets.totalSpend + expenses.totalAmount) / resources.totalBudget) * 100)
+        utilizationPercent: milestones.totalBudget > 0
+          ? Math.round(((timesheets.totalSpend + expenses.totalAmount) / milestones.totalBudget) * 100)
           : 0
       };
 
-      // Combine milestone spend from timesheets (expenses don't track by milestone)
+      // Milestone spend from timesheets (expenses don't track by milestone currently)
       const milestoneSpend = { ...timesheets.spendByMilestone };
 
       return {

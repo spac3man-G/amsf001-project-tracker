@@ -357,10 +357,12 @@ class ReportDataFetcherService {
           name: m.name,
           status: m.status,
           progress: m.progress || 0,
+          budget: config.showBudget !== false ? (parseFloat(m.baseline_billable) || 0) : null,
           percentComplete: m.percent_complete || m.progress || 0
         })),
         config: {
           includeChart: config.includeChart !== false,
+          showBudget: config.showBudget !== false,
           showProgress: config.showProgress !== false
         }
       };
@@ -534,7 +536,7 @@ class ReportDataFetcherService {
     try {
       const metrics = await metricsService.getAllDashboardMetrics(projectId);
       
-      // Build milestone spend breakdown (spend only, no budget per milestone)
+      // Build milestone spend breakdown with baseline_billable as budget
       let milestoneSpend = [];
       if (config.showByMilestone !== false) {
         const milestoneData = metrics.milestones.milestones || [];
@@ -542,8 +544,10 @@ class ReportDataFetcherService {
           id: m.id,
           ref: m.milestone_ref,
           name: m.name,
-          spend: metrics.milestoneSpend?.[m.id] || 0
-        })).filter(m => m.spend > 0); // Only show milestones with spend
+          budget: parseFloat(m.baseline_billable) || 0, // Committed baseline value
+          spend: metrics.milestoneSpend?.[m.id] || 0,
+          variance: (parseFloat(m.baseline_billable) || 0) - (metrics.milestoneSpend?.[m.id] || 0)
+        }));
       }
 
       return {
@@ -880,13 +884,13 @@ class ReportDataFetcherService {
       if (config.includeMilestones !== false) {
         const { data: milestones, error: mError } = await supabase
           .from('milestones')
-          .select('id, milestone_ref, name, status, due_date, progress, budget')
+          .select('id, milestone_ref, name, status, end_date, progress, baseline_billable')
           .eq('project_id', projectId)
           .eq('is_deleted', false)
           .neq('status', 'Completed')
-          .gte('due_date', today)
-          .lte('due_date', endDateStr)
-          .order('due_date', { ascending: true });
+          .gte('end_date', today)
+          .lte('end_date', endDateStr)
+          .order('end_date', { ascending: true });
 
         if (mError) {
           console.error('Forward look milestones query error:', mError);
@@ -981,12 +985,12 @@ class ReportDataFetcherService {
 
       const { data: milestones, error } = await supabase
         .from('milestones')
-        .select('id, milestone_ref, name, status, due_date, progress, budget')
+        .select('id, milestone_ref, name, status, end_date, progress, baseline_billable')
         .eq('project_id', projectId)
         .eq('is_deleted', false)
         .in('status', statusFilter)
-        .lte('due_date', endDateStr)
-        .order('due_date', { ascending: true });
+        .lte('end_date', endDateStr)
+        .order('end_date', { ascending: true });
 
       if (error) throw error;
 
