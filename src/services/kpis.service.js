@@ -41,12 +41,13 @@ export class KPIsService extends BaseService {
    * Calculate RAG status for a KPI
    */
   calculateRAG(kpi) {
-    if (!kpi.target_value || kpi.actual_value === null || kpi.actual_value === undefined) {
+    // Database columns are 'target' and 'current_value'
+    if (!kpi.target || kpi.current_value === null || kpi.current_value === undefined) {
       return 'Unknown';
     }
 
-    const actual = parseFloat(kpi.actual_value);
-    const target = parseFloat(kpi.target_value);
+    const actual = parseFloat(kpi.current_value);
+    const target = parseFloat(kpi.target);
     const threshold = parseFloat(kpi.threshold_amber || 10);
 
     if (kpi.trend === 'higher_better') {
