@@ -1046,7 +1046,4 @@ export function useReportBuilderPreview() {
   };
 }
 
-// Export constants for use in components
-export { WIZARD_STEPS, WIZARD_STEP_CONFIG };
-
 export default ReportBuilderContext;
