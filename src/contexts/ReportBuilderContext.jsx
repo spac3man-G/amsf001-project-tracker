@@ -192,10 +192,19 @@ function reportBuilderReducer(state, action) {
         isCustom: isCustom || false,
         reportName: isCustom ? 'Custom Report' : (template?.name || 'New Report'),
         reportType: template?.report_type || 'custom',
-        sections: sections.map(s => ({
-          ...s,
-          id: s.id || `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        })),
+        // Merge section config with defaults from section type
+        sections: sections.map(s => {
+          const sectionTypeConfig = getSectionTypeConfig(s.type);
+          return {
+            ...s,
+            id: s.id || `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: s.name || sectionTypeConfig?.name || s.type,
+            config: {
+              ...(sectionTypeConfig?.defaultConfig || {}),  // Apply defaults first
+              ...(s.config || {})  // Then overlay template-specific config
+            }
+          };
+        }),
         parameters: {
           ...state.parameters,
           ...parameters
