@@ -357,12 +357,10 @@ class ReportDataFetcherService {
           name: m.name,
           status: m.status,
           progress: m.progress || 0,
-          budget: config.showBudget !== false ? m.budget : null,
           percentComplete: m.percent_complete || m.progress || 0
         })),
         config: {
           includeChart: config.includeChart !== false,
-          showBudget: config.showBudget !== false,
           showProgress: config.showProgress !== false
         }
       };
@@ -536,7 +534,7 @@ class ReportDataFetcherService {
     try {
       const metrics = await metricsService.getAllDashboardMetrics(projectId);
       
-      // Build milestone spend breakdown
+      // Build milestone spend breakdown (spend only, no budget per milestone)
       let milestoneSpend = [];
       if (config.showByMilestone !== false) {
         const milestoneData = metrics.milestones.milestones || [];
@@ -544,10 +542,8 @@ class ReportDataFetcherService {
           id: m.id,
           ref: m.milestone_ref,
           name: m.name,
-          budget: m.budget || 0,
-          spend: metrics.milestoneSpend?.[m.id] || 0,
-          variance: (m.budget || 0) - (metrics.milestoneSpend?.[m.id] || 0)
-        }));
+          spend: metrics.milestoneSpend?.[m.id] || 0
+        })).filter(m => m.spend > 0); // Only show milestones with spend
       }
 
       return {

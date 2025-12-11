@@ -71,7 +71,7 @@ class MetricsService {
       // Simple query - filter soft-deleted client-side
       const { data: rawMilestones, error } = await supabase
         .from('milestones')
-        .select('id, milestone_ref, name, status, progress, budget, percent_complete, is_deleted')
+        .select('id, milestone_ref, name, status, progress, percent_complete, is_deleted')
         .eq('project_id', projectId)
         .order('milestone_ref');
 
@@ -85,7 +85,7 @@ class MetricsService {
         completed: milestones.filter(m => VALID_STATUSES.milestones.completed.includes(m.status)).length,
         inProgress: milestones.filter(m => VALID_STATUSES.milestones.inProgress.includes(m.status)).length,
         notStarted: milestones.filter(m => VALID_STATUSES.milestones.notStarted.includes(m.status)).length,
-        totalBudget: milestones.reduce((sum, m) => sum + (m.budget || 0), 0),
+        totalBudget: 0, // Budget now tracked via resources, not milestones
         averageProgress: milestones.length > 0 
           ? Math.round(milestones.reduce((sum, m) => sum + (m.progress || 0), 0) / milestones.length)
           : 0,
@@ -664,8 +664,9 @@ class MetricsService {
       ]);
 
       // Calculate combined budget metrics
+      // Use resources.totalBudget as the primary budget since milestone budgets are not tracked
       const budget = {
-        totalBudget: milestones.totalBudget,
+        totalBudget: resources.totalBudget,
         timesheetSpend: timesheets.totalSpend,
         expenseSpend: expenses.totalAmount,
         totalSpend: timesheets.totalSpend + expenses.totalAmount,
@@ -673,16 +674,13 @@ class MetricsService {
         pmoSpend: timesheets.pmoSpend,
         deliveryBudget: resources.deliveryBudget,
         deliverySpend: timesheets.deliverySpend,
-        utilizationPercent: milestones.totalBudget > 0
-          ? Math.round(((timesheets.totalSpend + expenses.totalAmount) / milestones.totalBudget) * 100)
+        utilizationPercent: resources.totalBudget > 0
+          ? Math.round(((timesheets.totalSpend + expenses.totalAmount) / resources.totalBudget) * 100)
           : 0
       };
 
-      // Combine milestone spend from timesheets and expenses
+      // Combine milestone spend from timesheets (expenses don't track by milestone)
       const milestoneSpend = { ...timesheets.spendByMilestone };
-      Object.entries(expenses.byMilestone).forEach(([milestoneId, amount]) => {
-        milestoneSpend[milestoneId] = (milestoneSpend[milestoneId] || 0) + amount;
-      });
 
       return {
         milestones,
