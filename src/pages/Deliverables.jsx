@@ -134,8 +134,15 @@ export default function Deliverables() {
         progress: parseInt(editForm.progress) || 0
       });
 
-      if (editForm.kpi_ids) await deliverablesService.syncKPILinks(id, editForm.kpi_ids);
-      if (editForm.qs_ids) await deliverablesService.syncQSLinks(id, editForm.qs_ids);
+      // Only sync KPI/QS links if user is Admin or Supplier PM
+      // Contributors can't modify these junction tables due to RLS policies
+      const canEditLinks = userRole === 'admin' || userRole === 'supplier_pm';
+      if (canEditLinks && editForm.kpi_ids !== undefined) {
+        await deliverablesService.syncKPILinks(id, editForm.kpi_ids);
+      }
+      if (canEditLinks && editForm.qs_ids !== undefined) {
+        await deliverablesService.syncQSLinks(id, editForm.qs_ids);
+      }
 
       fetchData();
       refreshMetrics();

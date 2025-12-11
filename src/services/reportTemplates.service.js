@@ -458,6 +458,23 @@ export class ReportTemplatesService extends BaseService {
     }
   }
 
+  /**
+   * Get recent report generations for a project
+   * Convenience method that wraps getGenerationHistory with a small limit
+   * @param {string} projectId - Project UUID
+   * @param {number} limit - Max records to return (default: 5)
+   * @returns {Promise<Array>} Array of recent generation records
+   */
+  async getRecentGenerations(projectId, limit = 5) {
+    try {
+      return await this.getGenerationHistory(projectId, { limit });
+    } catch (error) {
+      console.error('ReportTemplatesService getRecentGenerations error:', error);
+      // Return empty array instead of throwing to avoid breaking UI
+      return [];
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Validation
   // ─────────────────────────────────────────────────────────────

@@ -9,8 +9,8 @@
  *   // Or import the base class for custom services
  *   import { BaseService } from '../services';
  * 
- * @version 2.2
- * @updated 8 December 2025
+ * @version 2.3
+ * @updated 11 December 2025
  * @phase Phase 1 - Stabilisation
  */
 
@@ -86,3 +86,16 @@ export {
   REPORTING_PERIOD,
   REPORTING_PERIOD_CONFIG
 } from './reportTemplates.service';
+
+// Report Data Fetcher (Report Builder Wizard - data aggregation)
+export {
+  reportDataFetcherService,
+  getDateRange,
+  getLookAheadRange
+} from './reportDataFetcher.service';
+
+// Report Renderer (Report Builder Wizard - HTML generation)
+export {
+  reportRendererService,
+  ReportRendererService
+} from './reportRenderer.service';

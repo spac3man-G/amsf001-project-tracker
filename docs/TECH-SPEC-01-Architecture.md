@@ -1,0 +1,495 @@
+# AMSF001 Technical Specification: Architecture & Infrastructure
+
+**Document:** TECH-SPEC-01-Architecture.md  
+**Version:** 1.0  
+**Created:** 10 December 2025  
+**Session:** 1.1  
+
+---
+
+## 1. Executive Summary
+
+The AMSF001 Project Tracker is a multi-tenant SaaS application designed to manage complex project portfolios for enterprise clients. Built with a modern React frontend and Supabase backend, it provides comprehensive project management capabilities including milestone tracking, deliverable management, time and expense tracking, variation control, and partner invoicing.
+
+The architecture follows a serverless approach, leveraging Vercel for hosting and edge functions, with Supabase providing the PostgreSQL database, authentication, and Row Level Security (RLS) for multi-tenant data isolation.
+
+---
+
+## 2. Technology Stack
+
+### 2.1 Frontend Stack
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| React | 18.2.0 | UI framework with functional components and hooks |
+| React Router DOM | 6.20.0 | Client-side routing and navigation |
+| Vite | 5.4.21 | Build tool and development server |
+| Recharts | 2.10.0 | Dashboard charts and data visualisation |
+| Lucide React | 0.294.0 | Icon library |
+| React Grid Layout | 1.5.2 | Drag-and-drop dashboard customisation |
+| date-fns | 3.0.0 | Date manipulation and formatting |
+
+### 2.2 Backend Stack
+
+| Technology | Purpose |
+|------------|---------|
+| Supabase | Backend-as-a-Service platform |
+| PostgreSQL | Primary database (via Supabase) |
+| Row Level Security | Multi-tenant data isolation |
+| Supabase Auth | User authentication and session management |
+
+### 2.3 Deployment & Hosting
+
+| Technology | Purpose |
+|------------|---------|
+| Vercel | Frontend hosting and serverless functions |
+| Vercel Analytics | Performance and usage analytics |
+| Vercel Speed Insights | Core Web Vitals monitoring |
+
+### 2.4 AI Integration
+
+| Technology | Purpose |
+|------------|---------|
+| Anthropic Claude | AI-powered chat assistant and receipt scanning |
+| Claude Haiku | Fast responses for chat and context building |
+| Claude Sonnet | Complex queries and document analysis |
+
+---
+
+## 3. Project Structure
+
+```
+amsf001-project-tracker/
+├── api/                          # Vercel Serverless Functions
+│   ├── chat.js                   # AI chat endpoint (streaming)
+│   ├── chat-stream.js            # Alternative streaming implementation
+│   ├── chat-context.js           # Context retrieval for AI
+│   ├── create-user.js            # Admin user creation endpoint
+│   └── scan-receipt.js           # Receipt OCR with Claude Vision
+│
+├── src/                          # Frontend Source Code
+│   ├── App.jsx                   # Root application component
+│   ├── main.jsx                  # Application entry point
+│   ├── index.css                 # Global styles
+│   ├── design-system.css         # Design system tokens
+│   │
+│   ├── components/               # Reusable UI Components
+│   │   ├── Layout.jsx            # Main layout with navigation
+│   │   ├── ProjectSwitcher.jsx   # Multi-tenant project selection
+│   │   ├── ViewAsBar.jsx         # Role impersonation UI
+│   │   ├── NotificationBell.jsx  # Notification system
+│   │   ├── chat/                 # AI Chat components
+│   │   ├── common/               # Shared components
+│   │   ├── dashboard/            # Dashboard widgets
+│   │   ├── deliverables/         # Deliverable components
+│   │   ├── expenses/             # Expense management
+│   │   ├── milestones/           # Milestone components
+│   │   ├── partners/             # Partner management
+│   │   ├── raid/                 # RAID log components
+│   │   ├── resources/            # Resource management
+│   │   ├── timesheets/           # Timesheet components
+│   │   └── variations/           # Change control components
+│   │
+│   ├── contexts/                 # React Context Providers
+│   │   ├── AuthContext.jsx       # Authentication state
+│   │   ├── ProjectContext.jsx    # Current project (multi-tenancy)
+│   │   ├── ViewAsContext.jsx     # Role impersonation
+│   │   ├── ChatContext.jsx       # AI chat state
+│   │   ├── MetricsContext.jsx    # Dashboard metrics cache
+│   │   ├── ToastContext.jsx      # Notification toasts
+│   │   ├── NotificationContext.jsx # System notifications
+│   │   ├── HelpContext.jsx       # Contextual help system
+│   │   └── TestUserContext.jsx   # Test user management
+│   │
+│   ├── hooks/                    # Custom React Hooks
+│   │   ├── usePermissions.js     # Role-based access control
+│   │   ├── useMetrics.js         # Dashboard metrics
+│   │   ├── useDashboardLayout.js # Widget layout persistence
+│   │   ├── useForm.js            # Form state management
+│   │   ├── useFormValidation.js  # Form validation
+│   │   ├── useReadOnly.js        # Read-only mode detection
+│   │   ├── useDocumentTemplates.js # Template management
+│   │   ├── useMilestonePermissions.js
+│   │   ├── useDeliverablePermissions.js
+│   │   ├── useTimesheetPermissions.js
+│   │   └── useResourcePermissions.js
+│   │
+│   ├── services/                 # Data Services Layer
+│   │   ├── base.service.js       # Base service with common methods
+│   │   ├── milestones.service.js # Milestone CRUD operations
+│   │   ├── deliverables.service.js
+│   │   ├── resources.service.js
+│   │   ├── timesheets.service.js
+│   │   ├── expenses.service.js
+│   │   ├── partners.service.js
+│   │   ├── invoicing.service.js
+│   │   ├── variations.service.js
+│   │   ├── kpis.service.js
+│   │   ├── raid.service.js
+│   │   ├── qualityStandards.service.js
+│   │   ├── dashboard.service.js
+│   │   ├── calendar.service.js
+│   │   ├── metrics.service.js
+│   │   ├── documentTemplates.service.js
+│   │   ├── documentRenderer.service.js
+│   │   ├── receiptScanner.service.js
+│   │   └── standards.service.js
+│   │
+│   ├── pages/                    # Page Components (Routes)
+│   │   ├── Login.jsx             # Authentication page
+│   │   ├── Dashboard.jsx         # Main dashboard
+│   │   ├── Milestones.jsx        # Milestone list
+│   │   ├── MilestoneDetail.jsx   # Milestone detail view
+│   │   ├── Deliverables.jsx      # Deliverable management
+│   │   ├── Timesheets.jsx        # Timesheet entry
+│   │   ├── Expenses.jsx          # Expense management
+│   │   ├── Partners.jsx          # Partner list
+│   │   ├── PartnerDetail.jsx     # Partner invoicing
+│   │   ├── Variations.jsx        # Change control list
+│   │   ├── VariationDetail.jsx   # Variation view
+│   │   ├── VariationForm.jsx     # Variation wizard
+│   │   ├── Resources.jsx         # Resource list
+│   │   ├── ResourceDetail.jsx    # Resource availability
+│   │   ├── RaidLog.jsx           # RAID management
+│   │   ├── KPIs.jsx              # KPI tracking
+│   │   ├── QualityStandards.jsx  # Quality management
+│   │   ├── Calendar.jsx          # Project calendar
+│   │   ├── Reports.jsx           # Reporting module
+│   │   ├── AuditLog.jsx          # Audit trail viewer
+│   │   ├── DeletedItems.jsx      # Soft delete recovery
+│   │   ├── Users.jsx             # User management
+│   │   ├── Settings.jsx          # Project settings
+│   │   └── AccountSettings.jsx   # User preferences
+│   │
+│   ├── lib/                      # Utility Libraries
+│   │   ├── supabase.js           # Supabase client initialisation
+│   │   ├── permissions.js        # Permission checking utilities
+│   │   ├── permissionMatrix.js   # Role-permission definitions
+│   │   ├── formatters.js         # Data formatting utilities
+│   │   ├── constants.js          # Application constants
+│   │   ├── cache.js              # Client-side caching
+│   │   ├── errorHandler.js       # Centralised error handling
+│   │   ├── sanitize.js           # Input sanitisation
+│   │   ├── navigation.js         # Navigation utilities
+│   │   ├── utils.js              # General utilities
+│   │   ├── naturalDateParser.js  # Natural language date parsing
+│   │   ├── milestoneCalculations.js
+│   │   ├── deliverableCalculations.js
+│   │   ├── resourceCalculations.js
+│   │   └── timesheetCalculations.js
+│   │
+│   ├── config/                   # Configuration Files
+│   │   ├── dashboardPresets.js   # Dashboard layout presets
+│   │   └── metricsConfig.js      # Metrics definitions
+│   │
+│   └── help/                     # Contextual Help Content
+│
+├── sql/                          # Database Migrations
+│   ├── rls-migration/            # RLS policy migrations
+│   ├── variations-tables.sql     # Variations schema
+│   ├── audit-triggers.sql        # Audit logging triggers
+│   ├── soft-delete-implementation.sql
+│   └── [additional migrations]
+│
+├── docs/                         # Documentation
+│   └── [documentation files]
+│
+├── package.json                  # NPM dependencies
+├── vite.config.js                # Vite build configuration
+├── vercel.json                   # Vercel deployment config
+├── index.html                    # HTML entry point
+└── .env.example                  # Environment template
+```
+
+---
+
+## 4. Build and Deployment Process
+
+### 4.1 Development Workflow
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server (port 5173)
+npm run dev
+
+# Preview production build locally (port 4173)
+npm run preview
+```
+
+### 4.2 Build Configuration (vite.config.js)
+
+The Vite configuration implements several optimisations:
+
+**Chunk Splitting Strategy:**
+| Chunk | Contents | Rationale |
+|-------|----------|-----------|
+| vendor-react | react, react-dom, react-router-dom | Core framework, rarely changes |
+| vendor-supabase | @supabase/supabase-js | Database client, rarely changes |
+| vendor-charts | recharts | Charts library, lazy-loaded |
+| vendor-icons | lucide-react | Icon library, tree-shaken |
+
+**Build Settings:**
+- Target: ES2020 (modern browsers)
+- Minification: esbuild (fast, built-in)
+- Console/debugger removal in production
+- Consistent chunk naming for caching
+
+### 4.3 Vercel Deployment
+
+**Routing Configuration (vercel.json):**
+```json
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+- API routes (`/api/*`) are handled by serverless functions
+- All other routes serve the SPA (client-side routing)
+
+**Deployment Process:**
+1. Push to main branch triggers Vercel build
+2. Vite builds production bundle
+3. Serverless functions deployed to `/api`
+4. Static assets served via Vercel Edge Network
+5. Environment variables injected at build time
+
+### 4.4 Build Output
+
+Production build creates:
+```
+dist/
+├── index.html
+└── assets/
+    ├── vendor-react-[hash].js     # ~140KB gzipped
+    ├── vendor-supabase-[hash].js  # ~45KB gzipped
+    ├── vendor-charts-[hash].js    # ~80KB gzipped
+    ├── vendor-icons-[hash].js     # Tree-shaken icons
+    ├── index-[hash].js            # Application code
+    └── [name]-[hash].css          # Styles
+```
+
+---
+
+## 5. Environment Variables
+
+### 5.1 Required Variables
+
+| Variable | Side | Purpose |
+|----------|------|---------|
+| `VITE_SUPABASE_URL` | Client | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Client | Supabase anonymous API key |
+| `ANTHROPIC_API_KEY` | Server | Claude AI API authentication |
+
+### 5.2 Optional Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `VITE_PROJECT_REF` | AMSF001 | Default project reference |
+| `VITE_DEBUG` | false | Enable debug logging |
+
+### 5.3 Variable Naming Convention
+
+- `VITE_` prefix: Exposed to client-side code
+- No prefix: Server-side only (API routes)
+
+**Security Note:** The Supabase anon key is safe for client-side exposure because Row Level Security (RLS) policies protect data at the database level.
+
+---
+
+## 6. External Service Dependencies
+
+### 6.1 Supabase (Required)
+
+| Service | Usage |
+|---------|-------|
+| PostgreSQL Database | Primary data storage |
+| Authentication | User login, sessions, password management |
+| Row Level Security | Multi-tenant data isolation |
+| Real-time | Not currently used (future consideration) |
+| Storage | Not currently used |
+
+**Connection:** Via `@supabase/supabase-js` client library
+
+### 6.2 Vercel (Required)
+
+| Service | Usage |
+|---------|-------|
+| Static Hosting | SPA hosting via Edge Network |
+| Serverless Functions | API endpoints for AI integration |
+| Analytics | Page views and user metrics |
+| Speed Insights | Core Web Vitals monitoring |
+
+### 6.3 Anthropic Claude (Required for AI Features)
+
+| Model | Usage |
+|-------|-------|
+| Claude Haiku | Fast responses for chat context building |
+| Claude Sonnet | Complex queries, analysis, receipt scanning |
+
+**Integration Points:**
+- `/api/chat.js` - Main AI chat with tool use
+- `/api/chat-context.js` - Project context retrieval
+- `/api/scan-receipt.js` - Receipt OCR with Claude Vision
+
+### 6.4 Service Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         BROWSER                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    React SPA                             │    │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │    │
+│  │  │ Contexts │ │  Hooks   │ │ Services │ │   Pages  │   │    │
+│  │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘   │    │
+│  │       └────────────┴────────────┴────────────┘          │    │
+│  └───────────────────────────┬─────────────────────────────┘    │
+└──────────────────────────────┼──────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                      VERCEL EDGE NETWORK                         │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                  Serverless Functions                     │   │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────────────┐   │   │
+│  │  │  /api/chat │ │/api/create │ │/api/scan-receipt   │   │   │
+│  │  │            │ │   -user    │ │                    │   │   │
+│  │  └─────┬──────┘ └─────┬──────┘ └─────────┬──────────┘   │   │
+│  │        │              │                   │              │   │
+│  └────────┼──────────────┼───────────────────┼──────────────┘   │
+└───────────┼──────────────┼───────────────────┼──────────────────┘
+            │              │                   │
+            ▼              │                   ▼
+┌────────────────────┐     │     ┌────────────────────────────────┐
+│   ANTHROPIC API    │     │     │           SUPABASE             │
+│  ┌──────────────┐  │     │     │  ┌──────────────────────────┐  │
+│  │ Claude Haiku │  │     │     │  │      PostgreSQL          │  │
+│  │ Claude Sonnet│  │     │     │  │  ┌──────────────────┐   │  │
+│  └──────────────┘  │     │     │  │  │    28 Tables     │   │  │
+│                    │     │     │  │  │   + RLS Policies │   │  │
+└────────────────────┘     │     │  │  └──────────────────┘   │  │
+                           │     │  │                          │  │
+                           └─────┼──│  ┌──────────────────┐   │  │
+                                 │  │  │  Authentication   │   │  │
+                                 └──│  └──────────────────┘   │  │
+                                    └──────────────────────────┘  │
+                                    └────────────────────────────┘
+```
+
+---
+
+## 7. Multi-Tenancy Architecture
+
+### 7.1 Overview
+
+The application supports multiple isolated projects (tenants) within a single database instance. Each user can be assigned to multiple projects with different roles per project.
+
+### 7.2 Key Tables
+
+- **projects**: Tenant definitions
+- **profiles**: User accounts (linked to Supabase Auth)
+- **user_projects**: Junction table defining user-project-role relationships
+
+### 7.3 Data Isolation
+
+All data tables include a `project_id` column, and RLS policies ensure users can only access data for projects they are members of:
+
+```sql
+-- Example RLS policy pattern
+CREATE POLICY "Users can view project data"
+ON table_name FOR SELECT
+USING (
+  project_id IN (
+    SELECT project_id FROM user_projects 
+    WHERE user_id = auth.uid()
+  )
+);
+```
+
+### 7.4 Project Context
+
+The `ProjectContext` React context maintains the currently selected project, and all service calls include the project_id filter.
+
+---
+
+## 8. Security Architecture
+
+### 8.1 Authentication Flow
+
+1. User submits credentials via Login page
+2. Supabase Auth validates and returns session token
+3. Token stored in browser localStorage
+4. All subsequent API calls include auth token
+5. RLS policies validate user access to data
+
+### 8.2 Authorisation Layers
+
+| Layer | Mechanism |
+|-------|-----------|
+| UI | Role-based menu and action visibility |
+| Hooks | Permission checking before operations |
+| Services | Project-scoped queries |
+| Database | RLS policies enforce access at SQL level |
+
+### 8.3 Role Hierarchy
+
+```
+Admin → Full access to all features
+Project Manager → Project management, approvals
+Contributor → Data entry, limited views
+Viewer → Read-only access
+```
+
+---
+
+## 9. Performance Considerations
+
+### 9.1 Client-Side Caching
+
+- `MetricsContext` caches dashboard metrics
+- `cache.js` provides general-purpose caching
+- React Query patterns in services for data staleness
+
+### 9.2 Bundle Optimisation
+
+- Vendor chunking for better caching
+- Tree-shaking for unused code elimination
+- Dynamic imports for route-based code splitting
+
+### 9.3 Database Performance
+
+- Indexed columns on frequently queried fields
+- RLS policies optimised for join performance
+- Soft delete pattern preserves referential integrity
+
+---
+
+## 10. Session Completion
+
+### 10.1 Checklist Status
+
+- [x] Tech stack overview (React, Supabase, Vercel, Claude)
+- [x] Project structure diagram
+- [x] Build and deployment process
+- [x] Environment variables reference
+- [x] External service dependencies
+
+### 10.2 Next Session Preview
+
+**Session 1.2: Database Schema - Core Tables** will document:
+- projects table
+- profiles table
+- user_projects table (multi-tenancy)
+- milestones table
+- deliverables table
+- resources table
+- resource_availability table
+- Entity relationships diagram
+
+---
+
+*Document generated as part of AMSF001 Documentation Project*

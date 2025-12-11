@@ -1,0 +1,1331 @@
+# AMSF001 Technical Specification - Frontend State Management
+
+**Document Version:** 1.0  
+**Created:** 11 December 2025  
+**Session:** 1.7  
+**Author:** Claude AI (Anthropic)  
+
+---
+
+## Table of Contents
+
+1. [Overview](#1-overview)
+2. [Context Provider Hierarchy](#2-context-provider-hierarchy)
+3. [AuthContext](#3-authcontext)
+4. [ProjectContext](#4-projectcontext)
+5. [ViewAsContext](#5-viewascontext)
+6. [ChatContext](#6-chatcontext)
+7. [Supporting Contexts](#7-supporting-contexts)
+8. [Permission System](#8-permission-system)
+9. [Custom Hooks](#9-custom-hooks)
+10. [State Management Patterns](#10-state-management-patterns)
+
+---
+
+## 1. Overview
+
+The AMSF001 Project Tracker uses React Context API for global state management. The application follows a hierarchical provider pattern where contexts depend on each other in a specific order.
+
+### State Management Architecture
+
+| Aspect | Approach |
+|--------|----------|
+| Global State | React Context API |
+| Local State | React useState/useReducer |
+| Persistence | localStorage / sessionStorage |
+| Server State | Supabase real-time + service layer |
+| Caching | Custom service-level caching |
+
+### Key Principles
+
+1. **Single Source of Truth**: Each piece of state has one authoritative source
+2. **Provider Hierarchy**: Contexts are ordered based on dependencies
+3. **Permission Scoping**: Role-based access derived from ProjectContext via ViewAsContext
+4. **Session vs Persistent**: ViewAs uses sessionStorage (resets on close), project selection uses localStorage
+
+---
+
+## 2. Context Provider Hierarchy
+
+### Provider Nesting Order
+
+The order is critical - each provider depends on those above it:
+
+```jsx
+// src/App.jsx
+<BrowserRouter>
+  <ErrorBoundary>
+    <ToastProvider>                    {/* Level 1: No dependencies */}
+      <AuthProvider>                   {/* Level 2: Authentication */}
+        <ProjectProvider>              {/* Level 3: Needs AuthContext */}
+          <ViewAsProvider>             {/* Level 4: Needs Auth + Project */}
+            <TestUserProvider>         {/* Level 5: Needs AuthContext */}
+              <MetricsProvider>        {/* Level 6: Needs ProjectContext */}
+                <NotificationProvider> {/* Level 7: Needs AuthContext */}
+                  <ChatProvider>       {/* Level 8: Needs Auth + Project */}
+                    <HelpProvider>     {/* Level 9: No dependencies */}
+                      <Routes />
+                    </HelpProvider>
+                  </ChatProvider>
+                </NotificationProvider>
+              </MetricsProvider>
+            </TestUserProvider>
+          </ViewAsProvider>
+        </ProjectProvider>
+      </AuthProvider>
+    </ToastProvider>
+  </ErrorBoundary>
+</BrowserRouter>
+```
+
+### Provider Dependencies
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        ToastProvider                            │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                      AuthProvider                         │  │
+│  │  ┌─────────────────────────────────────────────────────┐  │  │
+│  │  │                  ProjectProvider                    │  │  │
+│  │  │  ┌───────────────────────────────────────────────┐  │  │  │
+│  │  │  │               ViewAsProvider                  │  │  │  │
+│  │  │  │  ┌─────────────────────────────────────────┐  │  │  │  │
+│  │  │  │  │          TestUserProvider               │  │  │  │  │
+│  │  │  │  │  ┌───────────────────────────────────┐  │  │  │  │  │
+│  │  │  │  │  │        MetricsProvider            │  │  │  │  │  │
+│  │  │  │  │  │  ┌─────────────────────────────┐  │  │  │  │  │  │
+│  │  │  │  │  │  │   NotificationProvider      │  │  │  │  │  │  │
+│  │  │  │  │  │  │  ┌───────────────────────┐  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │    ChatProvider       │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  ┌─────────────────┐  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  │  HelpProvider   │  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  │    <Routes/>    │  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  └─────────────────┘  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  └───────────────────────┘  │  │  │  │  │  │  │
+│  │  │  │  │  │  └─────────────────────────────┘  │  │  │  │  │  │
+│  │  │  │  │  └───────────────────────────────────┘  │  │  │  │  │
+│  │  │  │  └─────────────────────────────────────────┘  │  │  │  │
+│  │  │  └───────────────────────────────────────────────┘  │  │  │
+│  │  └─────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```
+User Login
+    ↓
+AuthProvider (user, profile, linkedResource)
+    ↓
+ProjectProvider (fetches user's projects from user_projects)
+    ↓
+ViewAsProvider (derives effectiveRole from projectRole)
+    ↓
+usePermissions() hook (uses effectiveRole for all checks)
+    ↓
+Components render based on permissions
+```
+
+---
+
+## 3. AuthContext
+
+**File:** `src/contexts/AuthContext.jsx`  
+**Version:** 5.0  
+
+### Purpose
+
+Manages user authentication state, profile data, linked resource information, and session management.
+
+### State Structure
+
+```javascript
+{
+  user: Object | null,           // Supabase auth user
+  profile: Object | null,        // profiles table data
+  linkedResource: Object | null, // resources table (if linked)
+  isLoading: boolean,
+  error: Error | null,
+  sessionExpiring: boolean,      // Warning flag for near-expiry
+  mustChangePassword: boolean    // Force password change flag
+}
+```
+
+### Exported Values
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `user` | Object | Supabase auth user object |
+| `profile` | Object | User profile from profiles table |
+| `role` | string | User's global role (from profile) |
+| `linkedResource` | Object | Associated resource record (if any) |
+| `isLoading` | boolean | Auth state loading indicator |
+| `error` | Error | Any auth error |
+| `isAuthenticated` | boolean | Whether user is logged in |
+| `sessionExpiring` | boolean | Session nearing expiry |
+| `mustChangePassword` | boolean | Forced password change required |
+
+### Exported Functions
+
+| Function | Description |
+|----------|-------------|
+| `signOut()` | Signs out the user and clears state |
+| `refreshUserData()` | Re-fetches profile and linked resource |
+| `refreshSession()` | Manually refreshes the auth session |
+| `clearMustChangePassword()` | Clears the password change flag |
+
+### Session Management
+
+The AuthContext includes proactive session management:
+
+- **Session Check Interval:** 60 seconds
+- **Expiry Warning Threshold:** 5 minutes before expiry
+- **Auto-refresh:** Attempts to refresh session when nearing expiry
+- **Visibility Change:** Checks session when user returns to tab
+- **Activity Tracking:** Monitors user activity for potential idle timeout
+
+```javascript
+// Session configuration constants
+const SESSION_CHECK_INTERVAL = 60 * 1000;       // 60 seconds
+const EXPIRY_WARNING_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+```
+
+### Authentication Flow
+
+```
+1. App mounts → AuthProvider initializes
+2. supabase.auth.getSession() → Check existing session
+3. If session exists:
+   - Set user state
+   - Fetch profile from profiles table
+   - Fetch linked resource from resources table
+   - Start session monitoring
+4. supabase.auth.onAuthStateChange → Listen for changes
+5. On login/logout → Update all state accordingly
+```
+
+### Usage Example
+
+```javascript
+import { useAuth } from '../contexts/AuthContext';
+
+function MyComponent() {
+  const { 
+    user, 
+    profile, 
+    role, 
+    linkedResource,
+    isAuthenticated,
+    signOut 
+  } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  return (
+    <div>
+      <p>Welcome, {profile?.full_name}</p>
+      <p>Role: {role}</p>
+      <button onClick={signOut}>Logout</button>
+    </div>
+  );
+}
+```
+
+---
+
+## 4. ProjectContext
+
+**File:** `src/contexts/ProjectContext.jsx`  
+**Version:** 5.0  
+
+### Purpose
+
+Manages multi-tenancy by tracking the user's assigned projects and current project selection. Provides project-scoped role information.
+
+### State Structure
+
+```javascript
+{
+  availableProjects: Array,    // User's project assignments with project details
+  currentProjectId: string,    // Selected project ID
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+### Derived Values
+
+| Value | Source | Description |
+|-------|--------|-------------|
+| `currentProject` | Computed | Full project object for current selection |
+| `projectRole` | Computed | User's role for current project (from user_projects) |
+| `hasMultipleProjects` | Computed | Whether user has >1 project |
+
+### Exported Values
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `currentProject` | Object | Full project object |
+| `projectId` | string | Current project ID |
+| `projectRef` | string | Project reference code |
+| `projectName` | string | Project display name |
+| `projectRole` | string | User's role for this project |
+| `availableProjects` | Array | All user's project assignments |
+| `hasMultipleProjects` | boolean | Show project switcher |
+| `isLoading` | boolean | Loading indicator |
+| `error` | Error | Any error |
+
+### Exported Functions
+
+| Function | Description |
+|----------|-------------|
+| `switchProject(projectId)` | Changes the current project |
+| `refreshProject()` | Re-fetches current project data |
+| `refreshProjectAssignments()` | Re-fetches all user's projects |
+
+### Project Selection Logic
+
+1. **Restore from localStorage:** Check for previously selected project
+2. **Validate assignment:** Ensure user still has access to stored project
+3. **Fall back to default:** Use project marked as `is_default` in user_projects
+4. **Fall back to first:** Use first available project
+
+```javascript
+// localStorage key
+const PROJECT_STORAGE_KEY = 'amsf_current_project_id';
+```
+
+### Multi-Tenancy Data Model
+
+```
+users (Supabase auth)
+    ↓ 1:1
+profiles
+    ↓ 1:N
+user_projects (junction table)
+    ↓ N:1
+projects
+
+user_projects structure:
+- id (uuid)
+- user_id (uuid) → profiles.id
+- project_id (uuid) → projects.id
+- role (text) - project-scoped role
+- is_default (boolean)
+```
+
+### Usage Example
+
+```javascript
+import { useProject } from '../contexts/ProjectContext';
+
+function ProjectSwitcher() {
+  const { 
+    currentProject,
+    availableProjects,
+    hasMultipleProjects,
+    switchProject 
+  } = useProject();
+  
+  if (!hasMultipleProjects) return null;
+  
+  return (
+    <select 
+      value={currentProject?.id}
+      onChange={(e) => switchProject(e.target.value)}
+    >
+      {availableProjects.map(({ project }) => (
+        <option key={project.id} value={project.id}>
+          {project.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+```
+
+---
+
+## 5. ViewAsContext
+
+**File:** `src/contexts/ViewAsContext.jsx`  
+**Version:** 2.0  
+
+### Purpose
+
+Enables role impersonation for admin and supplier_pm users. Allows previewing the application as different roles without logging out.
+
+### State Structure
+
+```javascript
+{
+  viewAsRole: string | null,  // Impersonated role (null if not impersonating)
+  isInitialized: boolean      // Context initialization complete
+}
+```
+
+### Role Resolution Chain
+
+```
+1. ProjectContext.projectRole (from user_projects table)
+        ↓ (if null)
+2. AuthContext.role (from profiles table - legacy fallback)
+        ↓
+3. actualRole = resolved role
+        ↓
+4. If viewAsRole is set AND canUseViewAs:
+   effectiveRole = viewAsRole
+   Else:
+   effectiveRole = actualRole
+```
+
+### Permission to Use View As
+
+Only `admin` and `supplier_pm` can use the View As feature:
+
+```javascript
+const CAN_USE_VIEW_AS_ROLES = [ROLES.ADMIN, ROLES.SUPPLIER_PM];
+```
+
+### Available Impersonation Roles
+
+```javascript
+const IMPERSONATION_ROLES = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'supplier_pm', label: 'Supplier PM' },
+  { value: 'customer_pm', label: 'Customer PM' },
+  { value: 'contributor', label: 'Contributor' },
+  { value: 'viewer', label: 'Viewer' },
+];
+```
+
+### Exported Values
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `canUseViewAs` | boolean | Whether current user can impersonate |
+| `isInitialized` | boolean | Context ready |
+| `actualRole` | string | User's true role for current project |
+| `effectiveRole` | string | Role used for permissions (may be impersonated) |
+| `viewAsRole` | string | Currently impersonated role |
+| `globalRole` | string | Role from profiles (fallback) |
+| `projectRole` | string | Role from user_projects |
+| `isImpersonating` | boolean | Whether actively impersonating |
+| `effectiveRoleConfig` | Object | Display config for effective role |
+| `actualRoleConfig` | Object | Display config for actual role |
+| `availableRoles` | Array | Roles available for impersonation |
+| `debugInfo` | Object | All role info for debugging |
+
+### Exported Functions
+
+| Function | Description |
+|----------|-------------|
+| `setViewAs(role)` | Set impersonation role |
+| `clearViewAs()` | Reset to actual role |
+
+### Storage
+
+```javascript
+// sessionStorage key (clears when browser closes)
+const VIEW_AS_STORAGE_KEY = 'amsf_view_as_role';
+```
+
+### Auto-Clear Behavior
+
+View As is automatically cleared when:
+- User logs out
+- User switches to a project where they're not admin/supplier_pm
+- Browser session ends
+
+### Usage Example
+
+```javascript
+import { useViewAs } from '../contexts/ViewAsContext';
+
+function ViewAsBar() {
+  const { 
+    canUseViewAs,
+    isImpersonating,
+    effectiveRole,
+    actualRole,
+    setViewAs,
+    clearViewAs,
+    availableRoles 
+  } = useViewAs();
+  
+  if (!canUseViewAs) return null;
+  
+  return (
+    <div className="view-as-bar">
+      <span>Viewing as: </span>
+      <select 
+        value={effectiveRole}
+        onChange={(e) => setViewAs(e.target.value)}
+      >
+        {availableRoles.map(role => (
+          <option key={role.value} value={role.value}>
+            {role.label}
+          </option>
+        ))}
+      </select>
+      {isImpersonating && (
+        <button onClick={clearViewAs}>Reset</button>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## 6. ChatContext
+
+**File:** `src/contexts/ChatContext.jsx`  
+**Version:** 3.5  
+
+### Purpose
+
+Manages AI chat state including message history, API communication, streaming responses, and local response generation.
+
+### State Structure
+
+```javascript
+{
+  isOpen: boolean,              // Chat panel open/closed
+  messages: Array,              // Chat history
+  isLoading: boolean,           // Request in progress
+  isLoadingContext: boolean,    // Context pre-fetch in progress
+  error: string | null,         // Current error
+  retryCount: number,           // Retry attempt counter
+  tokenUsage: Object,           // Usage tracking
+  prefetchedContext: Object     // Pre-loaded project context
+}
+```
+
+### Message Structure
+
+```javascript
+{
+  role: 'user' | 'assistant',
+  content: string,
+  timestamp: string,           // ISO timestamp
+  toolsUsed: boolean,          // Whether tools were invoked
+  cached: boolean,             // Response from cache
+  local: boolean,              // Generated locally
+  streaming: boolean,          // Currently streaming
+  tokens: {
+    input: number,
+    output: number
+  }
+}
+```
+
+### Hybrid Architecture Paths
+
+The ChatContext implements three response paths:
+
+1. **Local Path (Instant):** Pattern-matched queries answered from pre-fetched context
+2. **Streaming Path (Haiku):** Simple queries using streaming API
+3. **Standard Path (Sonnet):** Complex queries requiring tool calls
+
+```javascript
+// Local response patterns
+const LOCAL_RESPONSE_PATTERNS = [
+  { pattern: /budget|spend/i, type: 'budget' },
+  { pattern: /how many milestones/i, type: 'milestoneCount' },
+  { pattern: /status|overview|summary/i, type: 'overview' },
+  // ...more patterns
+];
+
+// Streaming-eligible patterns
+const STREAMING_PATTERNS = [
+  /budget|spend|cost|variance/i,
+  /milestone.*(status|progress|summary)/i,
+  // ...more patterns
+];
+```
+
+### Context Pre-fetching
+
+When the chat opens, context is pre-fetched for instant responses:
+
+```javascript
+// Fetches from /api/chat-context
+const prefetchedContext = {
+  budgetSummary: { ... },
+  milestoneSummary: { ... },
+  deliverableSummary: { ... },
+  pendingActions: { ... },
+  timesheetSummary: { ... }
+};
+```
+
+### Storage
+
+```javascript
+const CHAT_STORAGE_KEY = 'amsf-chat-history';
+const MAX_STORED_MESSAGES = 50;
+```
+
+### Retry Configuration
+
+```javascript
+const RETRY_CONFIG = {
+  maxRetries: 2,
+  baseDelayMs: 1000,
+  retryableCodes: [429, 503, 504],
+};
+```
+
+### Exported Values
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `isOpen` | boolean | Chat panel visibility |
+| `messages` | Array | Message history |
+| `isLoading` | boolean | Request in progress |
+| `isLoadingContext` | boolean | Context loading |
+| `error` | string | Current error message |
+| `retryCount` | number | Current retry attempt |
+| `tokenUsage` | Object | Cumulative token usage |
+
+### Exported Functions
+
+| Function | Description |
+|----------|-------------|
+| `setIsOpen(boolean)` | Set chat visibility |
+| `toggleChat()` | Toggle visibility |
+| `sendMessage(content)` | Send message to AI |
+| `clearChat()` | Clear message history |
+| `resetAllStats()` | Clear history and token usage |
+| `cancelRequest()` | Cancel pending request |
+| `dismissError()` | Clear error state |
+| `exportChat()` | Export as markdown |
+| `downloadChat()` | Download as file |
+| `copyMessage(content)` | Copy to clipboard |
+
+---
+
+## 7. Supporting Contexts
+
+### 7.1 MetricsContext
+
+**File:** `src/contexts/MetricsContext.jsx`  
+**Version:** 1.0  
+
+Provides centralized, cached metrics to all components.
+
+```javascript
+// Exposed metrics
+{
+  milestones: Object,
+  deliverables: Object,
+  kpis: Object,
+  qualityStandards: Object,
+  timesheets: Object,
+  expenses: Object,
+  resources: Object,
+  certificates: Object,
+  billable: Object,
+  milestoneSpend: Object,
+  projectProgress: number
+}
+
+// Actions
+refreshMetrics()      // Full refresh
+refreshCategory(name) // Partial refresh
+clearCache()          // Clear service cache
+```
+
+### 7.2 NotificationContext
+
+**File:** `src/contexts/NotificationContext.jsx`  
+
+Manages workflow notifications and pending action counts.
+
+```javascript
+// State
+{
+  notifications: Array,
+  unreadCount: number,
+  actionCount: number,
+  loading: boolean
+}
+
+// Functions
+fetchNotifications()
+markAsRead(id)
+markAsActioned(id)
+markAllAsRead()
+dismissNotification(id)
+```
+
+### 7.3 ToastContext
+
+**File:** `src/contexts/ToastContext.jsx`  
+**Version:** 1.1  
+
+Provides application-wide toast notifications.
+
+```javascript
+// Functions
+showToast(message, type, duration)
+showSuccess(message)
+showError(message)
+showWarning(message)
+showInfo(message)
+removeToast(id)
+```
+
+### 7.4 HelpContext
+
+**File:** `src/contexts/HelpContext.jsx`  
+**Version:** 1.0  
+
+Manages help drawer state and current topic.
+
+```javascript
+// State
+{
+  isOpen: boolean,
+  currentTopic: string
+}
+
+// Functions
+openHelp(topic?)
+closeHelp()
+toggleHelp()
+navigateToTopic(topic)
+```
+
+Keyboard shortcuts: `?` or `F1` to toggle, `Escape` to close.
+
+### 7.5 TestUserContext
+
+**File:** `src/contexts/TestUserContext.jsx`  
+
+Manages visibility of test users and their content.
+
+```javascript
+// State
+{
+  showTestUsers: boolean,
+  testUserIds: Array,
+  userRole: string
+}
+
+// Functions
+toggleTestUsers()
+isTestUser(userId)
+filterTestContent(items, field)
+filterByTestFlag(items)
+
+// Computed
+canToggleTestUsers: boolean  // Only admin/supplier_pm
+```
+
+---
+
+## 8. Permission System
+
+### 8.1 Permission Matrix
+
+**File:** `src/lib/permissionMatrix.js`  
+
+The permission matrix is the **single source of truth** for all role-based permissions.
+
+#### Role Constants
+
+```javascript
+export const ROLES = {
+  ADMIN: 'admin',
+  SUPPLIER_PM: 'supplier_pm',
+  CUSTOMER_PM: 'customer_pm',
+  CONTRIBUTOR: 'contributor',
+  VIEWER: 'viewer'
+};
+```
+
+#### Role Groupings
+
+```javascript
+const ALL_ROLES = [ADMIN, SUPPLIER_PM, CUSTOMER_PM, CONTRIBUTOR, VIEWER];
+const AUTHENTICATED = ALL_ROLES;
+const MANAGERS = [ADMIN, SUPPLIER_PM, CUSTOMER_PM];
+const SUPPLIER_SIDE = [ADMIN, SUPPLIER_PM];
+const CUSTOMER_SIDE = [ADMIN, CUSTOMER_PM];
+const WORKERS = [ADMIN, SUPPLIER_PM, CONTRIBUTOR];
+const ADMIN_ONLY = [ADMIN];
+```
+
+#### Matrix Structure
+
+```javascript
+export const PERMISSION_MATRIX = {
+  timesheets: {
+    view: AUTHENTICATED,
+    create: WORKERS,
+    createForOthers: SUPPLIER_SIDE,
+    edit: WORKERS,
+    delete: SUPPLIER_SIDE,
+    submit: WORKERS,
+    approve: CUSTOMER_SIDE,
+  },
+  expenses: {
+    view: AUTHENTICATED,
+    create: WORKERS,
+    validateChargeable: CUSTOMER_SIDE,
+    validateNonChargeable: SUPPLIER_SIDE,
+    // ...
+  },
+  milestones: {
+    view: AUTHENTICATED,
+    create: SUPPLIER_SIDE,
+    edit: SUPPLIER_SIDE,
+    delete: ADMIN_ONLY,
+    useGantt: SUPPLIER_SIDE,
+    editBilling: SUPPLIER_SIDE,
+  },
+  deliverables: {
+    view: AUTHENTICATED,
+    create: [...MANAGERS, CONTRIBUTOR],
+    edit: [...MANAGERS, CONTRIBUTOR],
+    delete: SUPPLIER_SIDE,
+    submit: WORKERS,
+    review: CUSTOMER_SIDE,
+    markDelivered: CUSTOMER_SIDE,
+  },
+  resources: {
+    view: AUTHENTICATED,
+    manage: SUPPLIER_SIDE,
+    delete: ADMIN_ONLY,
+    seeCostPrice: SUPPLIER_SIDE,
+    seeMargins: SUPPLIER_SIDE,
+    // ...
+  },
+  variations: {
+    view: AUTHENTICATED,
+    create: SUPPLIER_SIDE,
+    signAsSupplier: SUPPLIER_SIDE,
+    signAsCustomer: CUSTOMER_SIDE,
+    reject: MANAGERS,
+    // ...
+  },
+  certificates: {
+    view: MANAGERS,
+    create: MANAGERS,
+    signAsSupplier: SUPPLIER_SIDE,
+    signAsCustomer: CUSTOMER_SIDE,
+  },
+  // ...more entities
+};
+```
+
+#### Core Permission Function
+
+```javascript
+export function hasPermission(role, entity, action) {
+  const entityPerms = PERMISSION_MATRIX[entity];
+  if (!entityPerms) return false;
+  
+  const allowedRoles = entityPerms[action];
+  if (!allowedRoles) return false;
+  
+  return allowedRoles.includes(role);
+}
+```
+
+### 8.2 Permission Helpers
+
+**File:** `src/lib/permissions.js`  
+
+Provides backward-compatible function exports and object-level permission checks.
+
+#### Simple Permission Functions
+
+```javascript
+// Direct matrix lookups
+canAddTimesheet(role)           // hasPermission(role, 'timesheets', 'create')
+canApproveTimesheets(role)      // hasPermission(role, 'timesheets', 'approve')
+canCreateMilestone(role)        // hasPermission(role, 'milestones', 'create')
+canEditDeliverable(role)        // hasPermission(role, 'deliverables', 'edit')
+canManageResources(role)        // hasPermission(role, 'resources', 'manage')
+canSeeCostPrice(role)           // hasPermission(role, 'resources', 'seeCostPrice')
+canSignAsSupplier(role)         // hasPermission(role, 'certificates', 'signAsSupplier')
+// ...many more
+```
+
+#### Object-Level Permission Functions
+
+These consider both role AND object state (status, ownership):
+
+```javascript
+// Timesheet permissions
+canEditTimesheet(role, timesheet, userId)
+canDeleteTimesheet(role, timesheet, userId)
+canSubmitTimesheet(role, timesheet, userId)
+
+// Expense permissions
+canEditExpense(role, expense, userId)
+canDeleteExpense(role, expense, userId)
+canValidateExpense(role, expense)
+
+// Deliverable permissions
+canUpdateDeliverableStatus(role, deliverable, userId)
+```
+
+#### Resource Filtering Helpers
+
+```javascript
+// Get resources available for dropdown based on role
+getAvailableResourcesForEntry(role, resources, userId)
+
+// Get user's own resource
+getCurrentUserResource(resources, userId)
+
+// Get default resource for new entry
+getDefaultResourceForEntry(role, resources, userId)
+getDefaultResourceId(role, resources, userId)
+```
+
+### 8.3 usePermissions Hook
+
+**File:** `src/hooks/usePermissions.js`  
+**Version:** 4.0  
+
+The primary interface for permission checks in components.
+
+#### Key Features
+
+1. Uses `effectiveRole` from ViewAsContext (supports impersonation)
+2. Pre-binds user context to permission functions
+3. Provides both simple and object-based permission checks
+
+#### Usage
+
+```javascript
+import { usePermissions } from '../hooks/usePermissions';
+
+function MyComponent({ expense }) {
+  const { 
+    // Role info
+    userRole,
+    actualRole,
+    isImpersonating,
+    
+    // Simple permissions (boolean)
+    canAddTimesheet,
+    canApproveTimesheets,
+    canCreateMilestone,
+    canSeeCostPrice,
+    
+    // Object-based permissions (functions)
+    canEditExpense,
+    canDeleteExpense,
+    canValidateExpense,
+    
+    // Direct matrix access
+    can,
+    
+    // Resource helpers
+    getAvailableResources,
+    getDefaultResourceId,
+  } = usePermissions();
+  
+  // Simple check
+  if (canAddTimesheet) { /* show add button */ }
+  
+  // Object check
+  if (canEditExpense(expense)) { /* show edit button */ }
+  
+  // Direct matrix check
+  if (can('deliverables', 'review')) { /* show review button */ }
+}
+```
+
+### 8.4 Entity-Specific Permission Hooks
+
+#### useMilestonePermissions
+
+```javascript
+const {
+  canEdit,
+  canEditBaseline,
+  canSignBaselineAsSupplier,
+  canSignBaselineAsCustomer,
+  canResetBaseline,
+  canGenerateCertificate,
+  canSignCertificateAsSupplier,
+  canSignCertificateAsCustomer,
+  isBaselineLocked,
+} = useMilestonePermissions(milestone);
+```
+
+#### useDeliverablePermissions
+
+```javascript
+const {
+  canView,
+  canCreate,
+  canEdit,
+  canDelete,
+  canSubmit,
+  canReview,
+  canAcceptReview,
+  canRejectReview,
+  canInitiateSignOff,
+  canSignAsSupplier,
+  canSignAsCustomer,
+  canAssessKPIsAndQS,
+  isComplete,
+  isEditable,
+} = useDeliverablePermissions(deliverable);
+```
+
+#### useTimesheetPermissions
+
+```javascript
+const {
+  canAdd,
+  canAddForOthers,
+  canValidateAny,
+  canEdit,
+  canDelete,
+  canSubmit,
+  canValidate,
+  canReject,
+  isOwner,
+  isEditable,
+  isComplete,
+  getAvailableResources,
+  getDefaultResourceId,
+} = useTimesheetPermissions(timesheet);
+```
+
+#### useResourcePermissions
+
+```javascript
+const {
+  canView,
+  canCreate,
+  canEdit,
+  canDelete,
+  canManage,
+  canSeeSellPrice,
+  canSeeCostPrice,
+  canSeeMargins,
+  canSeeResourceType,
+  canEditFinancials,
+  canLinkToPartner,
+  canViewPartner,
+  isOwnResource,
+} = useResourcePermissions(resource);
+```
+
+---
+
+## 9. Custom Hooks
+
+### 9.1 Form Hooks
+
+#### useForm
+
+Full-featured form management with validation:
+
+```javascript
+const {
+  values,
+  errors,
+  touched,
+  isSubmitting,
+  isValid,
+  isDirty,
+  handleChange,
+  handleBlur,
+  handleSubmit,
+  setValue,
+  setMultipleValues,
+  setError,
+  validate,
+  reset,
+  getFieldProps,
+} = useForm({
+  initialValues: { name: '', email: '' },
+  validationRules: {
+    name: { required: true, minLength: 2 },
+    email: { required: true, email: true }
+  },
+  onSubmit: async (values) => { /* submit */ }
+});
+```
+
+#### useFormValidation
+
+Standalone validation hook:
+
+```javascript
+const {
+  errors,
+  validate,
+  validateField,
+  clearErrors,
+  setFieldError,
+  getError,
+  isValid,
+} = useFormValidation();
+
+// Validate all fields
+if (validate(formData, rules)) {
+  // Submit
+}
+```
+
+### 9.2 Dashboard Hook
+
+#### useDashboardLayout
+
+Manages dashboard widget visibility and positioning:
+
+```javascript
+const {
+  layout,
+  loading,
+  saving,
+  lastSaved,
+  updateVisibility,
+  bulkUpdateVisibility,
+  updateLayoutPositions,
+  saveLayoutPositions,
+  resetToDefault,
+  isWidgetVisible,
+  getGridLayout,
+  getWidgetConfig,
+} = useDashboardLayout(userId, projectId, role);
+```
+
+### 9.3 Metrics Hooks
+
+Centralized metrics with automatic refresh:
+
+```javascript
+// All dashboard metrics
+const { metrics, loading, error, refresh } = useDashboardMetrics();
+
+// Individual metric categories
+const { metrics, loading, error, refresh } = useMilestoneMetrics();
+const { metrics, loading, error, refresh } = useDeliverableMetrics();
+const { metrics, loading, error, refresh } = useKPIMetrics();
+const { metrics, loading, error, refresh } = useQualityStandardMetrics();
+const { metrics, loading, error, refresh } = useTimesheetMetrics();
+const { metrics, loading, error, refresh } = useExpenseMetrics();
+const { metrics, loading, error, refresh } = useBudgetMetrics();
+```
+
+### 9.4 Document Template Hooks
+
+```javascript
+// Fetch all templates
+const { templates, loading, error, refresh } = useDocumentTemplates({
+  templateType: 'variation_cr',
+  activeOnly: true
+});
+
+// Fetch default template by type
+const { template, loading, error } = useDefaultTemplate('variation_cr');
+
+// Render documents
+const { rendering, error, renderToHtml, renderToDocx, renderToPdf } = useDocumentRenderer();
+
+// Combined CR document hook
+const { 
+  template, 
+  html, 
+  warnings, 
+  loading, 
+  rendering, 
+  error, 
+  generatePreview 
+} = useCRDocument(variation, project);
+```
+
+### 9.5 Utility Hooks
+
+#### useReadOnly
+
+Checks if current page is read-only for the user's role:
+
+```javascript
+const { isReadOnly, canEdit, role } = useReadOnly();
+
+if (isReadOnly) {
+  return <ViewOnlyNotice />;
+}
+```
+
+---
+
+## 10. State Management Patterns
+
+### 10.1 Context vs Local State
+
+| Use Context When | Use Local State When |
+|------------------|---------------------|
+| Data needed by many components | Data only used by one component |
+| Data persists across navigation | Data is transient |
+| Data requires authentication | Data is UI-only (modals, forms) |
+| Data is project-scoped | Data is component-specific |
+
+### 10.2 Caching Strategy
+
+**Service-Level Caching:**
+- Metrics service caches computed results
+- Cache cleared on data mutation
+- Cache cleared on project switch
+
+**Context-Level State:**
+- Prefetched data stored in context
+- Updated on relevant events
+- Polling for certain data (notifications)
+
+### 10.3 Error Handling
+
+```javascript
+// Context pattern
+const [error, setError] = useState(null);
+
+try {
+  const data = await fetchData();
+  setData(data);
+  setError(null);
+} catch (err) {
+  console.error('Error:', err);
+  setError(err.message || 'An error occurred');
+}
+```
+
+### 10.4 Re-render Optimization
+
+1. **useMemo for derived state:**
+```javascript
+const currentAssignment = useMemo(() => {
+  return availableProjects.find(a => a.project_id === currentProjectId);
+}, [currentProjectId, availableProjects]);
+```
+
+2. **useCallback for functions:**
+```javascript
+const switchProject = useCallback((projectId) => {
+  setCurrentProjectId(projectId);
+  localStorage.setItem(PROJECT_STORAGE_KEY, projectId);
+}, []);
+```
+
+3. **Memoized context values:**
+```javascript
+const value = useMemo(() => ({
+  currentProject,
+  projectId,
+  switchProject,
+  // ...
+}), [currentProject, projectId, switchProject, /* ... */]);
+```
+
+### 10.5 Persistence Patterns
+
+| Data | Storage | Behavior |
+|------|---------|----------|
+| Project selection | localStorage | Persists across sessions |
+| View As role | sessionStorage | Clears when browser closes |
+| Chat history | localStorage | Limited to 50 messages |
+| Dashboard layout | Supabase | Synced to database |
+| Form state | Local state | Not persisted |
+
+### 10.6 Role Resolution Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Permission Check Flow                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Component calls usePermissions()                           │
+│           ↓                                                 │
+│  usePermissions() calls useViewAs()                         │
+│           ↓                                                 │
+│  useViewAs() returns effectiveRole                          │
+│  (viewAsRole if impersonating, else actualRole)             │
+│           ↓                                                 │
+│  actualRole = projectRole || globalRole                     │
+│  (project-scoped role from user_projects,                   │
+│   or fallback to profiles.role)                             │
+│           ↓                                                 │
+│  usePermissions() uses effectiveRole for all checks         │
+│           ↓                                                 │
+│  hasPermission(effectiveRole, entity, action)               │
+│  checks PERMISSION_MATRIX                                   │
+│           ↓                                                 │
+│  Returns boolean permission result                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Appendix A: Role Display Configuration
+
+```javascript
+export const ROLE_CONFIG = {
+  admin: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
+  supplier_pm: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
+  customer_pm: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+  contributor: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
+  viewer: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' },
+};
+```
+
+---
+
+## Appendix B: Context Import Patterns
+
+```javascript
+// Contexts
+import { useAuth } from '../contexts/AuthContext';
+import { useProject } from '../contexts/ProjectContext';
+import { useViewAs } from '../contexts/ViewAsContext';
+import { useChat } from '../contexts/ChatContext';
+import { useMetrics } from '../contexts/MetricsContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import { useToast } from '../contexts/ToastContext';
+import { useHelp } from '../contexts/HelpContext';
+import { useTestUsers } from '../contexts/TestUserContext';
+
+// Hooks (via barrel export)
+import { 
+  usePermissions,
+  useForm,
+  useDashboardLayout,
+  useMilestonePermissions,
+  useDeliverablePermissions,
+  useTimesheetPermissions,
+  useResourcePermissions,
+  useDashboardMetrics,
+  useMilestoneMetrics,
+  useDeliverableMetrics,
+  useDocumentTemplates,
+  useReadOnly,
+} from '../hooks';
+
+// Permission utilities
+import { 
+  ROLES, 
+  hasPermission, 
+  canEditDeliverable,
+  PERMISSION_MATRIX 
+} from '../lib/permissions';
+```
+
+---
+
+*Document generated as part of AMSF001 Technical Specification - Session 1.7*
