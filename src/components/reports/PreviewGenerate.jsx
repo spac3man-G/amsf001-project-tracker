@@ -332,15 +332,16 @@ export default function PreviewGenerate() {
         try {
           const data = await reportDataFetcherService.fetchSectionData(
             section.type,
-            section.config,
+            section.config || {}, // Ensure config is never undefined
             context
           );
-          sectionDataMap.set(section.id, data);
+          // Wrap successful data in standard format
+          sectionDataMap.set(section.id, { success: true, data });
         } catch (error) {
           console.error(`Error fetching data for section ${section.id}:`, error);
           sectionDataMap.set(section.id, {
             success: false,
-            error: error.message
+            error: error?.message || error?.toString() || 'Unknown error'
           });
         }
       }
