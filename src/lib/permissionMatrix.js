@@ -23,18 +23,20 @@
 export const ROLES = {
   ADMIN: 'admin',
   SUPPLIER_PM: 'supplier_pm',
+  SUPPLIER_FINANCE: 'supplier_finance',  // NEW - Financial management (supplier side)
   CUSTOMER_PM: 'customer_pm',
+  CUSTOMER_FINANCE: 'customer_finance',  // NEW - Financial management (customer side)
   CONTRIBUTOR: 'contributor',
   VIEWER: 'viewer'
 };
 
 // Shorthand for common role groupings
-const ALL_ROLES = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER];
+const ALL_ROLES = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER];
 const AUTHENTICATED = ALL_ROLES; // Anyone logged in
 const MANAGERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM];
-const SUPPLIER_SIDE = [ROLES.ADMIN, ROLES.SUPPLIER_PM];
-const CUSTOMER_SIDE = [ROLES.ADMIN, ROLES.CUSTOMER_PM];
-const WORKERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR];
+const SUPPLIER_SIDE = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE];
+const CUSTOMER_SIDE = [ROLES.ADMIN, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE];
+const WORKERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR];
 const ADMIN_ONLY = [ROLES.ADMIN];
 
 // ============================================
@@ -306,7 +308,9 @@ export function generatePermissionSummary() {
 export const ROLE_CONFIG = {
   [ROLES.ADMIN]: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
   [ROLES.SUPPLIER_PM]: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
+  [ROLES.SUPPLIER_FINANCE]: { label: 'Supplier Finance', color: '#0d9488', bg: '#ccfbf1' },
   [ROLES.CUSTOMER_PM]: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+  [ROLES.CUSTOMER_FINANCE]: { label: 'Customer Finance', color: '#ea580c', bg: '#ffedd5' },
   [ROLES.CONTRIBUTOR]: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
   [ROLES.VIEWER]: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' },
 };

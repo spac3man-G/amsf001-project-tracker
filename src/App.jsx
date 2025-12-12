@@ -53,7 +53,7 @@ const QualityStandardDetail = lazy(() => import('./pages/QualityStandardDetail')
 const RaidLog = lazy(() => import('./pages/RaidLog'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Billing = lazy(() => import('./pages/Billing'));
-const Users = lazy(() => import('./pages/Users'));
+const TeamMembers = lazy(() => import('./pages/TeamMembers'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
@@ -63,6 +63,7 @@ const Calendar = lazy(() => import('./pages/Calendar'));
 const Variations = lazy(() => import('./pages/Variations'));
 const VariationDetail = lazy(() => import('./pages/VariationDetail'));
 const VariationForm = lazy(() => import('./pages/VariationForm'));
+const SystemUsers = lazy(() => import('./pages/admin/SystemUsers'));
 
 /**
  * PageLoader - Shows skeleton while lazy components load
@@ -264,10 +265,13 @@ export default function App() {
                               <ProtectedRoute><Billing /></ProtectedRoute>
                             } />
                             
-                            {/* Users (Admin) */}
-                            <Route path="/users" element={
-                              <ProtectedRoute><Users /></ProtectedRoute>
+                            {/* Team Members (project-scoped user management) */}
+                            <Route path="/team-members" element={
+                              <ProtectedRoute><TeamMembers /></ProtectedRoute>
                             } />
+                            
+                            {/* Redirect old /users URL to /team-members */}
+                            <Route path="/users" element={<Navigate to="/team-members" replace />} />
                             
                             {/* Settings */}
                             <Route path="/settings" element={
@@ -288,6 +292,11 @@ export default function App() {
                             } />
                             <Route path="/deleted-items" element={
                               <ProtectedRoute><DeletedItems /></ProtectedRoute>
+                            } />
+                            
+                            {/* System Users (admin only) */}
+                            <Route path="/admin/users" element={
+                              <ProtectedRoute><SystemUsers /></ProtectedRoute>
                             } />
                             
                             {/* Catch all */}

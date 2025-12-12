@@ -36,9 +36,11 @@ export { ROLES, ROLE_CONFIG, ROLE_OPTIONS, hasPermission, getPermissionsForRole,
  * Check if user has at least the specified role level
  */
 const ROLE_LEVELS = {
-  [ROLES.ADMIN]: 5,
-  [ROLES.SUPPLIER_PM]: 4,
-  [ROLES.CUSTOMER_PM]: 3,
+  [ROLES.ADMIN]: 7,
+  [ROLES.SUPPLIER_PM]: 6,
+  [ROLES.SUPPLIER_FINANCE]: 5,
+  [ROLES.CUSTOMER_PM]: 4,
+  [ROLES.CUSTOMER_FINANCE]: 3,
   [ROLES.CONTRIBUTOR]: 2,
   [ROLES.VIEWER]: 1
 };

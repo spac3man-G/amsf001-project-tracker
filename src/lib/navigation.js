@@ -36,7 +36,8 @@ import {
   PoundSterling,
   ShieldAlert,
   CalendarDays,
-  GitPullRequestDraft
+  GitPullRequestDraft,
+  Shield
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -61,7 +62,7 @@ export const NAV_ITEMS = {
     path: '/workflow-summary',
     icon: ClipboardList,
     label: 'Workflow Summary',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR],
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
     readOnlyRoles: []
   },
   dashboard: {
@@ -69,7 +70,7 @@ export const NAV_ITEMS = {
     path: '/dashboard',
     icon: LayoutDashboard,
     label: 'Dashboard',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
   reports: {
@@ -101,7 +102,7 @@ export const NAV_ITEMS = {
     path: '/deliverables',
     icon: Package,
     label: 'Deliverables',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
   kpis: {
@@ -141,7 +142,7 @@ export const NAV_ITEMS = {
     path: '/timesheets',
     icon: Clock,
     label: 'Timesheets',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR],
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
     readOnlyRoles: []
   },
   expenses: {
@@ -149,7 +150,7 @@ export const NAV_ITEMS = {
     path: '/expenses',
     icon: Receipt,
     label: 'Expenses',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR],
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
     readOnlyRoles: []
   },
   billing: {
@@ -168,13 +169,13 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
-  users: {
-    id: 'users',
-    path: '/users',
-    icon: UserCircle,
-    label: 'Users',
+  teamMembers: {
+    id: 'teamMembers',
+    path: '/team-members',
+    icon: Users,
+    label: 'Team Members',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: [ROLES.SUPPLIER_PM]
+    readOnlyRoles: []
   },
   settings: {
     id: 'settings',
@@ -205,7 +206,7 @@ export const NAV_ITEMS = {
     path: '/calendar',
     icon: CalendarDays,
     label: 'Calendar',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
   variations: {
@@ -215,6 +216,14 @@ export const NAV_ITEMS = {
     label: 'Variations',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
     readOnlyRoles: [ROLES.CUSTOMER_PM]
+  },
+  systemUsers: {
+    id: 'systemUsers',
+    path: '/admin/users',
+    icon: Shield,
+    label: 'System Users',
+    allowedRoles: [ROLES.ADMIN],
+    readOnlyRoles: []
   }
 };
 
@@ -260,10 +269,11 @@ export const ROLE_NAV_ORDER = {
     'expenses',
     'billing',
     'partners',
-    'users',
+    'teamMembers',
     'settings',
     'auditLog',
-    'deletedItems'
+    'deletedItems',
+    'systemUsers'
   ],
   [ROLES.SUPPLIER_PM]: [
     'workflowSummary',
@@ -282,10 +292,18 @@ export const ROLE_NAV_ORDER = {
     'expenses',
     'billing',
     'partners',
-    'users',
+    'teamMembers',
     'settings',
     'auditLog',
     'deletedItems'
+  ],
+  [ROLES.SUPPLIER_FINANCE]: [
+    'workflowSummary',
+    'dashboard',
+    'calendar',
+    'timesheets',
+    'expenses',
+    'deliverables'
   ],
   [ROLES.CUSTOMER_PM]: [
     'workflowSummary',
@@ -301,6 +319,14 @@ export const ROLE_NAV_ORDER = {
     'calendar',
     'timesheets',
     'expenses'
+  ],
+  [ROLES.CUSTOMER_FINANCE]: [
+    'workflowSummary',
+    'dashboard',
+    'calendar',
+    'timesheets',
+    'expenses',
+    'deliverables'
   ],
   [ROLES.CONTRIBUTOR]: [
     'workflowSummary',
@@ -481,12 +507,26 @@ export const ROLE_DISPLAY = {
     bg: '#d1fae5',
     description: 'Manage resources, partners, and invoices'
   },
+  [ROLES.SUPPLIER_FINANCE]: {
+    label: 'Supplier Finance',
+    shortLabel: 'Supplier Fin',
+    color: '#0d9488',
+    bg: '#ccfbf1',
+    description: 'Financial management (supplier side)'
+  },
   [ROLES.CUSTOMER_PM]: {
     label: 'Customer PM',
     shortLabel: 'Customer PM',
     color: '#d97706',
     bg: '#fef3c7',
     description: 'Approve timesheets and validate expenses'
+  },
+  [ROLES.CUSTOMER_FINANCE]: {
+    label: 'Customer Finance',
+    shortLabel: 'Customer Fin',
+    color: '#ea580c',
+    bg: '#ffedd5',
+    description: 'Financial management (customer side)'
   },
   [ROLES.CONTRIBUTOR]: {
     label: 'Contributor',

@@ -1,8 +1,9 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Created:** 11 December 2025  
-**Session:** 1.7  
+**Last Updated:** 12 December 2025  
+**Session:** 1.7 (updated in Session 6)  
 **Author:** Claude AI (Anthropic)  
 
 ---
@@ -1273,13 +1274,212 @@ const value = useMemo(() => ({
 
 ---
 
+## 11. Page-Specific State Management
+
+### 11.1 Team Members Page
+
+**File:** `src/pages/TeamMembers.jsx`  
+**Version:** 3.0 (Refactored from Users.jsx)  
+**Updated:** 12 December 2025
+
+#### Purpose
+
+Manages project-scoped user membership. Shows only users assigned to the current project and manages their project-specific roles via `user_projects` table.
+
+#### State Structure
+
+```javascript
+{
+  // Core data
+  users: Array,              // Team members from user_projects JOIN profiles
+  resources: Array,          // Project resources for linking
+  
+  // UI state
+  loading: boolean,
+  userRole: string,          // Current user's role for permission checks
+  currentUserId: string,     // Current user ID for self-identification
+  
+  // Role editing
+  editingRoleId: string,     // user_projects.id being edited
+  
+  // Resource linking
+  linkingId: string,         // User being linked to resource
+  selectedResourceId: string,
+  unlinkDialog: { isOpen, resourceId, resourceName },
+  
+  // Add team member modal
+  showAddModal: boolean,
+  availableUsers: Array,     // Users not in project
+  selectedUserId: string,
+  selectedRole: string,
+  addingMember: boolean,
+  
+  // Remove team member
+  removeDialog: { isOpen, member }
+}
+```
+
+#### Data Flow
+
+```
+ProjectContext (currentProject)
+        ↓
+TeamMembers.fetchData()
+        ↓
+SELECT from user_projects
+  JOIN profiles (for user info)
+  WHERE project_id = currentProject.id
+        ↓
+Transform to flat structure:
+{
+  id: user_projects.id,
+  user_id: profiles.id,
+  full_name, email, role (from user_projects),
+  is_test_user, created_at
+}
+        ↓
+Filter test users if toggle off
+        ↓
+setUsers(teamMembers)
+```
+
+#### Key Operations
+
+| Operation | Table Modified | Description |
+|-----------|---------------|-------------|
+| Add Team Member | INSERT user_projects | Links existing user to project with role |
+| Remove Member | DELETE user_projects | Removes project access (account remains) |
+| Change Role | UPDATE user_projects.role | Project-scoped role change |
+| Link Resource | UPDATE resources.user_id | Associates resource with user |
+
+#### Access Control
+
+- **Visible to:** Admin, Supplier PM
+- **Full edit access:** Admin, Supplier PM
+- **Self-removal prevention:** Cannot remove yourself from project
+
+---
+
+### 11.2 System Users Page
+
+**File:** `src/pages/admin/SystemUsers.jsx`  
+**Version:** 1.0  
+**Created:** 12 December 2025
+
+#### Purpose
+
+Admin-only page for system-wide user account management. Shows ALL user accounts regardless of project membership.
+
+#### State Structure
+
+```javascript
+{
+  // Core data
+  users: Array,              // All profiles with project counts
+  
+  // UI state
+  loading: boolean,
+  userRole: string,          // Must be 'admin' to access
+  
+  // Create user form
+  showCreateForm: boolean,
+  creating: boolean,
+  newUser: {
+    email: string,
+    password: string,
+    full_name: string,
+    role: string           // Global role for profiles.role
+  }
+}
+```
+
+#### Data Flow
+
+```
+AuthContext (verify admin role)
+        ↓
+SystemUsers.fetchData()
+        ↓
+SELECT from profiles
+  WITH user_projects (
+    JOIN projects for name/reference
+  )
+        ↓
+Transform to:
+{
+  id, email, full_name,
+  global_role: profiles.role,
+  is_test_user, created_at,
+  projects: [{ id, name, reference, role }]
+}
+        ↓
+Filter test users if toggle off
+        ↓
+setUsers(systemUsers)
+```
+
+#### Key Operations
+
+| Operation | Table Modified | Description |
+|-----------|---------------|-------------|
+| Create User | INSERT profiles (via API) | Creates new system account |
+| Toggle Test User | UPDATE profiles.is_test_user | Marks user as test/real |
+
+#### Access Control
+
+- **Visible to:** Admin only
+- **Non-admin redirect:** Automatically redirects to /dashboard
+- **Route:** /admin/users
+
+---
+
+### 11.3 User Management Architecture Summary
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    User Management Split                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────┐  ┌─────────────────────────┐  │
+│  │   Team Members Page     │  │   System Users Page     │  │
+│  │   /team-members         │  │   /admin/users          │  │
+│  ├─────────────────────────┤  ├─────────────────────────┤  │
+│  │ • Project-scoped        │  │ • System-wide           │  │
+│  │ • Shows current project │  │ • Shows ALL accounts    │  │
+│  │   members only          │  │                         │  │
+│  │ • Role = user_projects  │  │ • Role = profiles       │  │
+│  │ • Add/remove from       │  │ • Create new accounts   │  │
+│  │   project               │  │ • View project counts   │  │
+│  │ • Admin + Supplier PM   │  │ • Admin only            │  │
+│  └─────────────────────────┘  └─────────────────────────┘  │
+│                                                             │
+│  Database Tables:                                           │
+│  ┌─────────────────────────────────────────────────────────┤
+│  │ profiles (global accounts) ◄──── SystemUsers reads     │  │
+│  │     │                                                   │  │
+│  │     │ 1:N                                               │  │
+│  │     ↓                                                   │  │
+│  │ user_projects (project membership) ◄── TeamMembers     │  │
+│  │     │                                   manages        │  │
+│  │     │ N:1                                               │  │
+│  │     ↓                                                   │  │
+│  │ projects (project definitions)                          │  │
+│  └─────────────────────────────────────────────────────────┘
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Appendix A: Role Display Configuration
 
 ```javascript
 export const ROLE_CONFIG = {
   admin: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
   supplier_pm: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
+  supplier_finance: { label: 'Supplier Finance', color: '#0d9488', bg: '#ccfbf1' },
   customer_pm: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
+  customer_finance: { label: 'Customer Finance', color: '#ea580c', bg: '#ffedd5' },
   contributor: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
   viewer: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' },
 };

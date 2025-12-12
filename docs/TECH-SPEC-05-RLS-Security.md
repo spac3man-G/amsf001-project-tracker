@@ -80,11 +80,24 @@ CREATE TABLE user_projects (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id),
   project_id UUID REFERENCES projects(id),
-  role TEXT CHECK (role IN ('admin', 'supplier_pm', 'customer_pm', 'contributor', 'viewer')),
+  role TEXT CHECK (role IN ('admin', 'supplier_pm', 'supplier_finance', 'customer_pm', 'customer_finance', 'contributor', 'viewer')),
   created_at TIMESTAMPTZ,
   UNIQUE(user_id, project_id)
 );
 ```
+
+> **IMPORTANT: `user_projects` is Authoritative for Project Access**
+>
+> As of December 2025, the `user_projects` table is the **single source of truth** for:
+> - Project membership (who can access which project)
+> - Project-scoped roles (what role a user has within a specific project)
+>
+> The `profiles.role` column stores the user's **global role** (used for system administration like creating new projects), but **project-scoped permissions** are always derived from `user_projects.role`.
+>
+> This design supports:
+> - Users having different roles in different projects
+> - Future multi-organization expansion
+> - Clear separation between system admin (global) and project access (scoped)
 
 **Critical Design Decision**: The `user_projects` SELECT policy uses direct user matching to avoid circular dependency:
 
@@ -483,9 +496,13 @@ Inherits from parent variation via JOIN.
 |------|-------|-------------|
 | **admin** | Global & Project | Full system access, user management, project creation |
 | **supplier_pm** | Project | Supplier-side project manager, full project control |
+| **supplier_finance** | Project | Supplier-side financial management (timesheets, expenses, deliverables) |
 | **customer_pm** | Project | Customer-side project manager, validation and signing |
+| **customer_finance** | Project | Customer-side financial management (timesheets, expenses, deliverables) |
 | **contributor** | Project | Team member, can submit timesheets/expenses, update deliverables |
 | **viewer** | Project | Read-only access to project data |
+
+> **Note:** `supplier_finance` and `customer_finance` were added in December 2025 to support dedicated financial roles with contributor-level permissions focused on financial workflows.
 
 ### 6.2 Complete Permission Matrix
 
@@ -571,20 +588,24 @@ Inherits from parent variation via JOIN.
 While roles are not strictly hierarchical in implementation, they follow a conceptual hierarchy:
 
 ```
-admin (Level 5)
-   └── supplier_pm (Level 4)
-          └── customer_pm (Level 3)
-                 └── contributor (Level 2)
-                        └── viewer (Level 1)
+admin (Level 6)
+   └── supplier_pm (Level 5)
+          ├── supplier_finance (Level 4)
+          └── customer_pm (Level 4)
+                 └── customer_finance (Level 3)
+                        └── contributor (Level 2)
+                               └── viewer (Level 1)
 ```
 
 The `hasMinRole()` utility function uses this hierarchy:
 
 ```javascript
 const ROLE_LEVELS = {
-  admin: 5,
-  supplier_pm: 4,
-  customer_pm: 3,
+  admin: 6,
+  supplier_pm: 5,
+  supplier_finance: 4,
+  customer_pm: 4,
+  customer_finance: 3,
   contributor: 2,
   viewer: 1
 };
