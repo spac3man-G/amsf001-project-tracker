@@ -82,45 +82,55 @@ export default function SystemUsers() {
     try {
       setLoading(true);
       
-      // Fetch ALL profiles with their project assignments
-      const { data, error } = await supabase
+      // Fetch ALL profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          email,
-          full_name,
-          role,
-          is_test_user,
-          created_at,
-          user_projects (
-            id,
-            role,
-            project:projects (
-              id,
-              name,
-              reference
-            )
-          )
-        `)
+        .select('id, email, full_name, role, is_test_user, created_at')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (profilesError) throw profilesError;
+      
+      // Fetch all user_projects with project info
+      const { data: userProjectsData, error: upError } = await supabase
+        .from('user_projects')
+        .select('id, user_id, role, project_id');
+      
+      if (upError) throw upError;
+      
+      // Fetch all projects for reference
+      const projectIds = [...new Set((userProjectsData || []).map(up => up.project_id))];
+      let projects = [];
+      if (projectIds.length > 0) {
+        const { data: projectsData, error: projectsError } = await supabase
+          .from('projects')
+          .select('id, name, reference')
+          .in('id', projectIds);
+        
+        if (projectsError) throw projectsError;
+        projects = projectsData || [];
+      }
       
       // Transform data
-      let systemUsers = (data || []).map(profile => ({
-        id: profile.id,
-        email: profile.email,
-        full_name: profile.full_name,
-        global_role: profile.role,  // Global role from profiles
-        is_test_user: profile.is_test_user,
-        created_at: profile.created_at,
-        projects: (profile.user_projects || []).map(up => ({
-          id: up.project?.id,
-          name: up.project?.name,
-          reference: up.project?.reference,
-          role: up.role
-        })).filter(p => p.id)  // Filter out any null projects
-      }));
+      let systemUsers = (profilesData || []).map(profile => {
+        const userProjects = (userProjectsData || []).filter(up => up.user_id === profile.id);
+        return {
+          id: profile.id,
+          email: profile.email,
+          full_name: profile.full_name,
+          global_role: profile.role,  // Global role from profiles
+          is_test_user: profile.is_test_user,
+          created_at: profile.created_at,
+          projects: userProjects.map(up => {
+            const project = projects.find(p => p.id === up.project_id);
+            return {
+              id: up.project_id,
+              name: project?.name || 'Unknown',
+              reference: project?.reference || '',
+              role: up.role
+            };
+          }).filter(p => p.id)
+        };
+      });
       
       // Filter test users if toggle is off
       if (!showTestUsers) {

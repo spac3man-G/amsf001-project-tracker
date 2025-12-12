@@ -116,32 +116,44 @@ export default function TeamMembers() {
         .from('user_projects')
         .select(`
           id,
+          user_id,
           role,
           is_default,
-          created_at,
-          user:profiles!user_id (
-            id,
-            full_name,
-            email,
-            is_test_user
-          )
+          created_at
         `)
         .eq('project_id', currentProject.id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      // Transform data and filter test users
-      let teamMembers = (data || []).map(up => ({
-        id: up.id,  // This is user_projects.id - used for role updates
-        user_id: up.user.id,
-        full_name: up.user.full_name,
-        email: up.user.email,
-        role: up.role,  // Project-specific role from user_projects
-        is_test_user: up.user.is_test_user,
-        is_default: up.is_default,
-        created_at: up.created_at
-      }));
+      // Now fetch profiles for these users
+      const userIds = (data || []).map(up => up.user_id);
+      
+      let profiles = [];
+      if (userIds.length > 0) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, is_test_user')
+          .in('id', userIds);
+        
+        if (profileError) throw profileError;
+        profiles = profileData || [];
+      }
+      
+      // Merge the data
+      let teamMembers = (data || []).map(up => {
+        const profile = profiles.find(p => p.id === up.user_id) || {};
+        return {
+          id: up.id,  // This is user_projects.id - used for role updates
+          user_id: up.user_id,
+          full_name: profile.full_name || null,
+          email: profile.email || 'Unknown',
+          role: up.role,  // Project-specific role from user_projects
+          is_test_user: profile.is_test_user || false,
+          is_default: up.is_default,
+          created_at: up.created_at
+        };
+      });
       
       // Filter test users if toggle is off
       if (!showTestUsers) {
