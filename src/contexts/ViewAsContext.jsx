@@ -34,7 +34,9 @@ const CAN_USE_VIEW_AS_ROLES = [ROLES.ADMIN, ROLES.SUPPLIER_PM];
 const IMPERSONATION_ROLES = [
   { value: ROLES.ADMIN, label: 'Admin' },
   { value: ROLES.SUPPLIER_PM, label: 'Supplier PM' },
+  { value: ROLES.SUPPLIER_FINANCE, label: 'Supplier Finance' },
   { value: ROLES.CUSTOMER_PM, label: 'Customer PM' },
+  { value: ROLES.CUSTOMER_FINANCE, label: 'Customer Finance' },
   { value: ROLES.CONTRIBUTOR, label: 'Contributor' },
   { value: ROLES.VIEWER, label: 'Viewer' },
 ];
