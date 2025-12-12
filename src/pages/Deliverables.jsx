@@ -46,12 +46,12 @@ const renderQSItem = (qs) => (
 );
 
 export default function Deliverables() {
-  const { user, role: userRole } = useAuth();
+  const { user } = useAuth();
   const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
   const { showTestUsers } = useTestUsers();
   const currentUserId = user?.id || null;
-  const { canEditDeliverable, canReviewDeliverable, canDeleteDeliverable } = usePermissions();
+  const { canEditDeliverable, canReviewDeliverable, canDeleteDeliverable, hasRole } = usePermissions();
   const { refreshMetrics } = useMetrics();
 
   const [deliverables, setDeliverables] = useState([]);
@@ -136,7 +136,7 @@ export default function Deliverables() {
 
       // Only sync KPI/QS links if user is Admin or Supplier PM
       // Contributors can't modify these junction tables due to RLS policies
-      const canEditLinks = userRole === 'admin' || userRole === 'supplier_pm';
+      const canEditLinks = hasRole(['admin', 'supplier_pm']);
       if (canEditLinks && editForm.kpi_ids !== undefined) {
         await deliverablesService.syncKPILinks(id, editForm.kpi_ids);
       }

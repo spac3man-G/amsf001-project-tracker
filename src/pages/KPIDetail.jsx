@@ -6,7 +6,7 @@ import {
   TrendingUp, ArrowLeft, Edit2, Save, X, Target, 
   FileText, Info, CheckCircle, AlertTriangle, RefreshCw
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+// Note: useAuth removed - permissions now use project role via usePermissions hook
 import { usePermissions } from '../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
 
@@ -14,9 +14,6 @@ export default function KPIDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { project } = useProject();
-  
-  // Use AuthContext instead of local auth fetching
-  const { role: userRole } = useAuth();
   
   // Use the permissions hook - clean, pre-bound permission functions
   const { canManageKPIs } = usePermissions();

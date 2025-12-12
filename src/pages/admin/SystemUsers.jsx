@@ -20,6 +20,7 @@ import {
   Shield, Plus, RefreshCw, X, Eye, EyeOff, TestTube, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProjectRole } from '../../hooks/useProjectRole';
 import { useTestUsers } from '../../contexts/TestUserContext';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner } from '../../components/common';
@@ -28,7 +29,6 @@ import '../TeamMembers.css';  // Reuse TeamMembers styling
 export default function SystemUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -40,6 +40,7 @@ export default function SystemUsers() {
   
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isSystemAdmin, loading: roleLoading } = useProjectRole();
   const { showTestUsers, toggleTestUsers, canToggleTestUsers } = useTestUsers();
   const { showSuccess, showError, showWarning } = useToast();
 
@@ -54,29 +55,16 @@ export default function SystemUsers() {
   ];
 
   useEffect(() => {
-    fetchUserRole();
-  }, []);
-
-  useEffect(() => {
-    if (userRole === 'admin') {
+    // Wait for role to load before checking permissions
+    if (roleLoading) return;
+    
+    if (isSystemAdmin) {
       fetchData();
-    } else if (userRole && userRole !== 'admin') {
+    } else {
       // Non-admin, redirect to dashboard
       navigate('/dashboard');
     }
-  }, [userRole, showTestUsers, navigate]);
-
-  async function fetchUserRole() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
-    }
-  }
+  }, [isSystemAdmin, showTestUsers, navigate, roleLoading]);
 
   async function fetchData() {
     try {
@@ -223,8 +211,13 @@ export default function SystemUsers() {
 
   const testUserCount = users.filter(u => u.is_test_user).length;
 
-  // Access check - only admin
-  if (userRole && userRole !== 'admin') {
+  // Loading check - wait for role before checking permissions
+  if (roleLoading) {
+    return <LoadingSpinner message="Loading permissions..." size="large" fullPage />;
+  }
+
+  // Access check - only global admins (isSystemAdmin)
+  if (!isSystemAdmin) {
     return (
       <div className="users-page">
         <div className="access-denied">

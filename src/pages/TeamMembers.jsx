@@ -25,13 +25,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../contexts/ToastContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useProjectRole } from '../hooks/useProjectRole';
 import { LoadingSpinner, ConfirmDialog } from '../components/common';
 
 export default function TeamMembers() {
   const [users, setUsers] = useState([]);
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [currentUserId, setCurrentUserId] = useState(null);
   // Commented out - user creation moved to System Users page (Session 5)
   // const [showCreateForm, setShowCreateForm] = useState(false);
@@ -51,6 +51,7 @@ export default function TeamMembers() {
   const [removeDialog, setRemoveDialog] = useState({ isOpen: false, member: null });
   
   const { user } = useAuth();
+  const { effectiveRole, loading: roleLoading } = useProjectRole();
   const { showTestUsers, toggleTestUsers, canToggleTestUsers } = useTestUsers();
   const { showSuccess, showError, showWarning } = useToast();
   const { currentProject } = useProject();
@@ -73,15 +74,18 @@ export default function TeamMembers() {
     { value: 'viewer', label: 'Viewer', color: '#64748b' }
   ];
 
+  // Set currentUserId from user
   useEffect(() => {
-    fetchUserRole();
-  }, []);
+    if (user) {
+      setCurrentUserId(user.id);
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (canManageUsers) {
+    if (canManageUsers && !roleLoading) {
       fetchData();
     }
-  }, [userRole, showTestUsers, currentProject?.id]);
+  }, [effectiveRole, showTestUsers, currentProject?.id, roleLoading]);
 
   // Session 4: Fetch available users when modal opens
   useEffect(() => {
@@ -90,20 +94,7 @@ export default function TeamMembers() {
     }
   }, [showAddModal, showTestUsers]);
 
-  async function fetchUserRole() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setCurrentUserId(user.id);
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
-    }
-  }
-
-  const canManageUsers = userRole === 'admin' || userRole === 'supplier_pm';
+  const canManageUsers = effectiveRole === 'admin' || effectiveRole === 'supplier_pm';
 
   async function fetchData() {
     if (!currentProject?.id) return;
@@ -413,6 +404,11 @@ export default function TeamMembers() {
   }
 
   const testUserCount = users.filter(u => u.is_test_user).length;
+
+  // Combined loading check - wait for role before checking permissions
+  if (roleLoading) {
+    return <LoadingSpinner message="Loading permissions..." size="large" fullPage />;
+  }
 
   if (!canManageUsers) {
     return (

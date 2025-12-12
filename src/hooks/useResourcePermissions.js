@@ -17,6 +17,7 @@
 
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from './usePermissions';
+import { useProjectRole } from './useProjectRole';
 
 /**
  * Hook for resource-specific permissions.
@@ -31,14 +32,15 @@ import { usePermissions } from './usePermissions';
  * const { canDelete, canLinkToPartner } = useResourcePermissions(resource);
  */
 export function useResourcePermissions(resource = null) {
-  const { user, role: userRole, profile, linkedResource } = useAuth();
+  const { user, profile, linkedResource } = useAuth();
+  const { effectiveRole } = useProjectRole();
   const basePermissions = usePermissions();
   
-  // Core role checks
-  const isAdmin = userRole === 'admin';
-  const isSupplierPM = userRole === 'supplier_pm';
-  const isCustomerPM = userRole === 'customer_pm';
-  const isContributor = userRole === 'contributor';
+  // Core role checks - use project-scoped effectiveRole
+  const isAdmin = effectiveRole === 'admin';
+  const isSupplierPM = effectiveRole === 'supplier_pm';
+  const isCustomerPM = effectiveRole === 'customer_pm';
+  const isContributor = effectiveRole === 'contributor';
   
   // User identity
   const currentUserId = user?.id || null;
@@ -167,7 +169,7 @@ export function useResourcePermissions(resource = null) {
     currentUserId,
     currentUserName,
     currentUserResourceId,
-    userRole,
+    userRole: effectiveRole,
     
     // Role checks
     isAdmin,

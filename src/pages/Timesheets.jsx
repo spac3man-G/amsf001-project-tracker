@@ -35,7 +35,7 @@ import {
 import './Timesheets.css';
 
 export default function Timesheets() {
-  const { user, role: userRole, linkedResource } = useAuth();
+  const { user, linkedResource } = useAuth();
   const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
   const { showTestUsers, testUserIds } = useTestUsers();
@@ -43,6 +43,7 @@ export default function Timesheets() {
   const currentUserResourceId = linkedResource?.id || null;
 
   const { 
+    userRole, // Project-scoped role for UI checks
     canAddTimesheet, 
     canEditTimesheet, 
     canDeleteTimesheet, 

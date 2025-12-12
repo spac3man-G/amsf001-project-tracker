@@ -43,7 +43,7 @@ import './Milestones.css';
 
 export default function Milestones() {
   const navigate = useNavigate();
-  const { user, role: userRole, profile } = useAuth();
+  const { user, profile } = useAuth();
   const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
   const currentUserId = user?.id || null;

@@ -45,7 +45,7 @@ const INITIAL_EXPENSE_FORM = {
 };
 
 export default function Expenses() {
-  const { user, role: userRole } = useAuth();
+  const { user } = useAuth();
   const { projectId } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
   const { showTestUsers, testUserIds } = useTestUsers();

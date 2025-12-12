@@ -3,9 +3,9 @@
  * 
  * Central export point for all custom hooks.
  * 
- * @version 1.2
+ * @version 1.3
  * @created 3 December 2025
- * @updated 6 December 2025 - Added useTimesheetPermissions, useResourcePermissions
+ * @updated 12 December 2025 - Added useProjectRole for project-scoped permissions
  */
 
 // Form handling
@@ -14,6 +14,7 @@ export { useFormValidation } from './useFormValidation';
 
 // Permissions
 export { usePermissions } from './usePermissions';
+export { useProjectRole } from './useProjectRole';
 export { useMilestonePermissions } from './useMilestonePermissions';
 export { useDeliverablePermissions } from './useDeliverablePermissions';
 export { useTimesheetPermissions } from './useTimesheetPermissions';

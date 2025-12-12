@@ -6,18 +6,22 @@ import {
   ChevronRight, RefreshCw, User, AlertCircle,
   CheckCircle, Filter, Eye, UserCheck
 } from 'lucide-react';
+import { useProjectRole } from '../hooks/useProjectRole';
+import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner, PageHeader, StatCard } from '../components/common';
 
 export default function WorkflowSummary() {
   const [workflowItems, setWorkflowItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [filterCategory, setFilterCategory] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [projectId, setProjectId] = useState(null);
   const navigate = useNavigate();
+  
+  // Use project-scoped role from useProjectRole hook
+  const { effectiveRole, loading: roleLoading } = useProjectRole();
+  const { user } = useAuth();
+  const currentUserId = user?.id || null;
 
   // Check if user can see all workflows or just their own
   const canSeeAllWorkflows = (role) => {
@@ -36,70 +40,52 @@ export default function WorkflowSummary() {
     }
   };
 
-  // Check permissions and fetch data
+  // Check permissions and fetch data when role is loaded
   useEffect(() => {
-    checkPermissionsAndFetch();
-  }, []);
-
-  async function checkPermissionsAndFetch() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-
-      setCurrentUserId(user.id);
-
-      // Get user role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, role, full_name, email')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile) {
-        alert('Profile not found.');
-        navigate('/');
-        return;
-      }
-
-      // Viewers cannot access workflow summary
-      if (profile.role === 'viewer') {
-        alert('You do not have permission to view this page.');
-        navigate('/');
-        return;
-      }
-
-      // Get project ID
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-
-      if (project) {
-        setProjectId(project.id);
-      }
-
-      setUserRole(profile.role);
-      setCurrentUserProfile(profile);
-      await fetchWorkflowItems(user.id, profile, project?.id);
-    } catch (error) {
-      console.error('Error checking permissions:', error);
-      setLoading(false);
+    if (roleLoading) return;
+    
+    // Viewers cannot access workflow summary
+    if (effectiveRole === 'viewer') {
+      alert('You do not have permission to view this page.');
+      navigate('/');
+      return;
     }
-  }
+    
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    // Fetch project ID and workflow items
+    async function initializeData() {
+      try {
+        // Get project ID
+        const { data: project } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('reference', 'AMSF001')
+          .single();
 
-  async function fetchWorkflowItems(userId, profile, projId) {
+        if (project) {
+          setProjectId(project.id);
+        }
+
+        await fetchWorkflowItems(project?.id);
+      } catch (error) {
+        console.error('Error initializing data:', error);
+        setLoading(false);
+      }
+    }
+    
+    initializeData();
+  }, [roleLoading, effectiveRole, user, navigate]);
+
+  async function fetchWorkflowItems(projId) {
     setRefreshing(true);
     
     try {
-      const userIdToUse = userId || currentUserId;
-      const profileToUse = profile || currentUserProfile;
-      
-      if (!userIdToUse || !profileToUse) {
-        console.error('No user ID or profile available');
+      if (!currentUserId || !effectiveRole) {
+        console.error('No user ID or role available');
         setWorkflowItems([]);
         setLoading(false);
         setRefreshing(false);
@@ -136,7 +122,7 @@ export default function WorkflowSummary() {
         
         submittedTimesheets.forEach(ts => {
           // Filter based on user role if not admin/PM
-          if (!canSeeAllWorkflows(profileToUse.role) && ts.user_id !== userIdToUse) {
+          if (!canSeeAllWorkflows(effectiveRole) && ts.user_id !== currentUserId) {
             return;
           }
           
@@ -171,7 +157,7 @@ export default function WorkflowSummary() {
       } else if (submittedExpenses && submittedExpenses.length > 0) {
         submittedExpenses.forEach(exp => {
           // Filter based on user role if not admin/PM
-          if (!canSeeAllWorkflows(profileToUse.role) && exp.created_by !== userIdToUse) {
+          if (!canSeeAllWorkflows(effectiveRole) && exp.created_by !== currentUserId) {
             return;
           }
           
@@ -350,7 +336,7 @@ export default function WorkflowSummary() {
     urgent: filteredItems.filter(item => getDaysPending(item.created_at) >= 5).length
   };
 
-  if (loading) {
+  if (loading || roleLoading) {
     return <LoadingSpinner message="Loading workflow summary..." size="large" fullPage />;
   }
 
@@ -359,7 +345,7 @@ export default function WorkflowSummary() {
       <PageHeader
         icon={ClipboardList}
         title="Workflow Summary"
-        subtitle={canSeeAllWorkflows(userRole) 
+        subtitle={canSeeAllWorkflows(effectiveRole) 
           ? 'All pending actions across the project' 
           : 'Your pending workflow actions'}
       >
@@ -373,12 +359,12 @@ export default function WorkflowSummary() {
           borderRadius: '8px',
           fontSize: '0.85rem'
         }}>
-          {canSeeAllWorkflows(userRole) ? <Eye size={16} /> : <User size={16} />}
-          <span>Viewing as: <strong>{getRoleDisplayName(userRole)}</strong></span>
+          {canSeeAllWorkflows(effectiveRole) ? <Eye size={16} /> : <User size={16} />}
+          <span>Viewing as: <strong>{getRoleDisplayName(effectiveRole)}</strong></span>
         </div>
         <button 
           className="btn btn-secondary" 
-          onClick={() => fetchWorkflowItems(currentUserId, currentUserProfile, projectId)}
+          onClick={() => fetchWorkflowItems(projectId)}
           disabled={refreshing}
         >
           <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
@@ -452,7 +438,7 @@ export default function WorkflowSummary() {
           <CheckCircle size={48} style={{ color: '#10b981', marginBottom: '1rem' }} />
           <h3 style={{ margin: '0 0 0.5rem' }}>All Clear!</h3>
           <p style={{ color: '#64748b', margin: 0 }}>
-            {canSeeAllWorkflows(userRole) 
+            {canSeeAllWorkflows(effectiveRole) 
               ? 'No pending workflow actions across the project.' 
               : 'You have no pending workflow actions.'}
           </p>
@@ -636,9 +622,9 @@ export default function WorkflowSummary() {
           </ul>
         </div>
         
-        {canSeeAllWorkflows(userRole) && (
+        {canSeeAllWorkflows(effectiveRole) && (
           <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#dbeafe', borderRadius: '6px', fontSize: '0.85rem', color: '#1e40af' }}>
-            <strong>Note:</strong> As {getRoleDisplayName(userRole)}, you can see all pending workflow items across the project.
+            <strong>Note:</strong> As {getRoleDisplayName(effectiveRole)}, you can see all pending workflow items across the project.
           </div>
         )}
       </div>

@@ -48,7 +48,7 @@ import {
 export default function ResourceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, role: userRole } = useAuth();
+  const { user } = useAuth();
   const { projectId } = useProject();
   
   // Use the new resource permissions hook
@@ -56,7 +56,8 @@ export default function ResourceDetail() {
     canEdit: canEditResource, 
     canSeeCostPrice, 
     canSeeResourceType,
-    canSeeMargins 
+    canSeeMargins,
+    canLinkToPartner
   } = useResourcePermissions();
 
   // State
@@ -82,7 +83,8 @@ export default function ResourceDetail() {
 
   useEffect(() => {
     async function fetchPartners() {
-      if (resource?.project_id && userRole && ['admin', 'supplier_pm'].includes(userRole)) {
+      // Only fetch partners if user can link to partners (admin/supplier_pm)
+      if (resource?.project_id && canLinkToPartner) {
         try {
           const partnersData = await partnersService.getAll(resource.project_id, {
             filters: [{ column: 'is_active', operator: 'eq', value: true }],
@@ -96,7 +98,7 @@ export default function ResourceDetail() {
       }
     }
     fetchPartners();
-  }, [resource?.project_id, userRole]);
+  }, [resource?.project_id, canLinkToPartner]);
 
   async function fetchResourceData() {
     try {

@@ -1,5 +1,5 @@
 // src/App.jsx
-// Version 15.0 - Replaced Availability with Project Calendar (availability, milestones, deliverables)
+// Version 16.0 - Updated ProtectedRoute with project-scoped role checks
 //
 // Provider order is critical:
 // 1. AuthProvider - user authentication (no dependencies)
@@ -21,6 +21,9 @@ import { ChatProvider } from './contexts/ChatContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { MetricsProvider } from './contexts/MetricsContext';
 import { HelpProvider } from './contexts/HelpContext';
+
+// Import hooks
+import { useProjectRole } from './hooks/useProjectRole';
 
 // Shared components - always loaded
 import { ErrorBoundary, LoadingSpinner, Skeleton } from './components/common';
@@ -80,14 +83,27 @@ function PageLoader() {
  * ProtectedRoute - Wraps routes that require authentication
  * Uses AuthContext for single source of truth.
  * Also handles forced password change flow.
+ * 
+ * @param {ReactNode} children - Child components to render
+ * @param {boolean} adminOnly - If true, requires global admin role (isSystemAdmin)
+ * @param {string[]} requiredRoles - Array of roles that can access this route (uses effectiveRole)
+ * 
+ * Role checking logic:
+ * - adminOnly: Checks isSystemAdmin (global role === 'admin')
+ * - requiredRoles: Checks effectiveRole (project role with global fallback)
+ * 
+ * @version 2.0 - Added project-scoped role checks
  */
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, adminOnly = false, requiredRoles = null }) {
   const { user, isLoading, mustChangePassword, clearMustChangePassword, profile } = useAuth();
+  const { effectiveRole, isSystemAdmin, loading: roleLoading } = useProjectRole();
 
-  if (isLoading) {
+  // Show loading spinner while auth or role is loading
+  if (isLoading || roleLoading) {
     return <LoadingSpinner message="Loading..." size="large" fullPage />;
   }
 
+  // Redirect to login if not authenticated
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -100,6 +116,18 @@ function ProtectedRoute({ children }) {
         onSuccess={clearMustChangePassword}
       />
     );
+  }
+
+  // Admin-only routes (like System Users) - requires global admin role
+  if (adminOnly && !isSystemAdmin) {
+    console.warn(`Access denied to admin-only route. isSystemAdmin: ${isSystemAdmin}`);
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Routes with required roles - check effectiveRole (project role with global fallback)
+  if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(effectiveRole)) {
+    console.warn(`Access denied. Required roles: ${requiredRoles.join(', ')}. User's effectiveRole: ${effectiveRole}`);
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -294,9 +322,9 @@ export default function App() {
                               <ProtectedRoute><DeletedItems /></ProtectedRoute>
                             } />
                             
-                            {/* System Users (admin only) */}
+                            {/* System Users (admin only - requires global admin role) */}
                             <Route path="/admin/users" element={
-                              <ProtectedRoute><SystemUsers /></ProtectedRoute>
+                              <ProtectedRoute adminOnly><SystemUsers /></ProtectedRoute>
                             } />
                             
                             {/* Catch all */}

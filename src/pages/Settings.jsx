@@ -10,11 +10,11 @@ import { LoadingSpinner, PageHeader } from '../components/common';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, role: userRole } = useAuth();
+  const { user } = useAuth();
   const { projectId, refreshProject } = useProject();
   
-  // Use the permissions hook - clean, pre-bound permission functions
-  const { canAccessSettings } = usePermissions();
+  // Use the permissions hook - clean, pre-bound permission functions (uses project-scoped role)
+  const { canAccessSettings, userRole } = usePermissions();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

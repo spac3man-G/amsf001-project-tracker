@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useProjectRole } from '../hooks/useProjectRole';
 import { LoadingSpinner, PageHeader } from '../components/common';
 import { FileText, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
@@ -35,30 +36,17 @@ const statuses = [
 export default function NetworkStandards() {
   const [standards, setStandards] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('viewer');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const { showSuccess, showError } = useToast();
+  const { effectiveRole, loading: roleLoading } = useProjectRole();
 
   // Detail modal state
   const [detailModal, setDetailModal] = useState({ isOpen: false, standard: null });
 
   useEffect(() => {
     fetchStandards();
-    fetchUserRole();
   }, []);
-
-  async function fetchUserRole() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
-    }
-  }
 
   async function fetchStandards() {
     try {
@@ -174,10 +162,10 @@ export default function NetworkStandards() {
     };
   });
 
-  // Can edit check
-  const canEdit = userRole === 'admin' || userRole === 'supplier_pm' || userRole === 'contributor';
+  // Can edit check - use effectiveRole from useProjectRole hook
+  const canEdit = effectiveRole === 'admin' || effectiveRole === 'supplier_pm' || effectiveRole === 'contributor';
 
-  if (loading) {
+  if (loading || roleLoading) {
     return <LoadingSpinner message="Loading network standards..." size="large" fullPage />;
   }
 

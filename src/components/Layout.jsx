@@ -31,12 +31,14 @@ import {
   isReadOnlyForRole,
   getNavItemIdByPath,
   getDefaultNavOrder,
-  isDefaultOrder
+  isDefaultOrder,
+  NAV_ITEMS
 } from '../lib/navigation';
 
 // Import AuthContext for user data
 import { useAuth } from '../contexts/AuthContext';
 import { useViewAs } from '../contexts/ViewAsContext';
+import { useProjectRole } from '../hooks/useProjectRole';
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -48,6 +50,9 @@ export default function Layout({ children }) {
   
   // Use ViewAsContext for effective role (supports impersonation)
   const { effectiveRole, isImpersonating, effectiveRoleConfig } = useViewAs();
+  
+  // Use useProjectRole to check global admin status for System Users access
+  const { isSystemAdmin } = useProjectRole();
   
   // Local state for UI
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -99,13 +104,30 @@ export default function Layout({ children }) {
   }, [effectiveRole, customNavOrder]);
 
   // Get navigation items for current role, with custom ordering if saved
+  // Special handling: System Users is shown based on global admin status, not project role
   const navItems = useMemo(() => {
-    const roleNav = getNavigationForRole(effectiveRole);
+    let roleNav = getNavigationForRole(effectiveRole);
     if (customNavOrder && customNavOrder.length > 0) {
-      return applyCustomNavOrder(effectiveRole, customNavOrder);
+      roleNav = applyCustomNavOrder(effectiveRole, customNavOrder);
     }
+    
+    // Check if System Users is already in the nav items
+    const hasSystemUsers = roleNav.some(item => item.id === 'systemUsers');
+    
+    // If user is a global admin but System Users isn't in their nav
+    // (because their project role is not admin), add it
+    if (isSystemAdmin && !hasSystemUsers) {
+      return [...roleNav, NAV_ITEMS.systemUsers];
+    }
+    
+    // If user is NOT a global admin but System Users is in their nav
+    // (shouldn't happen with current config, but defensive check), remove it
+    if (!isSystemAdmin && hasSystemUsers) {
+      return roleNav.filter(item => item.id !== 'systemUsers');
+    }
+    
     return roleNav;
-  }, [effectiveRole, customNavOrder]);
+  }, [effectiveRole, customNavOrder, isSystemAdmin]);
 
   // Check if current page is read-only for this role
   const isCurrentPageReadOnly = useMemo(() => {
