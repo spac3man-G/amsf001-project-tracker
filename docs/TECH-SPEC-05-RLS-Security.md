@@ -1,7 +1,8 @@
 # AMSF001 Technical Specification - RLS Policies & Security
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Created:** 11 December 2025  
+**Updated:** 13 December 2025  
 **Session:** 1.5  
 **Scope:** Row Level Security, Authentication, Authorization
 
@@ -59,6 +60,8 @@ AMSF001 implements a comprehensive Row Level Security (RLS) model using PostgreS
 |----------|---------|
 | `auth.uid()` | Returns the authenticated user's UUID |
 | `auth.role()` | Returns the authenticated role ('authenticated' or 'anon') |
+| `get_my_project_ids()` | SECURITY DEFINER function returning project IDs for current user |
+| `can_manage_project(uuid)` | SECURITY DEFINER function checking if user can manage a project |
 
 ---
 
@@ -99,14 +102,22 @@ CREATE TABLE user_projects (
 > - Future multi-organization expansion
 > - Clear separation between system admin (global) and project access (scoped)
 
-**Critical Design Decision**: The `user_projects` SELECT policy uses direct user matching to avoid circular dependency:
+**Critical Design Decision**: The `user_projects` policies use SECURITY DEFINER helper functions to avoid circular dependencies:
 
 ```sql
--- CORRECT: Direct user_id check (no circular reference)
+-- Helper function bypasses RLS to get user's projects
+CREATE OR REPLACE FUNCTION get_my_project_ids()
+RETURNS SETOF uuid
+LANGUAGE sql SECURITY DEFINER STABLE
+AS $ SELECT project_id FROM user_projects WHERE user_id = auth.uid() $;
+
+-- SELECT policy uses the helper function
 CREATE POLICY "user_projects_select_policy" 
 ON public.user_projects FOR SELECT TO authenticated 
-USING (user_projects.user_id = auth.uid());
+USING (project_id IN (SELECT get_my_project_ids()));
 ```
+
+> **Why SECURITY DEFINER?** The `user_projects` table determines project membership, but RLS policies on `user_projects` need to check `user_projects` - creating infinite recursion. SECURITY DEFINER functions execute with elevated privileges, bypassing RLS and breaking the recursion cycle safely.
 
 ### 2.3 Project Access Pattern
 
@@ -261,14 +272,34 @@ The `profiles` table stores user profile information and global role.
 
 ### 4.3 user_projects Table
 
-**Policies**:
+**Policies** (Updated 13 December 2025 - uses SECURITY DEFINER functions):
 
 | Operation | Allowed Roles | Condition |
 |-----------|--------------|-----------|
-| SELECT | Self only | user_id = auth.uid() (prevents circular ref) |
+| SELECT | All project members | `project_id IN (SELECT get_my_project_ids())` |
 | INSERT | Project/global admin | user_projects.role = 'admin' OR profiles.role = 'admin' |
-| UPDATE | Project admin | user_projects.role = 'admin' |
+| UPDATE | admin, supplier_pm | `can_manage_project(project_id)` |
 | DELETE | Project admin | user_projects.role = 'admin' |
+
+**Helper Functions** (SECURITY DEFINER to bypass RLS recursion):
+
+```sql
+-- Returns project IDs the current user belongs to
+CREATE FUNCTION get_my_project_ids() RETURNS SETOF uuid
+LANGUAGE sql SECURITY DEFINER STABLE AS $
+  SELECT project_id FROM user_projects WHERE user_id = auth.uid()
+$;
+
+-- Checks if current user can manage (admin/supplier_pm) a specific project
+CREATE FUNCTION can_manage_project(p_project_id uuid) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE AS $
+  SELECT EXISTS (
+    SELECT 1 FROM user_projects 
+    WHERE user_id = auth.uid() AND project_id = p_project_id
+    AND role IN ('admin', 'supplier_pm')
+  )
+$;
+```
 
 ---
 
@@ -943,6 +974,7 @@ EXISTS (
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
+| 1.1 | 13 Dec 2025 | Claude AI | Added SECURITY DEFINER functions for user_projects policies to fix recursion bug; updated Section 1.3, 2.2, and 4.3 |
 
 ---
 
