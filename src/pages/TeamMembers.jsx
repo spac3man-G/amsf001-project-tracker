@@ -19,7 +19,7 @@ import { supabase } from '../lib/supabase';
 import './TeamMembers.css';
 import { 
   Users as UsersIcon, Plus, Save, X, RefreshCw, 
-  Shield, Eye, EyeOff, TestTube, Link, Unlink, ChevronDown, Trash2, UserPlus
+  Shield, Eye, EyeOff, TestTube, Link, Unlink, ChevronDown, Trash2, UserPlus, Pencil
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTestUsers } from '../contexts/TestUserContext';
@@ -49,6 +49,12 @@ export default function TeamMembers() {
   
   // Session 4: Remove Team Member state
   const [removeDialog, setRemoveDialog] = useState({ isOpen: false, member: null });
+  
+  // Session 6: Edit Team Member state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [editForm, setEditForm] = useState({ full_name: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
   
   const { user } = useAuth();
   const { effectiveRole, loading: roleLoading } = useProjectRole();
@@ -368,6 +374,46 @@ export default function TeamMembers() {
     setRemoveDialog({ isOpen: true, member });
   }
 
+  // Session 6: Open edit modal
+  function handleEditClick(member) {
+    setEditingMember(member);
+    setEditForm({
+      full_name: member.full_name || ''
+    });
+    setShowEditModal(true);
+  }
+
+  // Session 6: Save edited member details
+  async function handleSaveEdit() {
+    if (!editingMember) return;
+    
+    try {
+      setSavingEdit(true);
+      
+      // Update profiles table (not user_projects)
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editForm.full_name.trim() || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingMember.user_id);
+      
+      if (error) throw error;
+      
+      showSuccess('Team member updated successfully');
+      setShowEditModal(false);
+      setEditingMember(null);
+      await fetchData();
+      
+    } catch (error) {
+      console.error('Error updating team member:', error);
+      showError('Failed to update team member');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   // Session 4: Confirm and execute removal
   async function confirmRemove() {
     const member = removeDialog.member;
@@ -653,15 +699,24 @@ export default function TeamMembers() {
                         </td>
                       )}
                       <td className="actions-cell">
-                        {!isCurrentUser && (
+                        <div className="action-buttons">
                           <button
-                            className="btn-icon danger"
-                            onClick={() => handleRemoveClick(user)}
-                            title="Remove from project"
+                            className="btn-icon"
+                            onClick={() => handleEditClick(user)}
+                            title="Edit member details"
                           >
-                            <X size={16} />
+                            <Pencil size={14} />
                           </button>
-                        )}
+                          {!isCurrentUser && (
+                            <button
+                              className="btn-icon danger"
+                              onClick={() => handleRemoveClick(user)}
+                              title="Remove from project"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -785,6 +840,70 @@ export default function TeamMembers() {
         confirmText="Remove"
         type="danger"
       />
+
+      {/* Edit Team Member Modal */}
+      {showEditModal && editingMember && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Edit Team Member</h3>
+              <button className="btn-icon" onClick={() => setShowEditModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="edit-member-header">
+                <div className={`user-avatar ${editingMember.is_test_user ? 'test' : ''}`}>
+                  {(editForm.full_name || editingMember.email || 'U')[0].toUpperCase()}
+                </div>
+                <div className="edit-member-info">
+                  <span className="edit-member-email">{editingMember.email}</span>
+                </div>
+              </div>
+              <div className="form-field">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  value={editForm.full_name}
+                  onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                  placeholder="Enter full name"
+                  autoFocus
+                />
+              </div>
+              <div className="form-field">
+                <label>Project Role</label>
+                <select
+                  value={editingMember.role}
+                  onChange={(e) => handleUpdateRole(editingMember.id, e.target.value)}
+                >
+                  {roles.map(r => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+                <p className="help-text">Role determines permissions within this project</p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingMember(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+              >
+                {savingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

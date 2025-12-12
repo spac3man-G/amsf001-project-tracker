@@ -507,8 +507,15 @@
 
 /* ==================== Actions Cell ==================== */
 .actions-cell {
-  width: 50px;
+  width: 80px;
   text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 /* ==================== Modal ==================== */
@@ -580,6 +587,54 @@
   font-size: 13px;
   color: var(--color-text-secondary);
   margin-top: 8px;
+}
+
+.modal-body input[type="text"] {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.modal-body input[type="text"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.modal-body input[type="text"]::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* ==================== Edit Member Header ==================== */
+.edit-member-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+}
+
+.edit-member-header .user-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 16px;
+}
+
+.edit-member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.edit-member-email {
+  font-size: 14px;
+  color: var(--color-text-secondary);
 }
 
 .modal-footer {
