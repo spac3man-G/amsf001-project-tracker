@@ -39,12 +39,11 @@ $$;
 -- PART 2: SELECT Policy - View team members
 -- ============================================================================
 
--- Drop any existing SELECT policies
 DROP POLICY IF EXISTS "user_projects_select_policy" ON public.user_projects;
 DROP POLICY IF EXISTS "Users can view their own project memberships" ON public.user_projects;
 DROP POLICY IF EXISTS "user_projects_select" ON public.user_projects;
 
--- Create new SELECT policy: users can see all members of projects they belong to
+-- Users can see all members of projects they belong to
 CREATE POLICY "user_projects_select_policy" 
 ON public.user_projects 
 FOR SELECT 
@@ -57,17 +56,30 @@ USING (
 -- PART 3: UPDATE Policy - Change team member roles
 -- ============================================================================
 
--- Drop any existing UPDATE policies
 DROP POLICY IF EXISTS "user_projects_update_policy" ON public.user_projects;
 DROP POLICY IF EXISTS "Project admins can update memberships" ON public.user_projects;
 
--- Create new UPDATE policy: admin and supplier_pm can update roles in their projects
+-- Admin and supplier_pm can update roles in their projects
 CREATE POLICY "user_projects_update_policy" 
 ON public.user_projects 
 FOR UPDATE 
 TO authenticated 
 USING (can_manage_project(project_id))
 WITH CHECK (can_manage_project(project_id));
+
+-- ============================================================================
+-- PART 4: DELETE Policy - Remove team members
+-- ============================================================================
+
+DROP POLICY IF EXISTS "user_projects_delete_policy" ON public.user_projects;
+DROP POLICY IF EXISTS "Project admins can delete memberships" ON public.user_projects;
+
+-- Admin and supplier_pm can remove team members from their projects
+CREATE POLICY "user_projects_delete_policy" 
+ON public.user_projects 
+FOR DELETE 
+TO authenticated 
+USING (can_manage_project(project_id));
 
 -- ============================================================================
 -- NOTES
@@ -83,5 +95,6 @@ WITH CHECK (can_manage_project(project_id));
 --
 -- Security model:
 -- - SELECT: Users see all team members of projects they're part of
--- - UPDATE: Only admin/supplier_pm can change roles (via can_manage_project check)
--- - INSERT/DELETE: Handled by separate policies (not changed in this migration)
+-- - UPDATE: Only admin/supplier_pm can change roles
+-- - DELETE: Only admin/supplier_pm can remove team members
+-- - INSERT: Handled by separate policy (not changed in this migration)

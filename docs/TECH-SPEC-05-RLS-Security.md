@@ -279,7 +279,7 @@ The `profiles` table stores user profile information and global role.
 | SELECT | All project members | `project_id IN (SELECT get_my_project_ids())` |
 | INSERT | Project/global admin | user_projects.role = 'admin' OR profiles.role = 'admin' |
 | UPDATE | admin, supplier_pm | `can_manage_project(project_id)` |
-| DELETE | Project admin | user_projects.role = 'admin' |
+| DELETE | admin, supplier_pm | `can_manage_project(project_id)` |
 
 **Helper Functions** (SECURITY DEFINER to bypass RLS recursion):
 
