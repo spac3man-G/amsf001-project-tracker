@@ -7,17 +7,21 @@
  * Features:
  * - View all profiles with project count
  * - Create new user accounts
+ * - Toggle admin status (simplified from legacy role system)
  * - Test user toggle
  * 
- * @version 1.0
- * @created 12 December 2025
+ * Global role is now binary: admin or non-admin.
+ * Project-specific permissions are handled via user_projects.role
+ * 
+ * @version 2.0 - Simplified to admin toggle
+ * @updated 13 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { 
-  Shield, Plus, RefreshCw, X, Eye, EyeOff, TestTube, ChevronDown
+  Shield, Plus, RefreshCw, X, Eye, EyeOff, TestTube, ShieldCheck, ShieldOff
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProjectRole } from '../../hooks/useProjectRole';
@@ -35,7 +39,7 @@ export default function SystemUsers() {
     email: '',
     password: '',
     full_name: '',
-    role: 'viewer'
+    isAdmin: false
   });
   
   const navigate = useNavigate();
@@ -43,16 +47,6 @@ export default function SystemUsers() {
   const { isSystemAdmin, loading: roleLoading } = useProjectRole();
   const { showTestUsers, toggleTestUsers, canToggleTestUsers } = useTestUsers();
   const { showSuccess, showError, showWarning } = useToast();
-
-  const roles = [
-    { value: 'admin', label: 'Admin', color: '#7c3aed' },
-    { value: 'supplier_pm', label: 'Supplier PM', color: '#059669' },
-    { value: 'supplier_finance', label: 'Supplier Finance', color: '#0d9488' },
-    { value: 'customer_pm', label: 'Customer PM', color: '#d97706' },
-    { value: 'customer_finance', label: 'Customer Finance', color: '#ea580c' },
-    { value: 'contributor', label: 'Contributor', color: '#2563eb' },
-    { value: 'viewer', label: 'Viewer', color: '#64748b' }
-  ];
 
   useEffect(() => {
     // Wait for role to load before checking permissions
@@ -105,7 +99,7 @@ export default function SystemUsers() {
           id: profile.id,
           email: profile.email,
           full_name: profile.full_name,
-          global_role: profile.role,  // Global role from profiles
+          isAdmin: profile.role === 'admin',  // Simplified: just check if admin
           is_test_user: profile.is_test_user,
           created_at: profile.created_at,
           projects: userProjects.map(up => {
@@ -159,7 +153,7 @@ export default function SystemUsers() {
           email: newUser.email,
           password: newUser.password,
           full_name: newUser.full_name || newUser.email.split('@')[0],
-          role: newUser.role,
+          role: newUser.isAdmin ? 'admin' : 'viewer',  // Binary: admin or viewer
           adminToken: session?.access_token,
         }),
       });
@@ -172,13 +166,37 @@ export default function SystemUsers() {
 
       await fetchData();
       setShowCreateForm(false);
-      setNewUser({ email: '', password: '', full_name: '', role: 'viewer' });
+      setNewUser({ email: '', password: '', full_name: '', isAdmin: false });
       showSuccess('User created! They will need to set a secure password on first login.');
     } catch (error) {
       console.error('Error creating user:', error);
       showError('Failed to create user: ' + error.message);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleToggleAdmin(userId, currentIsAdmin) {
+    // Prevent demoting yourself
+    if (userId === user?.id && currentIsAdmin) {
+      showWarning("You can't remove your own admin access");
+      return;
+    }
+
+    try {
+      const newRole = currentIsAdmin ? 'viewer' : 'admin';
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      await fetchData();
+      showSuccess(currentIsAdmin ? 'Admin access removed' : 'Admin access granted');
+    } catch (error) {
+      console.error('Error toggling admin status:', error);
+      showError('Failed to update admin status');
     }
   }
 
@@ -199,16 +217,7 @@ export default function SystemUsers() {
     }
   }
 
-  function getRoleConfig(role) {
-    return roles.find(r => r.value === role) || roles[6]; // Default to viewer
-  }
-
-  // Count users by role
-  const roleCounts = users.reduce((acc, u) => {
-    acc[u.global_role] = (acc[u.global_role] || 0) + 1;
-    return acc;
-  }, {});
-
+  const adminCount = users.filter(u => u.isAdmin).length;
   const testUserCount = users.filter(u => u.is_test_user).length;
 
   // Loading check - wait for role before checking permissions
@@ -280,25 +289,18 @@ export default function SystemUsers() {
           }}>
             <strong>{users.length}</strong> Total Users
           </div>
-          {roles.map(role => {
-            const count = roleCounts[role.value] || 0;
-            if (count === 0) return null;
-            return (
-              <div 
-                key={role.value}
-                className="stat-chip"
-                style={{ 
-                  padding: '8px 16px', 
-                  background: role.color + '15',
-                  color: role.color,
-                  borderRadius: '8px',
-                  fontSize: '14px'
-                }}
-              >
-                <strong>{count}</strong> {role.label}
-              </div>
-            );
-          })}
+          <div 
+            className="stat-chip"
+            style={{ 
+              padding: '8px 16px', 
+              background: '#7c3aed15',
+              color: '#7c3aed',
+              borderRadius: '8px',
+              fontSize: '14px'
+            }}
+          >
+            <strong>{adminCount}</strong> Admin{adminCount !== 1 ? 's' : ''}
+          </div>
         </div>
 
         {/* Create User Form */}
@@ -314,7 +316,8 @@ export default function SystemUsers() {
             <div className="form-grid" style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '16px'
+              gap: '16px',
+              alignItems: 'end'
             }}>
               <div className="form-field">
                 <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '14px' }}>
@@ -371,25 +374,34 @@ export default function SystemUsers() {
                 />
               </div>
               <div className="form-field">
-                <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '14px' }}>
-                  Global Role
-                </label>
-                <select 
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
+                <label 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px',
+                    padding: '10px 0',
+                    cursor: 'pointer',
                     fontSize: '14px',
-                    background: 'white'
+                    fontWeight: '500'
                   }}
                 >
-                  {roles.map(r => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
+                  <input 
+                    type="checkbox"
+                    checked={newUser.isAdmin}
+                    onChange={(e) => setNewUser({ ...newUser, isAdmin: e.target.checked })}
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      accentColor: '#7c3aed',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <Shield size={16} style={{ color: '#7c3aed' }} />
+                  Make Admin
+                </label>
+                <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
+                  Admins can manage all system users
+                </p>
               </div>
             </div>
             <div className="form-actions" style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
@@ -417,7 +429,7 @@ export default function SystemUsers() {
                 className="btn-secondary" 
                 onClick={() => {
                   setShowCreateForm(false);
-                  setNewUser({ email: '', password: '', full_name: '', role: 'viewer' });
+                  setNewUser({ email: '', password: '', full_name: '', isAdmin: false });
                 }}
                 style={{
                   padding: '10px 20px',
@@ -451,7 +463,7 @@ export default function SystemUsers() {
               <tr>
                 <th>User</th>
                 <th>Email</th>
-                <th>Global Role</th>
+                <th>Admin</th>
                 <th>Projects</th>
                 <th>Created</th>
                 {showTestUsers && <th>Type</th>}
@@ -477,7 +489,6 @@ export default function SystemUsers() {
                 </tr>
               ) : (
                 users.map(u => {
-                  const roleConfig = getRoleConfig(u.global_role);
                   const isTestUser = u.is_test_user;
                   const isCurrentUser = u.id === user?.id;
                   
@@ -498,16 +509,45 @@ export default function SystemUsers() {
                       </td>
                       <td className="email-cell">{u.email}</td>
                       <td>
-                        <span 
-                          className="role-badge"
-                          style={{ 
-                            backgroundColor: roleConfig.color + '15',
-                            color: roleConfig.color,
-                            cursor: 'default'
+                        <button
+                          onClick={() => handleToggleAdmin(u.id, u.isAdmin)}
+                          className={`admin-toggle ${u.isAdmin ? 'is-admin' : ''}`}
+                          title={
+                            isCurrentUser && u.isAdmin
+                              ? "You can't remove your own admin access"
+                              : u.isAdmin 
+                                ? 'Click to remove admin access' 
+                                : 'Click to grant admin access'
+                          }
+                          disabled={isCurrentUser && u.isAdmin}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            fontSize: '13px',
+                            fontWeight: '500',
+                            cursor: isCurrentUser && u.isAdmin ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.15s ease',
+                            background: u.isAdmin ? '#7c3aed15' : '#f1f5f9',
+                            color: u.isAdmin ? '#7c3aed' : '#94a3b8',
+                            opacity: isCurrentUser && u.isAdmin ? 0.6 : 1
                           }}
                         >
-                          {roleConfig.label}
-                        </span>
+                          {u.isAdmin ? (
+                            <>
+                              <ShieldCheck size={14} />
+                              Admin
+                            </>
+                          ) : (
+                            <>
+                              <ShieldOff size={14} />
+                              No
+                            </>
+                          )}
+                        </button>
                       </td>
                       <td>
                         {u.projects.length > 0 ? (
@@ -558,25 +598,26 @@ export default function SystemUsers() {
           </table>
         </div>
 
-        {/* Role Legend */}
-        <div className="role-legend">
-          <h4>Global Role Reference</h4>
-          <div className="legend-grid">
-            {roles.map(role => (
-              <div key={role.value} className="legend-item">
-                <span className="legend-dot" style={{ backgroundColor: role.color }}></span>
-                <span className="legend-label" style={{ color: role.color }}>{role.label}</span>
-                <span className="legend-desc">
-                  {role.value === 'admin' && 'Full system access'}
-                  {role.value === 'supplier_pm' && 'Manage resources, partners, and invoices'}
-                  {role.value === 'supplier_finance' && 'Financial management (supplier side)'}
-                  {role.value === 'customer_pm' && 'Reviews deliverables, validates timesheets'}
-                  {role.value === 'customer_finance' && 'Financial management (customer side)'}
-                  {role.value === 'contributor' && 'Submits timesheets & expenses'}
-                  {role.value === 'viewer' && 'Read-only dashboard access'}
-                </span>
-              </div>
-            ))}
+        {/* Info Note */}
+        <div style={{
+          marginTop: '24px',
+          padding: '16px 20px',
+          background: '#f8fafc',
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: '#64748b',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px'
+        }}>
+          <Shield size={18} style={{ color: '#7c3aed', flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <strong style={{ color: '#334155' }}>About Admin Access</strong>
+            <p style={{ margin: '4px 0 0' }}>
+              Admins can access this System Users page and manage all user accounts. 
+              Project-level permissions (what users can do within each project) are managed 
+              separately via the Team Members page for each project.
+            </p>
           </div>
         </div>
       </div>
