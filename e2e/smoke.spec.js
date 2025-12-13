@@ -133,7 +133,7 @@ test.describe('Performance @smoke', () => {
   });
 
   test('no console errors on load', async ({ page }) => {
-    const consoleErrors: string[] = [];
+    const consoleErrors = [];
     
     page.on('console', msg => {
       if (msg.type() === 'error') {
