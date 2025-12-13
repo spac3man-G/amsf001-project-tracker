@@ -5,6 +5,49 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   
+  // ============================================
+  // VITEST CONFIGURATION
+  // ============================================
+  test: {
+    // Use jsdom for DOM testing
+    environment: 'jsdom',
+    
+    // Make test functions global (describe, it, expect)
+    globals: true,
+    
+    // Setup file to run before tests
+    setupFiles: ['./src/__tests__/setup/vitest.setup.js'],
+    
+    // Include patterns for test files
+    include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+    
+    // Exclude patterns
+    exclude: ['node_modules', 'dist', '.git'],
+    
+    // Coverage configuration
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{js,jsx}'],
+      exclude: [
+        'src/__tests__/**',
+        'src/main.jsx',
+        'src/**/*.test.{js,jsx}',
+        'src/**/*.spec.{js,jsx}',
+      ],
+    },
+    
+    // Watch mode exclusions
+    watchExclude: ['node_modules', 'dist'],
+    
+    // Timeout for tests (in ms)
+    testTimeout: 10000,
+    
+    // Reporter configuration
+    reporters: ['verbose'],
+  },
+  
   build: {
     // Target modern browsers for smaller bundles
     target: 'es2020',
@@ -83,6 +126,6 @@ export default defineConfig({
   
   // esbuild options for removing console.log in production
   esbuild: {
-    drop: ['console', 'debugger']
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
   }
 })

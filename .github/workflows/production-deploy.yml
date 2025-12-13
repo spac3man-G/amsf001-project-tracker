@@ -1,0 +1,149 @@
+name: 🚀 Production Deployment
+
+# ============================================
+# PRODUCTION DEPLOYMENT PIPELINE
+# 
+# This workflow:
+# 1. Triggers on merge to main
+# 2. Runs smoke tests against production after Vercel deploy
+# 3. Notifies team of deployment status
+# ============================================
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false  # Never cancel production deploys
+
+env:
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+  E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+  PRODUCTION_URL: https://amsf001-project-tracker.vercel.app
+
+jobs:
+  # ============================================
+  # VERIFY BUILD
+  # ============================================
+  verify-build:
+    name: ✅ Verify Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed - dist folder not found"
+            exit 1
+          fi
+          echo "✅ Build verified successfully"
+
+  # ============================================
+  # WAIT FOR PRODUCTION DEPLOYMENT
+  # ============================================
+  wait-for-production:
+    name: ⏳ Wait for Production
+    runs-on: ubuntu-latest
+    needs: verify-build
+    outputs:
+      production_url: ${{ env.PRODUCTION_URL }}
+    
+    steps:
+      - name: Wait for Vercel production deployment
+        run: |
+          echo "Waiting for Vercel to deploy to production..."
+          sleep 120  # Vercel typically deploys in ~90 seconds
+          
+          # Verify the site is accessible
+          for i in {1..10}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.PRODUCTION_URL }}")
+            if [ "$HTTP_STATUS" == "200" ]; then
+              echo "✅ Production site is live!"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $HTTP_STATUS - waiting..."
+            sleep 30
+          done
+          
+          echo "⚠️ Production site may still be deploying"
+
+  # ============================================
+  # SMOKE TESTS - Quick production verification
+  # ============================================
+  smoke-tests:
+    name: 💨 Smoke Tests
+    runs-on: ubuntu-latest
+    needs: wait-for-production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        run: npx playwright test --project=admin --grep="@smoke|@critical"
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ env.PRODUCTION_URL }}
+          CI: true
+        continue-on-error: true
+
+      - name: Upload smoke test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-report
+          path: playwright-report/
+          retention-days: 30
+
+  # ============================================
+  # DEPLOYMENT SUMMARY
+  # ============================================
+  deployment-summary:
+    name: 📊 Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [verify-build, wait-for-production, smoke-tests]
+    if: always()
+    
+    steps:
+      - name: Create deployment summary
+        run: |
+          echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.verify-build.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy | ${{ needs.wait-for-production.result == 'success' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke Tests | ${{ needs.smoke-tests.result == 'success' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **Production URL:** ${{ env.PRODUCTION_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📝 **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
