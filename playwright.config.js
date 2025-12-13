@@ -23,6 +23,9 @@ const isCI = !!process.env.CI;
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 
   (isCI ? 'http://localhost:4173' : 'http://localhost:5173');
 
+// Vercel deployment protection bypass
+const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+
 export default defineConfig({
   // Directory containing test files
   testDir: './e2e',
@@ -79,9 +82,10 @@ export default defineConfig({
     // Ignore HTTPS errors (useful for preview URLs)
     ignoreHTTPSErrors: true,
     
-    // Extra HTTP headers
+    // Extra HTTP headers - includes Vercel bypass if configured
     extraHTTPHeaders: {
       'Accept-Language': 'en-US,en;q=0.9',
+      ...(vercelBypassSecret ? { 'x-vercel-protection-bypass': vercelBypassSecret } : {}),
     },
   },
 
