@@ -1,0 +1,3 @@
+# This folder contains Playwright authentication state
+# The actual auth state file (user.json) is gitignored for security
+# but this folder needs to exist for tests to work

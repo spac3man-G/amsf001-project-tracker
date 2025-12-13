@@ -1,0 +1,222 @@
+name: 🧪 Staging Tests
+
+# ============================================
+# STAGING ENVIRONMENT TESTING PIPELINE
+# 
+# This workflow:
+# 1. Runs unit tests immediately
+# 2. Waits for Vercel preview deployment
+# 3. Runs E2E tests against the preview URL
+# 4. Reports results back to PR
+# ============================================
+
+on:
+  pull_request:
+    branches: [main, staging]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'URL to test against (leave empty for latest deployment)'
+        required: false
+        type: string
+
+concurrency:
+  group: staging-tests-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+  E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+
+jobs:
+  # ============================================
+  # UNIT TESTS - Run immediately
+  # ============================================
+  unit-tests:
+    name: 🔬 Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:ci
+        env:
+          NODE_ENV: development
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  # ============================================
+  # WAIT FOR VERCEL PREVIEW
+  # ============================================
+  wait-for-preview:
+    name: ⏳ Wait for Preview
+    runs-on: ubuntu-latest
+    outputs:
+      preview_url: ${{ steps.get-url.outputs.url }}
+    
+    steps:
+      - name: Wait for Vercel deployment
+        uses: patrickedqvist/wait-for-vercel-preview@v1.3.2
+        id: vercel-deployment
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_timeout: 600
+          check_interval: 30
+
+      - name: Get preview URL
+        id: get-url
+        run: |
+          if [ -n "${{ github.event.inputs.target_url }}" ]; then
+            echo "url=${{ github.event.inputs.target_url }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ steps.vercel-deployment.outputs.url }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Display preview URL
+        run: |
+          echo "🌐 Preview URL: ${{ steps.get-url.outputs.url }}"
+
+  # ============================================
+  # E2E TESTS - Against Preview URL
+  # ============================================
+  e2e-tests:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, wait-for-preview]
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test critical roles in parallel
+        project: [admin, contributor, viewer]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests as ${{ matrix.project }}
+        run: npx playwright test --project=${{ matrix.project }}
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.wait-for-preview.outputs.preview_url }}
+          CI: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-screenshots-${{ matrix.project }}
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # E2E - ALL ROLES (Optional full test)
+  # ============================================
+  e2e-all-roles:
+    name: 🎭 E2E Full Role Matrix
+    runs-on: ubuntu-latest
+    needs: [e2e-tests]
+    if: github.event.pull_request.draft == false
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [supplier-pm, supplier-finance, customer-pm, customer-finance]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests as ${{ matrix.project }}
+        run: npx playwright test --project=${{ matrix.project }}
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.wait-for-preview.outputs.preview_url }}
+          CI: true
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: playwright-report/
+          retention-days: 14
+
+  # ============================================
+  # TEST SUMMARY
+  # ============================================
+  test-summary:
+    name: 📊 Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, e2e-tests]
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate summary
+        run: |
+          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 📎 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage reports and Playwright HTML reports are available in the workflow artifacts" >> $GITHUB_STEP_SUMMARY
