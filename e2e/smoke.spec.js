@@ -10,8 +10,8 @@
  * 
  * IMPORTANT: All selectors use data-testid per docs/TESTING-CONVENTIONS.md
  * 
- * @version 2.0
- * @modified 14 December 2025 - Updated to use testing contract
+ * @version 2.1
+ * @modified 14 December 2025 - Fixed login tests to use empty storage state
  */
 
 import { test, expect } from '@playwright/test';
@@ -29,10 +29,13 @@ import {
 // UNAUTHENTICATED TESTS
 // ============================================
 test.describe('Smoke Tests - Public @smoke', () => {
+  // CRITICAL: Use empty storage state to ensure unauthenticated context
+  test.use({ storageState: { cookies: [], origins: [] } });
   
   test.describe('Login Page @critical', () => {
     test('login page loads with correct elements', async ({ page }) => {
       await page.goto('/login');
+      await page.waitForLoadState('networkidle');
       
       // Verify login form elements using data-testid
       await expect(page.locator(loginSelectors.emailInput)).toBeVisible({ timeout: 10000 });
@@ -42,6 +45,7 @@ test.describe('Smoke Tests - Public @smoke', () => {
 
     test('login with invalid credentials shows error', async ({ page }) => {
       await page.goto('/login');
+      await page.waitForLoadState('networkidle');
       
       // Fill with invalid credentials
       await fillLoginForm(page, 'invalid@example.com', 'wrongpassword');
@@ -52,11 +56,9 @@ test.describe('Smoke Tests - Public @smoke', () => {
     });
 
     test('unauthenticated user is redirected to login', async ({ page }) => {
-      // Clear any existing auth
-      await page.context().clearCookies();
-      
-      // Try to access protected route
+      // Try to access protected route without auth
       await page.goto('/dashboard');
+      await page.waitForLoadState('networkidle');
       
       // Should be redirected to login
       await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
