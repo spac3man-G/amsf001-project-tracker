@@ -39,9 +39,9 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
 | Item | Finding |
 |------|---------|
 | **Repository** | Single repo: `https://github.com/spac3man-G/amsf001-project-tracker` |
-| **Local Branches** | `main`, `develop`, `feature/cloud-testing-infrastructure` |
-| **Current Branch** | `feature/cloud-testing-infrastructure` |
-| **Remote Branches** | main, develop, feature/cloud-testing-infrastructure, test/branching-setup, dependabot/npm_and_yarn/vite-7.2.6 |
+| **Local Branches** | `main` |
+| **Current Branch** | `main` |
+| **Remote Branches** | main, dependabot/npm_and_yarn/vite-7.2.6 |
 
 ### Checklist
 
@@ -68,14 +68,12 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
   - **Action needed:** Pull main, handle local changes
 
 - [x] **1.5** Document branch strategy
+  - **Strategy:** GitHub Flow (trunk-based, simple)
   - **Current branches:**
     - `main` → Production (Vercel production deployment) ✅
-    - `develop` → Exists but purpose unclear (no recent commits)
-    - `feature/cloud-testing-infrastructure` → **MERGED - can be deleted**
-    - `test/branching-setup` (remote only) → Test branch, can be deleted
-    - `dependabot/npm_and_yarn/vite-7.2.6` → Automated PR, handle separately
-  - **Recommended strategy:** GitFlow lite (main + feature branches)
-  - **Cleanup needed:** Delete merged feature branch after syncing local changes
+    - `dependabot/npm_and_yarn/vite-7.2.6` → Automated PR (Vite security update)
+  - **Workflow:** Create feature branches from main → PR → merge → delete branch
+  - **Cleanup completed:** Deleted `develop`, `feature/cloud-testing-infrastructure`, `test/branching-setup`
 
 - [x] **1.6** Commit documentation changes
   - **Completed:** 2025-12-14
@@ -285,22 +283,24 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
 
 ### Checklist
 
-- [ ] **5.1** PR #4 decision
-  - Merge as-is?
-  - Need more work first?
-  - What's blocking?
+- [x] **5.1** Unit test failures - **FIXED**
+  - **Decision:** Fix now
+  - **Action:** Added `env: { NODE_ENV: 'development' }` to Vitest config
+  - **Result:** 515/515 tests passing (was 488/515)
+  - **Commit:** `dfd5396f`
 
-- [ ] **5.2** Test seed data decision
-  - Populate now?
-  - Wait until after merge?
+- [x] **5.2** Branch cleanup - **COMPLETED**
+  - **Decision:** Delete stale branches, adopt GitHub Flow (simple trunk-based)
+  - **Deleted:** `develop`, `feature/cloud-testing-infrastructure`, `test/branching-setup`
+  - **Remaining:** `main` (production), `dependabot/npm_and_yarn/vite-7.2.6` (security PR)
+  - **Workflow:** Feature branches from main → PR → merge → delete
 
-- [ ] **5.3** Remaining test failures
-  - 6 tests failing (per docs)
-  - Fix before merge or after?
+- [ ] **5.3** Test data seeding
+  - Populate timesheets/expenses now?
+  - Or leave as-is (tests pass without)?
 
-- [ ] **5.4** Branch strategy decision
-  - Use `develop` as staging?
-  - Delete unused branches?
+- [ ] **5.4** Legacy test users cleanup
+  - Delete UAT users from Supabase?
 
 - [ ] **5.5** Create action plan
   - Next 3 priorities

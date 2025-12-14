@@ -37,30 +37,44 @@ I'm working on the **AMSF001 Project Tracker**, a React + Supabase project manag
 
 ---
 
-## Branch Strategy
+## Development Workflow (GitHub Flow)
+
+This project uses a simple **trunk-based workflow** optimized for solo development with Claude AI:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                                                                 │
-│   GIT BRANCH          VERCEL              SUPABASE              │
-│   ──────────          ──────              ────────              │
+│   YOUR WORKFLOW                                                 │
+│   ────────────                                                  │
 │                                                                 │
-│   main           →    Production     →    Production Database   │
-│                       (live site)         (live data)           │
+│   1. Create feature branch from main                            │
+│      $ git checkout -b feature/my-feature                       │
 │                                                                 │
-│   develop        →    Staging        →    Production Database   │
-│                       (staging preview)   (same as prod)        │
+│   2. Develop locally with Claude AI                             │
+│      - Make changes, run tests locally                          │
+│      - $ npm run test (unit tests)                              │
+│      - $ npm run e2e (E2E tests)                                │
 │                                                                 │
-│   feature/*      →    Preview        →    Branch Database       │
-│                       (PR preview)        (isolated if migrations)│
+│   3. Push and create PR                                         │
+│      $ git push -u origin feature/my-feature                    │
+│      - GitHub Actions runs tests automatically                  │
+│      - Vercel creates a preview deployment (test URL)           │
+│                                                                 │
+│   4. Review and merge                                           │
+│      - Check test results in GitHub Actions                     │
+│      - Click around on the Vercel preview URL                   │
+│      - Merge PR → automatically deploys to production           │
+│                                                                 │
+│   5. Clean up                                                   │
+│      $ git checkout main && git pull                            │
+│      $ git branch -d feature/my-feature                         │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Current Branches:**
-- `main` - Production (protected)
-- `develop` - Staging/integration
-- `feature/cloud-testing-infrastructure` - Current E2E testing work (PR #4)
+**Branch Structure:**
+- `main` - Production branch (auto-deploys to live site)
+- `feature/*` - Your working branches (create as needed, delete after merge)
 
 ---
 
