@@ -188,17 +188,28 @@ GitHub Actions workflows in `.github/workflows/`:
 - 1 dashboard KPI visibility test
 - 2 resources permission tests (timing)
 
-### Test Data Status
+### Test Data Status (as of 2025-12-14)
 
-✅ **Test seed data HAS been populated.** The database contains:
-- 5 milestones with `[TEST]` prefix
-- 13 deliverables with `[TEST]` prefix  
-- ~50 timesheets with `[TEST]` descriptions
-- ~24 expenses with `[TEST]` reasons
+| Data Type | Count | Status |
+|-----------|-------|--------|
+| Milestones | 5 | ✅ Seeded with `[TEST]` prefix |
+| Deliverables | 13 | ✅ Seeded with `[TEST]` prefix |
+| Timesheets | 0 | Ready for seed |
+| Expenses | 0 | Ready for seed |
 
-⚠️ **Known Issues:**
-- Some duplicate records exist (seed script may have run multiple times)
-- 2 finance user profiles have incorrect role (viewer instead of finance role)
+### When to Seed Test Data
+
+**Ask about seeding (`npm run e2e:seed`) when working on:**
+- Timesheets page E2E tests → needs timesheet records to test viewing/filtering
+- Expenses page E2E tests → needs expense records
+- Reports or dashboard features → needs data to aggregate
+- Manual testing or demos → needs realistic sample data
+
+**Don't need to seed for:**
+- Authentication tests
+- Permission/access tests
+- Navigation tests
+- Form submission tests (these create their own data)
 
 To reset test data:
 ```bash

@@ -295,9 +295,11 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
   - **Remaining:** `main` (production), `dependabot/npm_and_yarn/vite-7.2.6` (security PR)
   - **Workflow:** Feature branches from main → PR → merge → delete
 
-- [ ] **5.3** Test data seeding
-  - Populate timesheets/expenses now?
-  - Or leave as-is (tests pass without)?
+- [x] **5.3** Test data seeding - **DEFERRED**
+  - **Decision:** Leave as-is; document when to seed instead
+  - **Rationale:** Tests pass without timesheet/expense data
+  - **Documentation:** Added "When to Seed Test Data" section to AI-PROMPT-Project-Context-v2.md
+  - **Action needed:** Run `npm run e2e:seed` when writing timesheet/expense E2E tests
 
 - [ ] **5.4** Legacy test users cleanup
   - Delete UAT users from Supabase?
