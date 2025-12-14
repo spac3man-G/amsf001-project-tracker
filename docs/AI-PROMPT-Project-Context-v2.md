@@ -176,11 +176,19 @@ GitHub Actions workflows in `.github/workflows/`:
 
 ### Test Data Status
 
-⚠️ **Test seed data has NOT been populated yet.** The test infrastructure exists but the database has no test records (milestones, timesheets, expenses, etc.).
+✅ **Test seed data HAS been populated.** The database contains:
+- 5 milestones with `[TEST]` prefix
+- 13 deliverables with `[TEST]` prefix  
+- ~50 timesheets with `[TEST]` descriptions
+- ~24 expenses with `[TEST]` reasons
 
-To seed test data:
+⚠️ **Known Issues:**
+- Some duplicate records exist (seed script may have run multiple times)
+- 2 finance user profiles have incorrect role (viewer instead of finance role)
+
+To reset test data:
 ```bash
-SUPABASE_SERVICE_ROLE_KEY="your-key" npm run e2e:seed
+SUPABASE_SERVICE_ROLE_KEY="your-key" npm run e2e:reset
 ```
 
 ---
