@@ -5,7 +5,7 @@
  * Tests what each role CANNOT do - verifies UI correctly hides features.
  * Uses data-testid selectors and pre-authenticated storageState.
  * 
- * @version 2.0 - Rewritten with testing contract
+ * @version 2.1 - Fixed storageState paths (Window 5)
  * @updated 14 December 2025
  * 
  * This is the complement to features-by-role.spec.js:
@@ -15,6 +15,20 @@
 
 import { test, expect } from '@playwright/test';
 import { expectNotVisible, expectVisible, waitForPageReady } from './test-utils';
+
+// ============================================
+// AUTH STATE PATHS
+// ============================================
+
+const AUTH_PATHS = {
+  admin: 'playwright/.auth/admin.json',
+  supplier_pm: 'playwright/.auth/supplier_pm.json',
+  supplier_finance: 'playwright/.auth/supplier_finance.json',
+  customer_pm: 'playwright/.auth/customer_pm.json',
+  customer_finance: 'playwright/.auth/customer_finance.json',
+  contributor: 'playwright/.auth/contributor.json',
+  viewer: 'playwright/.auth/viewer.json',
+};
 
 // ============================================
 // HELPER FUNCTIONS
@@ -35,7 +49,7 @@ test.describe('Viewer Restrictions @viewer', () => {
   test.describe('Cannot Create Anything', () => {
     
     test('viewer cannot add timesheets', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await navigateTo(page, '/timesheets');
       
@@ -46,7 +60,7 @@ test.describe('Viewer Restrictions @viewer', () => {
     });
 
     test('viewer cannot add expenses', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await navigateTo(page, '/expenses');
       
@@ -58,7 +72,7 @@ test.describe('Viewer Restrictions @viewer', () => {
     });
 
     test('viewer cannot add milestones', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await navigateTo(page, '/milestones');
       
@@ -69,7 +83,7 @@ test.describe('Viewer Restrictions @viewer', () => {
     });
 
     test('viewer cannot add deliverables', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await navigateTo(page, '/deliverables');
       
@@ -80,7 +94,7 @@ test.describe('Viewer Restrictions @viewer', () => {
     });
 
     test('viewer cannot add resources', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await navigateTo(page, '/resources');
       
@@ -91,7 +105,7 @@ test.describe('Viewer Restrictions @viewer', () => {
     });
 
     test('viewer cannot create variations', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await navigateTo(page, '/variations');
       
@@ -105,7 +119,7 @@ test.describe('Viewer Restrictions @viewer', () => {
   test.describe('Navigation Restrictions', () => {
     
     test('viewer cannot see Partners in navigation', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await navigateTo(page, '/dashboard');
       
@@ -115,7 +129,7 @@ test.describe('Viewer Restrictions @viewer', () => {
     });
 
     test('viewer cannot see Settings in navigation', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await navigateTo(page, '/dashboard');
       
@@ -128,7 +142,7 @@ test.describe('Viewer Restrictions @viewer', () => {
   test.describe('Page Access Restrictions', () => {
     
     test('viewer is redirected from Settings page', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
       await page.goto('/settings');
       await page.waitForLoadState('networkidle');
@@ -151,7 +165,7 @@ test.describe('Contributor Restrictions @contributor', () => {
   test.describe('Cannot Manage Project Structure', () => {
     
     test('contributor cannot add milestones', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
       const page = await context.newPage();
       await navigateTo(page, '/milestones');
       
@@ -162,7 +176,7 @@ test.describe('Contributor Restrictions @contributor', () => {
     });
 
     test('contributor cannot add resources', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
       const page = await context.newPage();
       await navigateTo(page, '/resources');
       
@@ -173,7 +187,7 @@ test.describe('Contributor Restrictions @contributor', () => {
     });
 
     test('contributor cannot create variations', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
       const page = await context.newPage();
       await navigateTo(page, '/variations');
       
@@ -187,7 +201,7 @@ test.describe('Contributor Restrictions @contributor', () => {
   test.describe('Cannot See Supplier Data', () => {
     
     test('contributor cannot see cost rate column', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
       const page = await context.newPage();
       await navigateTo(page, '/resources');
       
@@ -202,7 +216,7 @@ test.describe('Contributor Restrictions @contributor', () => {
   test.describe('Navigation Restrictions', () => {
     
     test('contributor cannot see Partners in navigation', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
       const page = await context.newPage();
       await navigateTo(page, '/dashboard');
       
@@ -212,7 +226,7 @@ test.describe('Contributor Restrictions @contributor', () => {
     });
 
     test('contributor cannot see Settings in navigation', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
       const page = await context.newPage();
       await navigateTo(page, '/dashboard');
       
@@ -225,7 +239,7 @@ test.describe('Contributor Restrictions @contributor', () => {
   test.describe('Page Access Restrictions', () => {
     
     test('contributor is redirected from Settings page', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
       const page = await context.newPage();
       await page.goto('/settings');
       await page.waitForLoadState('networkidle');
@@ -247,7 +261,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
   test.describe('Cannot Manage Supplier Structure', () => {
     
     test('customer_pm cannot add milestones', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await navigateTo(page, '/milestones');
       
@@ -258,7 +272,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
     });
 
     test('customer_pm cannot add resources', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await navigateTo(page, '/resources');
       
@@ -269,7 +283,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
     });
 
     test('customer_pm cannot create variations', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await navigateTo(page, '/variations');
       
@@ -283,7 +297,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
   test.describe('Cannot Add Work Items (Not a Worker)', () => {
     
     test('customer_pm cannot add timesheets', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await navigateTo(page, '/timesheets');
       
@@ -294,7 +308,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
     });
 
     test('customer_pm cannot add expenses', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await navigateTo(page, '/expenses');
       
@@ -308,7 +322,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
   test.describe('Cannot See Supplier Costs', () => {
     
     test('customer_pm cannot see cost rate column', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await navigateTo(page, '/resources');
       
@@ -323,7 +337,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
   test.describe('Navigation Restrictions', () => {
     
     test('customer_pm cannot see Partners in navigation', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await navigateTo(page, '/dashboard');
       
@@ -333,7 +347,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
     });
 
     test('customer_pm cannot see Settings in navigation', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await navigateTo(page, '/dashboard');
       
@@ -346,7 +360,7 @@ test.describe('Customer PM Restrictions @customer_pm', () => {
   test.describe('Page Access Restrictions', () => {
     
     test('customer_pm is redirected from Settings page', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
       await page.goto('/settings');
       await page.waitForLoadState('networkidle');
@@ -368,7 +382,7 @@ test.describe('Customer Finance Restrictions @customer_finance', () => {
   test.describe('Cannot Manage Project Structure', () => {
     
     test('customer_finance cannot add milestones', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
       await navigateTo(page, '/milestones');
       
@@ -379,7 +393,7 @@ test.describe('Customer Finance Restrictions @customer_finance', () => {
     });
 
     test('customer_finance cannot add resources', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
       await navigateTo(page, '/resources');
       
@@ -390,7 +404,7 @@ test.describe('Customer Finance Restrictions @customer_finance', () => {
     });
 
     test('customer_finance cannot create variations', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
       await navigateTo(page, '/variations');
       
@@ -401,7 +415,7 @@ test.describe('Customer Finance Restrictions @customer_finance', () => {
     });
 
     test('customer_finance cannot add deliverables', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
       await navigateTo(page, '/deliverables');
       
@@ -415,7 +429,7 @@ test.describe('Customer Finance Restrictions @customer_finance', () => {
   test.describe('Cannot See Supplier Costs', () => {
     
     test('customer_finance cannot see cost rate column', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
       await navigateTo(page, '/resources');
       
@@ -429,7 +443,7 @@ test.describe('Customer Finance Restrictions @customer_finance', () => {
   test.describe('Navigation Restrictions', () => {
     
     test('customer_finance cannot see Partners in navigation', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
       await navigateTo(page, '/dashboard');
       
@@ -439,7 +453,7 @@ test.describe('Customer Finance Restrictions @customer_finance', () => {
     });
 
     test('customer_finance cannot see Settings in navigation', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
       await navigateTo(page, '/dashboard');
       
@@ -452,7 +466,7 @@ test.describe('Customer Finance Restrictions @customer_finance', () => {
   test.describe('Page Access Restrictions', () => {
     
     test('customer_finance is redirected from Settings page', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
       await page.goto('/settings');
       await page.waitForLoadState('networkidle');
@@ -474,7 +488,7 @@ test.describe('Supplier Finance Restrictions @supplier_finance', () => {
   test.describe('Cannot Add Deliverables (Not a Manager)', () => {
     
     test('supplier_finance cannot add deliverables', async ({ browser }) => {
-      const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_finance.json' });
+      const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_finance });
       const page = await context.newPage();
       await navigateTo(page, '/deliverables');
       
