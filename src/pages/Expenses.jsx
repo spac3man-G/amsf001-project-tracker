@@ -9,7 +9,7 @@
  * - Detail modal shows receipt images
  * - All actions moved to modal (no action buttons in table)
  * 
- * @version 5.0 - Apple Design System
+ * @version 5.1 - Added data-testid attributes for E2E testing
  * @updated 5 December 2025
  */
 
@@ -267,28 +267,42 @@ export default function Expenses() {
   if (loading && !projectId) return <LoadingSpinner message="Loading expenses..." size="large" fullPage />;
 
   return (
-    <div className="expenses-page">
-      <header className="exp-header">
+    <div className="expenses-page" data-testid="expenses-page">
+      <header className="exp-header" data-testid="expenses-header">
         <div className="exp-header-content">
           <div className="exp-header-left">
             <div className="exp-header-icon">
               <Receipt size={24} />
             </div>
             <div>
-              <h1>Expenses</h1>
+              <h1 data-testid="expenses-title">Expenses</h1>
               <p>Track project expenses against £{BUDGET.toLocaleString()} budget</p>
             </div>
           </div>
           <div className="exp-header-actions">
-            <button className="exp-btn exp-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
+            <button 
+              className="exp-btn exp-btn-secondary" 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+              data-testid="expenses-refresh-button"
+            >
               <RefreshCw size={16} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
             {canAddExpense && !showAddForm && (
               <>
-                <button className="exp-btn exp-btn-primary" onClick={() => { setEntryMode('form'); setShowAddForm(true); }}>
+                <button 
+                  className="exp-btn exp-btn-primary" 
+                  onClick={() => { setEntryMode('form'); setShowAddForm(true); }}
+                  data-testid="add-expense-button"
+                >
                   <Plus size={16} /> Add Expenses
                 </button>
-                <button className="exp-btn exp-btn-scanner" onClick={() => { setEntryMode('scanner'); setShowAddForm(true); }} title="Scan a receipt with AI">
+                <button 
+                  className="exp-btn exp-btn-scanner" 
+                  onClick={() => { setEntryMode('scanner'); setShowAddForm(true); }} 
+                  title="Scan a receipt with AI"
+                  data-testid="scan-receipt-button"
+                >
                   <Camera size={16} /> <Sparkles size={12} /> Scan Receipt
                 </button>
               </>
@@ -297,26 +311,30 @@ export default function Expenses() {
         </div>
       </header>
 
-      <div className="exp-content">
-        <ExpenseFilters
-          filterCategory={filterCategory} setFilterCategory={setFilterCategory}
-          filterResource={filterResource} setFilterResource={setFilterResource}
-          filterStatus={filterStatus} setFilterStatus={setFilterStatus}
-          filterChargeable={filterChargeable} setFilterChargeable={setFilterChargeable}
-          filterProcurement={filterProcurement} setFilterProcurement={setFilterProcurement}
-          resourceNames={resourceNames} hasRole={hasRole}
-        />
+      <div className="exp-content" data-testid="expenses-content">
+        <div data-testid="expenses-filters">
+          <ExpenseFilters
+            filterCategory={filterCategory} setFilterCategory={setFilterCategory}
+            filterResource={filterResource} setFilterResource={setFilterResource}
+            filterStatus={filterStatus} setFilterStatus={setFilterStatus}
+            filterChargeable={filterChargeable} setFilterChargeable={setFilterChargeable}
+            filterProcurement={filterProcurement} setFilterProcurement={setFilterProcurement}
+            resourceNames={resourceNames} hasRole={hasRole}
+          />
+        </div>
 
         {showAddForm && entryMode === 'form' && (
-          <ExpenseAddForm
-            newExpense={newExpense} setNewExpense={setNewExpense} availableResources={availableResources}
-            hasRole={hasRole} handleAdd={handleAdd} handleFileSelect={handleFileSelect}
-            removeFile={removeFile} uploadingFiles={uploadingFiles} onCancel={() => setShowAddForm(false)}
-          />
+          <div data-testid="expenses-add-form">
+            <ExpenseAddForm
+              newExpense={newExpense} setNewExpense={setNewExpense} availableResources={availableResources}
+              hasRole={hasRole} handleAdd={handleAdd} handleFileSelect={handleFileSelect}
+              removeFile={removeFile} uploadingFiles={uploadingFiles} onCancel={() => setShowAddForm(false)}
+            />
+          </div>
         )}
 
         {showAddForm && entryMode === 'scanner' && (
-          <div className="exp-scanner-wrapper">
+          <div className="exp-scanner-wrapper" data-testid="expenses-scanner">
             <ReceiptScanner
               resources={availableResources}
               defaultResourceId={availableResources.length === 1 ? availableResources[0].id : null}
@@ -326,17 +344,21 @@ export default function Expenses() {
           </div>
         )}
 
-        <div className="exp-table-card">
+        <div className="exp-table-card" data-testid="expenses-table-card">
           <div className="exp-table-header">
             <h2 className="exp-table-title">Expense Entries</h2>
-            <span className="exp-table-count">{filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''}</span>
+            <span className="exp-table-count" data-testid="expenses-count">
+              {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''}
+            </span>
           </div>
           
-          <ExpenseTable
-            expenses={filteredExpenses}
-            hasRole={hasRole}
-            setDetailModal={setDetailModal}
-          />
+          <div data-testid="expenses-table">
+            <ExpenseTable
+              expenses={filteredExpenses}
+              hasRole={hasRole}
+              setDetailModal={setDetailModal}
+            />
+          </div>
         </div>
       </div>
 
