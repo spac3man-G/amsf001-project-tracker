@@ -6,7 +6,7 @@
  * - Status/progress calculation from deliverables
  * - Acceptance certificate workflow
  * 
- * @version 4.0 - Refactored to use shared utilities
+ * @version 4.1 - Added data-testid attributes for E2E testing
  * @refactored 5 December 2025
  */
 
@@ -338,12 +338,12 @@ export default function Milestones() {
   }));
 
   return (
-    <div className="milestones-page">
+    <div className="milestones-page" data-testid="milestones-page">
       {/* Header */}
-      <header className="ms-header">
+      <header className="ms-header" data-testid="milestones-header">
         <div className="ms-header-content">
           <div className="ms-header-left">
-            <h1>Milestones</h1>
+            <h1 data-testid="milestones-title">Milestones</h1>
             <p>Track project milestones and deliverables</p>
           </div>
           <div className="ms-header-actions">
@@ -351,12 +351,17 @@ export default function Milestones() {
               className="ms-btn ms-btn-secondary" 
               onClick={handleRefresh}
               disabled={refreshing}
+              data-testid="milestones-refresh-button"
             >
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
               Refresh
             </button>
             {canEdit && !showAddForm && (
-              <button className="ms-btn ms-btn-primary" onClick={() => setShowAddForm(true)}>
+              <button 
+                className="ms-btn ms-btn-primary" 
+                onClick={() => setShowAddForm(true)}
+                data-testid="add-milestone-button"
+              >
                 <Plus size={18} />
                 Add Milestone
               </button>
@@ -366,26 +371,30 @@ export default function Milestones() {
       </header>
 
       {/* Content */}
-      <div className="ms-content">
+      <div className="ms-content" data-testid="milestones-content">
         {/* Add Form */}
         {showAddForm && canEdit && (
-          <MilestoneAddForm
-            form={newMilestone}
-            onFormChange={setNewMilestone}
-            onSubmit={handleAdd}
-            onCancel={() => setShowAddForm(false)}
-          />
+          <div data-testid="milestones-add-form">
+            <MilestoneAddForm
+              form={newMilestone}
+              onFormChange={setNewMilestone}
+              onSubmit={handleAdd}
+              onCancel={() => setShowAddForm(false)}
+            />
+          </div>
         )}
 
         {/* Milestones Table */}
-        <div className="ms-table-card">
+        <div className="ms-table-card" data-testid="milestones-table-card">
           <div className="ms-table-header">
             <h2 className="ms-table-title">Project Milestones</h2>
-            <span className="ms-table-count">{milestones.length} milestone{milestones.length !== 1 ? 's' : ''}</span>
+            <span className="ms-table-count" data-testid="milestones-count">
+              {milestones.length} milestone{milestones.length !== 1 ? 's' : ''}
+            </span>
           </div>
           
           {milestones.length === 0 ? (
-            <div className="ms-empty">
+            <div className="ms-empty" data-testid="milestones-empty-state">
               <div className="ms-empty-icon">
                 <MilestoneIcon size={32} />
               </div>
@@ -393,7 +402,7 @@ export default function Milestones() {
               <div className="ms-empty-text">Click "Add Milestone" to create your first milestone.</div>
             </div>
           ) : (
-            <table className="ms-table">
+            <table className="ms-table" data-testid="milestones-table">
               <thead>
                 <tr>
                   <th>Ref</th>
@@ -416,9 +425,12 @@ export default function Milestones() {
                     <tr 
                       key={milestone.id}
                       onClick={() => navigate(`/milestones/${milestone.id}`)}
+                      data-testid={`milestone-row-${milestone.id}`}
                     >
                       <td>
-                        <span className="ms-ref">{milestone.milestone_ref}</span>
+                        <span className="ms-ref" data-testid={`milestone-ref-${milestone.milestone_ref}`}>
+                          {milestone.milestone_ref}
+                        </span>
                       </td>
                       <td>
                         <div className="ms-name">{milestone.name}</div>
@@ -429,13 +441,19 @@ export default function Milestones() {
                         )}
                       </td>
                       <td>
-                        <span className={`ms-status-badge ${statusCssClass}`}>
+                        <span 
+                          className={`ms-status-badge ${statusCssClass}`}
+                          data-testid={`milestone-status-${milestone.id}`}
+                        >
                           <span className="ms-status-dot"></span>
                           {milestone.computedStatus}
                         </span>
                       </td>
                       <td>
-                        <span className={`ms-progress ${statusCssClass}`}>
+                        <span 
+                          className={`ms-progress ${statusCssClass}`}
+                          data-testid={`milestone-progress-${milestone.id}`}
+                        >
                           {milestone.computedProgress}%
                         </span>
                       </td>
@@ -451,11 +469,17 @@ export default function Milestones() {
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         {milestone.computedStatus !== 'Completed' ? (
-                          <span className="ms-cert-badge not-ready">Not ready</span>
+                          <span 
+                            className="ms-cert-badge not-ready"
+                            data-testid={`milestone-cert-${milestone.id}`}
+                          >
+                            Not ready
+                          </span>
                         ) : cert ? (
                           <button
                             className={`ms-cert-badge ${certStatusInfo?.cssClass || ''}`}
                             onClick={() => openCertificateModal(milestone)}
+                            data-testid={`milestone-cert-${milestone.id}`}
                           >
                             <FileCheck size={14} />
                             {certStatusInfo?.label || 'View'}
@@ -464,6 +488,7 @@ export default function Milestones() {
                           <button
                             className="ms-cert-badge generate"
                             onClick={() => generateCertificate(milestone)}
+                            data-testid={`milestone-cert-${milestone.id}`}
                           >
                             <Award size={14} />
                             Generate
@@ -479,7 +504,7 @@ export default function Milestones() {
         </div>
 
         {/* Info Box */}
-        <div className="ms-info-box">
+        <div className="ms-info-box" data-testid="milestones-info-box">
           <div className="ms-info-header">
             <Info size={18} />
             How Milestone Status & Progress Work
