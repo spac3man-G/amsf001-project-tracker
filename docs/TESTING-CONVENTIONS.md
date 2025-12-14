@@ -150,6 +150,12 @@ These components MUST have data-testid attributes:
 | ProjectSwitcher.jsx | `project-switcher-button`, `project-switcher-dropdown`, `project-switcher-item-{id}` |
 | Dashboard.jsx | `dashboard-page`, `dashboard-header`, `dashboard-title`, `dashboard-refresh-button`, `dashboard-widgets`, `dashboard-content` |
 | Timesheets.jsx | `timesheets-page`, `timesheets-header`, `timesheets-title`, `add-timesheet-button`, `timesheets-table`, etc. |
+| Milestones.jsx | `milestones-page`, `milestones-header`, `milestones-title`, `add-milestone-button`, `milestones-table`, etc. |
+| Expenses.jsx | `expenses-page`, `expenses-header`, `expenses-title`, `add-expense-button`, `expenses-table`, etc. |
+| Deliverables.jsx | `deliverables-page`, `deliverables-header`, `deliverables-title`, `add-deliverable-button`, `deliverables-table`, etc. |
+| Resources.jsx | `resources-page`, `resources-header`, `resources-title`, `add-resource-button`, `resources-table`, etc. |
+| Variations.jsx | `variations-page`, `variations-header`, `variations-title`, `create-variation-button`, `variations-table`, etc. |
+| Settings.jsx | `settings-page`, `settings-save-button`, `settings-project-name-input`, etc. |
 
 ### Feature Components (Should Have)
 
@@ -351,7 +357,11 @@ Components with data-testid attributes (for searchability):
 - `nav-milestones` - Layout.jsx
 - `nav-deliverables` - Layout.jsx
 - `nav-expenses` - Layout.jsx
-- `nav-reports` - Layout.jsx
+- `nav-resources` - Layout.jsx
+- `nav-partners` - Layout.jsx (SUPPLIER_SIDE only)
+- `nav-variations` - Layout.jsx
+- `nav-settings` - Layout.jsx (SUPPLIER_SIDE only)
+- `nav-systemUsers` - Layout.jsx (System Admin only)
 - _(pattern: nav-{itemId} for each navigation item)_
 - `user-menu-button` - Layout.jsx
 - `logout-button` - Layout.jsx
@@ -401,6 +411,146 @@ Components with data-testid attributes (for searchability):
 - `timesheets-empty-state` - Timesheets.jsx
 - `timesheet-row-{id}` - Timesheets.jsx (dynamic)
 - `timesheet-status-{id}` - Timesheets.jsx (dynamic)
+
+### Milestones (Added Window 4)
+- `milestones-page` - Milestones.jsx
+- `milestones-header` - Milestones.jsx
+- `milestones-title` - Milestones.jsx
+- `milestones-refresh-button` - Milestones.jsx
+- `add-milestone-button` - Milestones.jsx
+- `milestones-content` - Milestones.jsx
+- `milestones-add-form` - Milestones.jsx
+- `milestones-table-card` - Milestones.jsx
+- `milestones-count` - Milestones.jsx
+- `milestones-table` - Milestones.jsx
+- `milestones-empty-state` - Milestones.jsx
+- `milestones-info-box` - Milestones.jsx
+- `milestone-row-{id}` - Milestones.jsx (dynamic)
+- `milestone-ref-{ref}` - Milestones.jsx (dynamic)
+- `milestone-status-{id}` - Milestones.jsx (dynamic)
+- `milestone-progress-{id}` - Milestones.jsx (dynamic)
+- `milestone-cert-{id}` - Milestones.jsx (dynamic)
+
+### Expenses (Added Window 4)
+- `expenses-page` - Expenses.jsx
+- `expenses-header` - Expenses.jsx
+- `expenses-title` - Expenses.jsx
+- `expenses-refresh-button` - Expenses.jsx
+- `add-expense-button` - Expenses.jsx
+- `scan-receipt-button` - Expenses.jsx
+- `expenses-content` - Expenses.jsx
+- `expenses-filters` - Expenses.jsx
+- `expenses-add-form` - Expenses.jsx
+- `expenses-scanner` - Expenses.jsx
+- `expenses-table-card` - Expenses.jsx
+- `expenses-count` - Expenses.jsx
+- `expenses-table` - Expenses.jsx
+
+### Deliverables (Added Window 4)
+- `deliverables-page` - Deliverables.jsx
+- `deliverables-header` - Deliverables.jsx
+- `deliverables-title` - Deliverables.jsx
+- `deliverables-refresh-button` - Deliverables.jsx
+- `add-deliverable-button` - Deliverables.jsx
+- `deliverables-content` - Deliverables.jsx
+- `deliverables-filters` - Deliverables.jsx
+- `deliverables-filter-milestone` - Deliverables.jsx
+- `deliverables-filter-status` - Deliverables.jsx
+- `deliverables-awaiting-review-badge` - Deliverables.jsx
+- `deliverables-add-form` - Deliverables.jsx
+- `deliverable-ref-input` - Deliverables.jsx
+- `deliverable-name-input` - Deliverables.jsx
+- `deliverable-description-input` - Deliverables.jsx
+- `deliverable-milestone-select` - Deliverables.jsx
+- `deliverable-save-button` - Deliverables.jsx
+- `deliverable-cancel-button` - Deliverables.jsx
+- `deliverables-table-card` - Deliverables.jsx
+- `deliverables-count` - Deliverables.jsx
+- `deliverables-table` - Deliverables.jsx
+- `deliverables-empty-state` - Deliverables.jsx
+- `deliverables-completion-modal` - Deliverables.jsx
+- `deliverable-row-{id}` - Deliverables.jsx (dynamic)
+- `deliverable-ref-{ref}` - Deliverables.jsx (dynamic)
+- `deliverable-status-{id}` - Deliverables.jsx (dynamic)
+- `deliverable-progress-{id}` - Deliverables.jsx (dynamic)
+
+### Resources (Added Window 4)
+- `resources-page` - Resources.jsx
+- `resources-header` - Resources.jsx
+- `resources-title` - Resources.jsx
+- `resources-refresh-button` - Resources.jsx
+- `add-resource-button` - Resources.jsx
+- `resources-content` - Resources.jsx
+- `resources-add-form` - Resources.jsx
+- `resource-ref-input` - Resources.jsx
+- `resource-name-input` - Resources.jsx
+- `resource-email-input` - Resources.jsx
+- `resource-role-input` - Resources.jsx
+- `resource-sfia-select` - Resources.jsx
+- `resource-sell-price-input` - Resources.jsx
+- `resource-cost-price-input` - Resources.jsx (SUPPLIER_SIDE only)
+- `resource-type-select` - Resources.jsx (SUPPLIER_SIDE only)
+- `resource-save-button` - Resources.jsx
+- `resource-cancel-button` - Resources.jsx
+- `resources-table-card` - Resources.jsx
+- `resources-filter-type` - Resources.jsx (SUPPLIER_SIDE only)
+- `resources-count` - Resources.jsx
+- `resources-table` - Resources.jsx
+- `resources-type-header` - Resources.jsx (SUPPLIER_SIDE only)
+- `resources-cost-rate-header` - Resources.jsx (SUPPLIER_SIDE only)
+- `resources-margin-header` - Resources.jsx (SUPPLIER_SIDE only)
+- `resources-empty-state` - Resources.jsx
+- `resource-row-{id}` - Resources.jsx (dynamic)
+- `resource-type-{id}` - Resources.jsx (dynamic, SUPPLIER_SIDE only)
+- `resource-cost-rate-{id}` - Resources.jsx (dynamic, SUPPLIER_SIDE only)
+- `resource-margin-{id}` - Resources.jsx (dynamic, SUPPLIER_SIDE only)
+
+### Variations (Added Window 4)
+- `variations-page` - Variations.jsx
+- `variations-header` - Variations.jsx
+- `variations-title` - Variations.jsx
+- `variations-refresh-button` - Variations.jsx
+- `create-variation-button` - Variations.jsx
+- `variations-content` - Variations.jsx
+- `variations-summary` - Variations.jsx
+- `variations-summary-total` - Variations.jsx
+- `variations-summary-pending` - Variations.jsx
+- `variations-summary-applied` - Variations.jsx
+- `variations-summary-impact` - Variations.jsx
+- `variations-filters` - Variations.jsx
+- `variations-filter-{status}` - Variations.jsx (dynamic per filter)
+- `variations-count` - Variations.jsx
+- `variations-table-card` - Variations.jsx
+- `variations-empty-state` - Variations.jsx
+- `variations-table` - Variations.jsx
+- `variations-info-box` - Variations.jsx
+- `variation-row-{id}` - Variations.jsx (dynamic)
+- `variation-ref-{ref}` - Variations.jsx (dynamic)
+- `variation-status-{id}` - Variations.jsx (dynamic)
+- `variation-delete-{id}` - Variations.jsx (dynamic)
+
+### Settings (Added Window 4)
+- `settings-page` - Settings.jsx
+- `settings-access-denied` - Settings.jsx (non-SUPPLIER_SIDE view)
+- `settings-save-success` - Settings.jsx
+- `settings-save-error` - Settings.jsx
+- `settings-save-button` - Settings.jsx
+- `settings-project-info-card` - Settings.jsx
+- `settings-project-name-input` - Settings.jsx
+- `settings-project-reference-input` - Settings.jsx
+- `settings-total-budget-input` - Settings.jsx
+- `settings-pmo-threshold-input` - Settings.jsx
+- `settings-budget-allocation-card` - Settings.jsx
+- `settings-budget-summary` - Settings.jsx
+- `settings-total-budget-display` - Settings.jsx
+- `settings-allocated-budget` - Settings.jsx
+- `settings-unallocated-budget` - Settings.jsx
+- `settings-allocation-progress` - Settings.jsx
+- `settings-milestones-table` - Settings.jsx
+- `settings-milestone-row-{id}` - Settings.jsx (dynamic)
+- `settings-milestone-billable-{id}` - Settings.jsx (dynamic)
+- `settings-no-milestones` - Settings.jsx
+- `settings-info-box` - Settings.jsx
 
 ---
 
