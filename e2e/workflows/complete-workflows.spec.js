@@ -4,12 +4,26 @@
  * 
  * End-to-end business workflows using data-testid selectors.
  * 
- * @version 2.0 - Rewritten with testing contract
+ * @version 2.1 - Fixed storageState paths (Window 6)
  * @updated 14 December 2025
  */
 
 import { test, expect } from '@playwright/test';
 import { waitForPageReady, expectVisible } from '../test-utils';
+
+// ============================================
+// AUTH STATE PATHS
+// ============================================
+
+const AUTH_PATHS = {
+  admin: 'playwright/.auth/admin.json',
+  supplier_pm: 'playwright/.auth/supplier_pm.json',
+  supplier_finance: 'playwright/.auth/supplier_finance.json',
+  customer_pm: 'playwright/.auth/customer_pm.json',
+  customer_finance: 'playwright/.auth/customer_finance.json',
+  contributor: 'playwright/.auth/contributor.json',
+  viewer: 'playwright/.auth/viewer.json',
+};
 
 const TEST_ID = Date.now().toString().slice(-6);
 
@@ -26,7 +40,7 @@ test.describe('Timesheet Workflow @workflow @critical', () => {
   test.describe.configure({ mode: 'serial' });
   
   test('1. Contributor can open timesheet form', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
     const page = await context.newPage();
     await navigateTo(page, '/timesheets');
     
@@ -38,7 +52,7 @@ test.describe('Timesheet Workflow @workflow @critical', () => {
   });
 
   test('2. Admin can view timesheets', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.admin });
     const page = await context.newPage();
     await navigateTo(page, '/timesheets');
     
@@ -55,7 +69,7 @@ test.describe('Timesheet Workflow @workflow @critical', () => {
 
 test.describe('Expense Workflow @workflow', () => {
   test('1. Contributor can open expense form', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
     const page = await context.newPage();
     await navigateTo(page, '/expenses');
     
@@ -67,7 +81,7 @@ test.describe('Expense Workflow @workflow', () => {
   });
 
   test('2. Admin can view expenses', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.admin });
     const page = await context.newPage();
     await navigateTo(page, '/expenses');
     
@@ -83,7 +97,7 @@ test.describe('Expense Workflow @workflow', () => {
 
 test.describe('Milestone Workflow @workflow', () => {
   test('1. Supplier PM can open milestone form', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
     const page = await context.newPage();
     await navigateTo(page, '/milestones');
     
@@ -95,7 +109,7 @@ test.describe('Milestone Workflow @workflow', () => {
   });
 
   test('2. Admin can view milestones', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.admin });
     const page = await context.newPage();
     await navigateTo(page, '/milestones');
     
@@ -111,7 +125,7 @@ test.describe('Milestone Workflow @workflow', () => {
 
 test.describe('Deliverable Workflow @workflow', () => {
   test('1. Contributor can open deliverable form', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
     const page = await context.newPage();
     await navigateTo(page, '/deliverables');
     
@@ -123,7 +137,7 @@ test.describe('Deliverable Workflow @workflow', () => {
   });
 
   test('2. Customer PM can view deliverables', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
     const page = await context.newPage();
     await navigateTo(page, '/deliverables');
     
@@ -140,7 +154,7 @@ test.describe('Deliverable Workflow @workflow', () => {
 
 test.describe('Variation Workflow @workflow', () => {
   test('1. Supplier PM can see create variation button', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
     const page = await context.newPage();
     await navigateTo(page, '/variations');
     
@@ -151,7 +165,7 @@ test.describe('Variation Workflow @workflow', () => {
   });
 
   test('2. Customer PM cannot create variations', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
     const page = await context.newPage();
     await navigateTo(page, '/variations');
     
@@ -168,7 +182,7 @@ test.describe('Variation Workflow @workflow', () => {
 
 test.describe('Resources Workflow @workflow', () => {
   test('1. Supplier PM can see cost columns', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
     const page = await context.newPage();
     await navigateTo(page, '/resources');
     
@@ -180,7 +194,7 @@ test.describe('Resources Workflow @workflow', () => {
   });
 
   test('2. Customer PM cannot see cost columns', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
     const page = await context.newPage();
     await navigateTo(page, '/resources');
     
@@ -197,7 +211,7 @@ test.describe('Resources Workflow @workflow', () => {
 
 test.describe('Settings Workflow @workflow', () => {
   test('1. Supplier PM can access settings', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
     const page = await context.newPage();
     await navigateTo(page, '/settings');
     
@@ -208,7 +222,7 @@ test.describe('Settings Workflow @workflow', () => {
   });
 
   test('2. Customer PM is redirected from settings', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
     const page = await context.newPage();
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
