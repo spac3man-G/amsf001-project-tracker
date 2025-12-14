@@ -4,12 +4,26 @@
  * 
  * Comprehensive verification using data-testid selectors.
  * 
- * @version 2.0 - Rewritten with testing contract
+ * @version 2.1 - Fixed storageState paths (Window 6)
  * @updated 14 December 2025
  */
 
 import { test, expect } from '@playwright/test';
 import { waitForPageReady, expectVisible, expectNotVisible } from '../test-utils';
+
+// ============================================
+// AUTH STATE PATHS
+// ============================================
+
+const AUTH_PATHS = {
+  admin: 'playwright/.auth/admin.json',
+  supplier_pm: 'playwright/.auth/supplier_pm.json',
+  supplier_finance: 'playwright/.auth/supplier_finance.json',
+  customer_pm: 'playwright/.auth/customer_pm.json',
+  customer_finance: 'playwright/.auth/customer_finance.json',
+  contributor: 'playwright/.auth/contributor.json',
+  viewer: 'playwright/.auth/viewer.json',
+};
 
 async function navigateTo(page, path) {
   await page.goto(path);
@@ -23,7 +37,7 @@ async function navigateTo(page, path) {
 test.describe('Admin Role Verification @admin @comprehensive', () => {
   
   test('Admin can access all main pages', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.admin });
     const page = await context.newPage();
     
     const pages = [
@@ -46,7 +60,7 @@ test.describe('Admin Role Verification @admin @comprehensive', () => {
   });
 
   test('Admin sees all Add buttons', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.admin });
     const page = await context.newPage();
     
     await navigateTo(page, '/timesheets');
@@ -71,7 +85,7 @@ test.describe('Admin Role Verification @admin @comprehensive', () => {
   });
 
   test('Admin sees cost information', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.admin });
     const page = await context.newPage();
     
     await navigateTo(page, '/resources');
@@ -89,7 +103,7 @@ test.describe('Admin Role Verification @admin @comprehensive', () => {
 test.describe('Supplier PM Role Verification @supplier_pm @comprehensive', () => {
   
   test('Supplier PM can access supplier pages', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
     const page = await context.newPage();
     
     await navigateTo(page, '/dashboard');
@@ -102,7 +116,7 @@ test.describe('Supplier PM Role Verification @supplier_pm @comprehensive', () =>
   });
 
   test('Supplier PM can create milestones and variations', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
     const page = await context.newPage();
     
     await navigateTo(page, '/milestones');
@@ -115,7 +129,7 @@ test.describe('Supplier PM Role Verification @supplier_pm @comprehensive', () =>
   });
 
   test('Supplier PM sees cost information', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
     const page = await context.newPage();
     
     await navigateTo(page, '/resources');
@@ -132,7 +146,7 @@ test.describe('Supplier PM Role Verification @supplier_pm @comprehensive', () =>
 test.describe('Customer PM Role Verification @customer_pm @comprehensive', () => {
   
   test('Customer PM cannot see Partners or Settings nav', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
     const page = await context.newPage();
     
     await navigateTo(page, '/dashboard');
@@ -143,7 +157,7 @@ test.describe('Customer PM Role Verification @customer_pm @comprehensive', () =>
   });
 
   test('Customer PM cannot create milestones or variations', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
     const page = await context.newPage();
     
     await navigateTo(page, '/milestones');
@@ -156,7 +170,7 @@ test.describe('Customer PM Role Verification @customer_pm @comprehensive', () =>
   });
 
   test('Customer PM cannot see cost prices', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
     const page = await context.newPage();
     
     await navigateTo(page, '/resources');
@@ -166,7 +180,7 @@ test.describe('Customer PM Role Verification @customer_pm @comprehensive', () =>
   });
 
   test('Customer PM is redirected from settings', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
     const page = await context.newPage();
     
     await page.goto('/settings');
@@ -184,7 +198,7 @@ test.describe('Customer PM Role Verification @customer_pm @comprehensive', () =>
 test.describe('Contributor Role Verification @contributor @comprehensive', () => {
   
   test('Contributor can create work items', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
     const page = await context.newPage();
     
     await navigateTo(page, '/timesheets');
@@ -200,7 +214,7 @@ test.describe('Contributor Role Verification @contributor @comprehensive', () =>
   });
 
   test('Contributor cannot see Partners or Settings', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
     const page = await context.newPage();
     
     await navigateTo(page, '/dashboard');
@@ -211,7 +225,7 @@ test.describe('Contributor Role Verification @contributor @comprehensive', () =>
   });
 
   test('Contributor cannot create milestones', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
     const page = await context.newPage();
     
     await navigateTo(page, '/milestones');
@@ -221,7 +235,7 @@ test.describe('Contributor Role Verification @contributor @comprehensive', () =>
   });
 
   test('Contributor cannot see cost information', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
     const page = await context.newPage();
     
     await navigateTo(page, '/resources');
@@ -238,7 +252,7 @@ test.describe('Contributor Role Verification @contributor @comprehensive', () =>
 test.describe('Viewer Role Verification @viewer @comprehensive', () => {
   
   test('Viewer can view pages', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
     const page = await context.newPage();
     
     await navigateTo(page, '/dashboard');
@@ -251,7 +265,7 @@ test.describe('Viewer Role Verification @viewer @comprehensive', () => {
   });
 
   test('Viewer cannot see any Add buttons', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
     const page = await context.newPage();
     
     await navigateTo(page, '/timesheets');
@@ -270,7 +284,7 @@ test.describe('Viewer Role Verification @viewer @comprehensive', () => {
   });
 
   test('Viewer cannot see Partners or Settings', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
     const page = await context.newPage();
     
     await navigateTo(page, '/dashboard');
@@ -281,7 +295,7 @@ test.describe('Viewer Role Verification @viewer @comprehensive', () => {
   });
 
   test('Viewer cannot see cost information', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
     const page = await context.newPage();
     
     await navigateTo(page, '/resources');
