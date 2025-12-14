@@ -9,8 +9,14 @@
  *   showToast('Success message', 'success');
  *   showToast('Error occurred', 'error');
  * 
- * @version 1.0
+ * Test IDs (see docs/TESTING-CONVENTIONS.md):
+ *   - toast-success, toast-error, toast-warning, toast-info
+ *   - toast-close-button
+ *   - toast-container
+ * 
+ * @version 1.1
  * @created 30 November 2025
+ * @modified 14 December 2025 - Added data-testid for E2E testing
  * @phase Phase 1 - Stabilisation
  */
 
@@ -63,6 +69,7 @@ export function Toast({ id, message, type = 'info', duration = 4000, onClose }) 
 
   return (
     <div
+      data-testid={`toast-${type}`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -87,6 +94,7 @@ export function Toast({ id, message, type = 'info', duration = 4000, onClose }) 
         {message}
       </span>
       <button
+        data-testid="toast-close-button"
         onClick={() => onClose(id)}
         style={{
           background: 'none',
@@ -114,6 +122,7 @@ export function ToastContainer({ toasts, removeToast }) {
 
   return (
     <div
+      data-testid="toast-container"
       style={{
         position: 'fixed',
         top: '1rem',

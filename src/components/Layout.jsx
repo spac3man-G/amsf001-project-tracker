@@ -1,11 +1,16 @@
 // src/components/Layout.jsx
-// Version 11.0 - Added Project Switcher for multi-tenancy support
+// Version 11.1 - Added data-testid attributes for E2E testing
 // - User name/role only shown in header (top right)
 // - Clicking user info in header navigates to My Account
 // - Drag and drop navigation reordering for non-viewers
 // - Reset to default order button when custom order is active
 // - View As bar for admin/supplier_pm to preview other roles
 // - Project Switcher for users with multiple project assignments
+//
+// Test IDs (see docs/TESTING-CONVENTIONS.md):
+//   - nav-{itemId} for each navigation link (e.g., nav-dashboard, nav-timesheets)
+//   - logout-button
+//   - user-menu-button
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -303,6 +308,7 @@ export default function Layout({ children }) {
               >
                 <Link
                   to={item.path}
+                  data-testid={`nav-${item.id}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -396,6 +402,7 @@ export default function Layout({ children }) {
           backgroundColor: '#f8fafc'
         }}>
           <button
+            data-testid="logout-button"
             onClick={handleLogout}
             style={{
               width: '100%',
@@ -449,6 +456,7 @@ export default function Layout({ children }) {
           {/* User Name and Role Display - Clickable to go to My Account */}
           <Link
             to="/account"
+            data-testid="user-menu-button"
             style={{
               display: 'flex',
               alignItems: 'center',

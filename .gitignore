@@ -35,9 +35,21 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Testing
+# Testing - Vitest
 coverage/
 .nyc_output/
+
+# Testing - Playwright
+playwright-report/
+playwright/.cache/
+test-results/
+# Auth state files (contain session tokens - NEVER commit)
+playwright/.auth/*.json
+# Keep gitkeep for directory structure
+!playwright/.auth/.gitkeep
+
+# E2E Test Environment
+scripts/e2e/.test-project-id
 
 # Misc
 *.local

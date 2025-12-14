@@ -7,6 +7,12 @@ import React from 'react';
  * @param {string} [size='medium'] - Size: 'small', 'medium', 'large'
  * @param {boolean} [fullPage=false] - Center in full viewport
  * @param {string} [className] - Additional CSS classes
+ * 
+ * Test IDs (see docs/TESTING-CONVENTIONS.md):
+ *   - loading-spinner
+ * 
+ * @version 1.1
+ * @modified 14 December 2025 - Added data-testid for E2E testing
  */
 function LoadingSpinner({ 
   message, 
@@ -22,6 +28,7 @@ function LoadingSpinner({
 
   return (
     <div 
+      data-testid="loading-spinner"
       className={`loading-spinner ${className}`}
       style={fullPage ? { minHeight: '60vh' } : undefined}
     >

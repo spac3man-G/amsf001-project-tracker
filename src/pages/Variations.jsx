@@ -8,7 +8,7 @@
  * - Dual-signature approval workflow
  * - Delete draft variations
  * 
- * @version 1.1
+ * @version 1.2 - Added data-testid attributes for E2E testing
  * @updated 8 December 2025
  */
 
@@ -188,12 +188,12 @@ export default function Variations() {
   }
 
   return (
-    <div className="variations-page">
+    <div className="variations-page" data-testid="variations-page">
       {/* Header */}
-      <header className="var-header">
+      <header className="var-header" data-testid="variations-header">
         <div className="var-header-content">
           <div className="var-header-left">
-            <h1>Variations</h1>
+            <h1 data-testid="variations-title">Variations</h1>
             <p>Project change control and variation management</p>
           </div>
           <div className="var-header-actions">
@@ -201,12 +201,17 @@ export default function Variations() {
               className="var-btn var-btn-secondary"
               onClick={handleRefresh}
               disabled={refreshing}
+              data-testid="variations-refresh-button"
             >
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
               Refresh
             </button>
             {canCreateVariation && (
-              <button className="var-btn var-btn-primary" onClick={handleCreateNew}>
+              <button 
+                className="var-btn var-btn-primary" 
+                onClick={handleCreateNew}
+                data-testid="create-variation-button"
+              >
                 <Plus size={18} />
                 Create Variation
               </button>
@@ -216,32 +221,32 @@ export default function Variations() {
       </header>
 
       {/* Content */}
-      <div className="var-content">
+      <div className="var-content" data-testid="variations-content">
         {/* Summary Cards */}
         {summary && (
-          <div className="var-summary-grid">
-            <div className="var-summary-card accent">
+          <div className="var-summary-grid" data-testid="variations-summary">
+            <div className="var-summary-card accent" data-testid="variations-summary-total">
               <div className="var-summary-icon">
                 <FileText size={22} />
               </div>
               <div className="var-summary-value">{summary.total}</div>
               <div className="var-summary-label">Total Variations</div>
             </div>
-            <div className="var-summary-card warning">
+            <div className="var-summary-card warning" data-testid="variations-summary-pending">
               <div className="var-summary-icon">
                 <Clock size={22} />
               </div>
               <div className="var-summary-value">{summary.pending}</div>
               <div className="var-summary-label">Pending Approval</div>
             </div>
-            <div className="var-summary-card success">
+            <div className="var-summary-card success" data-testid="variations-summary-applied">
               <div className="var-summary-icon">
                 <CheckCircle2 size={22} />
               </div>
               <div className="var-summary-value">{summary.applied}</div>
               <div className="var-summary-label">Applied</div>
             </div>
-            <div className="var-summary-card primary">
+            <div className="var-summary-card primary" data-testid="variations-summary-impact">
               <div className="var-summary-icon">
                 <PoundSterling size={22} />
               </div>
@@ -255,7 +260,7 @@ export default function Variations() {
         )}
 
         {/* Filter Bar */}
-        <div className="var-filter-bar">
+        <div className="var-filter-bar" data-testid="variations-filters">
           <div className="var-filter-group">
             <Filter size={16} />
             <span>Filter:</span>
@@ -264,20 +269,21 @@ export default function Variations() {
                 key={filter.value}
                 className={`var-filter-btn ${statusFilter === filter.value ? 'active' : ''}`}
                 onClick={() => setStatusFilter(filter.value)}
+                data-testid={`variations-filter-${filter.value}`}
               >
                 {filter.label}
               </button>
             ))}
           </div>
-          <div className="var-filter-count">
+          <div className="var-filter-count" data-testid="variations-count">
             {filteredVariations.length} variation{filteredVariations.length !== 1 ? 's' : ''}
           </div>
         </div>
 
         {/* Variations Table */}
-        <div className="var-table-card">
+        <div className="var-table-card" data-testid="variations-table-card">
           {filteredVariations.length === 0 ? (
-            <div className="var-empty">
+            <div className="var-empty" data-testid="variations-empty-state">
               <div className="var-empty-icon">
                 <FileText size={32} />
               </div>
@@ -291,7 +297,7 @@ export default function Variations() {
               </div>
             </div>
           ) : (
-            <table className="var-table">
+            <table className="var-table" data-testid="variations-table">
               <thead>
                 <tr>
                   <th>Reference</th>
@@ -314,9 +320,12 @@ export default function Variations() {
                     <tr
                       key={variation.id}
                       onClick={() => handleViewVariation(variation)}
+                      data-testid={`variation-row-${variation.id}`}
                     >
                       <td>
-                        <span className="var-ref">{variation.variation_ref}</span>
+                        <span className="var-ref" data-testid={`variation-ref-${variation.variation_ref}`}>
+                          {variation.variation_ref}
+                        </span>
                       </td>
                       <td>
                         <div className="var-title">{variation.title}</div>
@@ -334,7 +343,10 @@ export default function Variations() {
                         </span>
                       </td>
                       <td>
-                        <span className={`var-status-badge ${getStatusBadgeClass(variation.status)}`}>
+                        <span 
+                          className={`var-status-badge ${getStatusBadgeClass(variation.status)}`}
+                          data-testid={`variation-status-${variation.id}`}
+                        >
                           <span className="var-status-dot"></span>
                           {statusConfig?.label || variation.status}
                         </span>
@@ -378,6 +390,7 @@ export default function Variations() {
                               className="var-delete-btn"
                               onClick={(e) => handleDeleteClick(e, variation)}
                               title="Delete variation"
+                              data-testid={`variation-delete-${variation.id}`}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -395,7 +408,7 @@ export default function Variations() {
         </div>
 
         {/* Info Box */}
-        <div className="var-info-box">
+        <div className="var-info-box" data-testid="variations-info-box">
           <div className="var-info-header">
             <Info size={18} />
             How Variations Work

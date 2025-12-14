@@ -4,7 +4,7 @@
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
  * Click on any deliverable to view details and perform workflow actions.
  * 
- * @version 3.2 - Refactored to use deliverableCalculations.js for status constants
+ * @version 3.3 - Added data-testid attributes for E2E testing
  * @updated 6 December 2025
  */
 
@@ -248,24 +248,33 @@ export default function Deliverables() {
   if (loading) return <LoadingSpinner message="Loading deliverables..." size="large" fullPage />;
 
   return (
-    <div className="deliverables-page">
-      <header className="del-header">
+    <div className="deliverables-page" data-testid="deliverables-page">
+      <header className="del-header" data-testid="deliverables-header">
         <div className="del-header-content">
           <div className="del-header-left">
             <div className="del-header-icon">
               <Package size={24} />
             </div>
             <div>
-              <h1>Deliverables</h1>
+              <h1 data-testid="deliverables-title">Deliverables</h1>
               <p>Track project deliverables with review workflow</p>
             </div>
           </div>
           <div className="del-header-actions">
-            <button className="del-btn del-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
+            <button 
+              className="del-btn del-btn-secondary" 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+              data-testid="deliverables-refresh-button"
+            >
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
             {canEdit && (
-              <button className="del-btn del-btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
+              <button 
+                className="del-btn del-btn-primary" 
+                onClick={() => setShowAddForm(!showAddForm)}
+                data-testid="add-deliverable-button"
+              >
                 <Plus size={18} /> Add Deliverable
               </button>
             )}
@@ -273,14 +282,24 @@ export default function Deliverables() {
         </div>
       </header>
 
-      <div className="del-content">
+      <div className="del-content" data-testid="deliverables-content">
         {/* Filters */}
-        <div className="del-filters">
-          <select value={filterMilestone} onChange={(e) => setFilterMilestone(e.target.value)} className="del-filter-select">
+        <div className="del-filters" data-testid="deliverables-filters">
+          <select 
+            value={filterMilestone} 
+            onChange={(e) => setFilterMilestone(e.target.value)} 
+            className="del-filter-select"
+            data-testid="deliverables-filter-milestone"
+          >
             <option value="">All Milestones</option>
             {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
           </select>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="del-filter-select">
+          <select 
+            value={filterStatus} 
+            onChange={(e) => setFilterStatus(e.target.value)} 
+            className="del-filter-select"
+            data-testid="deliverables-filter-status"
+          >
             <option value="">All Statuses</option>
             {getStatusOptions().map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -288,6 +307,7 @@ export default function Deliverables() {
             <button 
               onClick={() => { setShowAwaitingReview(!showAwaitingReview); if (!showAwaitingReview) { setFilterMilestone(''); setFilterStatus(''); } }} 
               className={`del-filter-badge ${showAwaitingReview ? 'active' : ''}`}
+              data-testid="deliverables-awaiting-review-badge"
             >
               <Send size={16} /> {submittedForReview} Awaiting Review
             </button>
@@ -295,27 +315,48 @@ export default function Deliverables() {
         </div>
 
         {showAddForm && (
-          <div className="del-add-form">
+          <div className="del-add-form" data-testid="deliverables-add-form">
             <h3 className="del-add-form-title">Add New Deliverable</h3>
             <form onSubmit={handleAdd}>
               <div className="del-form-row">
                 <div className="del-form-group">
                   <label>Ref *</label>
-                  <input type="text" value={newDeliverable.deliverable_ref} onChange={(e) => setNewDeliverable({ ...newDeliverable, deliverable_ref: e.target.value })} required />
+                  <input 
+                    type="text" 
+                    value={newDeliverable.deliverable_ref} 
+                    onChange={(e) => setNewDeliverable({ ...newDeliverable, deliverable_ref: e.target.value })} 
+                    required 
+                    data-testid="deliverable-ref-input"
+                  />
                 </div>
                 <div className="del-form-group" style={{ flex: 2 }}>
                   <label>Name *</label>
-                  <input type="text" value={newDeliverable.name} onChange={(e) => setNewDeliverable({ ...newDeliverable, name: e.target.value })} required />
+                  <input 
+                    type="text" 
+                    value={newDeliverable.name} 
+                    onChange={(e) => setNewDeliverable({ ...newDeliverable, name: e.target.value })} 
+                    required 
+                    data-testid="deliverable-name-input"
+                  />
                 </div>
               </div>
               <div className="del-form-group">
                 <label>Description</label>
-                <textarea value={newDeliverable.description} onChange={(e) => setNewDeliverable({ ...newDeliverable, description: e.target.value })} />
+                <textarea 
+                  value={newDeliverable.description} 
+                  onChange={(e) => setNewDeliverable({ ...newDeliverable, description: e.target.value })} 
+                  data-testid="deliverable-description-input"
+                />
               </div>
               <div className="del-form-row">
                 <div className="del-form-group">
                   <label>Milestone *</label>
-                  <select value={newDeliverable.milestone_id} onChange={(e) => setNewDeliverable({ ...newDeliverable, milestone_id: e.target.value })} required>
+                  <select 
+                    value={newDeliverable.milestone_id} 
+                    onChange={(e) => setNewDeliverable({ ...newDeliverable, milestone_id: e.target.value })} 
+                    required
+                    data-testid="deliverable-milestone-select"
+                  >
                     <option value="">Select</option>
                     {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref}</option>)}
                   </select>
@@ -344,20 +385,26 @@ export default function Deliverables() {
                 variant="purple"
               />
               <div className="del-form-actions">
-                <button type="submit" className="del-btn del-btn-primary"><Save size={16} /> Save</button>
-                <button type="button" className="del-btn del-btn-secondary" onClick={() => setShowAddForm(false)}><X size={16} /> Cancel</button>
+                <button type="submit" className="del-btn del-btn-primary" data-testid="deliverable-save-button">
+                  <Save size={16} /> Save
+                </button>
+                <button type="button" className="del-btn del-btn-secondary" onClick={() => setShowAddForm(false)} data-testid="deliverable-cancel-button">
+                  <X size={16} /> Cancel
+                </button>
               </div>
             </form>
           </div>
         )}
 
-        <div className="del-table-card">
+        <div className="del-table-card" data-testid="deliverables-table-card">
           <div className="del-table-header">
             <h2 className="del-table-title">Project Deliverables</h2>
-            <span className="del-table-count">{filteredDeliverables.length} deliverable{filteredDeliverables.length !== 1 ? 's' : ''}</span>
+            <span className="del-table-count" data-testid="deliverables-count">
+              {filteredDeliverables.length} deliverable{filteredDeliverables.length !== 1 ? 's' : ''}
+            </span>
           </div>
           
-          <table className="del-table">
+          <table className="del-table" data-testid="deliverables-table">
             <thead>
               <tr>
                 <th>Ref</th>
@@ -369,17 +416,29 @@ export default function Deliverables() {
             </thead>
             <tbody>
               {filteredDeliverables.length === 0 ? (
-                <tr><td colSpan={5} className="del-empty-cell">No deliverables found</td></tr>
+                <tr>
+                  <td colSpan={5} className="del-empty-cell" data-testid="deliverables-empty-state">
+                    No deliverables found
+                  </td>
+                </tr>
               ) : filteredDeliverables.map(d => {
                 const statusInfo = DELIVERABLE_STATUS_CONFIG[d.status] || DELIVERABLE_STATUS_CONFIG[DELIVERABLE_STATUS.NOT_STARTED];
                 const StatusIcon = statusInfo.icon;
                 return (
-                  <tr key={d.id} onClick={() => handleRowClick(d)}>
-                    <td><span className="del-ref">{d.deliverable_ref}</span></td>
+                  <tr key={d.id} onClick={() => handleRowClick(d)} data-testid={`deliverable-row-${d.id}`}>
+                    <td>
+                      <span className="del-ref" data-testid={`deliverable-ref-${d.deliverable_ref}`}>
+                        {d.deliverable_ref}
+                      </span>
+                    </td>
                     <td><span className="del-name">{d.name}</span></td>
                     <td>{d.milestones ? <span className="del-milestone-link">{d.milestones.milestone_ref}</span> : '—'}</td>
                     <td>
-                      <span className="del-status-badge" style={{ backgroundColor: statusInfo.bg, color: statusInfo.color }}>
+                      <span 
+                        className="del-status-badge" 
+                        style={{ backgroundColor: statusInfo.bg, color: statusInfo.color }}
+                        data-testid={`deliverable-status-${d.id}`}
+                      >
                         <StatusIcon size={14} />{d.status}
                       </span>
                     </td>
@@ -388,7 +447,9 @@ export default function Deliverables() {
                         <div className="del-progress-bar">
                           <div className="del-progress-fill" style={{ width: `${d.progress || 0}%`, backgroundColor: d.status === 'Delivered' ? '#16a34a' : '#4f46e5' }} />
                         </div>
-                        <span className="del-progress-text">{d.progress || 0}%</span>
+                        <span className="del-progress-text" data-testid={`deliverable-progress-${d.id}`}>
+                          {d.progress || 0}%
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -419,7 +480,7 @@ export default function Deliverables() {
 
       {/* Completion Modal */}
       {showCompletionModal && completingDeliverable && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" data-testid="deliverables-completion-modal">
           <div className="modal modal-lg">
             <div className="modal-header">
               <h3 className="modal-title"><CheckCircle size={20} style={{ color: 'var(--color-success)' }} /> Mark as Delivered</h3>

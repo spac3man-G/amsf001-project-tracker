@@ -19,7 +19,7 @@ export { default as StatCard } from './StatCard';
 export { default as Card, CardGrid } from './Card';
 export { default as DataTable } from './DataTable';
 export { default as PageHeader } from './PageHeader';
-export { default as StatusBadge, STATUS_STYLES } from './StatusBadge';
+export { default as StatusBadge, STATUS_VARIANTS } from './StatusBadge';
 export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as PromptDialog } from './PromptDialog';
 export { default as ActionButtons } from './ActionButtons';

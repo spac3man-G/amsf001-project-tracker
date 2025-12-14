@@ -21,7 +21,7 @@ export { useTimesheetPermissions } from './useTimesheetPermissions';
 export { useResourcePermissions } from './useResourcePermissions';
 
 // Dashboard
-export { useDashboardLayout } from './useDashboardLayout';
+export { default as useDashboardLayout } from './useDashboardLayout';
 
 // Read-only mode
 export { useReadOnly } from './useReadOnly';

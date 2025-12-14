@@ -1,3 +1,9 @@
+/**
+ * Settings Page - Project configuration
+ * 
+ * @version 1.1 - Added data-testid attributes for E2E testing
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -161,7 +167,7 @@ export default function Settings() {
   // Permission check (backup - should redirect before this)
   if (!canAccessSettings) {
     return (
-      <div className="page-container">
+      <div className="page-container" data-testid="settings-access-denied">
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <AlertCircle size={48} style={{ color: '#ef4444', marginBottom: '1rem' }} />
           <h2>Access Denied</h2>
@@ -173,19 +179,20 @@ export default function Settings() {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container" data-testid="settings-page">
       <PageHeader
         icon={SettingsIcon}
         title="Project Settings"
         subtitle="Configure project parameters and budget allocations"
+        data-testid="settings-header"
       >
         {saveStatus === 'success' && (
-          <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }} data-testid="settings-save-success">
             <CheckCircle size={18} /> Saved
           </span>
         )}
         {saveStatus === 'error' && (
-          <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.25rem' }} data-testid="settings-save-error">
             <AlertCircle size={18} /> Error saving
           </span>
         )}
@@ -194,6 +201,7 @@ export default function Settings() {
           onClick={handleSaveSettings}
           disabled={saving || !hasChanges}
           style={{ opacity: (!hasChanges || saving) ? 0.6 : 1 }}
+          data-testid="settings-save-button"
         >
           {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
           {saving ? 'Saving...' : 'Save Settings'}
@@ -201,7 +209,7 @@ export default function Settings() {
       </PageHeader>
 
       {/* Project Information Card */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <div className="card" style={{ marginBottom: '1.5rem' }} data-testid="settings-project-info-card">
         <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Target size={20} />
           Project Information
@@ -213,6 +221,7 @@ export default function Settings() {
               className="form-input" 
               value={settings.name}
               onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+              data-testid="settings-project-name-input"
             />
           </div>
           <div className="form-group">
@@ -222,6 +231,7 @@ export default function Settings() {
               value={settings.reference}
               disabled
               style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
+              data-testid="settings-project-reference-input"
             />
             <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Reference cannot be changed</span>
           </div>
@@ -234,6 +244,7 @@ export default function Settings() {
               step="0.01"
               value={settings.total_budget}
               onChange={(e) => setSettings({ ...settings, total_budget: e.target.value })}
+              data-testid="settings-total-budget-input"
             />
           </div>
           <div className="form-group">
@@ -245,6 +256,7 @@ export default function Settings() {
               max="100"
               value={settings.pmo_threshold}
               onChange={(e) => setSettings({ ...settings, pmo_threshold: e.target.value })}
+              data-testid="settings-pmo-threshold-input"
             />
             <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
               Percentage of budget allocated to PMO overhead
@@ -254,7 +266,7 @@ export default function Settings() {
       </div>
 
       {/* Budget Allocation Card */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <div className="card" style={{ marginBottom: '1.5rem' }} data-testid="settings-budget-allocation-card">
         <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <DollarSign size={20} />
           Milestone Budget Allocation
@@ -269,16 +281,16 @@ export default function Settings() {
           padding: '1rem',
           backgroundColor: '#f8fafc',
           borderRadius: '8px'
-        }}>
+        }} data-testid="settings-budget-summary">
           <div>
             <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Total Budget</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700' }} data-testid="settings-total-budget-display">
               £{parseFloat(settings.total_budget).toLocaleString()}
             </div>
           </div>
           <div>
             <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Allocated to Milestones</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6' }} data-testid="settings-allocated-budget">
               £{totalAllocated.toLocaleString()}
             </div>
           </div>
@@ -288,14 +300,14 @@ export default function Settings() {
               fontSize: '1.5rem', 
               fontWeight: '700', 
               color: unallocated < 0 ? '#ef4444' : unallocated > 0 ? '#f59e0b' : '#10b981' 
-            }}>
+            }} data-testid="settings-unallocated-budget">
               £{unallocated.toLocaleString()}
             </div>
           </div>
         </div>
 
         {/* Progress Bar */}
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.5rem' }} data-testid="settings-allocation-progress">
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Allocation Progress</span>
             <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{allocationPercent}%</span>
@@ -324,7 +336,7 @@ export default function Settings() {
 
         {/* Milestones Table */}
         {milestones.length > 0 ? (
-          <table>
+          <table data-testid="settings-milestones-table">
             <thead>
               <tr>
                 <th>Milestone</th>
@@ -335,7 +347,7 @@ export default function Settings() {
             </thead>
             <tbody>
               {milestones.map(m => (
-                <tr key={m.id}>
+                <tr key={m.id} data-testid={`settings-milestone-row-${m.id}`}>
                   <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{m.milestone_ref}</td>
                   <td>{m.name}</td>
                   <td style={{ textAlign: 'right' }}>
@@ -355,6 +367,7 @@ export default function Settings() {
                           borderRadius: '4px',
                           opacity: savingMilestone === m.id ? 0.6 : 1
                         }}
+                        data-testid={`settings-milestone-billable-${m.id}`}
                       />
                       {savingMilestone === m.id && (
                         <RefreshCw size={14} className="spin" style={{ color: '#3b82f6' }} />
@@ -377,14 +390,14 @@ export default function Settings() {
             </tbody>
           </table>
         ) : (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }} data-testid="settings-no-milestones">
             <p>No milestones found. Create milestones on the Milestones page to allocate budgets.</p>
           </div>
         )}
       </div>
 
       {/* Info Box */}
-      <div className="card" style={{ backgroundColor: '#eff6ff', borderLeft: '4px solid #3b82f6' }}>
+      <div className="card" style={{ backgroundColor: '#eff6ff', borderLeft: '4px solid #3b82f6' }} data-testid="settings-info-box">
         <h4 style={{ marginBottom: '0.5rem', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Info size={18} />
           Settings Tips

@@ -4,8 +4,8 @@
  * Dashboard with milestone, deliverables, KPI/QS metrics, billing and finance widgets.
  * Includes refresh button to reload all widget data.
  * 
- * @version 7.5
- * @updated 6 December 2025
+ * @version 7.6
+ * @updated 14 December 2025 - Added data-testid attributes for E2E testing
  */
 
 import React, { useState, useCallback } from 'react';
@@ -46,19 +46,20 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="dashboard">
+    <div className="dashboard" data-testid="dashboard-page">
       {/* Header */}
-      <div className="dashboard-header">
+      <div className="dashboard-header" data-testid="dashboard-header">
         <div className="dashboard-header-content">
           <div>
-            <h1 className="dashboard-title">{getGreeting()}</h1>
-            <p className="dashboard-subtitle">{projectRef} • {projectName}</p>
+            <h1 className="dashboard-title" data-testid="dashboard-title">{getGreeting()}</h1>
+            <p className="dashboard-subtitle" data-testid="dashboard-project-info">{projectRef} • {projectName}</p>
           </div>
           <button 
             className="dashboard-refresh-btn"
             onClick={handleRefresh}
             disabled={isRefreshing}
             title="Refresh all data"
+            data-testid="dashboard-refresh-button"
           >
             <RefreshCw size={18} className={isRefreshing ? 'spinning' : ''} />
             Refresh
@@ -66,9 +67,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dashboard-content">
+      <div className="dashboard-content" data-testid="dashboard-content">
         {/* Main Widgets Grid (4 columns) */}
-        <div className="dashboard-widgets">
+        <div className="dashboard-widgets" data-testid="dashboard-widgets">
           <MilestonesWidget refreshTrigger={refreshTrigger} />
           <DeliverablesWidget refreshTrigger={refreshTrigger} />
           <TimesheetsWidget refreshTrigger={refreshTrigger} />
@@ -76,13 +77,17 @@ export default function Dashboard() {
         </div>
 
         {/* KPI Metrics Row */}
-        <KPICardsRow refreshTrigger={refreshTrigger} />
+        <div data-testid="dashboard-kpi-section">
+          <KPICardsRow refreshTrigger={refreshTrigger} />
+        </div>
 
         {/* QS Metrics Row */}
-        <QSCardsRow refreshTrigger={refreshTrigger} />
+        <div data-testid="dashboard-qs-section">
+          <QSCardsRow refreshTrigger={refreshTrigger} />
+        </div>
 
         {/* Billing & Finance Row (2 columns) */}
-        <div className="dashboard-widgets-row">
+        <div className="dashboard-widgets-row" data-testid="dashboard-finance-section">
           <BillingWidget editable={false} refreshTrigger={refreshTrigger} />
           <FinanceWidget refreshTrigger={refreshTrigger} />
         </div>
