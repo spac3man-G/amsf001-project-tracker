@@ -1,3 +1,19 @@
+/**
+ * Login Page Component
+ * 
+ * Handles user authentication, sign up, password reset, and email verification.
+ * 
+ * Test IDs (see docs/TESTING-CONVENTIONS.md):
+ *   - login-email-input
+ *   - login-password-input
+ *   - login-submit-button
+ *   - login-error-message
+ *   - login-success-message
+ * 
+ * @version 1.1
+ * @modified 14 December 2025 - Added data-testid for E2E testing
+ */
+
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -348,6 +364,7 @@ export default function Login() {
             </label>
             <input
               id="email"
+              data-testid="login-email-input"
               className="form-input"
               type="email"
               placeholder="you@example.com"
@@ -363,6 +380,7 @@ export default function Login() {
             </label>
             <input
               id="password"
+              data-testid="login-password-input"
               className="form-input"
               type="password"
               placeholder="••••••••"
@@ -373,32 +391,38 @@ export default function Login() {
           </div>
 
           {error && (
-            <div style={{
-              padding: '0.75rem',
-              background: '#fee2e2',
-              borderRadius: '0.5rem',
-              marginBottom: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: '#991b1b'
-            }}>
+            <div 
+              data-testid="login-error-message"
+              style={{
+                padding: '0.75rem',
+                background: '#fee2e2',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: '#991b1b'
+              }}
+            >
               <AlertCircle size={20} />
               <span style={{ fontSize: '0.875rem' }}>{error}</span>
             </div>
           )}
 
           {success && (
-            <div style={{
-              padding: '0.75rem',
-              background: '#dcfce7',
-              borderRadius: '0.5rem',
-              marginBottom: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: '#166534'
-            }}>
+            <div 
+              data-testid="login-success-message"
+              style={{
+                padding: '0.75rem',
+                background: '#dcfce7',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: '#166534'
+              }}
+            >
               <Mail size={20} />
               <span style={{ fontSize: '0.875rem' }}>{success}</span>
             </div>
@@ -406,6 +430,7 @@ export default function Login() {
 
           <button
             type="submit"
+            data-testid="login-submit-button"
             className="btn btn-primary"
             disabled={loading}
             style={{ width: '100%', justifyContent: 'center' }}
