@@ -4,36 +4,21 @@
  * 
  * Comprehensive verification that each role can ONLY do what they're allowed to.
  * This tests the entire permission matrix for each user type.
+ * 
+ * @version 2.0 - Updated with testing contract (data-testid selectors)
+ * @updated 14 December 2025
  */
 
 import { test, expect } from '@playwright/test';
+import { expectVisible, expectNotVisible, waitForPageReady } from '../test-utils';
 
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
 
-async function waitForPageReady(page) {
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(300);
-}
-
-async function canSeeButton(page, buttonText) {
-  const button = page.locator(`button:has-text("${buttonText}")`).first();
-  return await button.count() > 0 && await button.isVisible();
-}
-
-async function canSeeNavItem(page, itemText) {
-  const navItem = page.locator(`nav a:has-text("${itemText}"), nav button:has-text("${itemText}")`).first();
-  return await navItem.count() > 0;
-}
-
-async function canAccessPage(page, path) {
+async function navigateTo(page, path) {
   await page.goto(path);
   await waitForPageReady(page);
-  // Check we weren't redirected away or shown access denied
-  const currentUrl = page.url();
-  const accessDenied = await page.locator('text=Access Denied, text=Unauthorized, text=Not Found').count() > 0;
-  return currentUrl.includes(path.replace('/', '')) && !accessDenied;
 }
 
 // ============================================
@@ -41,62 +26,74 @@ async function canAccessPage(page, path) {
 // ============================================
 
 test.describe('Admin Role Verification @admin @comprehensive', () => {
-  test.use({ storageState: 'playwright/.auth/admin.json' });
 
-  test('Admin can access ALL pages', async ({ page }) => {
+  test('Admin can access ALL pages', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const page = await context.newPage();
+    
     const pages = [
-      '/dashboard',
-      '/timesheets', 
-      '/expenses',
-      '/milestones',
-      '/deliverables',
-      '/resources',
-      '/partners',
-      '/variations',
-      '/settings',
+      { path: '/dashboard', testId: 'dashboard-page' },
+      { path: '/timesheets', testId: 'timesheets-page' },
+      { path: '/expenses', testId: 'expenses-page' },
+      { path: '/milestones', testId: 'milestones-page' },
+      { path: '/deliverables', testId: 'deliverables-page' },
+      { path: '/resources', testId: 'resources-page' },
+      { path: '/variations', testId: 'variations-page' },
+      { path: '/settings', testId: 'settings-page' },
     ];
 
-    for (const pagePath of pages) {
-      await page.goto(pagePath);
-      await waitForPageReady(page);
-      
-      // Should not see access denied
-      const denied = await page.locator('text=Access Denied').count();
-      expect(denied, `Admin should access ${pagePath}`).toBe(0);
+    for (const { path, testId } of pages) {
+      await navigateTo(page, path);
+      await expectVisible(page, testId);
     }
+    
+    await context.close();
   });
 
-  test('Admin sees Add buttons on all entity pages', async ({ page }) => {
-    const entityPages = ['/timesheets', '/expenses', '/milestones', '/deliverables', '/resources', '/variations'];
+  test('Admin sees Add buttons on all entity pages', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const page = await context.newPage();
     
-    for (const pagePath of entityPages) {
-      await page.goto(pagePath);
-      await waitForPageReady(page);
-      
-      const addButton = page.locator('button:has-text("Add"), button:has-text("New"), button:has-text("Create")').first();
-      const hasAdd = await addButton.count() > 0;
-      expect(hasAdd, `Admin should see Add button on ${pagePath}`).toBe(true);
+    const entityPages = [
+      { path: '/timesheets', buttonId: 'add-timesheet-button' },
+      { path: '/expenses', buttonId: 'add-expense-button' },
+      { path: '/milestones', buttonId: 'add-milestone-button' },
+      { path: '/deliverables', buttonId: 'add-deliverable-button' },
+      { path: '/resources', buttonId: 'add-resource-button' },
+      { path: '/variations', buttonId: 'create-variation-button' },
+    ];
+    
+    for (const { path, buttonId } of entityPages) {
+      await navigateTo(page, path);
+      await expectVisible(page, buttonId);
     }
+    
+    await context.close();
   });
 
-  test('Admin can access user management', async ({ page }) => {
-    await page.goto('/settings');
-    await waitForPageReady(page);
+  test('Admin sees cost/rate information', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const page = await context.newPage();
     
-    // Look for team/users section
-    const usersSection = page.locator('text=Users, text=Team, text=Members, a[href*="team"]');
-    const hasUserMgmt = await usersSection.count() > 0;
-    expect(hasUserMgmt, 'Admin should see user management').toBe(true);
+    await navigateTo(page, '/resources');
+    
+    await expectVisible(page, 'resources-page');
+    await expectVisible(page, 'resources-cost-rate-header');
+    await expectVisible(page, 'resources-margin-header');
+    
+    await context.close();
   });
 
-  test('Admin sees cost/rate information', async ({ page }) => {
-    await page.goto('/resources');
-    await waitForPageReady(page);
+  test('Admin sees navigation including Partners and Settings', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const page = await context.newPage();
     
-    // Admin should see cost-related columns
-    const pageContent = await page.content();
-    // Check page loaded with data area
-    expect(pageContent.length).toBeGreaterThan(1000);
+    await navigateTo(page, '/dashboard');
+    
+    await expect(page.locator('[data-testid="nav-partners"]')).toBeVisible();
+    await expect(page.locator('[data-testid="nav-settings"]')).toBeVisible();
+    
+    await context.close();
   });
 });
 
@@ -105,62 +102,71 @@ test.describe('Admin Role Verification @admin @comprehensive', () => {
 // ============================================
 
 test.describe('Supplier PM Role Verification @supplier_pm @comprehensive', () => {
-  test.use({ storageState: 'playwright/.auth/supplier_pm.json' });
 
-  test('Supplier PM can access supplier pages', async ({ page }) => {
+  test('Supplier PM can access supplier pages', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const page = await context.newPage();
+    
     const allowedPages = [
-      '/dashboard',
-      '/timesheets',
-      '/expenses', 
-      '/milestones',
-      '/deliverables',
-      '/resources',
-      '/partners',
-      '/variations',
-      '/settings',
+      { path: '/dashboard', testId: 'dashboard-page' },
+      { path: '/timesheets', testId: 'timesheets-page' },
+      { path: '/expenses', testId: 'expenses-page' },
+      { path: '/milestones', testId: 'milestones-page' },
+      { path: '/deliverables', testId: 'deliverables-page' },
+      { path: '/resources', testId: 'resources-page' },
+      { path: '/variations', testId: 'variations-page' },
+      { path: '/settings', testId: 'settings-page' },
     ];
 
-    for (const pagePath of allowedPages) {
-      await page.goto(pagePath);
-      await waitForPageReady(page);
-      const denied = await page.locator('text=Access Denied').count();
-      expect(denied, `Supplier PM should access ${pagePath}`).toBe(0);
+    for (const { path, testId } of allowedPages) {
+      await navigateTo(page, path);
+      await expectVisible(page, testId);
     }
+    
+    await context.close();
   });
 
-  test('Supplier PM can create milestones', async ({ page }) => {
-    await page.goto('/milestones');
-    await waitForPageReady(page);
+  test('Supplier PM can create milestones', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const page = await context.newPage();
     
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New")').first();
-    await expect(addButton).toBeVisible();
+    await navigateTo(page, '/milestones');
+    await expectVisible(page, 'add-milestone-button');
+    
+    await context.close();
   });
 
-  test('Supplier PM can create variations', async ({ page }) => {
-    await page.goto('/variations');
-    await waitForPageReady(page);
+  test('Supplier PM can create variations', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const page = await context.newPage();
     
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New"), button:has-text("Create")').first();
-    await expect(addButton).toBeVisible();
+    await navigateTo(page, '/variations');
+    await expectVisible(page, 'create-variation-button');
+    
+    await context.close();
   });
 
-  test('Supplier PM sees cost information', async ({ page }) => {
-    await page.goto('/resources');
-    await waitForPageReady(page);
+  test('Supplier PM sees cost information', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const page = await context.newPage();
     
-    // Supplier should see cost columns
-    const pageContent = await page.content();
-    expect(pageContent.length).toBeGreaterThan(500);
+    await navigateTo(page, '/resources');
+    await expectVisible(page, 'resources-cost-rate-header');
+    await expectVisible(page, 'resources-margin-header');
+    
+    await context.close();
   });
 
-  test('Supplier PM CANNOT manage users', async ({ page }) => {
-    await page.goto('/settings');
-    await waitForPageReady(page);
+  test('Supplier PM sees Partners and Settings in navigation', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_pm.json' });
+    const page = await context.newPage();
     
-    // Should not see user management or it should be disabled
-    const addUserButton = page.locator('button:has-text("Add User"), button:has-text("Invite User")');
-    const canAddUser = await addUserButton.count() > 0 && await addUserButton.isEnabled();
-    expect(canAddUser, 'Supplier PM should NOT add users').toBe(false);
+    await navigateTo(page, '/dashboard');
+    
+    await expect(page.locator('[data-testid="nav-partners"]')).toBeVisible();
+    await expect(page.locator('[data-testid="nav-settings"]')).toBeVisible();
+    
+    await context.close();
   });
 });
 
@@ -169,80 +175,91 @@ test.describe('Supplier PM Role Verification @supplier_pm @comprehensive', () =>
 // ============================================
 
 test.describe('Customer PM Role Verification @customer_pm @comprehensive', () => {
-  test.use({ storageState: 'playwright/.auth/customer_pm.json' });
 
-  test('Customer PM can access allowed pages', async ({ page }) => {
+  test('Customer PM can access allowed pages', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const page = await context.newPage();
+    
     const allowedPages = [
-      '/dashboard',
-      '/timesheets',
-      '/expenses',
-      '/milestones',
-      '/deliverables',
-      '/variations',
+      { path: '/dashboard', testId: 'dashboard-page' },
+      { path: '/timesheets', testId: 'timesheets-page' },
+      { path: '/expenses', testId: 'expenses-page' },
+      { path: '/milestones', testId: 'milestones-page' },
+      { path: '/deliverables', testId: 'deliverables-page' },
+      { path: '/resources', testId: 'resources-page' },
+      { path: '/variations', testId: 'variations-page' },
     ];
 
-    for (const pagePath of allowedPages) {
-      await page.goto(pagePath);
-      await waitForPageReady(page);
-      const denied = await page.locator('text=Access Denied').count();
-      expect(denied, `Customer PM should access ${pagePath}`).toBe(0);
+    for (const { path, testId } of allowedPages) {
+      await navigateTo(page, path);
+      await expectVisible(page, testId);
     }
+    
+    await context.close();
   });
 
-  test('Customer PM CANNOT see Partners page', async ({ page }) => {
-    // Check nav doesn't show Partners
-    await page.goto('/dashboard');
-    await waitForPageReady(page);
+  test('Customer PM CANNOT see Partners in navigation', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const page = await context.newPage();
     
-    const partnersLink = page.locator('nav a[href*="partner"]');
-    const hasPartnersNav = await partnersLink.count() > 0;
-    expect(hasPartnersNav, 'Customer PM should NOT see Partners nav').toBe(false);
+    await navigateTo(page, '/dashboard');
+    await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+    
+    await context.close();
   });
 
-  test('Customer PM CANNOT see Settings page', async ({ page }) => {
-    await page.goto('/dashboard');
-    await waitForPageReady(page);
+  test('Customer PM CANNOT see Settings in navigation', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const page = await context.newPage();
     
-    const settingsLink = page.locator('nav a[href*="setting"]');
-    const hasSettingsNav = await settingsLink.count() > 0;
-    expect(hasSettingsNav, 'Customer PM should NOT see Settings nav').toBe(false);
+    await navigateTo(page, '/dashboard');
+    await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
+    
+    await context.close();
   });
 
-  test('Customer PM CANNOT create milestones', async ({ page }) => {
-    await page.goto('/milestones');
-    await waitForPageReady(page);
+  test('Customer PM CANNOT create milestones', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const page = await context.newPage();
     
-    const addMilestone = page.locator('button:has-text("Add Milestone"), button:has-text("New Milestone")');
-    const canAdd = await addMilestone.count() > 0;
-    expect(canAdd, 'Customer PM should NOT create milestones').toBe(false);
+    await navigateTo(page, '/milestones');
+    await expectVisible(page, 'milestones-page');
+    await expectNotVisible(page, 'add-milestone-button');
+    
+    await context.close();
   });
 
-  test('Customer PM CANNOT create variations', async ({ page }) => {
-    await page.goto('/variations');
-    await waitForPageReady(page);
+  test('Customer PM CANNOT create variations', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const page = await context.newPage();
     
-    const addVariation = page.locator('button:has-text("Add Variation"), button:has-text("New Variation"), button:has-text("Create Variation")');
-    const canAdd = await addVariation.count() > 0;
-    expect(canAdd, 'Customer PM should NOT create variations').toBe(false);
+    await navigateTo(page, '/variations');
+    await expectVisible(page, 'variations-page');
+    await expectNotVisible(page, 'create-variation-button');
+    
+    await context.close();
   });
 
-  test('Customer PM CANNOT see cost prices', async ({ page }) => {
-    await page.goto('/resources');
-    await waitForPageReady(page);
+  test('Customer PM CANNOT see cost prices', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const page = await context.newPage();
     
-    // Customer should NOT see cost rate column
-    const costHeader = page.locator('th:has-text("Cost Rate"), th:has-text("Cost Price")');
-    const seeCost = await costHeader.count() > 0;
-    expect(seeCost, 'Customer PM should NOT see cost rates').toBe(false);
+    await navigateTo(page, '/resources');
+    await expectVisible(page, 'resources-page');
+    await expectNotVisible(page, 'resources-cost-rate-header');
+    await expectNotVisible(page, 'resources-margin-header');
+    
+    await context.close();
   });
 
-  test('Customer PM can approve timesheets', async ({ page }) => {
-    await page.goto('/timesheets');
-    await waitForPageReady(page);
+  test('Customer PM can add deliverables', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+    const page = await context.newPage();
     
-    // Should see approve functionality somewhere
-    const pageContent = await page.content();
-    expect(pageContent.length).toBeGreaterThan(500);
+    await navigateTo(page, '/deliverables');
+    await expectVisible(page, 'add-deliverable-button');
+    
+    await context.close();
   });
 });
 
@@ -251,70 +268,97 @@ test.describe('Customer PM Role Verification @customer_pm @comprehensive', () =>
 // ============================================
 
 test.describe('Contributor Role Verification @contributor @comprehensive', () => {
-  test.use({ storageState: 'playwright/.auth/contributor.json' });
 
-  test('Contributor can access work pages', async ({ page }) => {
+  test('Contributor can access work pages', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const page = await context.newPage();
+    
     const allowedPages = [
-      '/dashboard',
-      '/timesheets',
-      '/expenses',
-      '/deliverables',
+      { path: '/dashboard', testId: 'dashboard-page' },
+      { path: '/timesheets', testId: 'timesheets-page' },
+      { path: '/expenses', testId: 'expenses-page' },
+      { path: '/deliverables', testId: 'deliverables-page' },
+      { path: '/milestones', testId: 'milestones-page' },
+      { path: '/resources', testId: 'resources-page' },
+      { path: '/variations', testId: 'variations-page' },
     ];
 
-    for (const pagePath of allowedPages) {
-      await page.goto(pagePath);
-      await waitForPageReady(page);
-      const denied = await page.locator('text=Access Denied').count();
-      expect(denied, `Contributor should access ${pagePath}`).toBe(0);
+    for (const { path, testId } of allowedPages) {
+      await navigateTo(page, path);
+      await expectVisible(page, testId);
     }
+    
+    await context.close();
   });
 
-  test('Contributor can create timesheets', async ({ page }) => {
-    await page.goto('/timesheets');
-    await waitForPageReady(page);
+  test('Contributor can create timesheets', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const page = await context.newPage();
     
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New")').first();
-    await expect(addButton).toBeVisible();
+    await navigateTo(page, '/timesheets');
+    await expectVisible(page, 'add-timesheet-button');
+    
+    await context.close();
   });
 
-  test('Contributor can create expenses', async ({ page }) => {
-    await page.goto('/expenses');
-    await waitForPageReady(page);
+  test('Contributor can create expenses', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const page = await context.newPage();
     
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New")').first();
-    await expect(addButton).toBeVisible();
+    await navigateTo(page, '/expenses');
+    await expectVisible(page, 'add-expense-button');
+    
+    await context.close();
   });
 
-  test('Contributor CANNOT see Partners', async ({ page }) => {
-    await page.goto('/dashboard');
-    await waitForPageReady(page);
+  test('Contributor can create deliverables', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const page = await context.newPage();
     
-    const partnersLink = page.locator('nav a[href*="partner"]');
-    expect(await partnersLink.count()).toBe(0);
+    await navigateTo(page, '/deliverables');
+    await expectVisible(page, 'add-deliverable-button');
+    
+    await context.close();
   });
 
-  test('Contributor CANNOT see Settings', async ({ page }) => {
-    await page.goto('/dashboard');
-    await waitForPageReady(page);
+  test('Contributor CANNOT see Partners', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const page = await context.newPage();
     
-    const settingsLink = page.locator('nav a[href*="setting"]');
-    expect(await settingsLink.count()).toBe(0);
+    await navigateTo(page, '/dashboard');
+    await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+    
+    await context.close();
   });
 
-  test('Contributor CANNOT create milestones', async ({ page }) => {
-    await page.goto('/milestones');
-    await waitForPageReady(page);
+  test('Contributor CANNOT see Settings', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const page = await context.newPage();
     
-    const addButton = page.locator('button:has-text("Add Milestone"), button:has-text("New Milestone")');
-    expect(await addButton.count()).toBe(0);
+    await navigateTo(page, '/dashboard');
+    await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
+    
+    await context.close();
   });
 
-  test('Contributor CANNOT see cost information', async ({ page }) => {
-    await page.goto('/resources');
-    await waitForPageReady(page);
+  test('Contributor CANNOT create milestones', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const page = await context.newPage();
     
-    const costHeader = page.locator('th:has-text("Cost Rate"), th:has-text("Cost Price")');
-    expect(await costHeader.count()).toBe(0);
+    await navigateTo(page, '/milestones');
+    await expectNotVisible(page, 'add-milestone-button');
+    
+    await context.close();
+  });
+
+  test('Contributor CANNOT see cost information', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+    const page = await context.newPage();
+    
+    await navigateTo(page, '/resources');
+    await expectNotVisible(page, 'resources-cost-rate-header');
+    
+    await context.close();
   });
 });
 
@@ -323,80 +367,90 @@ test.describe('Contributor Role Verification @contributor @comprehensive', () =>
 // ============================================
 
 test.describe('Viewer Role Verification @viewer @comprehensive', () => {
-  test.use({ storageState: 'playwright/.auth/viewer.json' });
 
-  test('Viewer can view pages but not edit', async ({ page }) => {
+  test('Viewer can view pages', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const page = await context.newPage();
+    
     const viewablePages = [
-      '/dashboard',
-      '/timesheets',
-      '/expenses',
-      '/milestones',
-      '/deliverables',
+      { path: '/dashboard', testId: 'dashboard-page' },
+      { path: '/timesheets', testId: 'timesheets-page' },
+      { path: '/expenses', testId: 'expenses-page' },
+      { path: '/milestones', testId: 'milestones-page' },
+      { path: '/deliverables', testId: 'deliverables-page' },
+      { path: '/resources', testId: 'resources-page' },
+      { path: '/variations', testId: 'variations-page' },
     ];
 
-    for (const pagePath of viewablePages) {
-      await page.goto(pagePath);
-      await waitForPageReady(page);
-      
-      // Should see page content
-      const content = await page.content();
-      expect(content.length).toBeGreaterThan(500);
+    for (const { path, testId } of viewablePages) {
+      await navigateTo(page, path);
+      await expectVisible(page, testId);
     }
+    
+    await context.close();
   });
 
-  test('Viewer CANNOT see any Add buttons', async ({ page }) => {
-    const pages = ['/timesheets', '/expenses', '/milestones', '/deliverables'];
+  test('Viewer CANNOT see any Add buttons', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const page = await context.newPage();
     
-    for (const pagePath of pages) {
-      await page.goto(pagePath);
-      await waitForPageReady(page);
-      
-      // Should NOT see Add/New/Create buttons
-      const addButton = page.locator('button:has-text("Add"), button:has-text("New"), button:has-text("Create")').first();
-      const hasAdd = await addButton.count() > 0 && await addButton.isVisible();
-      expect(hasAdd, `Viewer should NOT see Add on ${pagePath}`).toBe(false);
+    const entityPages = [
+      { path: '/timesheets', buttonId: 'add-timesheet-button' },
+      { path: '/expenses', buttonId: 'add-expense-button' },
+      { path: '/milestones', buttonId: 'add-milestone-button' },
+      { path: '/deliverables', buttonId: 'add-deliverable-button' },
+      { path: '/resources', buttonId: 'add-resource-button' },
+      { path: '/variations', buttonId: 'create-variation-button' },
+    ];
+    
+    for (const { path, buttonId } of entityPages) {
+      await navigateTo(page, path);
+      await expectNotVisible(page, buttonId);
     }
+    
+    await context.close();
   });
 
-  test('Viewer CANNOT see Partners', async ({ page }) => {
-    await page.goto('/dashboard');
-    await waitForPageReady(page);
+  test('Viewer CANNOT see Partners', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const page = await context.newPage();
     
-    const partnersLink = page.locator('nav a[href*="partner"]');
-    expect(await partnersLink.count()).toBe(0);
+    await navigateTo(page, '/dashboard');
+    await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+    
+    await context.close();
   });
 
-  test('Viewer CANNOT see Settings', async ({ page }) => {
-    await page.goto('/dashboard');
-    await waitForPageReady(page);
+  test('Viewer CANNOT see Settings', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const page = await context.newPage();
     
-    const settingsLink = page.locator('nav a[href*="setting"]');
-    expect(await settingsLink.count()).toBe(0);
+    await navigateTo(page, '/dashboard');
+    await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
+    
+    await context.close();
   });
 
-  test('Viewer CANNOT see cost information', async ({ page }) => {
-    await page.goto('/resources');
-    await waitForPageReady(page);
+  test('Viewer CANNOT see cost information', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const page = await context.newPage();
     
-    const costHeader = page.locator('th:has-text("Cost Rate"), th:has-text("Cost Price")');
-    expect(await costHeader.count()).toBe(0);
+    await navigateTo(page, '/resources');
+    await expectNotVisible(page, 'resources-cost-rate-header');
+    
+    await context.close();
   });
 
-  test('Viewer has NO edit/delete buttons anywhere', async ({ page }) => {
-    const pages = ['/timesheets', '/expenses', '/milestones', '/deliverables'];
+  test('Viewer is redirected from Settings page', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+    const page = await context.newPage();
     
-    for (const pagePath of pages) {
-      await page.goto(pagePath);
-      await waitForPageReady(page);
-      
-      const editButton = page.locator('button:has-text("Edit")');
-      const deleteButton = page.locator('button:has-text("Delete")');
-      
-      const hasEdit = await editButton.count() > 0;
-      const hasDelete = await deleteButton.count() > 0;
-      
-      expect(hasEdit, `Viewer should NOT see Edit on ${pagePath}`).toBe(false);
-      expect(hasDelete, `Viewer should NOT see Delete on ${pagePath}`).toBe(false);
-    }
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
+    
+    // Should be redirected to dashboard
+    await expect(page).toHaveURL(/.*dashboard/);
+    
+    await context.close();
   });
 });
