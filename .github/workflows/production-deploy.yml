@@ -84,6 +84,7 @@ jobs:
           done
           
           echo "⚠️ Production site may still be deploying"
+          exit 1
 
   # ============================================
   # SMOKE TESTS - Quick production verification
