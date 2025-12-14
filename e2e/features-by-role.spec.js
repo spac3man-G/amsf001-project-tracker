@@ -5,7 +5,7 @@
  * Tests that each role can perform their expected actions based on permissionMatrix.js.
  * Uses data-testid selectors and proper storageState authentication.
  * 
- * @version 2.2 - Fixed storageState paths to playwright/.auth/
+ * @version 2.3 - Fixed Resources tests with explicit permission wait
  * @updated 14 December 2025
  * 
  * Permission Matrix Summary:
@@ -39,6 +39,19 @@ const AUTH_PATHS = {
 async function navigateTo(page, path) {
   await page.goto(path);
   await waitForPageReady(page);
+}
+
+/**
+ * Wait for permissions to load on Resources page
+ * The permission hooks need time to resolve after page load
+ */
+async function waitForResourcesPermissions(page) {
+  await page.goto('/resources');
+  await waitForPageReady(page);
+  // Wait for the resources table to render (indicates permissions have loaded)
+  await page.waitForSelector('[data-testid="resources-page"]', { timeout: 10000 });
+  // Small additional wait for permission hooks to resolve
+  await page.waitForTimeout(500);
 }
 
 // ============================================
@@ -372,7 +385,7 @@ test.describe('Resources @resources', () => {
     test('admin can see Add Resource button and Cost Rate column @admin @critical', async ({ browser }) => {
       const context = await browser.newContext({ storageState: AUTH_PATHS.admin });
       const page = await context.newPage();
-      await navigateTo(page, '/resources');
+      await waitForResourcesPermissions(page);
       
       await expectVisible(page, 'resources-page');
       await expectVisible(page, 'add-resource-button');
@@ -385,9 +398,11 @@ test.describe('Resources @resources', () => {
     test('supplier_pm can see Add Resource button and Cost Rate column @supplier_pm', async ({ browser }) => {
       const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
       const page = await context.newPage();
-      await navigateTo(page, '/resources');
+      await waitForResourcesPermissions(page);
       
-      await expectVisible(page, 'add-resource-button');
+      // Use longer timeout for permission-dependent elements
+      await expectVisible(page, 'resources-page');
+      await expectVisible(page, 'add-resource-button', 15000);
       await expectVisible(page, 'resources-cost-rate-header');
       await expectVisible(page, 'resources-margin-header');
       
@@ -397,9 +412,11 @@ test.describe('Resources @resources', () => {
     test('supplier_finance can see Add Resource button and Cost Rate column @supplier_finance', async ({ browser }) => {
       const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_finance });
       const page = await context.newPage();
-      await navigateTo(page, '/resources');
+      await waitForResourcesPermissions(page);
       
-      await expectVisible(page, 'add-resource-button');
+      // Use longer timeout for permission-dependent elements
+      await expectVisible(page, 'resources-page');
+      await expectVisible(page, 'add-resource-button', 15000);
       await expectVisible(page, 'resources-cost-rate-header');
       await expectVisible(page, 'resources-margin-header');
       
@@ -413,7 +430,7 @@ test.describe('Resources @resources', () => {
     test('customer_pm cannot see Add Resource button or Cost Rate column @customer_pm', async ({ browser }) => {
       const context = await browser.newContext({ storageState: AUTH_PATHS.customer_pm });
       const page = await context.newPage();
-      await navigateTo(page, '/resources');
+      await waitForResourcesPermissions(page);
       
       await expectVisible(page, 'resources-page');
       await expectNotVisible(page, 'add-resource-button');
@@ -426,7 +443,7 @@ test.describe('Resources @resources', () => {
     test('customer_finance cannot see Add Resource button or Cost Rate column @customer_finance', async ({ browser }) => {
       const context = await browser.newContext({ storageState: AUTH_PATHS.customer_finance });
       const page = await context.newPage();
-      await navigateTo(page, '/resources');
+      await waitForResourcesPermissions(page);
       
       await expectNotVisible(page, 'add-resource-button');
       await expectNotVisible(page, 'resources-cost-rate-header');
@@ -437,7 +454,7 @@ test.describe('Resources @resources', () => {
     test('contributor cannot see Add Resource button or Cost Rate column @contributor', async ({ browser }) => {
       const context = await browser.newContext({ storageState: AUTH_PATHS.contributor });
       const page = await context.newPage();
-      await navigateTo(page, '/resources');
+      await waitForResourcesPermissions(page);
       
       await expectNotVisible(page, 'add-resource-button');
       await expectNotVisible(page, 'resources-cost-rate-header');
@@ -448,7 +465,7 @@ test.describe('Resources @resources', () => {
     test('viewer cannot see Add Resource button or Cost Rate column @viewer', async ({ browser }) => {
       const context = await browser.newContext({ storageState: AUTH_PATHS.viewer });
       const page = await context.newPage();
-      await navigateTo(page, '/resources');
+      await waitForResourcesPermissions(page);
       
       await expectNotVisible(page, 'add-resource-button');
       await expectNotVisible(page, 'resources-cost-rate-header');
