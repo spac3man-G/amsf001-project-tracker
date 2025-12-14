@@ -76,16 +76,7 @@ During Window 1 review, we identified that tests were using fragile CSS selector
 | `e2e/helpers/test-utils.js` | Modified | c1cc0a3 |
 
 #### Decision Point
-- [x] **CONTINUE** - Testing contract established, proceed to Window 2
-
-#### Notes
-All issues from Window 1 analysis have been resolved:
-- Toast.jsx now has `data-testid="toast-{type}"` attributes
-- LoadingSpinner now has `data-testid="loading-spinner"`
-- Login.jsx now has test IDs for form elements
-- Layout.jsx now has `data-testid="nav-{itemId}"` for navigation
-- test-utils.js now uses data-testid selectors exclusively
-- Removed `getCurrentRole()` - role is verified through UI behavior
+- [x] **CONTINUE** - Testing contract established, proceed to Window 1
 
 ---
 
@@ -93,7 +84,7 @@ All issues from Window 1 analysis have been resolved:
 **Estimated Time:** 30-45 minutes  
 **Focus:** Test infrastructure and authentication
 
-#### Files to Review
+#### Files Reviewed
 - [x] `e2e/helpers/test-utils.js` - Shared utilities (reviewed, fixed in Window 0)
 - [x] `e2e/auth.setup.js` - Authentication setup for all 7 roles (reviewed, OK)
 
@@ -105,61 +96,70 @@ All issues from Window 1 analysis have been resolved:
 - [x] Error handling exists for failed logins (timeout handling)
 - [x] Timeout values are reasonable
 
-#### App Files Compared Against
-- `src/pages/Login.jsx` ✅ Reviewed
-- `src/lib/supabase.js` (auth methods) - Not needed, auth.setup uses page interaction
-
 #### Decision Point
 - [x] **CONTINUE** - Foundation is solid, proceed to Window 2
 
-#### Notes
-**Completed:**
-- `auth.setup.js` - GOOD. Login selectors work correctly
-- `test-utils.js` - FIXED in Window 0. Now uses data-testid selectors
-
 ---
 
-### Window 2: Smoke Tests Review ⬅️ NEXT
+### Window 2: Smoke Tests Review ✅ COMPLETE
 **Estimated Time:** 30-45 minutes  
+**Actual Time:** ~30 minutes  
 **Focus:** Critical path tests
 
 #### Prerequisites
 - [x] Window 0 complete (testing contract established)
 - [x] Window 1 complete (foundation verified)
 
-#### Files to Review
-- [ ] `e2e/smoke.spec.js` - Critical paths, navigation, error handling
+#### Files Reviewed
+- [x] `e2e/smoke.spec.js` - Critical paths, navigation, error handling
+
+#### Issues Found & Fixed
+
+| ID | Severity | Issue | Resolution |
+|----|----------|-------|------------|
+| W2-1 | HIGH | Tests expecting auth don't specify storageState | Added `test.use({ storageState })` for all authenticated test groups |
+| W2-2 | MEDIUM | Login selectors don't follow testing contract | Updated to use `loginSelectors` from test-utils.js |
+| W2-3 | MEDIUM | Dashboard check uses mixed/fragile selectors | Updated to use `[data-testid="nav-dashboard"]` |
+| W2-4 | MEDIUM | Error toast selector doesn't use data-testid | Updated to use `[data-testid="toast-error"]` |
+| W2-5 | LOW | ProjectSwitcher component lacks data-testid | Added test IDs to ProjectSwitcher.jsx |
+| W2-6 | LOW | Not using test-utils.js helpers | Imported and used helpers throughout |
 
 #### Validation Checklist
-- [ ] Login/logout flow tests correct behavior
-- [ ] Navigation tests match actual app routes
-- [ ] Dashboard load test checks correct elements
-- [ ] Error handling tests valid error scenarios
-- [ ] All selectors use data-testid (per testing contract)
-- [ ] Tests cover the true "smoke test" critical paths
+- [x] Login/logout flow tests correct behavior
+- [x] Navigation tests match actual app routes
+- [x] Dashboard load test checks correct elements
+- [x] Error handling tests valid error scenarios
+- [x] All selectors use data-testid (per testing contract)
+- [x] Tests cover the true "smoke test" critical paths
+- [x] Multi-role smoke tests added (viewer, contributor, supplier_pm)
 
-#### App Files to Compare Against
-- `src/App.jsx` (routes)
-- `src/components/Layout.jsx` (navigation)
-- `src/pages/Dashboard.jsx`
+#### Files Created/Modified
+
+| File | Action | Commit |
+|------|--------|--------|
+| `src/components/ProjectSwitcher.jsx` | Modified | 7c56668 |
+| `e2e/smoke.spec.js` | Rewritten | ba475f6 |
+| `docs/TESTING-CONVENTIONS.md` | Updated | 96eace2 |
 
 #### Decision Point
-At end of Window 2:
-- [ ] **CONTINUE** - Smoke tests are valid, proceed to Window 3
-- [ ] **FIX** - Issues found, create fix tasks before continuing
-- [ ] **STOP** - Critical path tests have fundamental issues
+- [x] **CONTINUE** - Smoke tests are valid, proceed to Window 3
 
 #### Notes
-_(To be filled during review)_
+Complete rewrite of smoke.spec.js:
+- Organized into 3 test groups: Public, Authenticated, Multi-Role
+- All tests now use data-testid selectors
+- Authenticated tests properly specify storageState
+- Added multi-role verification (viewer, contributor, supplier_pm)
+- Imports and uses test-utils.js helper functions
 
 ---
 
-### Window 3: Core Features Review
+### Window 3: Core Features Review ⬅️ NEXT
 **Estimated Time:** 30-45 minutes  
 **Focus:** Basic CRUD operations
 
 #### Prerequisites
-- [ ] Window 2 complete (smoke tests verified)
+- [x] Window 2 complete (smoke tests verified)
 
 #### Files to Review
 - [ ] `e2e/dashboard.spec.js` - Dashboard display and data
@@ -172,6 +172,7 @@ _(To be filled during review)_
 - [ ] Data display tests match actual dashboard layout
 - [ ] Role-based dashboard differences are tested
 - [ ] Loading states are handled
+- [ ] All selectors use data-testid
 
 **Timesheet Tests:**
 - [ ] Create timesheet flow matches actual UI
@@ -179,11 +180,20 @@ _(To be filled during review)_
 - [ ] Submit timesheet flow matches actual workflow
 - [ ] Form fields match actual form
 - [ ] Validation messages match actual app
+- [ ] All selectors use data-testid
 
 #### App Files to Compare Against
 - `src/pages/Dashboard.jsx`
 - `src/pages/Timesheets.jsx` (or equivalent)
 - `src/components/TimesheetForm.jsx` (or equivalent)
+
+#### Likely Actions Required
+Based on patterns from previous windows:
+1. Add data-testid to Dashboard.jsx widgets/sections
+2. Add data-testid to Timesheet form fields and buttons
+3. Update dashboard.spec.js to use data-testid selectors
+4. Update timesheets.spec.js to use data-testid selectors
+5. Ensure tests specify correct storageState
 
 #### Decision Point
 At end of Window 3:
@@ -226,9 +236,6 @@ At end of Window 4:
 - [ ] **FIX** - Permission mismatches found, document and fix
 - [ ] **STOP** - Major permission model misunderstanding
 
-#### Notes
-_(To be filled during review)_
-
 ---
 
 ### Window 5: Role Permissions Review (Part 2)
@@ -260,9 +267,6 @@ At end of Window 5:
 - [ ] **FIX** - Issues found with permission denial tests
 - [ ] **STOP** - Permission testing approach needs rethinking
 
-#### Notes
-_(To be filled during review)_
-
 ---
 
 ### Window 6: Workflow Tests Review
@@ -292,19 +296,11 @@ _(To be filled during review)_
 - [ ] Pass/fail expectations match permissionMatrix.js
 - [ ] Test organization is maintainable
 
-#### Cross-Reference With
-- `src/lib/permissionMatrix.js`
-- Actual workflow implementations in the app
-- Any workflow documentation
-
 #### Decision Point
 At end of Window 6:
 - [ ] **COMPLETE** - All tests reviewed and validated
 - [ ] **FIX** - Final fixes needed before completion
 - [ ] **EXPAND** - Missing tests identified, need additional window
-
-#### Notes
-_(To be filled during review)_
 
 ---
 
@@ -317,6 +313,12 @@ _(To be filled during review)_
 | 1 | 1 | test-utils.js | Toast selectors use CSS classes but app uses inline styles | High | ✅ Fixed |
 | 2 | 1 | test-utils.js | Loading spinner selector `.loading` doesn't match `.loading-spinner` | Medium | ✅ Fixed |
 | 3 | 1 | test-utils.js | `getCurrentRole()` uses localStorage but app uses React context | Medium | ✅ Fixed |
+| W2-1 | 2 | smoke.spec.js | Authenticated tests don't specify storageState | High | ✅ Fixed |
+| W2-2 | 2 | smoke.spec.js | Login selectors don't use data-testid | Medium | ✅ Fixed |
+| W2-3 | 2 | smoke.spec.js | Dashboard check uses fragile selectors | Medium | ✅ Fixed |
+| W2-4 | 2 | smoke.spec.js | Error toast selector doesn't use data-testid | Medium | ✅ Fixed |
+| W2-5 | 2 | ProjectSwitcher.jsx | Component lacks data-testid | Low | ✅ Fixed |
+| W2-6 | 2 | smoke.spec.js | Not using test-utils.js helpers | Low | ✅ Fixed |
 
 ### Fixes Made
 
@@ -330,6 +332,25 @@ _(To be filled during review)_
 | - | c956ced | Added data-testid to Login.jsx |
 | - | 776638f | Added data-testid to Layout.jsx navigation |
 | 1,2,3 | c1cc0a3 | Refactored test-utils.js to use data-testid selectors |
+| W2-5 | 7c56668 | Added data-testid to ProjectSwitcher.jsx |
+| W2-1,2,3,4,6 | ba475f6 | Rewrote smoke.spec.js with testing contract |
+| - | 96eace2 | Updated TESTING-CONVENTIONS.md with new test IDs |
+
+---
+
+## Components with data-testid (Registry)
+
+Track which components have been updated with data-testid:
+
+| Component | Test IDs Added | Commit | Window |
+|-----------|----------------|--------|--------|
+| Toast.jsx | toast-{type}, toast-close-button, toast-container | f923f2a | 0 |
+| LoadingSpinner.jsx | loading-spinner | aa7a2ee | 0 |
+| Login.jsx | login-email-input, login-password-input, login-submit-button, login-error-message, login-success-message | c956ced | 0 |
+| Layout.jsx | nav-{itemId}, logout-button, user-menu-button | 776638f | 0 |
+| ProjectSwitcher.jsx | project-switcher-button, project-switcher-dropdown, project-switcher-item-{id} | 7c56668 | 2 |
+| Dashboard.jsx | _(pending Window 3)_ | - | - |
+| Timesheets.jsx | _(pending Window 3)_ | - | - |
 
 ---
 
@@ -337,6 +358,8 @@ _(To be filled during review)_
 
 | Entity/Feature | What's Missing | Priority | Notes |
 |----------------|----------------|----------|-------|
+| Dashboard widgets | data-testid on dashboard sections | High | Window 3 |
+| Timesheet form | data-testid on form fields | High | Window 3 |
 | _(To be filled during review)_ | | | |
 
 ---
@@ -350,11 +373,12 @@ _(To be completed after all windows)_
 - [ ] Some tests need fixes (see Issues)
 - [ ] Missing coverage documented for future work
 
-### Tests Validated
-- Total test files: 10
-- Files reviewed: 2/10
-- Files passing: 2/10
-- Files needing fixes: 0/10
+### Progress
+- Windows completed: 3/7 (Window 0, 1, 2)
+- Test files reviewed: 3/10
+- Test files passing: 3/10
+- Issues found: 9
+- Issues fixed: 9
 
 ### Recommendations
 _(Final recommendations after review)_
@@ -363,22 +387,23 @@ _(Final recommendations after review)_
 
 ## How to Use This Document
 
-### Starting a New Window
-1. Read the relevant Window section
-2. Check Prerequisites are complete
-3. Note any previous Issues or Notes
-4. Begin file review
+### Starting a New Session
+1. Read this document to understand current state
+2. Check the "NEXT" window section for what to work on
+3. Note any Prerequisites that must be verified
+4. Begin file review using the Validation Checklist
 
 ### During Review
 1. Check off validation items as you verify them
 2. Add notes in the Notes section
 3. Log any issues in the Issue Tracking table
 
-### Ending a Window
-1. Complete the Decision Point
-2. If **FIX** - document issues before next window
-3. If **CONTINUE** - ready for next window
-4. Update this document and commit changes
+### Ending a Session
+1. Complete the Decision Point for current window
+2. Update Issue Tracking with any new issues
+3. Update Fixes Made with any commits
+4. Mark window as COMPLETE if done
+5. Commit updated document
 
 ### Resuming in a New Chat
 Reference this file:
@@ -386,7 +411,7 @@ Reference this file:
 Let's continue the E2E test review. Please read:
 docs/E2E-TEST-REVIEW-PLAN.md
 
-We completed Window X, now starting Window Y.
+We completed Window 2, now starting Window 3.
 ```
 
 ---
@@ -399,4 +424,5 @@ We completed Window X, now starting Window Y.
 | 2025-12-14 | 1 | Analysis | Reviewed auth.setup.js (OK) and test-utils.js (issues found) |
 | 2025-12-14 | 0 | Added | Created Window 0 for testing contract setup |
 | 2025-12-14 | 0 | Complete | Testing contract established with 6 commits |
-| 2025-12-14 | 1 | Complete | Foundation verified, ready for Window 2 |
+| 2025-12-14 | 1 | Complete | Foundation verified |
+| 2025-12-14 | 2 | Complete | Smoke tests rewritten with testing contract, 6 issues fixed |
