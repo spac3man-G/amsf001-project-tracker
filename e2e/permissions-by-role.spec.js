@@ -1,384 +1,487 @@
 /**
- * E2E Tests - Permissions by Role
+ * E2E Tests - Permissions by Role (Negative Tests)
  * Location: e2e/permissions-by-role.spec.js
  * 
- * Tests that UI correctly shows/hides features based on user role.
- * Requires test users for each role in Supabase.
+ * Tests what each role CANNOT do - verifies UI correctly hides features.
+ * Uses data-testid selectors and pre-authenticated storageState.
+ * 
+ * @version 2.0 - Rewritten with testing contract
+ * @updated 14 December 2025
+ * 
+ * This is the complement to features-by-role.spec.js:
+ * - features-by-role.spec.js = POSITIVE tests (what roles CAN do)
+ * - permissions-by-role.spec.js = NEGATIVE tests (what roles CANNOT do)
  */
 
 import { test, expect } from '@playwright/test';
+import { expectNotVisible, expectVisible, waitForPageReady } from './test-utils';
 
-// Test user credentials - set in environment or GitHub secrets
-const TEST_USERS = {
-  admin: {
-    email: process.env.E2E_ADMIN_EMAIL || 'uat.admin@amsf001.test',
-    password: process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_PASSWORD,
-  },
-  supplier_pm: {
-    email: process.env.E2E_SUPPLIER_PM_EMAIL || 'uat.supplier.pm@amsf001.test',
-    password: process.env.E2E_SUPPLIER_PM_PASSWORD || process.env.E2E_TEST_PASSWORD,
-  },
-  customer_pm: {
-    email: process.env.E2E_CUSTOMER_PM_EMAIL || 'uat.customer.pm@amsf001.test',
-    password: process.env.E2E_CUSTOMER_PM_PASSWORD || process.env.E2E_TEST_PASSWORD,
-  },
-  contributor: {
-    email: process.env.E2E_CONTRIBUTOR_EMAIL || 'uat.contributor@amsf001.test',
-    password: process.env.E2E_CONTRIBUTOR_PASSWORD || process.env.E2E_TEST_PASSWORD,
-  },
-  viewer: {
-    email: process.env.E2E_VIEWER_EMAIL || 'uat.viewer@amsf001.test',
-    password: process.env.E2E_VIEWER_PASSWORD || process.env.E2E_TEST_PASSWORD,
-  },
-};
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
 
-// Helper to login as a specific role
-async function loginAs(page, role) {
-  const user = TEST_USERS[role];
-  if (!user || !user.password) {
-    test.skip(`No credentials for ${role}`);
-    return;
-  }
-
-  await page.goto('/login');
-  await page.fill('input[type="email"]', user.email);
-  await page.fill('input[type="password"]', user.password);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(/\/(dashboard|timesheets)/);
+async function navigateTo(page, path) {
+  await page.goto(path);
+  await waitForPageReady(page);
 }
 
 // ============================================
-// NAVIGATION VISIBILITY TESTS
+// VIEWER RESTRICTIONS
+// Viewers have the most restrictions - read-only everywhere
 // ============================================
 
-test.describe('Navigation by Role', () => {
-  test('Admin sees all navigation items', async ({ page }) => {
-    await loginAs(page, 'admin');
+test.describe('Viewer Restrictions @viewer', () => {
+  
+  test.describe('Cannot Create Anything', () => {
     
-    // Admin should see Settings
-    await expect(page.locator('a[href*="settings"], button:has-text("Settings")')).toBeVisible();
-    
-    // Admin should see Team/Users
-    await expect(page.locator('a[href*="team"], a[href*="users"]')).toBeVisible();
+    test('viewer cannot add timesheets', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/timesheets');
+      
+      await expectVisible(page, 'timesheets-page');
+      await expectNotVisible(page, 'add-timesheet-button');
+      
+      await context.close();
+    });
+
+    test('viewer cannot add expenses', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/expenses');
+      
+      await expectVisible(page, 'expenses-page');
+      await expectNotVisible(page, 'add-expense-button');
+      await expectNotVisible(page, 'scan-receipt-button');
+      
+      await context.close();
+    });
+
+    test('viewer cannot add milestones', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/milestones');
+      
+      await expectVisible(page, 'milestones-page');
+      await expectNotVisible(page, 'add-milestone-button');
+      
+      await context.close();
+    });
+
+    test('viewer cannot add deliverables', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/deliverables');
+      
+      await expectVisible(page, 'deliverables-page');
+      await expectNotVisible(page, 'add-deliverable-button');
+      
+      await context.close();
+    });
+
+    test('viewer cannot add resources', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/resources');
+      
+      await expectVisible(page, 'resources-page');
+      await expectNotVisible(page, 'add-resource-button');
+      
+      await context.close();
+    });
+
+    test('viewer cannot create variations', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/variations');
+      
+      await expectVisible(page, 'variations-page');
+      await expectNotVisible(page, 'create-variation-button');
+      
+      await context.close();
+    });
   });
 
-  test('Contributor does NOT see Settings', async ({ page }) => {
-    await loginAs(page, 'contributor');
+  test.describe('Navigation Restrictions', () => {
     
-    // Contributor should NOT see Settings in nav
-    const settingsLink = page.locator('nav a[href*="settings"]');
-    await expect(settingsLink).toHaveCount(0);
+    test('viewer cannot see Partners in navigation', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/dashboard');
+      
+      await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+      
+      await context.close();
+    });
+
+    test('viewer cannot see Settings in navigation', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/dashboard');
+      
+      await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
+      
+      await context.close();
+    });
   });
 
-  test('Viewer does NOT see Settings', async ({ page }) => {
-    await loginAs(page, 'viewer');
+  test.describe('Page Access Restrictions', () => {
     
-    const settingsLink = page.locator('nav a[href*="settings"]');
-    await expect(settingsLink).toHaveCount(0);
-  });
-});
-
-// ============================================
-// TIMESHEET PERMISSIONS TESTS
-// ============================================
-
-test.describe('Timesheet Permissions', () => {
-  test('Contributor can add timesheet', async ({ page }) => {
-    await loginAs(page, 'contributor');
-    await page.goto('/timesheets');
-    
-    // Should see Add button
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New")').first();
-    await expect(addButton).toBeVisible();
-  });
-
-  test('Viewer cannot add timesheet', async ({ page }) => {
-    await loginAs(page, 'viewer');
-    await page.goto('/timesheets');
-    
-    // Should NOT see Add button
-    const addButton = page.locator('button:has-text("Add Timesheet"), button:has-text("New Timesheet")');
-    await expect(addButton).toHaveCount(0);
-  });
-
-  test('Customer PM sees Approve button on submitted timesheets', async ({ page }) => {
-    await loginAs(page, 'customer_pm');
-    await page.goto('/timesheets');
-    
-    // Look for approve action (may need submitted timesheets to exist)
-    // This test verifies the UI structure exists
-    await expect(page.locator('body')).toBeVisible();
-  });
-});
-
-// ============================================
-// EXPENSE PERMISSIONS TESTS
-// ============================================
-
-test.describe('Expense Permissions', () => {
-  test('Contributor can add expense', async ({ page }) => {
-    await loginAs(page, 'contributor');
-    await page.goto('/expenses');
-    
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New")').first();
-    await expect(addButton).toBeVisible();
-  });
-
-  test('Viewer cannot add expense', async ({ page }) => {
-    await loginAs(page, 'viewer');
-    await page.goto('/expenses');
-    
-    const addButton = page.locator('button:has-text("Add Expense"), button:has-text("New Expense")');
-    await expect(addButton).toHaveCount(0);
-  });
-});
-
-// ============================================
-// MILESTONE PERMISSIONS TESTS
-// ============================================
-
-test.describe('Milestone Permissions', () => {
-  test('Supplier PM can add milestone', async ({ page }) => {
-    await loginAs(page, 'supplier_pm');
-    await page.goto('/milestones');
-    
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New")').first();
-    await expect(addButton).toBeVisible();
-  });
-
-  test('Customer PM cannot add milestone', async ({ page }) => {
-    await loginAs(page, 'customer_pm');
-    await page.goto('/milestones');
-    
-    const addButton = page.locator('button:has-text("Add Milestone"), button:has-text("New Milestone")');
-    await expect(addButton).toHaveCount(0);
-  });
-
-  test('Contributor cannot add milestone', async ({ page }) => {
-    await loginAs(page, 'contributor');
-    await page.goto('/milestones');
-    
-    const addButton = page.locator('button:has-text("Add Milestone"), button:has-text("New Milestone")');
-    await expect(addButton).toHaveCount(0);
-  });
-});
-
-
-// ============================================
-// RESOURCE PERMISSIONS TESTS
-// ============================================
-
-test.describe('Resource Permissions', () => {
-  test('Supplier PM can see cost prices', async ({ page }) => {
-    await loginAs(page, 'supplier_pm');
-    await page.goto('/resources');
-    
-    // Should see cost rate column or data
-    await page.waitForLoadState('networkidle');
-    const costColumn = page.locator('th:has-text("Cost"), td:has-text("Cost Rate")');
-    // May or may not be visible depending on data
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('Customer PM cannot see cost prices', async ({ page }) => {
-    await loginAs(page, 'customer_pm');
-    await page.goto('/resources');
-    
-    await page.waitForLoadState('networkidle');
-    // Cost rate should be hidden for customer
-    const costColumn = page.locator('th:has-text("Cost Rate")');
-    await expect(costColumn).toHaveCount(0);
-  });
-
-  test('Only admin can delete resources', async ({ page }) => {
-    await loginAs(page, 'admin');
-    await page.goto('/resources');
-    
-    // Admin should see delete option
-    await expect(page.locator('body')).toBeVisible();
-  });
-});
-
-// ============================================
-// PARTNER PERMISSIONS TESTS  
-// ============================================
-
-test.describe('Partner Permissions', () => {
-  test('Supplier PM can see partners page', async ({ page }) => {
-    await loginAs(page, 'supplier_pm');
-    
-    // Check if partners link exists in nav
-    const partnersLink = page.locator('a[href*="partners"]');
-    if (await partnersLink.count() > 0) {
-      await partnersLink.first().click();
-      await expect(page).toHaveURL(/.*partners/);
-    }
-  });
-
-  test('Customer PM cannot see partners page', async ({ page }) => {
-    await loginAs(page, 'customer_pm');
-    
-    // Partners link should not exist for customer
-    const partnersLink = page.locator('nav a[href*="partners"]');
-    await expect(partnersLink).toHaveCount(0);
-  });
-
-  test('Contributor cannot see partners page', async ({ page }) => {
-    await loginAs(page, 'contributor');
-    
-    const partnersLink = page.locator('nav a[href*="partners"]');
-    await expect(partnersLink).toHaveCount(0);
-  });
-});
-
-// ============================================
-// SETTINGS/ADMIN PERMISSIONS TESTS
-// ============================================
-
-test.describe('Settings & Admin Permissions', () => {
-  test('Admin can access user management', async ({ page }) => {
-    await loginAs(page, 'admin');
-    await page.goto('/settings');
-    
-    // Should see users or team management
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('Supplier PM cannot manage users', async ({ page }) => {
-    await loginAs(page, 'supplier_pm');
-    await page.goto('/settings');
-    
-    // May see settings but not user management
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('Contributor cannot access settings page', async ({ page }) => {
-    await loginAs(page, 'contributor');
-    
-    // Try to access settings directly
-    await page.goto('/settings');
-    
-    // Should be redirected or see access denied
-    await page.waitForLoadState('networkidle');
-    const url = page.url();
-    // Either redirected away or sees restricted message
-    expect(url.includes('settings') === false || 
-           await page.locator('text=Access Denied, text=Unauthorized').count() > 0 ||
-           await page.locator('body').isVisible()).toBeTruthy();
-  });
-});
-
-// ============================================
-// VARIATION PERMISSIONS TESTS
-// ============================================
-
-test.describe('Variation Permissions', () => {
-  test('Supplier PM can create variation', async ({ page }) => {
-    await loginAs(page, 'supplier_pm');
-    await page.goto('/variations');
-    
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New"), button:has-text("Create")').first();
-    await expect(addButton).toBeVisible();
-  });
-
-  test('Customer PM cannot create variation', async ({ page }) => {
-    await loginAs(page, 'customer_pm');
-    await page.goto('/variations');
-    
-    // Customer can view but not create
-    const addButton = page.locator('button:has-text("Add Variation"), button:has-text("New Variation"), button:has-text("Create Variation")');
-    await expect(addButton).toHaveCount(0);
-  });
-});
-
-// ============================================
-// REPORTS PERMISSIONS TESTS
-// ============================================
-
-test.describe('Reports Permissions', () => {
-  test('Supplier PM can access reports', async ({ page }) => {
-    await loginAs(page, 'supplier_pm');
-    
-    const reportsLink = page.locator('a[href*="reports"]').first();
-    if (await reportsLink.count() > 0) {
-      await reportsLink.click();
-      await expect(page).toHaveURL(/.*reports/);
-    }
-  });
-
-  test('Supplier PM can see margin reports', async ({ page }) => {
-    await loginAs(page, 'supplier_pm');
-    await page.goto('/reports');
-    
-    await page.waitForLoadState('networkidle');
-    // Should see margin-related options
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('Viewer cannot access reports', async ({ page }) => {
-    await loginAs(page, 'viewer');
-    
-    // Reports link should not be visible for viewer
-    const reportsLink = page.locator('nav a[href*="reports"]');
-    // May or may not exist depending on nav structure
-    await expect(page.locator('body')).toBeVisible();
-  });
-});
-
-// ============================================
-// DELIVERABLE WORKFLOW TESTS
-// ============================================
-
-test.describe('Deliverable Workflow', () => {
-  test('Contributor can create deliverable', async ({ page }) => {
-    await loginAs(page, 'contributor');
-    await page.goto('/deliverables');
-    
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New")').first();
-    await expect(addButton).toBeVisible();
-  });
-
-  test('Customer PM can review deliverables', async ({ page }) => {
-    await loginAs(page, 'customer_pm');
-    await page.goto('/deliverables');
-    
-    // Customer should see review options
-    await expect(page.locator('body')).toBeVisible();
-  });
-});
-
-// ============================================
-// SECURITY BOUNDARY TESTS
-// ============================================
-
-test.describe('Security Boundaries', () => {
-  test('Viewer is read-only everywhere', async ({ page }) => {
-    await loginAs(page, 'viewer');
-    
-    // Check multiple pages for no edit buttons
-    const pages = ['/timesheets', '/expenses', '/milestones', '/deliverables'];
-    
-    for (const pagePath of pages) {
-      await page.goto(pagePath);
+    test('viewer is redirected from Settings page', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/viewer.json' });
+      const page = await context.newPage();
+      await page.goto('/settings');
       await page.waitForLoadState('networkidle');
       
-      // Should not see Add/Edit/Delete buttons
-      const editButtons = page.locator('button:has-text("Add"), button:has-text("Edit"), button:has-text("Delete")');
-      const count = await editButtons.count();
-      // Viewer should have minimal or no edit buttons
-      expect(count).toBeLessThan(3); // Allow for some UI elements
-    }
+      // Should be redirected to dashboard
+      await expect(page).toHaveURL(/.*dashboard/);
+      
+      await context.close();
+    });
+  });
+});
+
+// ============================================
+// CONTRIBUTOR RESTRICTIONS
+// Can create work items but cannot manage project structure
+// ============================================
+
+test.describe('Contributor Restrictions @contributor', () => {
+  
+  test.describe('Cannot Manage Project Structure', () => {
+    
+    test('contributor cannot add milestones', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/milestones');
+      
+      await expectVisible(page, 'milestones-page');
+      await expectNotVisible(page, 'add-milestone-button');
+      
+      await context.close();
+    });
+
+    test('contributor cannot add resources', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/resources');
+      
+      await expectVisible(page, 'resources-page');
+      await expectNotVisible(page, 'add-resource-button');
+      
+      await context.close();
+    });
+
+    test('contributor cannot create variations', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/variations');
+      
+      await expectVisible(page, 'variations-page');
+      await expectNotVisible(page, 'create-variation-button');
+      
+      await context.close();
+    });
   });
 
-  test('Direct URL access is protected', async ({ page }) => {
-    await loginAs(page, 'viewer');
+  test.describe('Cannot See Supplier Data', () => {
     
-    // Try to access admin pages directly
-    await page.goto('/settings');
-    await page.waitForLoadState('networkidle');
+    test('contributor cannot see cost rate column', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/resources');
+      
+      await expectVisible(page, 'resources-page');
+      await expectNotVisible(page, 'resources-cost-rate-header');
+      await expectNotVisible(page, 'resources-margin-header');
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Navigation Restrictions', () => {
     
-    // Should not see settings content
-    const settingsContent = page.locator('[data-testid="settings-panel"], form[action*="settings"]');
-    await expect(settingsContent).toHaveCount(0);
+    test('contributor cannot see Partners in navigation', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/dashboard');
+      
+      await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+      
+      await context.close();
+    });
+
+    test('contributor cannot see Settings in navigation', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/dashboard');
+      
+      await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Page Access Restrictions', () => {
+    
+    test('contributor is redirected from Settings page', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/contributor.json' });
+      const page = await context.newPage();
+      await page.goto('/settings');
+      await page.waitForLoadState('networkidle');
+      
+      await expect(page).toHaveURL(/.*dashboard/);
+      
+      await context.close();
+    });
+  });
+});
+
+// ============================================
+// CUSTOMER PM RESTRICTIONS
+// Customer side - cannot manage supplier resources or structure
+// ============================================
+
+test.describe('Customer PM Restrictions @customer_pm', () => {
+  
+  test.describe('Cannot Manage Supplier Structure', () => {
+    
+    test('customer_pm cannot add milestones', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/milestones');
+      
+      await expectVisible(page, 'milestones-page');
+      await expectNotVisible(page, 'add-milestone-button');
+      
+      await context.close();
+    });
+
+    test('customer_pm cannot add resources', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/resources');
+      
+      await expectVisible(page, 'resources-page');
+      await expectNotVisible(page, 'add-resource-button');
+      
+      await context.close();
+    });
+
+    test('customer_pm cannot create variations', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/variations');
+      
+      await expectVisible(page, 'variations-page');
+      await expectNotVisible(page, 'create-variation-button');
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Cannot Add Work Items (Not a Worker)', () => {
+    
+    test('customer_pm cannot add timesheets', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/timesheets');
+      
+      await expectVisible(page, 'timesheets-page');
+      await expectNotVisible(page, 'add-timesheet-button');
+      
+      await context.close();
+    });
+
+    test('customer_pm cannot add expenses', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/expenses');
+      
+      await expectVisible(page, 'expenses-page');
+      await expectNotVisible(page, 'add-expense-button');
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Cannot See Supplier Costs', () => {
+    
+    test('customer_pm cannot see cost rate column', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/resources');
+      
+      await expectVisible(page, 'resources-page');
+      await expectNotVisible(page, 'resources-cost-rate-header');
+      await expectNotVisible(page, 'resources-margin-header');
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Navigation Restrictions', () => {
+    
+    test('customer_pm cannot see Partners in navigation', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/dashboard');
+      
+      await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+      
+      await context.close();
+    });
+
+    test('customer_pm cannot see Settings in navigation', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/dashboard');
+      
+      await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Page Access Restrictions', () => {
+    
+    test('customer_pm is redirected from Settings page', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_pm.json' });
+      const page = await context.newPage();
+      await page.goto('/settings');
+      await page.waitForLoadState('networkidle');
+      
+      await expect(page).toHaveURL(/.*dashboard/);
+      
+      await context.close();
+    });
+  });
+});
+
+// ============================================
+// CUSTOMER FINANCE RESTRICTIONS
+// Similar to Customer PM but can add work items
+// ============================================
+
+test.describe('Customer Finance Restrictions @customer_finance', () => {
+  
+  test.describe('Cannot Manage Project Structure', () => {
+    
+    test('customer_finance cannot add milestones', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/milestones');
+      
+      await expectVisible(page, 'milestones-page');
+      await expectNotVisible(page, 'add-milestone-button');
+      
+      await context.close();
+    });
+
+    test('customer_finance cannot add resources', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/resources');
+      
+      await expectVisible(page, 'resources-page');
+      await expectNotVisible(page, 'add-resource-button');
+      
+      await context.close();
+    });
+
+    test('customer_finance cannot create variations', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/variations');
+      
+      await expectVisible(page, 'variations-page');
+      await expectNotVisible(page, 'create-variation-button');
+      
+      await context.close();
+    });
+
+    test('customer_finance cannot add deliverables', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/deliverables');
+      
+      await expectVisible(page, 'deliverables-page');
+      await expectNotVisible(page, 'add-deliverable-button');
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Cannot See Supplier Costs', () => {
+    
+    test('customer_finance cannot see cost rate column', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/resources');
+      
+      await expectVisible(page, 'resources-page');
+      await expectNotVisible(page, 'resources-cost-rate-header');
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Navigation Restrictions', () => {
+    
+    test('customer_finance cannot see Partners in navigation', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/dashboard');
+      
+      await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+      
+      await context.close();
+    });
+
+    test('customer_finance cannot see Settings in navigation', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/dashboard');
+      
+      await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
+      
+      await context.close();
+    });
+  });
+
+  test.describe('Page Access Restrictions', () => {
+    
+    test('customer_finance is redirected from Settings page', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/customer_finance.json' });
+      const page = await context.newPage();
+      await page.goto('/settings');
+      await page.waitForLoadState('networkidle');
+      
+      await expect(page).toHaveURL(/.*dashboard/);
+      
+      await context.close();
+    });
+  });
+});
+
+// ============================================
+// SUPPLIER FINANCE RESTRICTIONS
+// Can do most things but cannot add deliverables (not a manager)
+// ============================================
+
+test.describe('Supplier Finance Restrictions @supplier_finance', () => {
+  
+  test.describe('Cannot Add Deliverables (Not a Manager)', () => {
+    
+    test('supplier_finance cannot add deliverables', async ({ browser }) => {
+      const context = await browser.newContext({ storageState: 'e2e/.auth/supplier_finance.json' });
+      const page = await context.newPage();
+      await navigateTo(page, '/deliverables');
+      
+      await expectVisible(page, 'deliverables-page');
+      await expectNotVisible(page, 'add-deliverable-button');
+      
+      await context.close();
+    });
   });
 });
