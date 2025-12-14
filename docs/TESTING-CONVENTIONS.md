@@ -1,6 +1,7 @@
 # Testing Conventions
 
 **Created:** 2025-12-14  
+**Last Updated:** 2025-12-14  
 **Status:** Active  
 **Applies To:** All E2E tests and testable UI components
 
@@ -65,6 +66,7 @@ data-testid="{action}-{target}"
 | Nav link to Timesheets | `nav-timesheets` | Nav + destination |
 | User menu button | `user-menu-button` | Component + element |
 | Logout button | `logout-button` | Action + element |
+| Project switcher | `project-switcher-button` | Component + element |
 | Create timesheet button | `create-timesheet-button` | Action + entity + element |
 | Timesheet form | `timesheet-form` | Entity + element |
 | Timesheet hours input | `timesheet-hours-input` | Entity + field + element |
@@ -104,6 +106,9 @@ nav-{destination}
 nav-section-{name}
 user-menu-button
 logout-button
+project-switcher-button
+project-switcher-dropdown
+project-switcher-item-{projectId}
 ```
 
 #### Status/Feedback
@@ -112,6 +117,8 @@ toast-success
 toast-error
 toast-warning
 toast-info
+toast-close-button
+toast-container
 loading-spinner
 error-message
 empty-state
@@ -127,10 +134,11 @@ These components MUST have data-testid attributes:
 
 | Component | Required Test IDs |
 |-----------|-------------------|
-| Login.jsx | `login-email-input`, `login-password-input`, `login-submit-button`, `login-error-message` |
-| Toast.jsx | `toast-success`, `toast-error`, `toast-warning`, `toast-info`, `toast-close-button` |
+| Login.jsx | `login-email-input`, `login-password-input`, `login-submit-button`, `login-error-message`, `login-success-message` |
+| Toast.jsx | `toast-success`, `toast-error`, `toast-warning`, `toast-info`, `toast-close-button`, `toast-container` |
 | LoadingSpinner.jsx | `loading-spinner` |
 | Layout.jsx (nav) | `nav-{page}` for each nav item, `user-menu-button`, `logout-button` |
+| ProjectSwitcher.jsx | `project-switcher-button`, `project-switcher-dropdown`, `project-switcher-item-{id}` |
 
 ### Feature Components (Should Have)
 
@@ -172,13 +180,26 @@ const pageTitle = page.locator('h1:has-text("Dashboard")');
 The `test-utils.js` file provides helpers that use data-testid:
 
 ```javascript
-import { waitForToast, waitForPageLoad } from './helpers/test-utils';
+import { 
+  waitForToast, 
+  waitForPageLoad,
+  navigateTo,
+  clickLogout,
+  loginSelectors,
+  fillLoginForm
+} from './helpers/test-utils';
 
 // Wait for success toast
 await waitForToast(page, 'success');
 
 // Wait for loading to complete
 await waitForPageLoad(page);
+
+// Navigate via sidebar
+await navigateTo(page, 'timesheets');
+
+// Fill login form
+await fillLoginForm(page, 'user@example.com', 'password');
 ```
 
 ### Verifying Role Through UI
@@ -193,6 +214,30 @@ await expect(page.locator('[data-testid="create-timesheet-button"]')).toBeEnable
 // ❌ BAD - Checks implementation detail
 const role = await page.evaluate(() => localStorage.getItem('user_role'));
 ```
+
+### Specifying Authentication State
+
+Tests requiring authentication MUST specify storageState:
+
+```javascript
+test.describe('Authenticated Tests', () => {
+  // Use admin auth state
+  test.use({ storageState: 'playwright/.auth/admin.json' });
+  
+  test('admin can see settings', async ({ page }) => {
+    // Test runs as authenticated admin
+  });
+});
+```
+
+Available auth states:
+- `playwright/.auth/admin.json`
+- `playwright/.auth/supplier_pm.json`
+- `playwright/.auth/supplier_finance.json`
+- `playwright/.auth/customer_pm.json`
+- `playwright/.auth/customer_finance.json`
+- `playwright/.auth/contributor.json`
+- `playwright/.auth/viewer.json`
 
 ---
 
@@ -251,6 +296,7 @@ function Button({ testId, children, ...props }) {
 1. **Add test IDs to new interactive elements**
 2. **Follow naming conventions**
 3. **Document in component if non-obvious**
+4. **Update this registry**
 
 ### When Removing Components
 
@@ -277,6 +323,7 @@ Components with data-testid attributes (for searchability):
 - `login-password-input` - Login.jsx
 - `login-submit-button` - Login.jsx
 - `login-error-message` - Login.jsx
+- `login-success-message` - Login.jsx
 
 ### Feedback/Status
 - `toast-success` - Toast.jsx
@@ -284,6 +331,7 @@ Components with data-testid attributes (for searchability):
 - `toast-warning` - Toast.jsx
 - `toast-info` - Toast.jsx
 - `toast-close-button` - Toast.jsx
+- `toast-container` - Toast.jsx
 - `loading-spinner` - LoadingSpinner.jsx
 
 ### Navigation
@@ -291,9 +339,16 @@ Components with data-testid attributes (for searchability):
 - `nav-timesheets` - Layout.jsx
 - `nav-milestones` - Layout.jsx
 - `nav-deliverables` - Layout.jsx
-- _(etc. for each nav item)_
+- `nav-expenses` - Layout.jsx
+- `nav-reports` - Layout.jsx
+- _(pattern: nav-{itemId} for each navigation item)_
 - `user-menu-button` - Layout.jsx
 - `logout-button` - Layout.jsx
+
+### Project Switcher
+- `project-switcher-button` - ProjectSwitcher.jsx
+- `project-switcher-dropdown` - ProjectSwitcher.jsx
+- `project-switcher-item-{projectId}` - ProjectSwitcher.jsx
 
 ---
 
