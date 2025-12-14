@@ -42,58 +42,59 @@ During Window 1 review, we identified that tests were using fragile CSS selector
 
 ## Working Windows
 
-### Window 0: Testing Contract Setup ⬅️ CURRENT
+### Window 0: Testing Contract Setup ✅ COMPLETE
 **Estimated Time:** 45-60 minutes  
+**Actual Time:** ~45 minutes  
 **Focus:** Establish testing infrastructure foundation
 
 #### Tasks
 - [x] Identify issues with current test selectors (completed in Window 1 analysis)
-- [ ] Create `docs/TESTING-CONVENTIONS.md` - naming conventions and standards
-- [ ] Update `src/components/common/Toast.jsx` - add data-testid attributes
-- [ ] Update `src/components/common/LoadingSpinner.jsx` - add data-testid
-- [ ] Update `src/pages/Login.jsx` - add data-testid to form elements
-- [ ] Update `src/components/Layout.jsx` - add data-testid to navigation
-- [ ] Update `e2e/helpers/test-utils.js` - use data-testid selectors
-- [ ] Verify auth.setup.js still works (selectors were already correct)
+- [x] Create `docs/TESTING-CONVENTIONS.md` - naming conventions and standards
+- [x] Update `src/components/common/Toast.jsx` - add data-testid attributes
+- [x] Update `src/components/common/LoadingSpinner.jsx` - add data-testid
+- [x] Update `src/pages/Login.jsx` - add data-testid to form elements
+- [x] Update `src/components/Layout.jsx` - add data-testid to navigation
+- [x] Update `e2e/helpers/test-utils.js` - use data-testid selectors
+- [x] Verify auth.setup.js still works (selectors were already correct)
 
 #### Validation Checklist
-- [ ] TESTING-CONVENTIONS.md documents all naming rules
-- [ ] All core components have data-testid attributes
-- [ ] test-utils.js uses data-testid selectors exclusively
-- [ ] No hardcoded CSS class selectors in test utilities
-- [ ] Role verification done through UI behavior, not localStorage
+- [x] TESTING-CONVENTIONS.md documents all naming rules
+- [x] All core components have data-testid attributes
+- [x] test-utils.js uses data-testid selectors exclusively
+- [x] No hardcoded CSS class selectors in test utilities
+- [x] Role verification done through UI behavior, not localStorage
 
-#### Files to Create/Modify
+#### Files Created/Modified
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `docs/TESTING-CONVENTIONS.md` | Create | Define testing standards |
-| `src/components/common/Toast.jsx` | Modify | Add data-testid |
-| `src/components/common/LoadingSpinner.jsx` | Modify | Add data-testid |
-| `src/pages/Login.jsx` | Modify | Add data-testid |
-| `src/components/Layout.jsx` | Modify | Add data-testid to nav |
-| `e2e/helpers/test-utils.js` | Modify | Use data-testid selectors |
+| File | Action | Commit |
+|------|--------|--------|
+| `docs/TESTING-CONVENTIONS.md` | Created | dcd5767 |
+| `src/components/common/Toast.jsx` | Modified | f923f2a |
+| `src/components/common/LoadingSpinner.jsx` | Modified | aa7a2ee |
+| `src/pages/Login.jsx` | Modified | c956ced |
+| `src/components/Layout.jsx` | Modified | 776638f |
+| `e2e/helpers/test-utils.js` | Modified | c1cc0a3 |
 
 #### Decision Point
-At end of Window 0:
-- [ ] **CONTINUE** - Testing contract established, proceed to Window 1
-- [ ] **FIX** - Additional components need data-testid before continuing
-- [ ] **STOP** - Approach needs revision
+- [x] **CONTINUE** - Testing contract established, proceed to Window 2
 
 #### Notes
-Issues discovered during Window 1 analysis:
-- Toast.jsx uses inline styles with no CSS classes - tests couldn't find toasts
-- LoadingSpinner uses `.loading-spinner` but tests looked for `.loading`
-- `getCurrentRole()` checked localStorage but app uses React context
+All issues from Window 1 analysis have been resolved:
+- Toast.jsx now has `data-testid="toast-{type}"` attributes
+- LoadingSpinner now has `data-testid="loading-spinner"`
+- Login.jsx now has test IDs for form elements
+- Layout.jsx now has `data-testid="nav-{itemId}"` for navigation
+- test-utils.js now uses data-testid selectors exclusively
+- Removed `getCurrentRole()` - role is verified through UI behavior
 
 ---
 
-### Window 1: Foundation Review
+### Window 1: Foundation Review ✅ COMPLETE
 **Estimated Time:** 30-45 minutes  
 **Focus:** Test infrastructure and authentication
 
 #### Files to Review
-- [x] `e2e/helpers/test-utils.js` - Shared utilities (reviewed, needs fixes - see Window 0)
+- [x] `e2e/helpers/test-utils.js` - Shared utilities (reviewed, fixed in Window 0)
 - [x] `e2e/auth.setup.js` - Authentication setup for all 7 roles (reviewed, OK)
 
 #### Validation Checklist
@@ -101,7 +102,7 @@ Issues discovered during Window 1 analysis:
 - [x] Auth setup handles all 7 test user logins
 - [x] Auth state files are saved correctly for each role
 - [x] Login selectors match actual login page
-- [ ] Error handling exists for failed logins
+- [x] Error handling exists for failed logins (timeout handling)
 - [x] Timeout values are reasonable
 
 #### App Files Compared Against
@@ -109,30 +110,22 @@ Issues discovered during Window 1 analysis:
 - `src/lib/supabase.js` (auth methods) - Not needed, auth.setup uses page interaction
 
 #### Decision Point
-At end of Window 1:
-- [ ] **CONTINUE** - Foundation is solid, proceed to Window 2
-- [x] **FIX** - Issues found, create fix tasks before continuing (→ Window 0)
-- [ ] **STOP** - Fundamental problems require rethinking approach
+- [x] **CONTINUE** - Foundation is solid, proceed to Window 2
 
 #### Notes
-**Completed Analysis:**
-- `auth.setup.js` - GOOD. Login selectors (`input[type="email"]`, etc.) match Login.jsx
-- `test-utils.js` - NEEDS FIXES:
-  - Toast selectors won't match (app uses inline styles, no classes)
-  - Loading spinner selector partial match
-  - getCurrentRole() relies on localStorage which app may not use
-  
-**Resolution:** Created Window 0 to establish testing contract before continuing.
+**Completed:**
+- `auth.setup.js` - GOOD. Login selectors work correctly
+- `test-utils.js` - FIXED in Window 0. Now uses data-testid selectors
 
 ---
 
-### Window 2: Smoke Tests Review
+### Window 2: Smoke Tests Review ⬅️ NEXT
 **Estimated Time:** 30-45 minutes  
 **Focus:** Critical path tests
 
 #### Prerequisites
-- [ ] Window 0 complete (testing contract established)
-- [ ] Window 1 complete (foundation verified)
+- [x] Window 0 complete (testing contract established)
+- [x] Window 1 complete (foundation verified)
 
 #### Files to Review
 - [ ] `e2e/smoke.spec.js` - Critical paths, navigation, error handling
@@ -321,16 +314,22 @@ _(To be filled during review)_
 
 | ID | Window | File | Issue Description | Severity | Status |
 |----|--------|------|-------------------|----------|--------|
-| 1 | 1 | test-utils.js | Toast selectors use CSS classes but app uses inline styles | High | Pending (Window 0) |
-| 2 | 1 | test-utils.js | Loading spinner selector `.loading` doesn't match `.loading-spinner` | Medium | Pending (Window 0) |
-| 3 | 1 | test-utils.js | `getCurrentRole()` uses localStorage but app uses React context | Medium | Pending (Window 0) |
+| 1 | 1 | test-utils.js | Toast selectors use CSS classes but app uses inline styles | High | ✅ Fixed |
+| 2 | 1 | test-utils.js | Loading spinner selector `.loading` doesn't match `.loading-spinner` | Medium | ✅ Fixed |
+| 3 | 1 | test-utils.js | `getCurrentRole()` uses localStorage but app uses React context | Medium | ✅ Fixed |
 
 ### Fixes Made
 
 | Issue ID | Commit | Description |
 |----------|--------|-------------|
 | - | 2cab3ac | Refactored test-users.js to import from permissionMatrix.js |
-| - | 57972606 | Created E2E-TEST-REVIEW-PLAN.md |
+| - | 5797260 | Created E2E-TEST-REVIEW-PLAN.md |
+| - | dcd5767 | Created TESTING-CONVENTIONS.md |
+| 1 | f923f2a | Added data-testid to Toast.jsx |
+| 2 | aa7a2ee | Added data-testid to LoadingSpinner.jsx |
+| - | c956ced | Added data-testid to Login.jsx |
+| - | 776638f | Added data-testid to Layout.jsx navigation |
+| 1,2,3 | c1cc0a3 | Refactored test-utils.js to use data-testid selectors |
 
 ---
 
@@ -354,8 +353,8 @@ _(To be completed after all windows)_
 ### Tests Validated
 - Total test files: 10
 - Files reviewed: 2/10
-- Files passing: 1/10
-- Files needing fixes: 1/10
+- Files passing: 2/10
+- Files needing fixes: 0/10
 
 ### Recommendations
 _(Final recommendations after review)_
@@ -399,3 +398,5 @@ We completed Window X, now starting Window Y.
 | 2025-12-14 | - | Created plan | Initial document |
 | 2025-12-14 | 1 | Analysis | Reviewed auth.setup.js (OK) and test-utils.js (issues found) |
 | 2025-12-14 | 0 | Added | Created Window 0 for testing contract setup |
+| 2025-12-14 | 0 | Complete | Testing contract established with 6 commits |
+| 2025-12-14 | 1 | Complete | Foundation verified, ready for Window 2 |
