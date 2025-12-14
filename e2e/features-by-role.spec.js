@@ -5,7 +5,7 @@
  * Tests that each role can perform their expected actions based on permissionMatrix.js.
  * Uses data-testid selectors and proper storageState authentication.
  * 
- * @version 2.0 - Rewritten with testing contract (data-testid selectors)
+ * @version 2.1 - Fixed navigation test IDs to match Layout.jsx
  * @updated 14 December 2025
  * 
  * Permission Matrix Summary:
@@ -636,9 +636,9 @@ test.describe('Navigation Visibility @navigation', () => {
     const page = await context.newPage();
     await navigateTo(page, '/dashboard');
     
-    // Supplier should see Partners and Settings links
-    await expect(page.locator('[data-testid="nav-partners-link"]')).toBeVisible();
-    await expect(page.locator('[data-testid="nav-settings-link"]')).toBeVisible();
+    // Supplier should see Partners and Settings links (Layout uses nav-{itemId} pattern)
+    await expect(page.locator('[data-testid="nav-partners"]')).toBeVisible();
+    await expect(page.locator('[data-testid="nav-settings"]')).toBeVisible();
     
     await context.close();
   });
@@ -649,8 +649,8 @@ test.describe('Navigation Visibility @navigation', () => {
     await navigateTo(page, '/dashboard');
     
     // Customer should NOT see Partners and Settings links
-    await expect(page.locator('[data-testid="nav-partners-link"]')).not.toBeVisible();
-    await expect(page.locator('[data-testid="nav-settings-link"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
     
     await context.close();
   });
@@ -661,8 +661,8 @@ test.describe('Navigation Visibility @navigation', () => {
     await navigateTo(page, '/dashboard');
     
     // Viewer should NOT see Partners or Settings
-    await expect(page.locator('[data-testid="nav-partners-link"]')).not.toBeVisible();
-    await expect(page.locator('[data-testid="nav-settings-link"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="nav-partners"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="nav-settings"]')).not.toBeVisible();
     
     await context.close();
   });
