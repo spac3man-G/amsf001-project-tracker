@@ -12,6 +12,11 @@ export default defineConfig({
     // Use jsdom for DOM testing
     environment: 'jsdom',
     
+    // Set NODE_ENV to development so React loads dev build (fixes act() warnings)
+    env: {
+      NODE_ENV: 'development',
+    },
+    
     // Make test functions global (describe, it, expect)
     globals: true,
     
