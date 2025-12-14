@@ -67,7 +67,7 @@ data-testid="{action}-{target}"
 | User menu button | `user-menu-button` | Component + element |
 | Logout button | `logout-button` | Action + element |
 | Project switcher | `project-switcher-button` | Component + element |
-| Create timesheet button | `create-timesheet-button` | Action + entity + element |
+| Create timesheet button | `add-timesheet-button` | Action + entity + element |
 | Timesheet form | `timesheet-form` | Entity + element |
 | Timesheet hours input | `timesheet-hours-input` | Entity + field + element |
 
@@ -124,6 +124,15 @@ error-message
 empty-state
 ```
 
+#### Pages
+```
+{page}-page
+{page}-header
+{page}-title
+{page}-content
+{page}-refresh-button
+```
+
 ---
 
 ## Required Test IDs by Component
@@ -139,6 +148,8 @@ These components MUST have data-testid attributes:
 | LoadingSpinner.jsx | `loading-spinner` |
 | Layout.jsx (nav) | `nav-{page}` for each nav item, `user-menu-button`, `logout-button` |
 | ProjectSwitcher.jsx | `project-switcher-button`, `project-switcher-dropdown`, `project-switcher-item-{id}` |
+| Dashboard.jsx | `dashboard-page`, `dashboard-header`, `dashboard-title`, `dashboard-refresh-button`, `dashboard-widgets`, `dashboard-content` |
+| Timesheets.jsx | `timesheets-page`, `timesheets-header`, `timesheets-title`, `add-timesheet-button`, `timesheets-table`, etc. |
 
 ### Feature Components (Should Have)
 
@@ -209,7 +220,7 @@ Instead of checking internal state, verify role through observable UI:
 ```javascript
 // ✅ GOOD - Verifies through UI behavior
 await expect(page.locator('[data-testid="nav-settings"]')).toBeVisible();
-await expect(page.locator('[data-testid="create-timesheet-button"]')).toBeEnabled();
+await expect(page.locator('[data-testid="add-timesheet-button"]')).toBeEnabled();
 
 // ❌ BAD - Checks implementation detail
 const role = await page.evaluate(() => localStorage.getItem('user_role'));
@@ -349,6 +360,47 @@ Components with data-testid attributes (for searchability):
 - `project-switcher-button` - ProjectSwitcher.jsx
 - `project-switcher-dropdown` - ProjectSwitcher.jsx
 - `project-switcher-item-{projectId}` - ProjectSwitcher.jsx
+
+### Dashboard (Added Window 3)
+- `dashboard-page` - Dashboard.jsx
+- `dashboard-header` - Dashboard.jsx
+- `dashboard-title` - Dashboard.jsx
+- `dashboard-project-info` - Dashboard.jsx
+- `dashboard-refresh-button` - Dashboard.jsx
+- `dashboard-content` - Dashboard.jsx
+- `dashboard-widgets` - Dashboard.jsx
+- `dashboard-kpi-section` - Dashboard.jsx
+- `dashboard-qs-section` - Dashboard.jsx
+- `dashboard-finance-section` - Dashboard.jsx
+
+### Timesheets (Added Window 3)
+- `timesheets-page` - Timesheets.jsx
+- `timesheets-header` - Timesheets.jsx
+- `timesheets-title` - Timesheets.jsx
+- `timesheets-refresh-button` - Timesheets.jsx
+- `add-timesheet-button` - Timesheets.jsx
+- `timesheets-content` - Timesheets.jsx
+- `timesheets-hours-summary` - Timesheets.jsx
+- `timesheets-filters` - Timesheets.jsx
+- `timesheets-filter-resource` - Timesheets.jsx
+- `timesheet-form` - Timesheets.jsx
+- `timesheet-entry-mode` - Timesheets.jsx
+- `timesheet-mode-daily` - Timesheets.jsx
+- `timesheet-mode-weekly` - Timesheets.jsx
+- `timesheet-resource-select` - Timesheets.jsx
+- `timesheet-date-input` - Timesheets.jsx
+- `timesheet-week-ending-input` - Timesheets.jsx
+- `timesheet-milestone-select` - Timesheets.jsx
+- `timesheet-hours-input` - Timesheets.jsx
+- `timesheet-description-input` - Timesheets.jsx
+- `timesheet-save-button` - Timesheets.jsx
+- `timesheet-cancel-button` - Timesheets.jsx
+- `timesheets-table-card` - Timesheets.jsx
+- `timesheets-count` - Timesheets.jsx
+- `timesheets-table` - Timesheets.jsx
+- `timesheets-empty-state` - Timesheets.jsx
+- `timesheet-row-{id}` - Timesheets.jsx (dynamic)
+- `timesheet-status-{id}` - Timesheets.jsx (dynamic)
 
 ---
 

@@ -7,8 +7,8 @@
  * 
  * Uses centralised timesheet calculations for status display and workflow.
  * 
- * @version 4.0 - Refactored to use timesheetCalculations.js
- * @updated 6 December 2025
+ * @version 4.1 - Added data-testid attributes for E2E testing
+ * @updated 14 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -334,15 +334,15 @@ export default function Timesheets() {
   if (loading) return <LoadingSpinner message="Loading timesheets..." size="large" fullPage />;
 
   return (
-    <div className="timesheets-page">
-      <header className="ts-header">
+    <div className="timesheets-page" data-testid="timesheets-page">
+      <header className="ts-header" data-testid="timesheets-header">
         <div className="ts-header-content">
           <div className="ts-header-left">
             <div className="ts-header-icon">
               <Clock size={24} />
             </div>
             <div>
-              <h1>Timesheets</h1>
+              <h1 data-testid="timesheets-title">Timesheets</h1>
               <p>Track time spent on project activities</p>
             </div>
           </div>
@@ -351,11 +351,16 @@ export default function Timesheets() {
               className="ts-btn ts-btn-secondary" 
               onClick={handleRefresh} 
               disabled={refreshing}
+              data-testid="timesheets-refresh-button"
             >
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
             {!showAddForm && canAddTimesheet && (
-              <button className="ts-btn ts-btn-primary" onClick={() => setShowAddForm(true)}>
+              <button 
+                className="ts-btn ts-btn-primary" 
+                onClick={() => setShowAddForm(true)}
+                data-testid="add-timesheet-button"
+              >
                 <Plus size={18} /> Add Timesheet
               </button>
             )}
@@ -363,7 +368,7 @@ export default function Timesheets() {
         </div>
       </header>
 
-      <div className="ts-content">
+      <div className="ts-content" data-testid="timesheets-content">
         {/* Date Range Filter */}
         <TimesheetDateFilter
           dateRange={dateRange}
@@ -375,11 +380,11 @@ export default function Timesheets() {
         />
 
         {hoursByResource.length > 0 && (
-          <div className="ts-hours-summary">
+          <div className="ts-hours-summary" data-testid="timesheets-hours-summary">
             <h4 className="ts-hours-title">Hours by Resource</h4>
             <div className="ts-hours-grid">
               {hoursByResource.map(r => (
-                <div key={r.name} className="ts-hours-card">
+                <div key={r.name} className="ts-hours-card" data-testid={`hours-card-${r.name.toLowerCase().replace(/\s+/g, '-')}`}>
                   <div className="ts-hours-name">{r.name}</div>
                   <div className="ts-hours-value">{r.hours.toFixed(1)}h</div>
                 </div>
@@ -388,12 +393,13 @@ export default function Timesheets() {
           </div>
         )}
 
-        <div className="ts-filters">
+        <div className="ts-filters" data-testid="timesheets-filters">
           <span className="ts-filter-label">Filter:</span>
           <select 
             value={filterResource} 
             onChange={(e) => setFilterResource(e.target.value)} 
             className="ts-filter-select"
+            data-testid="timesheets-filter-resource"
           >
             <option value="all">All Resources</option>
             {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -401,15 +407,16 @@ export default function Timesheets() {
         </div>
 
         {showAddForm && (
-          <div className="ts-add-form">
+          <div className="ts-add-form" data-testid="timesheet-form">
             <h3 className="ts-add-form-title">Add Timesheet Entry</h3>
-            <div className="ts-entry-mode">
+            <div className="ts-entry-mode" data-testid="timesheet-entry-mode">
               <label className="ts-mode-label">Entry Type</label>
               <div className="ts-mode-buttons">
                 <button 
                   type="button" 
                   onClick={() => setEntryMode(ENTRY_TYPE.DAILY)} 
                   className={`ts-mode-btn ${entryMode === ENTRY_TYPE.DAILY ? 'active' : ''}`}
+                  data-testid="timesheet-mode-daily"
                 >
                   <Calendar size={18} /> Daily Entry
                 </button>
@@ -417,13 +424,14 @@ export default function Timesheets() {
                   type="button" 
                   onClick={() => setEntryMode(ENTRY_TYPE.WEEKLY)} 
                   className={`ts-mode-btn ${entryMode === ENTRY_TYPE.WEEKLY ? 'active' : ''}`}
+                  data-testid="timesheet-mode-weekly"
                 >
                   <CalendarDays size={18} /> Weekly Summary
                 </button>
               </div>
             </div>
             {availableResources.length === 0 && (
-              <div className="ts-warning">⚠️ Your account is not linked to a resource.</div>
+              <div className="ts-warning" data-testid="timesheet-no-resource-warning">⚠️ Your account is not linked to a resource.</div>
             )}
             <div className="ts-form-grid">
               <div className="ts-form-group">
@@ -431,6 +439,7 @@ export default function Timesheets() {
                 <select 
                   value={newTimesheet.resource_id} 
                   onChange={(e) => setNewTimesheet({ ...newTimesheet, resource_id: e.target.value })}
+                  data-testid="timesheet-resource-select"
                 >
                   <option value="">Select Resource</option>
                   {availableResources.map(r => (
@@ -444,7 +453,8 @@ export default function Timesheets() {
                   <input 
                     type="date" 
                     value={newTimesheet.work_date} 
-                    onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })} 
+                    onChange={(e) => setNewTimesheet({ ...newTimesheet, work_date: e.target.value })}
+                    data-testid="timesheet-date-input"
                   />
                 </div>
               ) : (
@@ -453,7 +463,8 @@ export default function Timesheets() {
                   <input 
                     type="date" 
                     value={newTimesheet.week_ending} 
-                    onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })} 
+                    onChange={(e) => setNewTimesheet({ ...newTimesheet, week_ending: e.target.value })}
+                    data-testid="timesheet-week-ending-input"
                   />
                 </div>
               )}
@@ -462,6 +473,7 @@ export default function Timesheets() {
                 <select 
                   value={newTimesheet.milestone_id} 
                   onChange={(e) => setNewTimesheet({ ...newTimesheet, milestone_id: e.target.value })}
+                  data-testid="timesheet-milestone-select"
                 >
                   <option value="">-- No specific milestone --</option>
                   {milestones.map(m => (
@@ -478,7 +490,8 @@ export default function Timesheets() {
                   max={entryMode === ENTRY_TYPE.DAILY ? '12' : '60'} 
                   placeholder={entryMode === ENTRY_TYPE.DAILY ? 'e.g., 8' : 'e.g., 40'} 
                   value={newTimesheet.hours_worked} 
-                  onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, hours_worked: e.target.value })}
+                  data-testid="timesheet-hours-input"
                 />
               </div>
               <div className="ts-form-group ts-full-width">
@@ -487,30 +500,39 @@ export default function Timesheets() {
                   rows={2} 
                   placeholder="What did you work on?" 
                   value={newTimesheet.description} 
-                  onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })} 
+                  onChange={(e) => setNewTimesheet({ ...newTimesheet, description: e.target.value })}
+                  data-testid="timesheet-description-input"
                 />
               </div>
             </div>
             <div className="ts-form-actions">
-              <button className="ts-btn ts-btn-primary" onClick={handleAdd}>
+              <button 
+                className="ts-btn ts-btn-primary" 
+                onClick={handleAdd}
+                data-testid="timesheet-save-button"
+              >
                 <Save size={16} /> Save
               </button>
-              <button className="ts-btn ts-btn-secondary" onClick={() => setShowAddForm(false)}>
+              <button 
+                className="ts-btn ts-btn-secondary" 
+                onClick={() => setShowAddForm(false)}
+                data-testid="timesheet-cancel-button"
+              >
                 <X size={16} /> Cancel
               </button>
             </div>
           </div>
         )}
 
-        <div className="ts-table-card">
+        <div className="ts-table-card" data-testid="timesheets-table-card">
           <div className="ts-table-header">
             <h2 className="ts-table-title">Timesheet Entries</h2>
-            <span className="ts-table-count">
+            <span className="ts-table-count" data-testid="timesheets-count">
               {filteredTimesheets.length} entr{filteredTimesheets.length !== 1 ? 'ies' : 'y'}
             </span>
           </div>
           
-          <table className="ts-table">
+          <table className="ts-table" data-testid="timesheets-table">
             <thead>
               <tr>
                 <th>Resource</th>
@@ -524,7 +546,7 @@ export default function Timesheets() {
             <tbody>
               {filteredTimesheets.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="ts-empty-cell">
+                  <td colSpan={6} className="ts-empty-cell" data-testid="timesheets-empty-state">
                     No timesheets found for the selected period.
                   </td>
                 </tr>
@@ -532,6 +554,7 @@ export default function Timesheets() {
                 <tr 
                   key={ts.id} 
                   onClick={() => setDetailModal({ isOpen: true, timesheet: ts })}
+                  data-testid={`timesheet-row-${ts.id}`}
                 >
                   <td>
                     <div className="ts-resource-cell">
@@ -555,7 +578,7 @@ export default function Timesheets() {
                     {ts.description || ts.comments || 'No description'}
                   </td>
                   <td>
-                    <span className={`ts-status-badge ${getStatusCssClass(ts.status)}`}>
+                    <span className={`ts-status-badge ${getStatusCssClass(ts.status)}`} data-testid={`timesheet-status-${ts.id}`}>
                       {getStatusDisplayName(ts.status)}
                     </span>
                   </td>
