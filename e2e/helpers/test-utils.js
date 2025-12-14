@@ -2,21 +2,29 @@
  * E2E Test Utilities
  * Location: e2e/helpers/test-utils.js
  * 
- * Common utilities for E2E tests
+ * Common utilities for E2E tests.
+ * 
+ * IMPORTANT: This file follows the Testing Contract defined in
+ * docs/TESTING-CONVENTIONS.md. All selectors use data-testid
+ * attributes for stability.
+ * 
+ * @version 2.0
+ * @modified 14 December 2025 - Updated to use data-testid selectors
  */
 
 import { expect } from '@playwright/test';
 
 /**
- * Wait for page to be fully loaded with data
+ * Wait for page to be fully loaded with data.
+ * Uses data-testid="loading-spinner" per TESTING-CONVENTIONS.md
  */
 export async function waitForPageLoad(page, options = {}) {
   const { timeout = 15000 } = options;
   
   await page.waitForLoadState('networkidle', { timeout });
   
-  // Additional wait for any loading spinners to disappear
-  const spinner = page.locator('.loading, .spinner, [data-loading="true"]');
+  // Wait for loading spinner to disappear (uses data-testid)
+  const spinner = page.locator('[data-testid="loading-spinner"]');
   if (await spinner.count() > 0) {
     await spinner.first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
   }
@@ -69,32 +77,29 @@ export async function takeScreenshot(page, name) {
 }
 
 /**
- * Get current user role from page context
+ * Assert navigation item is visible.
+ * Uses data-testid="nav-{itemId}" per TESTING-CONVENTIONS.md
+ * 
+ * @param {Page} page - Playwright page
+ * @param {string[]} itemIds - Array of navigation item IDs (e.g., ['dashboard', 'timesheets'])
  */
-export async function getCurrentRole(page) {
-  // Try to get role from local storage or page context
-  return await page.evaluate(() => {
-    const storage = localStorage.getItem('user_role');
-    return storage || 'unknown';
-  });
-}
-
-/**
- * Assert navigation is visible
- */
-export async function assertNavigationVisible(page, items = []) {
-  for (const item of items) {
-    const nav = page.locator(`nav a:has-text("${item}"), [data-nav="${item}"]`);
+export async function assertNavigationVisible(page, itemIds = []) {
+  for (const itemId of itemIds) {
+    const nav = page.locator(`[data-testid="nav-${itemId}"]`);
     await expect(nav).toBeVisible({ timeout: 5000 });
   }
 }
 
 /**
- * Assert navigation item is hidden
+ * Assert navigation item is hidden.
+ * Uses data-testid="nav-{itemId}" per TESTING-CONVENTIONS.md
+ * 
+ * @param {Page} page - Playwright page
+ * @param {string[]} itemIds - Array of navigation item IDs (e.g., ['systemUsers', 'billing'])
  */
-export async function assertNavigationHidden(page, items = []) {
-  for (const item of items) {
-    const nav = page.locator(`nav a:has-text("${item}"), [data-nav="${item}"]`);
+export async function assertNavigationHidden(page, itemIds = []) {
+  for (const itemId of itemIds) {
+    const nav = page.locator(`[data-testid="nav-${itemId}"]`);
     await expect(nav).toBeHidden({ timeout: 5000 });
   }
 }
@@ -113,33 +118,73 @@ export async function assertButtonState(page, selector, shouldBeEnabled) {
 }
 
 /**
- * Wait for toast notification
+ * Wait for toast notification.
+ * Uses data-testid="toast-{type}" per TESTING-CONVENTIONS.md
+ * 
+ * @param {Page} page - Playwright page
+ * @param {string} type - Toast type: 'success', 'error', 'warning', 'info'
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Locator} - The toast element
  */
 export async function waitForToast(page, type = 'success', timeout = 5000) {
-  const toastSelectors = {
-    success: '.toast-success, [data-toast="success"], .Toastify__toast--success',
-    error: '.toast-error, [data-toast="error"], .Toastify__toast--error',
-    warning: '.toast-warning, [data-toast="warning"], .Toastify__toast--warning',
-  };
-  
-  const selector = toastSelectors[type] || toastSelectors.success;
-  const toast = page.locator(selector);
-  
+  const toast = page.locator(`[data-testid="toast-${type}"]`);
   await toast.waitFor({ state: 'visible', timeout });
   return toast;
+}
+
+/**
+ * Dismiss toast notification by clicking close button.
+ * Uses data-testid="toast-close-button" per TESTING-CONVENTIONS.md
+ */
+export async function dismissToast(page) {
+  const closeButton = page.locator('[data-testid="toast-close-button"]');
+  if (await closeButton.count() > 0) {
+    await closeButton.first().click();
+  }
 }
 
 /**
  * Dismiss any open modals
  */
 export async function dismissModals(page) {
-  const closeButtons = page.locator('.modal-close, [data-dismiss="modal"], button:has-text("Close"), button:has-text("Cancel")');
+  const closeButtons = page.locator('[data-testid$="-modal-close"], button:has-text("Close"), button:has-text("Cancel")');
   
   const count = await closeButtons.count();
   for (let i = count - 1; i >= 0; i--) {
     await closeButtons.nth(i).click().catch(() => {});
     await page.waitForTimeout(100);
   }
+}
+
+/**
+ * Click logout button.
+ * Uses data-testid="logout-button" per TESTING-CONVENTIONS.md
+ */
+export async function clickLogout(page) {
+  const logoutButton = page.locator('[data-testid="logout-button"]');
+  await logoutButton.click();
+}
+
+/**
+ * Click user menu (navigates to account page).
+ * Uses data-testid="user-menu-button" per TESTING-CONVENTIONS.md
+ */
+export async function clickUserMenu(page) {
+  const userMenu = page.locator('[data-testid="user-menu-button"]');
+  await userMenu.click();
+}
+
+/**
+ * Navigate to a page via the sidebar navigation.
+ * Uses data-testid="nav-{itemId}" per TESTING-CONVENTIONS.md
+ * 
+ * @param {Page} page - Playwright page
+ * @param {string} itemId - Navigation item ID (e.g., 'dashboard', 'timesheets')
+ */
+export async function navigateTo(page, itemId) {
+  const navItem = page.locator(`[data-testid="nav-${itemId}"]`);
+  await navItem.click();
+  await waitForPageLoad(page);
 }
 
 /**
@@ -158,4 +203,47 @@ export function getEnvironmentInfo() {
     isCI: !!process.env.CI,
     nodeEnv: process.env.NODE_ENV || 'development',
   };
+}
+
+/**
+ * Login form helpers.
+ * Uses data-testid per TESTING-CONVENTIONS.md
+ */
+export const loginSelectors = {
+  emailInput: '[data-testid="login-email-input"]',
+  passwordInput: '[data-testid="login-password-input"]',
+  submitButton: '[data-testid="login-submit-button"]',
+  errorMessage: '[data-testid="login-error-message"]',
+  successMessage: '[data-testid="login-success-message"]',
+};
+
+/**
+ * Fill login form.
+ * Uses data-testid selectors per TESTING-CONVENTIONS.md
+ * 
+ * @param {Page} page - Playwright page
+ * @param {string} email - Email address
+ * @param {string} password - Password
+ */
+export async function fillLoginForm(page, email, password) {
+  await page.fill(loginSelectors.emailInput, email);
+  await page.fill(loginSelectors.passwordInput, password);
+}
+
+/**
+ * Submit login form.
+ * Uses data-testid selectors per TESTING-CONVENTIONS.md
+ */
+export async function submitLoginForm(page) {
+  await page.click(loginSelectors.submitButton);
+}
+
+/**
+ * Wait for login error message.
+ * Uses data-testid selectors per TESTING-CONVENTIONS.md
+ */
+export async function waitForLoginError(page, timeout = 5000) {
+  const error = page.locator(loginSelectors.errorMessage);
+  await error.waitFor({ state: 'visible', timeout });
+  return error;
 }
