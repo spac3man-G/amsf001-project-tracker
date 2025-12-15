@@ -501,11 +501,7 @@ export class ResourcesService extends BaseService {
       // Get all user_projects for this project with eligible roles
       const { data: userProjects, error: upError } = await supabase
         .from('user_projects')
-        .select(`
-          user_id,
-          role,
-          user:profiles(id, full_name, email)
-        `)
+        .select('user_id, role')
         .eq('project_id', projectId)
         .in('role', ['contributor', 'supplier_pm']);
 
@@ -513,6 +509,25 @@ export class ResourcesService extends BaseService {
         console.error('Error fetching user_projects:', upError);
         throw upError;
       }
+
+      if (!userProjects || userProjects.length === 0) {
+        return [];
+      }
+
+      // Get profiles for these users
+      const userIds = userProjects.map(up => up.user_id);
+      const { data: profiles, error: pError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (pError) {
+        console.error('Error fetching profiles:', pError);
+        throw pError;
+      }
+
+      // Create a map of profiles by id
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
 
       // Get existing resource user_ids for this project
       const { data: existingResources, error: rError } = await supabase
@@ -529,15 +544,19 @@ export class ResourcesService extends BaseService {
 
       const existingUserIds = new Set(existingResources?.map(r => r.user_id) || []);
 
-      // Filter to users without resource records
-      return (userProjects || [])
-        .filter(up => up.user && !existingUserIds.has(up.user_id))
-        .map(up => ({
-          user_id: up.user_id,
-          full_name: up.user.full_name,
-          email: up.user.email,
-          project_role: up.role
-        }));
+      // Filter to users without resource records and merge with profile data
+      return userProjects
+        .filter(up => !existingUserIds.has(up.user_id))
+        .map(up => {
+          const profile = profileMap.get(up.user_id);
+          return {
+            user_id: up.user_id,
+            full_name: profile?.full_name || 'Unknown',
+            email: profile?.email || '',
+            project_role: up.role
+          };
+        })
+        .filter(u => u.email); // Only return users with email addresses
     } catch (error) {
       console.error('ResourcesService getProjectUsersWithoutResources error:', error);
       throw error;
