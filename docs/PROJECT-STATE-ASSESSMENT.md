@@ -1,7 +1,7 @@
 # Project State Assessment Checklist
 
 **Created:** 2025-12-14  
-**Last Updated:** 2025-12-14  
+**Last Updated:** 2025-12-15  
 **Purpose:** Track progress of project state research across multiple sessions
 
 ---
@@ -26,7 +26,7 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
 | Supabase State | ✅ Complete | 2025-12-14 |
 | Test Infrastructure | ✅ Complete | 2025-12-14 |
 | Documentation | ✅ Complete | 2025-12-14 |
-| Decisions | ⏳ Not Started | - |
+| Decisions | ✅ Complete | 2025-12-15 |
 
 ---
 
@@ -41,7 +41,7 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
 | **Repository** | Single repo: `https://github.com/spac3man-G/amsf001-project-tracker` |
 | **Local Branches** | `main` |
 | **Current Branch** | `main` |
-| **Remote Branches** | main, dependabot/npm_and_yarn/vite-7.2.6 |
+| **Remote Branches** | main only (Dependabot branch cleaned up 2025-12-15) |
 
 ### Checklist
 
@@ -292,7 +292,8 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
 - [x] **5.2** Branch cleanup - **COMPLETED**
   - **Decision:** Delete stale branches, adopt GitHub Flow (simple trunk-based)
   - **Deleted:** `develop`, `feature/cloud-testing-infrastructure`, `test/branching-setup`
-  - **Remaining:** `main` (production), `dependabot/npm_and_yarn/vite-7.2.6` (security PR)
+  - **Remaining:** `main` (production) only
+  - **Update 2025-12-15:** Stale Dependabot branch also cleaned up (PR #2 was closed without merge)
   - **Workflow:** Feature branches from main → PR → merge → delete
 
 - [x] **5.3** Test data seeding - **DEFERRED**
@@ -307,7 +308,23 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
   - **Deleted from Supabase Auth:** uat.admin@, uat.supplier.pm@, uat.customer.pm@, uat.contributor@, uat.viewer@, e2e.test@amsf001.test
   - **Verified:** Production project data intact (8 real team members confirmed)
 
-- [ ] **5.5** Create action plan
+- [x] **5.5** Vite security investigation - **RESOLVED**
+  - **Investigation:** 2025-12-15 - Investigated GitHub Dependabot security alert
+  - **Finding:** Vite 5.4.21 is **fully patched** for all known CVEs:
+    - CVE-2025-30208 (fixed in 5.4.15)
+    - CVE-2025-31125 (fixed in 5.4.16)
+    - CVE-2025-46565 (fixed in 5.4.19)
+  - **npm audit:** Reports 0 vulnerabilities
+  - **Note:** Vulnerabilities only affected dev servers exposed to network (`--host`), not production
+  - **Action:** Cleaned up stale Dependabot branch; no upgrade required
+
+- [x] **5.6** Vite 7 upgrade decision - **DEFERRED (Optional)**
+  - **Context:** Vite 5.x is EOL; Vite 7 is current major version
+  - **Decision:** No immediate action required - current version is secure
+  - **Future option:** Upgrade to Vite 7 when convenient (major version, may have breaking changes)
+  - **Recommendation:** Test thoroughly on feature branch before merging
+
+- [ ] **5.7** Create action plan
   - Next 3 priorities
   - Timeline estimates
 
@@ -322,6 +339,7 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
 | 3 | 2025-12-14 | Phase 2 (complete) | 2.1-2.7 | Verified Supabase state, fixed 2 profile issues, cleaned up duplicate seed data |
 | 4 | 2025-12-14 | Phase 3 (complete) | 3.1-3.7 | Test infra complete: unit 94.8%, E2E 99.6%, 4 CI workflows |
 | 5 | 2025-12-14 | Phase 4 (complete) | 4.1-4.5 | Doc reconciliation: archived 21 files, updated testing status |
+| 6 | 2025-12-15 | Phase 5 (partial) | 5.5, 5.6 | Vite security investigation: confirmed patched, cleaned stale branch |
 
 ---
 
