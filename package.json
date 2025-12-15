@@ -23,6 +23,7 @@
     "e2e:smoke": "playwright test --grep='@smoke|@critical' --project=admin",
     
     "e2e:verify": "node scripts/e2e/verify-test-environment.js",
+    "e2e:prerequisites": "node scripts/e2e/verify-e2e-prerequisites.js",
     "e2e:setup": "node scripts/e2e/setup-test-environment.js",
     "e2e:seed": "node scripts/e2e/seed-test-data.js",
     "e2e:cleanup": "node scripts/e2e/cleanup-test-data.js",

@@ -67,6 +67,7 @@ const Variations = lazy(() => import('./pages/Variations'));
 const VariationDetail = lazy(() => import('./pages/VariationDetail'));
 const VariationForm = lazy(() => import('./pages/VariationForm'));
 const SystemUsers = lazy(() => import('./pages/admin/SystemUsers'));
+const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
 
 /**
  * PageLoader - Shows skeleton while lazy components load
@@ -325,6 +326,11 @@ export default function App() {
                             {/* System Users (admin only - requires global admin role) */}
                             <Route path="/admin/users" element={
                               <ProtectedRoute adminOnly><SystemUsers /></ProtectedRoute>
+                            } />
+                            
+                            {/* Project Management (admin and supplier_pm) */}
+                            <Route path="/admin/projects" element={
+                              <ProtectedRoute><ProjectManagement /></ProtectedRoute>
                             } />
                             
                             {/* Catch all */}

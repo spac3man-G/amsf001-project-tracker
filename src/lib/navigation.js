@@ -224,6 +224,14 @@ export const NAV_ITEMS = {
     label: 'System Users',
     allowedRoles: [ROLES.ADMIN],
     readOnlyRoles: []
+  },
+  projectManagement: {
+    id: 'projectManagement',
+    path: '/admin/projects',
+    icon: Building2,
+    label: 'Projects',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: []
   }
 };
 
@@ -273,7 +281,8 @@ export const ROLE_NAV_ORDER = {
     'settings',
     'auditLog',
     'deletedItems',
-    'systemUsers'
+    'systemUsers',
+    'projectManagement'
   ],
   [ROLES.SUPPLIER_PM]: [
     'workflowSummary',
@@ -295,7 +304,8 @@ export const ROLE_NAV_ORDER = {
     'teamMembers',
     'settings',
     'auditLog',
-    'deletedItems'
+    'deletedItems',
+    'projectManagement'
   ],
   [ROLES.SUPPLIER_FINANCE]: [
     'workflowSummary',
