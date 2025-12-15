@@ -301,8 +301,11 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
   - **Documentation:** Added "When to Seed Test Data" section to AI-PROMPT-Project-Context-v2.md
   - **Action needed:** Run `npm run e2e:seed` when writing timesheet/expense E2E tests
 
-- [ ] **5.4** Legacy test users cleanup
-  - Delete UAT users from Supabase?
+- [x] **5.4** Legacy test users cleanup - **COMPLETED**
+  - **Decision:** Delete legacy UAT users and orphan e2e.test account
+  - **Deleted from profiles/user_projects/resources:** 6 users' linked data
+  - **Deleted from Supabase Auth:** uat.admin@, uat.supplier.pm@, uat.customer.pm@, uat.contributor@, uat.viewer@, e2e.test@amsf001.test
+  - **Verified:** Production project data intact (8 real team members confirmed)
 
 - [ ] **5.5** Create action plan
   - Next 3 priorities
