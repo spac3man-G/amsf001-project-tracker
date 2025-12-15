@@ -350,6 +350,7 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
 | 5 | 2025-12-14 | Phase 4 (complete) | 4.1-4.5 | Doc reconciliation: archived 21 files, updated testing status |
 | 6 | 2025-12-15 | Phase 5 (partial) | 5.5, 5.6 | Vite security investigation: confirmed patched, cleaned stale branch |
 | 7 | 2025-12-15 | Phase 5 (cont) | 5.7 | Multi-tenancy vision documented with user decisions |
+| 8 | 2025-12-15 | E2E Phase 2 | Resources setup | Created 3 resources, user picker, partner dropdown, role dropdown, auto-ref, hid Team Members |
 
 ---
 
