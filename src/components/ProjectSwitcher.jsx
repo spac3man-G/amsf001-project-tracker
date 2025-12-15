@@ -57,51 +57,63 @@ export default function ProjectSwitcher() {
   };
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
+    <div ref={dropdownRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      {/* Label */}
+      <span style={{ 
+        fontSize: '0.75rem', 
+        fontWeight: '500', 
+        color: '#64748b',
+        textTransform: 'uppercase',
+        letterSpacing: '0.025em'
+      }}>
+        Project
+      </span>
+      
       {/* Trigger Button */}
       <button
         data-testid="project-switcher-button"
         onClick={() => setIsOpen(!isOpen)}
+        title={currentProject?.name || 'Select Project'}
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
           padding: '0.5rem 0.75rem',
-          backgroundColor: '#f8fafc',
-          border: '1px solid #e2e8f0',
+          backgroundColor: '#ecfdf5',
+          border: '1px solid #a7f3d0',
           borderRadius: '8px',
           cursor: 'pointer',
           fontSize: '0.875rem',
-          fontWeight: '500',
-          color: '#334155',
+          fontWeight: '600',
+          color: '#047857',
           transition: 'all 0.15s ease',
-          minWidth: '180px',
+          minWidth: '140px',
           justifyContent: 'space-between'
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f1f5f9';
-          e.currentTarget.style.borderColor = '#cbd5e1';
+          e.currentTarget.style.backgroundColor = '#d1fae5';
+          e.currentTarget.style.borderColor = '#6ee7b7';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#f8fafc';
-          e.currentTarget.style.borderColor = '#e2e8f0';
+          e.currentTarget.style.backgroundColor = '#ecfdf5';
+          e.currentTarget.style.borderColor = '#a7f3d0';
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FolderKanban size={16} style={{ color: '#10b981' }} />
           <span style={{ 
-            maxWidth: '120px', 
+            maxWidth: '100px', 
             overflow: 'hidden', 
             textOverflow: 'ellipsis', 
             whiteSpace: 'nowrap' 
           }}>
-            {currentProject?.reference || 'Select Project'}
+            {currentProject?.reference || 'Select'}
           </span>
         </div>
         <ChevronDown 
           size={16} 
           style={{ 
-            color: '#64748b',
+            color: '#10b981',
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
             transition: 'transform 0.15s ease'
           }} 

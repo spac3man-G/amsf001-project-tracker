@@ -490,6 +490,59 @@ export class ResourcesService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Get project users who don't have resource records yet
+   * These are candidates for resource creation (users who need to log time)
+   * Only returns users with roles: contributor, supplier_pm
+   */
+  async getProjectUsersWithoutResources(projectId) {
+    try {
+      // Get all user_projects for this project with eligible roles
+      const { data: userProjects, error: upError } = await supabase
+        .from('user_projects')
+        .select(`
+          user_id,
+          role,
+          user:profiles(id, full_name, email)
+        `)
+        .eq('project_id', projectId)
+        .in('role', ['contributor', 'supplier_pm']);
+
+      if (upError) {
+        console.error('Error fetching user_projects:', upError);
+        throw upError;
+      }
+
+      // Get existing resource user_ids for this project
+      const { data: existingResources, error: rError } = await supabase
+        .from('resources')
+        .select('user_id')
+        .eq('project_id', projectId)
+        .not('user_id', 'is', null)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      if (rError) {
+        console.error('Error fetching existing resources:', rError);
+        throw rError;
+      }
+
+      const existingUserIds = new Set(existingResources?.map(r => r.user_id) || []);
+
+      // Filter to users without resource records
+      return (userProjects || [])
+        .filter(up => up.user && !existingUserIds.has(up.user_id))
+        .map(up => ({
+          user_id: up.user_id,
+          full_name: up.user.full_name,
+          email: up.user.email,
+          project_role: up.role
+        }));
+    } catch (error) {
+      console.error('ResourcesService getProjectUsersWithoutResources error:', error);
+      throw error;
+    }
+  }
 }
 
 // Singleton instance

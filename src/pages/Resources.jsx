@@ -60,6 +60,8 @@ export default function Resources() {
   const [filterType, setFilterType] = useState('all');
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, resource: null, dependents: null });
   const [saving, setSaving] = useState(false);
+  const [eligibleUsers, setEligibleUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [newResource, setNewResource] = useState({
     resource_ref: '', 
     name: '', 
@@ -69,7 +71,8 @@ export default function Resources() {
     sell_price: '', 
     cost_price: '', 
     discount_percent: 0, 
-    resource_type: RESOURCE_TYPE.INTERNAL
+    resource_type: RESOURCE_TYPE.INTERNAL,
+    user_id: null
   });
 
   const fetchData = useCallback(async () => {
@@ -105,18 +108,70 @@ export default function Resources() {
     await fetchData();
   }
 
+  async function handleOpenAddForm() {
+    setShowAddForm(true);
+    setSelectedUserId('');
+    setNewResource({
+      resource_ref: '', 
+      name: '', 
+      email: '', 
+      role: '', 
+      sfia_level: 'L4',
+      sell_price: '', 
+      cost_price: '', 
+      discount_percent: 0, 
+      resource_type: RESOURCE_TYPE.INTERNAL,
+      user_id: null
+    });
+    try {
+      const users = await resourcesService.getProjectUsersWithoutResources(projectId);
+      setEligibleUsers(users);
+    } catch (error) {
+      console.error('Error fetching eligible users:', error);
+      setEligibleUsers([]);
+    }
+  }
+
+  function handleUserSelect(userId) {
+    setSelectedUserId(userId);
+    if (userId) {
+      const user = eligibleUsers.find(u => u.user_id === userId);
+      if (user) {
+        setNewResource(prev => ({
+          ...prev,
+          name: user.full_name || '',
+          email: user.email || '',
+          user_id: userId
+        }));
+      }
+    } else {
+      setNewResource(prev => ({
+        ...prev,
+        name: '',
+        email: '',
+        user_id: null
+      }));
+    }
+  }
+
   async function handleAdd() {
     try {
-      const existingProfile = await resourcesService.getProfileByEmail(newResource.email);
-      if (!existingProfile) {
-        showWarning('This email is not registered. They need to sign up first.');
-        return;
+      let userId = newResource.user_id;
+      
+      // If user wasn't selected from dropdown, look up by email
+      if (!userId && newResource.email) {
+        const existingProfile = await resourcesService.getProfileByEmail(newResource.email);
+        if (!existingProfile) {
+          showWarning('This email is not registered. They need to sign up first.');
+          return;
+        }
+        userId = existingProfile.id;
       }
 
       await resourcesService.create({
         ...newResource,
         project_id: projectId,
-        user_id: existingProfile.id,
+        user_id: userId,
         sfia_level: sfiaToDatabase(newResource.sfia_level),
         sell_price: parseFloat(newResource.sell_price),
         cost_price: newResource.cost_price ? parseFloat(newResource.cost_price) : null,
@@ -135,8 +190,11 @@ export default function Resources() {
         sell_price: '', 
         cost_price: '', 
         discount_percent: 0, 
-        resource_type: RESOURCE_TYPE.INTERNAL 
+        resource_type: RESOURCE_TYPE.INTERNAL,
+        user_id: null
       });
+      setSelectedUserId('');
+      setEligibleUsers([]);
       showSuccess('Resource added!');
     } catch (error) {
       console.error('Error adding resource:', error);
@@ -215,7 +273,7 @@ export default function Resources() {
             {canCreate && (
               <button 
                 className="res-btn res-btn-primary" 
-                onClick={() => setShowAddForm(true)}
+                onClick={handleOpenAddForm}
                 data-testid="add-resource-button"
               >
                 <Plus size={18} /> Add Resource
@@ -229,6 +287,33 @@ export default function Resources() {
         {showAddForm && (
           <div className="res-add-form" data-testid="resources-add-form">
             <h3 className="res-add-form-title">Add New Resource</h3>
+            
+            {/* User Picker - Shows project users without resource records */}
+            {eligibleUsers.length > 0 && (
+              <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#166534', fontSize: '0.875rem' }}>
+                  Quick Add: Select from project users
+                </label>
+                <select
+                  className="res-input"
+                  value={selectedUserId}
+                  onChange={(e) => handleUserSelect(e.target.value)}
+                  data-testid="resource-user-picker"
+                  style={{ width: '100%' }}
+                >
+                  <option value="">-- Select a user to auto-fill --</option>
+                  {eligibleUsers.map(user => (
+                    <option key={user.user_id} value={user.user_id}>
+                      {user.full_name} ({user.email}) - {user.project_role === 'supplier_pm' ? 'Supplier PM' : 'Contributor'}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ fontSize: '0.75rem', color: '#166534', marginTop: '0.375rem', marginBottom: 0 }}>
+                  Or enter details manually below for external users
+                </p>
+              </div>
+            )}
+            
             <div className="res-form-grid">
               <input 
                 className="res-input" 
