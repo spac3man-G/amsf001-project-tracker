@@ -162,7 +162,29 @@ ALTER TABLE resources ALTER COLUMN project_id DROP NOT NULL;
 -- Resources can be:
 -- 1. In the supplier pool (supplier_id set, project_id null) - available for assignment
 -- 2. Assigned to project (supplier_id set, project_id set) - working on specific project
+
+-- Resource types:
+-- 1. Internal (resource_type = 'internal') - linked to user_id, no partner required
+-- 2. Third-party (resource_type = 'third_party') - MUST have partner_id set
 ```
+
+### 2.6.1 Third-Party Resource Rules
+
+**Business Rule:** Third-party resources MUST be associated with a Partner.
+
+```sql
+-- Constraint to enforce partner requirement for third-party resources
+ALTER TABLE resources ADD CONSTRAINT third_party_requires_partner
+  CHECK (
+    resource_type != 'third_party' 
+    OR partner_id IS NOT NULL
+  );
+```
+
+**UI Behavior:**
+- When `resource_type = 'third_party'` is selected, show Partner dropdown
+- If no Partners exist for the supplier, show message: "No partners found. Please create a partner first."
+- Partner selection is required before saving third-party resource
 
 ### 2.7 Rate Card (NEW - Supplier-Scoped)
 
@@ -203,6 +225,53 @@ CREATE TABLE estimates (
   UNIQUE(supplier_id, estimate_ref)
 );
 ```
+
+---
+
+## Part 2B: User + Resource Merge Consideration (Future)
+
+### Current Separation Problem
+
+Currently, internal team members require TWO records:
+1. **User** (`profiles` + `user_projects`) = Login account + app permissions
+2. **Resource** (`resources`) = Billable entity with rates
+
+This creates friction: "Did I create the user AND the resource? Are they linked?"
+
+### Proposed "Team Member" Concept
+
+Merge internal users and resources into a unified model:
+
+```
+Team Member (for internal staff)
+├── Identity: name, email, login credentials
+├── Access: role permissions per project (via assignments)
+├── Billing: sell_price, cost_price, SFIA level (if billable)
+├── Type: internal (employee)
+└── Assignments: which projects they work on + project-specific rates
+```
+
+**Third-party resources remain separate:**
+- They don't log in to the system
+- Linked to a Partner record
+- Just billable entries for tracking costs
+
+### Benefits of Merge
+- Single place to manage people
+- Cleaner onboarding: add person once, assign to projects, set rates
+- No confusion about user/resource linking
+
+### Implementation Notes
+- This is a **Phase 2+** consideration
+- Requires thorough testing of current system first
+- May be implemented as:
+  - Option A: Merge tables (breaking change, requires migration)
+  - Option B: Unified UI that manages both tables behind the scenes
+  - Option C: New "team_members" table that supersedes both
+
+### Decision Status
+- **Deferred** - Complete current E2E testing first
+- Will revisit after multi-tenancy foundation is stable
 
 ---
 
@@ -398,7 +467,16 @@ The Cost Estimation Tool (see `COST-ESTIMATION-TOOL-ANALYSIS.md`) is supplier-sc
 
 ## Part 7: Open Questions (Consolidated)
 
-### Cost Estimation Tool Questions
+### Answered Questions (2025-12-15)
+
+| # | Question | Decision | Rationale |
+|---|----------|----------|-----------|
+| Q12 | Can a user belong to multiple suppliers? | **No** - separate accounts with different email addresses | Keeps model simple; contractors working for multiple suppliers use different logins |
+| Q13 | Can a project have multiple suppliers (joint venture)? | **No** - projects belong to one supplier | Avoids major complexity; joint ventures handled outside system |
+| Q15 | Do customers (Customer PM, Customer Finance) belong to a supplier? | **No** - customers see their specific projects only, not a tenant view | Customers don't need cross-project visibility |
+| Q17 | Do resource rates vary per project? | **Yes** - but supplier has a default rate card by resource type | Flexibility for project-specific negotiations while maintaining defaults |
+
+### Cost Estimation Tool Questions (Still Open)
 
 | # | Question | Impact |
 |---|----------|--------|

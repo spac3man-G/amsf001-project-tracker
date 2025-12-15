@@ -324,7 +324,16 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
   - **Future option:** Upgrade to Vite 7 when convenient (major version, may have breaking changes)
   - **Recommendation:** Test thoroughly on feature branch before merging
 
-- [ ] **5.7** Create action plan
+- [x] **5.7** Multi-tenancy vision documentation - **COMPLETED**
+  - **Decision:** Document vision now, implement after E2E testing complete
+  - **Document:** `docs/MULTI-TENANCY-ROADMAP.md` updated with:
+    - Answered open questions (Q12, Q13, Q15, Q17)
+    - User + Resource merge consideration (deferred)
+    - Third-party resource → Partner requirement
+    - Supplier rate card with per-project overrides
+  - **Next:** Complete E2E testing before implementation
+
+- [ ] **5.8** Create action plan
   - Next 3 priorities
   - Timeline estimates
 
@@ -340,6 +349,7 @@ This document tracks the systematic assessment of the AMSF001 Project Tracker st
 | 4 | 2025-12-14 | Phase 3 (complete) | 3.1-3.7 | Test infra complete: unit 94.8%, E2E 99.6%, 4 CI workflows |
 | 5 | 2025-12-14 | Phase 4 (complete) | 4.1-4.5 | Doc reconciliation: archived 21 files, updated testing status |
 | 6 | 2025-12-15 | Phase 5 (partial) | 5.5, 5.6 | Vite security investigation: confirmed patched, cleaned stale branch |
+| 7 | 2025-12-15 | Phase 5 (cont) | 5.7 | Multi-tenancy vision documented with user decisions |
 
 ---
 
