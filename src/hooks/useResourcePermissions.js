@@ -65,9 +65,9 @@ export function useResourcePermissions(resource = null) {
   
   /**
    * Can the user create new resources?
-   * Admin only.
+   * Admin and Supplier PM can create resources.
    */
-  const canCreate = isAdmin;
+  const canCreate = isAdmin || isSupplierPM;
   
   /**
    * Can the user edit resources?
