@@ -12,8 +12,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { resourcesService, timesheetsService } from '../services';
+import { useNavigate, Link } from 'react-router-dom';
+import { resourcesService, timesheetsService, partnersService } from '../services';
 import { timesheetContributesToSpend, hoursToDays } from '../config/metricsConfig';
 import { 
   Users, Plus, Save, X, Award, RefreshCw
@@ -63,6 +63,7 @@ export default function Resources() {
   const [saving, setSaving] = useState(false);
   const [eligibleUsers, setEligibleUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [partners, setPartners] = useState([]);
   const [newResource, setNewResource] = useState({
     resource_ref: '', 
     name: '', 
@@ -73,7 +74,8 @@ export default function Resources() {
     cost_price: '', 
     discount_percent: 0, 
     resource_type: RESOURCE_TYPE.INTERNAL,
-    user_id: null
+    user_id: null,
+    partner_id: null
   });
 
   const fetchData = useCallback(async () => {
@@ -122,14 +124,20 @@ export default function Resources() {
       cost_price: '', 
       discount_percent: 0, 
       resource_type: RESOURCE_TYPE.INTERNAL,
-      user_id: null
+      user_id: null,
+      partner_id: null
     });
     try {
-      const users = await resourcesService.getProjectUsersWithoutResources(projectId);
+      const [users, partnerList] = await Promise.all([
+        resourcesService.getProjectUsersWithoutResources(projectId),
+        partnersService.getActive(projectId)
+      ]);
       setEligibleUsers(users);
+      setPartners(partnerList || []);
     } catch (error) {
-      console.error('Error fetching eligible users:', error);
+      console.error('Error fetching form data:', error);
       setEligibleUsers([]);
+      setPartners([]);
     }
   }
 
@@ -157,6 +165,12 @@ export default function Resources() {
 
   async function handleAdd() {
     try {
+      // Validate: third-party resources must have a partner
+      if (newResource.resource_type === RESOURCE_TYPE.THIRD_PARTY && !newResource.partner_id) {
+        showWarning('Third-party resources must be associated with a partner.');
+        return;
+      }
+
       let userId = newResource.user_id;
       
       // If user wasn't selected from dropdown, look up by email
@@ -173,6 +187,7 @@ export default function Resources() {
         ...newResource,
         project_id: projectId,
         user_id: userId,
+        partner_id: newResource.resource_type === RESOURCE_TYPE.THIRD_PARTY ? newResource.partner_id : null,
         sfia_level: sfiaToDatabase(newResource.sfia_level),
         sell_price: parseFloat(newResource.sell_price),
         cost_price: newResource.cost_price ? parseFloat(newResource.cost_price) : null,
@@ -192,10 +207,12 @@ export default function Resources() {
         cost_price: '', 
         discount_percent: 0, 
         resource_type: RESOURCE_TYPE.INTERNAL,
-        user_id: null
+        user_id: null,
+        partner_id: null
       });
       setSelectedUserId('');
       setEligibleUsers([]);
+      setPartners([]);
       showSuccess('Resource added!');
     } catch (error) {
       console.error('Error adding resource:', error);
@@ -381,7 +398,7 @@ export default function Resources() {
                 <select 
                   className="res-input" 
                   value={newResource.resource_type} 
-                  onChange={(e) => setNewResource({...newResource, resource_type: e.target.value})}
+                  onChange={(e) => setNewResource({...newResource, resource_type: e.target.value, partner_id: null})}
                   data-testid="resource-type-select"
                 >
                   <option value={RESOURCE_TYPE.INTERNAL}>Internal</option>
@@ -389,6 +406,43 @@ export default function Resources() {
                 </select>
               )}
             </div>
+            
+            {/* Partner Selection - Only shown for Third-Party resources */}
+            {newResource.resource_type === RESOURCE_TYPE.THIRD_PARTY && (
+              <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fef3c7', borderRadius: '8px', border: '1px solid #fcd34d' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#92400e', fontSize: '0.875rem' }}>
+                  Partner (Required for Third-Party Resources)
+                </label>
+                {partners.length > 0 ? (
+                  <select
+                    className="res-input"
+                    value={newResource.partner_id || ''}
+                    onChange={(e) => setNewResource({...newResource, partner_id: e.target.value || null})}
+                    data-testid="resource-partner-select"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">-- Select a Partner --</option>
+                    {partners.map(partner => (
+                      <option key={partner.id} value={partner.id}>
+                        {partner.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div style={{ padding: '0.75rem', backgroundColor: '#fff7ed', borderRadius: '6px', border: '1px solid #fed7aa' }}>
+                    <p style={{ margin: 0, color: '#c2410c', fontSize: '0.875rem' }}>
+                      No partners found for this project.
+                    </p>
+                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: '#9a3412' }}>
+                      <Link to="/partners" style={{ color: '#ea580c', fontWeight: '500' }}>
+                        → Go to Partners page to create one first
+                      </Link>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
             <div className="res-form-actions">
               <button className="res-btn res-btn-primary" onClick={handleAdd} data-testid="resource-save-button">
                 <Save size={16} /> Save
