@@ -71,6 +71,49 @@ export const SFIA_LEVELS = Object.freeze({
 export const DEFAULT_SFIA_LEVEL = 'L4';
 
 // ============================================
+// RESOURCE ROLE CONSTANTS
+// ============================================
+
+/**
+ * Common resource roles for dropdown selection
+ * These are job titles/functional roles on the project
+ */
+export const RESOURCE_ROLES = Object.freeze([
+  'Project Manager',
+  'Delivery Lead',
+  'PMO',
+  'Business Analyst',
+  'Technical Architect',
+  'Solution Architect',
+  'Developer',
+  'Senior Developer',
+  'Lead Developer',
+  'Designer',
+  'UX Designer',
+  'Consultant',
+  'Senior Consultant',
+  'Surveyor',
+  'Lead Surveyor',
+  'Network Specialist',
+  'Infrastructure Engineer',
+  'QA Engineer',
+  'Test Lead',
+  'Data Analyst',
+  'Other'
+]);
+
+/**
+ * Get role options for dropdown
+ * @returns {Array<{value: string, label: string}>}
+ */
+export function getRoleOptions() {
+  return RESOURCE_ROLES.map(role => ({
+    value: role,
+    label: role
+  }));
+}
+
+// ============================================
 // RESOURCE TYPE HELPERS
 // ============================================
 

@@ -29,6 +29,7 @@ import {
   sfiaToDatabase,
   getSfiaCssClass,
   getSfiaOptions,
+  getRoleOptions,
   getResourceTypeConfig,
   calculateMargin,
   getMarginConfig,
@@ -337,13 +338,17 @@ export default function Resources() {
                 onChange={(e) => setNewResource({...newResource, email: e.target.value})}
                 data-testid="resource-email-input"
               />
-              <input 
+              <select 
                 className="res-input" 
-                placeholder="Role" 
                 value={newResource.role} 
                 onChange={(e) => setNewResource({...newResource, role: e.target.value})}
-                data-testid="resource-role-input"
-              />
+                data-testid="resource-role-select"
+              >
+                <option value="">Select Role...</option>
+                {getRoleOptions().map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
               <select 
                 className="res-input" 
                 value={newResource.sfia_level} 
