@@ -257,24 +257,35 @@ export default function ProjectManagement() {
     try {
       setAddingUser(true);
       
-      // Check if user is already assigned
+      // Check if user is already assigned (client-side check)
       const existing = projectUsers.find(pu => pu.user_id === selectedUserId);
       if (existing) {
         showWarning('User is already assigned to this project');
         return;
       }
       
-      const { error } = await supabase
-        .from('user_projects')
-        .insert({
-          user_id: selectedUserId,
-          project_id: selectedProject.id,
+      // Use API endpoint to bypass RLS
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch('/api/manage-project-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'add',
+          userId: selectedUserId,
+          projectId: selectedProject.id,
           role: selectedRole,
-          is_default: false,
-          created_at: new Date().toISOString(),
-        });
+          adminToken: session?.access_token,
+        }),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add user');
+      }
 
       await fetchProjectUsers(selectedProject.id);
       await fetchData(); // Refresh counts
@@ -297,12 +308,26 @@ export default function ProjectManagement() {
     if (!assignment) return;
 
     try {
-      const { error } = await supabase
-        .from('user_projects')
-        .delete()
-        .eq('id', assignment.id);
+      // Use API endpoint to bypass RLS
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch('/api/manage-project-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'remove',
+          assignmentId: assignment.id,
+          adminToken: session?.access_token,
+        }),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to remove user');
+      }
 
       await fetchProjectUsers(selectedProject.id);
       await fetchData();
@@ -318,19 +343,34 @@ export default function ProjectManagement() {
 
   async function handleRoleChange(assignmentId, newRole) {
     try {
-      const { error } = await supabase
-        .from('user_projects')
-        .update({ role: newRole })
-        .eq('id', assignmentId);
+      // Use API endpoint to bypass RLS
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch('/api/manage-project-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update_role',
+          assignmentId: assignmentId,
+          role: newRole,
+          adminToken: session?.access_token,
+        }),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update role');
+      }
 
       await fetchProjectUsers(selectedProject.id);
       showSuccess('Role updated');
       
     } catch (error) {
       console.error('Error updating role:', error);
-      showError('Failed to update role');
+      showError('Failed to update role: ' + error.message);
     }
   }
 
