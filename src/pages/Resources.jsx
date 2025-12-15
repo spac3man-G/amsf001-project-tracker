@@ -72,7 +72,6 @@ export default function Resources() {
     sfia_level: 'L4',
     sell_price: '', 
     cost_price: '', 
-    discount_percent: 0, 
     resource_type: RESOURCE_TYPE.INTERNAL,
     user_id: null,
     partner_id: null
@@ -122,7 +121,6 @@ export default function Resources() {
       sfia_level: 'L4',
       sell_price: '', 
       cost_price: '', 
-      discount_percent: 0, 
       resource_type: RESOURCE_TYPE.INTERNAL,
       user_id: null,
       partner_id: null
@@ -184,14 +182,17 @@ export default function Resources() {
       }
 
       await resourcesService.create({
-        ...newResource,
+        resource_ref: newResource.resource_ref,
+        name: newResource.name,
+        email: newResource.email,
+        role: newResource.role,
         project_id: projectId,
         user_id: userId,
         partner_id: newResource.resource_type === RESOURCE_TYPE.THIRD_PARTY ? newResource.partner_id : null,
+        resource_type: newResource.resource_type,
         sfia_level: sfiaToDatabase(newResource.sfia_level),
-        sell_price: parseFloat(newResource.sell_price),
+        sell_price: parseFloat(newResource.sell_price) || 0,
         cost_price: newResource.cost_price ? parseFloat(newResource.cost_price) : null,
-        discount_percent: parseFloat(newResource.discount_percent) || 0,
         created_by: currentUserId
       });
 
@@ -205,7 +206,6 @@ export default function Resources() {
         sfia_level: 'L4', 
         sell_price: '', 
         cost_price: '', 
-        discount_percent: 0, 
         resource_type: RESOURCE_TYPE.INTERNAL,
         user_id: null,
         partner_id: null
