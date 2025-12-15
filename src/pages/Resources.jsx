@@ -181,8 +181,15 @@ export default function Resources() {
         userId = existingProfile.id;
       }
 
+      // Auto-generate resource_ref if not provided
+      let resourceRef = newResource.resource_ref?.trim();
+      if (!resourceRef) {
+        const nextNum = resources.length + 1;
+        resourceRef = `R${String(nextNum).padStart(3, '0')}`;
+      }
+
       await resourcesService.create({
-        resource_ref: newResource.resource_ref,
+        resource_ref: resourceRef,
         name: newResource.name,
         email: newResource.email,
         role: newResource.role,
@@ -335,7 +342,7 @@ export default function Resources() {
             <div className="res-form-grid">
               <input 
                 className="res-input" 
-                placeholder="Reference" 
+                placeholder="Reference (auto-generated if empty)" 
                 value={newResource.resource_ref} 
                 onChange={(e) => setNewResource({...newResource, resource_ref: e.target.value})}
                 data-testid="resource-ref-input"
