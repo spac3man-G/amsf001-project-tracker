@@ -614,70 +614,89 @@ export default function ProjectManagement() {
                             gap: '12px'
                           }}
                         >
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ flex: '1 1 auto', minWidth: 0, marginRight: '12px' }}>
                             <div style={{ 
                               fontWeight: '500', 
                               color: '#1e293b',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '6px'
+                              gap: '6px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
                             }}>
-                              {pu.full_name || pu.email}
+                              {pu.full_name || pu.email.split('@')[0]}
                               {isCurrentUser && (
                                 <span style={{
                                   fontSize: '0.65rem',
                                   padding: '2px 6px',
                                   background: '#dbeafe',
                                   color: '#2563eb',
-                                  borderRadius: '4px'
+                                  borderRadius: '4px',
+                                  flexShrink: 0
                                 }}>
                                   you
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                            <div style={{ 
+                              fontSize: '0.75rem', 
+                              color: '#94a3b8',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
                               {pu.email}
                             </div>
                           </div>
                           
-                          <select
-                            value={pu.role}
-                            onChange={(e) => handleRoleChange(pu.id, e.target.value)}
-                            disabled={isCurrentUser}
-                            style={{
-                              padding: '6px 10px',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: '500',
-                              background: roleConfig.bg,
-                              color: roleConfig.color,
-                              cursor: isCurrentUser ? 'not-allowed' : 'pointer'
-                            }}
-                            data-testid={`user-role-select-${pu.user_id}`}
-                          >
-                            {ROLE_OPTIONS.map(role => (
-                              <option key={role.value} value={role.value}>
-                                {role.label}
-                              </option>
-                            ))}
-                          </select>
-                          
-                          <button
-                            onClick={() => setRemoveDialog({ isOpen: true, assignment: pu })}
-                            disabled={isCurrentUser}
-                            title={isCurrentUser ? "Can't remove yourself" : 'Remove from project'}
-                            style={{
-                              padding: '6px',
-                              background: 'transparent',
-                              border: 'none',
-                              cursor: isCurrentUser ? 'not-allowed' : 'pointer',
-                              color: isCurrentUser ? '#cbd5e1' : '#ef4444',
-                              opacity: isCurrentUser ? 0.5 : 1
-                            }}
-                          >
-                            <UserMinus size={16} />
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                            <select
+                              value={pu.role}
+                              onChange={(e) => handleRoleChange(pu.id, e.target.value)}
+                              disabled={isCurrentUser}
+                              style={{
+                                padding: '6px 8px',
+                                paddingRight: '24px',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                fontSize: '0.7rem',
+                                fontWeight: '500',
+                                background: roleConfig.bg,
+                                color: roleConfig.color,
+                                cursor: isCurrentUser ? 'not-allowed' : 'pointer',
+                                width: '120px',
+                                appearance: 'none',
+                                backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                                backgroundPosition: 'right 4px center',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundSize: '16px'
+                              }}
+                              data-testid={`user-role-select-${pu.user_id}`}
+                            >
+                              {ROLE_OPTIONS.map(role => (
+                                <option key={role.value} value={role.value}>
+                                  {role.label}
+                                </option>
+                              ))}
+                            </select>
+                            
+                            <button
+                              onClick={() => setRemoveDialog({ isOpen: true, assignment: pu })}
+                              disabled={isCurrentUser}
+                              title={isCurrentUser ? "Can't remove yourself" : 'Remove from project'}
+                              style={{
+                                padding: '6px',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: isCurrentUser ? 'not-allowed' : 'pointer',
+                                color: isCurrentUser ? '#cbd5e1' : '#ef4444',
+                                opacity: isCurrentUser ? 0.5 : 1
+                              }}
+                            >
+                              <UserMinus size={16} />
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
