@@ -222,7 +222,7 @@ export class DeliverablesService extends BaseService {
         .from('deliverables')
         .select(`
           *,
-          milestones(milestone_ref, name),
+          milestones(milestone_ref, name, forecast_end_date, end_date),
           deliverable_kpis(kpi_id, kpis(kpi_ref, name)),
           deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name))
         `)
