@@ -399,11 +399,11 @@ test.describe('Resources @resources', () => {
     });
   });
 
-  // SUPPLIER_SIDE (non-admin) can view cost columns but NOT create resources
-  // This matches actual app behavior where resources.create is admin-only
+  // SUPPLIER_SIDE (non-admin) can view cost columns
+  // supplier_pm CAN create resources, supplier_finance cannot
   test.describe('Supplier Side Cost Visibility (Non-Admin)', () => {
     
-    test('supplier_pm can see Cost Rate column but not Add button @supplier_pm', async ({ browser }) => {
+    test('supplier_pm can see Cost Rate column and Add button @supplier_pm', async ({ browser }) => {
       const context = await browser.newContext({ storageState: AUTH_PATHS.supplier_pm });
       const page = await context.newPage();
       await waitForResourcesPermissions(page);
@@ -412,8 +412,8 @@ test.describe('Resources @resources', () => {
       // Supplier PM CAN see cost columns (SUPPLIER_SIDE access)
       await expectVisible(page, 'resources-cost-rate-header');
       await expectVisible(page, 'resources-margin-header');
-      // But CANNOT add resources (admin-only in actual app)
-      await expectNotVisible(page, 'add-resource-button');
+      // Supplier PM CAN add resources
+      await expectVisible(page, 'add-resource-button');
       
       await context.close();
     });
