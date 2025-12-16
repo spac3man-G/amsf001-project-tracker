@@ -4,12 +4,12 @@
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
  * Click on any deliverable to view details and perform workflow actions.
  * 
- * @version 3.3 - Added data-testid attributes for E2E testing
- * @updated 6 December 2025
+ * @version 3.4 - Added highlight query param support for deep-linking to deliverable detail
+ * @updated 16 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService } from '../services';
 import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle } from 'lucide-react';
 import { 
@@ -48,6 +48,7 @@ const renderQSItem = (qs) => (
 export default function Deliverables() {
   const { user } = useAuth();
   const { projectId } = useProject();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { showSuccess, showError, showWarning } = useToast();
   const { showTestUsers } = useTestUsers();
   const currentUserId = user?.id || null;
@@ -65,7 +66,7 @@ export default function Deliverables() {
   const [completingDeliverable, setCompletingDeliverable] = useState(null);
   const [kpiAssessments, setKpiAssessments] = useState({});
   const [qsAssessments, setQsAssessments] = useState({});
-  const [filterMilestone, setFilterMilestone] = useState('');
+  const [filterMilestone, setFilterMilestone] = useState('all');
   const [filterStatus, setFilterStatus] = useState('');
   const [showAwaitingReview, setShowAwaitingReview] = useState(false);
 
@@ -97,6 +98,19 @@ export default function Deliverables() {
   }, [projectId, showTestUsers, showError]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Handle highlight query parameter - opens detail modal for the specified deliverable
+  useEffect(() => {
+    const highlightId = searchParams.get('highlight');
+    if (highlightId && deliverables.length > 0 && !loading) {
+      const deliverableToOpen = deliverables.find(d => d.id === highlightId);
+      if (deliverableToOpen) {
+        setDetailModal({ isOpen: true, deliverable: deliverableToOpen });
+        // Clear the highlight param from URL to prevent re-opening on refresh
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, deliverables, loading, setSearchParams]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -236,7 +250,7 @@ export default function Deliverables() {
   }
 
   let filteredDeliverables = deliverables;
-  if (filterMilestone) filteredDeliverables = filteredDeliverables.filter(d => d.milestone_id === filterMilestone);
+  if (filterMilestone && filterMilestone !== 'all') filteredDeliverables = filteredDeliverables.filter(d => d.milestone_id === filterMilestone);
   if (filterStatus) filteredDeliverables = filteredDeliverables.filter(d => d.status === filterStatus);
   if (showAwaitingReview) filteredDeliverables = filteredDeliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW);
 
@@ -291,7 +305,7 @@ export default function Deliverables() {
             className="del-filter-select"
             data-testid="deliverables-filter-milestone"
           >
-            <option value="">All Milestones</option>
+            <option value="all">All Milestones</option>
             {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
           </select>
           <select 

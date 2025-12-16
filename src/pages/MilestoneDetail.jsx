@@ -8,8 +8,8 @@
  * - Baseline commitment workflow (dual signature)
  * - Acceptance certificate workflow (dual signature)
  * 
- * @version 4.0 - Refactored to use shared utilities
- * @updated 5 December 2025
+ * @version 4.1 - Fixed deliverable click navigation to use highlight param
+ * @updated 16 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -321,7 +321,7 @@ export default function MilestoneDetail() {
   // Not found state
   if (!milestone) {
     return (
-      <div className="milestone-detail-page">
+      <div className="milestone-detail-page" data-testid="milestone-detail-page">
         <div className="milestone-not-found">
           <AlertCircle size={48} />
           <h2>Milestone Not Found</h2>
@@ -357,21 +357,21 @@ export default function MilestoneDetail() {
     <div className="milestone-detail-page">
       {/* Header */}
       <header className="milestone-header">
-        <button className="back-button" onClick={() => navigate('/milestones')}>
+        <button className="back-button" onClick={() => navigate('/milestones')} data-testid="milestone-back-button">
           <ArrowLeft size={20} />
         </button>
         <div className="milestone-title-block">
           <div className="milestone-ref-row">
-            <span className="milestone-ref">{milestone.milestone_ref}</span>
-            <span className={`milestone-status ${getStatusCssClass(computedStatus)}`}>
+            <span className="milestone-ref" data-testid="milestone-detail-ref">{milestone.milestone_ref}</span>
+            <span className={`milestone-status ${getStatusCssClass(computedStatus)}`} data-testid="milestone-detail-status">
               {computedStatus}
             </span>
           </div>
-          <h1 className="milestone-name">{milestone.name}</h1>
+          <h1 className="milestone-name" data-testid="milestone-detail-name">{milestone.name}</h1>
         </div>
         <div className="header-actions">
           {canEdit && (
-            <button className="edit-button" onClick={openEditModal}>
+            <button className="edit-button" onClick={openEditModal} data-testid="milestone-edit-button">
               <Edit2 size={18} />
               Edit
             </button>
@@ -380,6 +380,7 @@ export default function MilestoneDetail() {
             className="refresh-button"
             onClick={() => fetchMilestoneData(true)}
             disabled={refreshing}
+            data-testid="milestone-refresh-button"
           >
             <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
           </button>
@@ -387,10 +388,10 @@ export default function MilestoneDetail() {
       </header>
 
       {/* Content */}
-      <div className="milestone-content">
+      <div className="milestone-content" data-testid="milestone-detail-content">
         
         {/* Key Metrics Row */}
-        <div className="metrics-grid">
+        <div className="metrics-grid" data-testid="milestone-metrics-grid">
           {/* Progress Card */}
           <div className="metric-card">
             <div className="metric-header">
@@ -398,7 +399,7 @@ export default function MilestoneDetail() {
               <span>Progress</span>
             </div>
             <div className="metric-value progress-value">
-              <span className="progress-percent">{progress}%</span>
+              <span className="progress-percent" data-testid="milestone-progress-percent">{progress}%</span>
               <span className="progress-detail">{deliveredCount} of {totalDeliverables} deliverables</span>
             </div>
             <div className="progress-bar">
@@ -431,7 +432,7 @@ export default function MilestoneDetail() {
         </div>
 
         {/* Schedule Section */}
-        <div className="section-card">
+        <div className="section-card" data-testid="milestone-schedule-section">
           <h3 className="section-title">
             <Calendar size={18} />
             Schedule
@@ -486,7 +487,7 @@ export default function MilestoneDetail() {
         </div>
 
         {/* Deliverables Section */}
-        <div className="section-card">
+        <div className="section-card" data-testid="milestone-deliverables-section">
           <div className="section-header">
             <h3 className="section-title">
               <Package size={18} />
@@ -512,7 +513,8 @@ export default function MilestoneDetail() {
                 <div 
                   key={del.id} 
                   className="deliverable-item"
-                  onClick={() => navigate(`/deliverables/${del.id}`)}
+                  onClick={() => navigate(`/deliverables?highlight=${del.id}`)}
+                  data-testid={`deliverable-item-${del.deliverable_ref}`}
                 >
                   <div className="deliverable-main">
                     <span className="deliverable-ref">{del.deliverable_ref}</span>
@@ -534,13 +536,13 @@ export default function MilestoneDetail() {
         </div>
 
         {/* Baseline Commitment Section */}
-        <div className="section-card baseline-section">
+        <div className="section-card baseline-section" data-testid="milestone-baseline-section">
           <div className="section-header">
             <h3 className="section-title">
               {baselineLocked ? <Lock size={18} /> : <Unlock size={18} />}
               Baseline Commitment
             </h3>
-            <span className={`baseline-status-badge ${getBaselineStatusCssClass(baselineStatus)}`}>
+            <span className={`baseline-status-badge ${getBaselineStatusCssClass(baselineStatus)}`} data-testid="milestone-baseline-status">
               {baselineStatus}
             </span>
           </div>
@@ -580,7 +582,7 @@ export default function MilestoneDetail() {
 
           {canResetBaseline && (
             <div className="admin-actions">
-              <button className="reset-button" onClick={handleResetBaselineClick} disabled={saving}>
+              <button className="reset-button" onClick={handleResetBaselineClick} disabled={saving} data-testid="milestone-reset-baseline-button">
                 <Unlock size={16} />
                 {saving ? 'Resetting...' : 'Reset Baseline Lock'}
               </button>
@@ -596,14 +598,14 @@ export default function MilestoneDetail() {
         </div>
 
         {/* Acceptance Certificate Section */}
-        <div className="section-card certificate-section">
+        <div className="section-card certificate-section" data-testid="milestone-certificate-section">
           <div className="section-header">
             <h3 className="section-title">
               <Award size={18} />
               Acceptance Certificate
             </h3>
             {certificate && certStatusInfo && (
-              <span className={`cert-status-badge ${certStatusInfo.cssClass}`}>
+              <span className={`cert-status-badge ${certStatusInfo.cssClass}`} data-testid="milestone-certificate-status">
                 {isCertFullySigned && <CheckCircle size={14} />}
                 {certStatusInfo.label}
               </span>
@@ -633,7 +635,7 @@ export default function MilestoneDetail() {
                     All deliverables have been delivered. Ready to generate certificate.
                   </p>
                   {canGenerate && (
-                    <button className="generate-cert-button" onClick={handleGenerateCertificateClick} disabled={saving}>
+                    <button className="generate-cert-button" onClick={handleGenerateCertificateClick} disabled={saving} data-testid="milestone-generate-certificate-button">
                       <Award size={18} />
                       {saving ? 'Generating...' : 'Generate Certificate'}
                     </button>
@@ -714,16 +716,16 @@ export default function MilestoneDetail() {
       {/* Edit Modal */}
       {showEditModal && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content edit-modal" onClick={e => e.stopPropagation()}>
+          <div className="modal-content edit-modal" onClick={e => e.stopPropagation()} data-testid="milestone-edit-modal">
             <div className="modal-header">
               <h2>Edit Milestone</h2>
-              <button className="modal-close" onClick={() => setShowEditModal(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowEditModal(false)} data-testid="milestone-edit-modal-close">×</button>
             </div>
 
             <div className="modal-body">
               <div className="form-group">
                 <label>Name</label>
-                <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+                <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} data-testid="milestone-edit-name-input" />
               </div>
 
               <div className="form-group">
@@ -785,8 +787,8 @@ export default function MilestoneDetail() {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
-              <button className="btn-primary" onClick={handleSaveEdit} disabled={saving}>
+              <button className="btn-secondary" onClick={() => setShowEditModal(false)} data-testid="milestone-edit-cancel-button">Cancel</button>
+              <button className="btn-primary" onClick={handleSaveEdit} disabled={saving} data-testid="milestone-edit-save-button">
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
