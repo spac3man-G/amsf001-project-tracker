@@ -9,9 +9,9 @@
  *   // Or import the base class for custom services
  *   import { BaseService } from '../services';
  * 
- * @version 2.3
- * @updated 11 December 2025
- * @phase Phase 1 - Stabilisation
+ * @version 2.4
+ * @updated 16 December 2025
+ * @phase Workflow System Enhancement
  */
 
 // Base class for extending
@@ -99,3 +99,11 @@ export {
   reportRendererService,
   ReportRendererService
 } from './reportRenderer.service';
+
+// Workflow (centralised pending items across all entities)
+export {
+  workflowService,
+  WorkflowService,
+  WORKFLOW_CATEGORIES,
+  ROLES as WORKFLOW_ROLES
+} from './workflow.service';
