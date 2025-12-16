@@ -376,6 +376,34 @@
   padding-right: 24px;
 }
 
+/* Sortable Column Headers */
+.ms-table th.ms-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--ds-transition);
+}
+
+.ms-table th.ms-sortable:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--ds-teal);
+}
+
+.ms-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.ms-sort-icon.inactive {
+  opacity: 0.3;
+}
+
+.ms-sort-icon.active {
+  opacity: 1;
+  color: var(--ds-teal);
+}
+
 .ms-table tbody tr {
   cursor: pointer;
   transition: background var(--ds-transition);

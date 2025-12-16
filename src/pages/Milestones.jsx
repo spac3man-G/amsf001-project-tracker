@@ -5,13 +5,14 @@
  * - Milestone CRUD operations
  * - Status/progress calculation from deliverables
  * - Acceptance certificate workflow
+ * - Sortable columns
  * 
- * @version 4.2 - Added Baseline column showing sign-off status
+ * @version 4.3 - Added sortable columns
  * @refactored 5 December 2025
  * @updated 16 December 2025
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { milestonesService, deliverablesService } from '../services';
 import { supabase } from '../lib/supabase';
@@ -21,7 +22,9 @@ import {
   RefreshCw, 
   Award,
   FileCheck,
-  Info
+  Info,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -65,6 +68,10 @@ export default function Milestones() {
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, milestone: null });
   const [saving, setSaving] = useState(false);
+
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState('milestone_ref');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   const emptyForm = {
     milestone_ref: '', name: '', description: '',
@@ -301,7 +308,6 @@ export default function Milestones() {
     }
 
     try {
-      // Use the service method for signing
       await milestonesService.signCertificate(
         selectedCertificate.id, 
         signatureType, 
@@ -311,7 +317,6 @@ export default function Milestones() {
 
       await fetchCertificates();
       
-      // Refresh the modal certificate data
       const updatedCert = await milestonesService.getCertificateByMilestoneId(selectedCertificate.milestone.id);
       if (updatedCert) {
         setSelectedCertificate({ 
@@ -328,6 +333,28 @@ export default function Milestones() {
     }
   }
 
+  // Handle column sort
+  function handleSort(column) {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  }
+
+  // Render sort indicator
+  function SortIndicator({ column }) {
+    if (sortColumn !== column) {
+      return <span className="ms-sort-icon inactive"><ChevronUp size={14} /></span>;
+    }
+    return (
+      <span className="ms-sort-icon active">
+        {sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </span>
+    );
+  }
+
   const canEdit = canEditMilestone;
 
   if (loading) return <LoadingSpinner message="Loading milestones..." size="large" fullPage />;
@@ -338,6 +365,69 @@ export default function Milestones() {
     computedStatus: calculateMilestoneStatus(milestoneDeliverables[m.id]),
     computedProgress: calculateMilestoneProgress(milestoneDeliverables[m.id])
   }));
+
+  // Sort milestones
+  const sortedMilestones = useMemo(() => {
+    const sorted = [...milestonesWithStatus];
+    
+    sorted.sort((a, b) => {
+      let aVal, bVal;
+      
+      switch (sortColumn) {
+        case 'milestone_ref':
+          aVal = a.milestone_ref || '';
+          bVal = b.milestone_ref || '';
+          break;
+        case 'name':
+          aVal = a.name || '';
+          bVal = b.name || '';
+          break;
+        case 'baseline':
+          // Sort by baseline agreed status
+          const aBaseline = getBaselineAgreedDisplay(a);
+          const bBaseline = getBaselineAgreedDisplay(b);
+          aVal = aBaseline.text;
+          bVal = bBaseline.text;
+          break;
+        case 'status':
+          aVal = a.computedStatus || '';
+          bVal = b.computedStatus || '';
+          break;
+        case 'progress':
+          aVal = a.computedProgress || 0;
+          bVal = b.computedProgress || 0;
+          break;
+        case 'forecast_end':
+          aVal = a.forecast_end_date || a.end_date || '';
+          bVal = b.forecast_end_date || b.end_date || '';
+          break;
+        case 'billable':
+          aVal = a.billable || 0;
+          bVal = b.billable || 0;
+          break;
+        case 'certificate':
+          const aCert = certificates[a.id];
+          const bCert = certificates[b.id];
+          aVal = aCert ? aCert.status : (a.computedStatus === 'Completed' ? 'Ready' : 'Not ready');
+          bVal = bCert ? bCert.status : (b.computedStatus === 'Completed' ? 'Ready' : 'Not ready');
+          break;
+        default:
+          aVal = a.milestone_ref || '';
+          bVal = b.milestone_ref || '';
+      }
+      
+      // Handle numeric vs string comparison
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      // String comparison
+      const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    return sorted;
+  }, [milestonesWithStatus, sortColumn, sortDirection, certificates]);
 
   return (
     <div className="milestones-page" data-testid="milestones-page">
@@ -407,18 +497,34 @@ export default function Milestones() {
             <table className="ms-table" data-testid="milestones-table">
               <thead>
                 <tr>
-                  <th>Ref</th>
-                  <th>Name</th>
-                  <th>Baseline</th>
-                  <th>Status</th>
-                  <th>Progress</th>
-                  <th>Forecast End</th>
-                  <th>Billable</th>
-                  <th>Certificate</th>
+                  <th className="ms-sortable" onClick={() => handleSort('milestone_ref')}>
+                    Ref <SortIndicator column="milestone_ref" />
+                  </th>
+                  <th className="ms-sortable" onClick={() => handleSort('name')}>
+                    Name <SortIndicator column="name" />
+                  </th>
+                  <th className="ms-sortable" onClick={() => handleSort('baseline')}>
+                    Baseline <SortIndicator column="baseline" />
+                  </th>
+                  <th className="ms-sortable" onClick={() => handleSort('status')}>
+                    Status <SortIndicator column="status" />
+                  </th>
+                  <th className="ms-sortable" onClick={() => handleSort('progress')}>
+                    Progress <SortIndicator column="progress" />
+                  </th>
+                  <th className="ms-sortable" onClick={() => handleSort('forecast_end')}>
+                    Forecast End <SortIndicator column="forecast_end" />
+                  </th>
+                  <th className="ms-sortable" onClick={() => handleSort('billable')}>
+                    Billable <SortIndicator column="billable" />
+                  </th>
+                  <th className="ms-sortable" onClick={() => handleSort('certificate')}>
+                    Certificate <SortIndicator column="certificate" />
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {milestonesWithStatus.map(milestone => {
+                {sortedMilestones.map(milestone => {
                   const cert = certificates[milestone.id];
                   const deliverableCount = milestoneDeliverables[milestone.id]?.length || 0;
                   const statusCssClass = getStatusCssClass(milestone.computedStatus);

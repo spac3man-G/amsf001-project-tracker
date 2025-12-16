@@ -94,8 +94,8 @@ export const NAV_ITEMS = {
     path: '/milestones',
     icon: Milestone,
     label: 'Milestones',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER]
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    readOnlyRoles: [ROLES.VIEWER, ROLES.CONTRIBUTOR]
   },
   deliverables: {
     id: 'deliverables',
@@ -341,6 +341,7 @@ export const ROLE_NAV_ORDER = {
     'calendar',
     'timesheets',
     'expenses',
+    'milestones',
     'deliverables'
   ],
   [ROLES.VIEWER]: [

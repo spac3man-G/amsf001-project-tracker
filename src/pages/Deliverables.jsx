@@ -4,14 +4,14 @@
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
  * Click on any deliverable to view details and perform workflow actions.
  * 
- * @version 3.4 - Added highlight query param support for deep-linking to deliverable detail
+ * @version 3.5 - Added sortable columns
  * @updated 16 December 2025
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService } from '../services';
-import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle } from 'lucide-react';
+import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { 
   DELIVERABLE_STATUS,
   DELIVERABLE_STATUS_CONFIG,
@@ -27,8 +27,6 @@ import { LoadingSpinner, PageHeader, ConfirmDialog, MultiSelectList } from '../c
 import { formatDate } from '../lib/formatters';
 import { DeliverableDetailModal } from '../components/deliverables';
 import './Deliverables.css';
-
-// Status options and colors now imported from deliverableCalculations.js
 
 // Render functions for MultiSelectList items
 const renderKPIItem = (kpi) => (
@@ -70,6 +68,10 @@ export default function Deliverables() {
   const [filterStatus, setFilterStatus] = useState('');
   const [showAwaitingReview, setShowAwaitingReview] = useState(false);
 
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState('deliverable_ref');
+  const [sortDirection, setSortDirection] = useState('asc');
+
   // Detail modal state
   const [detailModal, setDetailModal] = useState({ isOpen: false, deliverable: null });
 
@@ -106,7 +108,6 @@ export default function Deliverables() {
       const deliverableToOpen = deliverables.find(d => d.id === highlightId);
       if (deliverableToOpen) {
         setDetailModal({ isOpen: true, deliverable: deliverableToOpen });
-        // Clear the highlight param from URL to prevent re-opening on refresh
         setSearchParams({}, { replace: true });
       }
     }
@@ -148,8 +149,6 @@ export default function Deliverables() {
         progress: parseInt(editForm.progress) || 0
       });
 
-      // Only sync KPI/QS links if user is Admin or Supplier PM
-      // Contributors can't modify these junction tables due to RLS policies
       const canEditLinks = hasRole(['admin', 'supplier_pm']);
       if (canEditLinks && editForm.kpi_ids !== undefined) {
         await deliverablesService.syncKPILinks(id, editForm.kpi_ids);
@@ -249,10 +248,79 @@ export default function Deliverables() {
     setDetailModal({ isOpen: true, deliverable: d });
   }
 
+  // Handle column sort
+  function handleSort(column) {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  }
+
+  // Render sort indicator
+  function SortIndicator({ column }) {
+    if (sortColumn !== column) {
+      return <span className="del-sort-icon inactive"><ChevronUp size={14} /></span>;
+    }
+    return (
+      <span className="del-sort-icon active">
+        {sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </span>
+    );
+  }
+
+  // Filter deliverables
   let filteredDeliverables = deliverables;
   if (filterMilestone && filterMilestone !== 'all') filteredDeliverables = filteredDeliverables.filter(d => d.milestone_id === filterMilestone);
   if (filterStatus) filteredDeliverables = filteredDeliverables.filter(d => d.status === filterStatus);
   if (showAwaitingReview) filteredDeliverables = filteredDeliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW);
+
+  // Sort deliverables
+  const sortedDeliverables = useMemo(() => {
+    const sorted = [...filteredDeliverables];
+    
+    sorted.sort((a, b) => {
+      let aVal, bVal;
+      
+      switch (sortColumn) {
+        case 'deliverable_ref':
+          aVal = a.deliverable_ref || '';
+          bVal = b.deliverable_ref || '';
+          break;
+        case 'name':
+          aVal = a.name || '';
+          bVal = b.name || '';
+          break;
+        case 'milestone':
+          aVal = a.milestones?.milestone_ref || '';
+          bVal = b.milestones?.milestone_ref || '';
+          break;
+        case 'status':
+          aVal = a.status || '';
+          bVal = b.status || '';
+          break;
+        case 'progress':
+          aVal = a.progress || 0;
+          bVal = b.progress || 0;
+          break;
+        default:
+          aVal = a.deliverable_ref || '';
+          bVal = b.deliverable_ref || '';
+      }
+      
+      // Handle numeric vs string comparison
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      // String comparison
+      const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    return sorted;
+  }, [filteredDeliverables, sortColumn, sortDirection]);
 
   const submittedForReview = deliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW).length;
   const canEdit = canEditDeliverable;
@@ -415,28 +483,38 @@ export default function Deliverables() {
           <div className="del-table-header">
             <h2 className="del-table-title">Project Deliverables</h2>
             <span className="del-table-count" data-testid="deliverables-count">
-              {filteredDeliverables.length} deliverable{filteredDeliverables.length !== 1 ? 's' : ''}
+              {sortedDeliverables.length} deliverable{sortedDeliverables.length !== 1 ? 's' : ''}
             </span>
           </div>
           
           <table className="del-table" data-testid="deliverables-table">
             <thead>
               <tr>
-                <th>Ref</th>
-                <th>Name</th>
-                <th>Milestone</th>
-                <th>Status</th>
-                <th>Progress</th>
+                <th className="del-sortable" onClick={() => handleSort('deliverable_ref')}>
+                  Ref <SortIndicator column="deliverable_ref" />
+                </th>
+                <th className="del-sortable" onClick={() => handleSort('name')}>
+                  Name <SortIndicator column="name" />
+                </th>
+                <th className="del-sortable" onClick={() => handleSort('milestone')}>
+                  Milestone <SortIndicator column="milestone" />
+                </th>
+                <th className="del-sortable" onClick={() => handleSort('status')}>
+                  Status <SortIndicator column="status" />
+                </th>
+                <th className="del-sortable" onClick={() => handleSort('progress')}>
+                  Progress <SortIndicator column="progress" />
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filteredDeliverables.length === 0 ? (
+              {sortedDeliverables.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="del-empty-cell" data-testid="deliverables-empty-state">
                     No deliverables found
                   </td>
                 </tr>
-              ) : filteredDeliverables.map(d => {
+              ) : sortedDeliverables.map(d => {
                 const statusInfo = DELIVERABLE_STATUS_CONFIG[d.status] || DELIVERABLE_STATUS_CONFIG[DELIVERABLE_STATUS.NOT_STARTED];
                 const StatusIcon = statusInfo.icon;
                 return (
