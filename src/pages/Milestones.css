@@ -476,6 +476,31 @@
   background: currentColor;
 }
 
+/* Baseline Badge */
+.ms-baseline-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ms-baseline-badge.baseline-agreed {
+  background: var(--ds-green-light);
+  color: var(--ds-green);
+}
+
+.ms-baseline-badge.baseline-partial {
+  background: var(--ds-orange-light);
+  color: var(--ds-orange);
+}
+
+.ms-baseline-badge.baseline-none {
+  background: var(--ds-gray-light);
+  color: var(--ds-gray);
+}
+
 /* Certificate Badge */
 .ms-cert-badge {
   display: inline-flex;

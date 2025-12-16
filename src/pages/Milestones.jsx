@@ -6,8 +6,9 @@
  * - Status/progress calculation from deliverables
  * - Acceptance certificate workflow
  * 
- * @version 4.1 - Added data-testid attributes for E2E testing
+ * @version 4.2 - Added Baseline column showing sign-off status
  * @refactored 5 December 2025
+ * @updated 16 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -36,7 +37,8 @@ import {
   calculateMilestoneStatus, 
   calculateMilestoneProgress,
   getCertificateStatusInfo,
-  getStatusCssClass
+  getStatusCssClass,
+  getBaselineAgreedDisplay
 } from '../lib/milestoneCalculations';
 import { formatDate, formatCurrency } from '../lib/formatters';
 import './Milestones.css';
@@ -407,6 +409,7 @@ export default function Milestones() {
                 <tr>
                   <th>Ref</th>
                   <th>Name</th>
+                  <th>Baseline</th>
                   <th>Status</th>
                   <th>Progress</th>
                   <th>Forecast End</th>
@@ -420,6 +423,7 @@ export default function Milestones() {
                   const deliverableCount = milestoneDeliverables[milestone.id]?.length || 0;
                   const statusCssClass = getStatusCssClass(milestone.computedStatus);
                   const certStatusInfo = cert ? getCertificateStatusInfo(cert.status) : null;
+                  const baselineDisplay = getBaselineAgreedDisplay(milestone);
                   
                   return (
                     <tr 
@@ -439,6 +443,14 @@ export default function Milestones() {
                             {deliverableCount} deliverable{deliverableCount !== 1 ? 's' : ''}
                           </div>
                         )}
+                      </td>
+                      <td>
+                        <span 
+                          className={`ms-baseline-badge ${baselineDisplay.cssClass}`}
+                          data-testid={`milestone-baseline-${milestone.id}`}
+                        >
+                          {baselineDisplay.text}
+                        </span>
                       </td>
                       <td>
                         <span 

@@ -292,6 +292,36 @@ export function getBaselineStatusCssClass(status) {
 }
 
 // ============================================
+// BASELINE AGREED DISPLAY (for table column)
+// ============================================
+
+/**
+ * Get display information for baseline agreed status in milestone table.
+ * 
+ * @param {Object} milestone - Milestone object with baseline fields
+ * @returns {{ text: string, cssClass: string }}
+ */
+export function getBaselineAgreedDisplay(milestone) {
+  if (!milestone) {
+    return { text: 'None', cssClass: 'baseline-none' };
+  }
+  
+  const supplierSigned = !!milestone.baseline_supplier_pm_signed_at;
+  const customerSigned = !!milestone.baseline_customer_pm_signed_at;
+  
+  if (supplierSigned && customerSigned) {
+    return { text: 'Agreed', cssClass: 'baseline-agreed' };
+  }
+  if (supplierSigned && !customerSigned) {
+    return { text: 'Supplier Only', cssClass: 'baseline-partial' };
+  }
+  if (!supplierSigned && customerSigned) {
+    return { text: 'Customer Only', cssClass: 'baseline-partial' };
+  }
+  return { text: 'None', cssClass: 'baseline-none' };
+}
+
+// ============================================
 // UTILITY EXPORTS
 // ============================================
 
@@ -319,5 +349,8 @@ export default {
   
   // CSS helpers
   getStatusCssClass,
-  getBaselineStatusCssClass
+  getBaselineStatusCssClass,
+  
+  // Table display helpers
+  getBaselineAgreedDisplay
 };
