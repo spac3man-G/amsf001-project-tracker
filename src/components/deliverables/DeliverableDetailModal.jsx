@@ -11,9 +11,9 @@
  * - Progress: Supplier PM or Contributor
  * - KPI/QS Links: Supplier PM only
  * 
- * @version 2.3 - Added KPI/QS management in edit mode
+ * @version 2.4 - Fixed permission handling: separate canSubmit prop from canEdit
  * @created 4 December 2025
- * @updated 6 December 2025
+ * @updated 16 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -188,6 +188,7 @@ export default function DeliverableDetailModal({
   kpis,
   qualityStandards,
   canEdit: canEditProp,
+  canSubmit: canSubmitProp,
   canReview: canReviewProp,
   canDelete: canDeleteProp,
   onClose,
@@ -240,7 +241,7 @@ export default function DeliverableDetailModal({
 
   // Workflow state checks (using calculation functions)
   const isComplete = isDeliverableComplete(deliverable);
-  const showSubmitForReview = canEditProp && canSubmitForReview(deliverable);
+  const showSubmitForReview = canSubmitProp && canSubmitForReview(deliverable);
   const showReviewActions = canReviewProp && canReviewDeliverable(deliverable);
   const showMarkDelivered = canReviewProp && canStartDeliverySignOff(deliverable);
   

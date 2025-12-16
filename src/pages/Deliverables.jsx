@@ -52,7 +52,7 @@ export default function Deliverables() {
   const { showSuccess, showError, showWarning } = useToast();
   const { showTestUsers } = useTestUsers();
   const currentUserId = user?.id || null;
-  const { canEditDeliverable, canReviewDeliverable, canDeleteDeliverable, hasRole } = usePermissions();
+  const { canEditDeliverable, canSubmitDeliverable, canReviewDeliverable, canDeleteDeliverable, hasRole } = usePermissions();
   const { refreshMetrics } = useMetrics();
 
   const [deliverables, setDeliverables] = useState([]);
@@ -256,6 +256,7 @@ export default function Deliverables() {
 
   const submittedForReview = deliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW).length;
   const canEdit = canEditDeliverable;
+  const canSubmit = canSubmitDeliverable;
   const canReview = canReviewDeliverable;
   const canDelete = canDeleteDeliverable;
 
@@ -482,6 +483,7 @@ export default function Deliverables() {
         kpis={kpis}
         qualityStandards={qualityStandards}
         canEdit={canEdit}
+        canSubmit={canSubmit}
         canReview={canReview}
         canDelete={canDelete}
         onClose={() => setDetailModal({ isOpen: false, deliverable: null })}

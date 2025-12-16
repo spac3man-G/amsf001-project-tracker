@@ -88,12 +88,12 @@ export const PERMISSION_MATRIX = {
   // ----------------------------------------
   deliverables: {
     view: AUTHENTICATED,
-    create: [...MANAGERS, ROLES.CONTRIBUTOR], // Contributors can create
-    edit: [...MANAGERS, ROLES.CONTRIBUTOR],   // Contributors can edit
-    delete: SUPPLIER_SIDE,                    // Only supplier side can delete
-    submit: WORKERS,                          // Submit for review
-    review: CUSTOMER_SIDE,                    // Accept/reject submissions
-    markDelivered: CUSTOMER_SIDE,             // Final delivery
+    create: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR], // Supplier side + contributors (not customer_pm)
+    edit: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],   // Supplier side + contributors (not customer_pm)
+    delete: SUPPLIER_SIDE,                                        // Only supplier side can delete
+    submit: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR], // Submit for review (not customer or finance roles)
+    review: CUSTOMER_SIDE,                                        // Accept/reject submissions
+    markDelivered: CUSTOMER_SIDE,                                 // Final delivery sign-off
   },
 
   // ----------------------------------------
