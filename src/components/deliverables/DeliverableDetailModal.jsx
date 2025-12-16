@@ -299,7 +299,7 @@ export default function DeliverableDetailModal({
 
   return (
     <div className="deliverable-modal-overlay" onClick={handleClose}>
-      <div className="deliverable-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="deliverable-modal" onClick={(e) => e.stopPropagation()} data-testid="deliverable-detail-modal">
         
         {/* Header */}
         <div className="deliverable-modal-header">
@@ -307,11 +307,12 @@ export default function DeliverableDetailModal({
             <div 
               className="deliverable-modal-icon"
               style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
-            >
+                data-testid="deliverable-modal-status"
+          >
               <Package size={20} />
             </div>
             <div className="deliverable-modal-titles">
-              <h2>{deliverable.deliverable_ref}</h2>
+              <h2 data-testid="deliverable-modal-ref">{deliverable.deliverable_ref}</h2>
               <span className="subtitle">{deliverable.name}</span>
             </div>
           </div>
@@ -323,7 +324,7 @@ export default function DeliverableDetailModal({
               <StatusIcon size={14} />
               {deliverable.status}
             </span>
-            <button className="close-button" onClick={handleClose}>
+            <button className="close-button" onClick={handleClose} data-testid="deliverable-modal-close">
               <X size={24} />
             </button>
           </div>
@@ -580,12 +581,13 @@ export default function DeliverableDetailModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="deliverable-modal-footer">
+        <div className="deliverable-modal-footer" data-testid="deliverable-modal-footer">
           <div className="footer-left">
             {canDeleteProp && !isEditing && !isComplete && (
               <button
                 className="btn btn-danger"
                 onClick={() => { onDelete(deliverable); handleClose(); }}
+                data-testid="deliverable-delete-button"
               >
                 <Trash2 size={16} /> Delete
               </button>
@@ -599,6 +601,7 @@ export default function DeliverableDetailModal({
                   className="btn btn-secondary" 
                   onClick={() => setIsEditing(false)}
                   disabled={saving}
+                  data-testid="deliverable-edit-cancel-button"
                 >
                   Cancel
                 </button>
@@ -606,6 +609,7 @@ export default function DeliverableDetailModal({
                   className="btn btn-primary" 
                   onClick={handleSave}
                   disabled={saving}
+                  data-testid="deliverable-edit-save-button"
                 >
                   <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -617,7 +621,8 @@ export default function DeliverableDetailModal({
                   <button 
                     className="btn btn-secondary"
                     onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW)}
-                  >
+                      data-testid="deliverable-submit-button"
+                >
                     <Send size={16} /> Submit for Review
                   </button>
                 )}
@@ -628,13 +633,15 @@ export default function DeliverableDetailModal({
                     <button 
                       className="btn btn-danger"
                       onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.RETURNED_FOR_MORE_WORK)}
-                    >
+                        data-testid="deliverable-return-button"
+                  >
                       <RotateCcw size={16} /> Return for More Work
                     </button>
                     <button 
                       className="btn btn-success"
                       onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.REVIEW_COMPLETE)}
-                    >
+                        data-testid="deliverable-accept-button"
+                  >
                       <ThumbsUp size={16} /> Accept Review
                     </button>
                   </>
@@ -645,7 +652,8 @@ export default function DeliverableDetailModal({
                   <button 
                     className="btn btn-success"
                     onClick={() => { onOpenCompletion(deliverable); handleClose(); }}
-                  >
+                      data-testid="deliverable-signoff-button"
+                >
                     <CheckCircle size={16} /> Assess & Sign Off
                   </button>
                 )}
@@ -655,7 +663,8 @@ export default function DeliverableDetailModal({
                   <button 
                     className="btn btn-primary"
                     onClick={() => setIsEditing(true)}
-                  >
+                      data-testid="deliverable-edit-button"
+                >
                     <Edit2 size={16} /> Edit
                   </button>
                 )}

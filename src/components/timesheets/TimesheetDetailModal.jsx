@@ -102,6 +102,7 @@ export default function TimesheetDetailModal({
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
         }}
         onClick={(e) => e.stopPropagation()}
+        data-testid="timesheet-detail-modal"
       >
         {/* Header */}
         <div style={{
@@ -138,7 +139,7 @@ export default function TimesheetDetailModal({
               fontWeight: '500',
               backgroundColor: statusConfig.bg,
               color: statusConfig.color
-            }}>
+            }} data-testid="timesheet-modal-status">
               {statusConfig.label}
             </span>
             <button 
@@ -150,6 +151,7 @@ export default function TimesheetDetailModal({
                 padding: '0.5rem',
                 color: '#64748b'
               }}
+              data-testid="timesheet-modal-close"
             >
               <X size={24} />
             </button>
@@ -358,6 +360,7 @@ export default function TimesheetDetailModal({
                 onClick={() => { onDelete(timesheet); handleClose(); }}
                 className="btn btn-danger"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                data-testid="timesheet-delete-button"
               >
                 <Trash2 size={16} /> Delete
               </button>
@@ -366,10 +369,10 @@ export default function TimesheetDetailModal({
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {isEditing ? (
               <>
-                <button onClick={() => setIsEditing(false)} className="btn btn-secondary">
+                <button onClick={() => setIsEditing(false)} className="btn btn-secondary" data-testid="timesheet-edit-cancel-button">
                   Cancel
                 </button>
-                <button onClick={handleSave} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <button onClick={handleSave} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }} data-testid="timesheet-edit-save-button">
                   <Save size={16} /> Save Changes
                 </button>
               </>
@@ -380,6 +383,7 @@ export default function TimesheetDetailModal({
                     onClick={() => { onSubmit(timesheet.id); handleClose(); }} 
                     className="btn btn-secondary"
                     style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                    data-testid="timesheet-submit-button"
                   >
                     <Send size={16} /> Submit for Validation
                   </button>
@@ -390,6 +394,7 @@ export default function TimesheetDetailModal({
                       onClick={() => { onReject(timesheet.id); handleClose(); }} 
                       className="btn btn-danger"
                       style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                      data-testid="timesheet-reject-button"
                     >
                       <X size={16} /> Reject
                     </button>
@@ -397,6 +402,7 @@ export default function TimesheetDetailModal({
                       onClick={() => { onValidate(timesheet.id); handleClose(); }} 
                       className="btn btn-success"
                       style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                      data-testid="timesheet-validate-button"
                     >
                       <CheckCircle size={16} /> Validate
                     </button>
@@ -407,6 +413,7 @@ export default function TimesheetDetailModal({
                     onClick={() => setIsEditing(true)} 
                     className="btn btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                    data-testid="timesheet-edit-button"
                   >
                     <Edit2 size={16} /> Edit
                   </button>

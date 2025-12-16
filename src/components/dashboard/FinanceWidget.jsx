@@ -177,7 +177,7 @@ export default function FinanceWidget({ refreshTrigger }) {
   const isNegativeGap = stats.gap < 0;
 
   return (
-    <div className="dashboard-widget finance-widget">
+    <div className="dashboard-widget finance-widget" data-testid="finance-widget">
       <div className="widget-header">
         <div className="widget-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
           <PoundSterling size={20} />
@@ -190,7 +190,7 @@ export default function FinanceWidget({ refreshTrigger }) {
         <div className="finance-section finance-billable">
           <div className="finance-row finance-row-large">
             <span className="finance-label">Total Billable</span>
-            <span className="finance-value">{formatCurrency(stats.totalBillable)}</span>
+            <span className="finance-value" data-testid="finance-total-billable">{formatCurrency(stats.totalBillable)}</span>
           </div>
         </div>
 

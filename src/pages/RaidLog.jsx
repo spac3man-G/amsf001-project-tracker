@@ -141,7 +141,7 @@ export default function RaidLog() {
 
   if (loading) {
     return (
-      <div className="raid-log">
+      <div className="raid-log" data-testid="raid-log-page">
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
           <LoadingSpinner />
         </div>
@@ -152,7 +152,7 @@ export default function RaidLog() {
   return (
     <div className="raid-log">
       {/* Header */}
-      <header className="raid-header">
+      <header className="raid-header" data-testid="raid-header">
         <div className="raid-header-content">
           <div className="raid-header-left">
             <h1>RAID Log</h1>
@@ -163,6 +163,7 @@ export default function RaidLog() {
               className="raid-btn raid-btn-secondary"
               onClick={handleRefresh}
               disabled={refreshing}
+              data-testid="raid-refresh-button"
             >
               <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
               Refresh
@@ -171,6 +172,7 @@ export default function RaidLog() {
               <button 
                 className="raid-btn raid-btn-primary"
                 onClick={() => setShowAddForm(true)}
+                data-testid="raid-add-button"
               >
                 <Plus size={16} />
                 Add Item
@@ -183,7 +185,7 @@ export default function RaidLog() {
       <div className="raid-content">
         {/* Summary Cards */}
         {summary && (
-          <div className="raid-summary-grid">
+          <div className="raid-summary-grid" data-testid="raid-summary-grid">
             {Object.entries(CATEGORIES).map(([category, config]) => {
               const Icon = config.icon;
               const stats = summary.byCategory[category] || { total: 0, open: 0 };
@@ -228,14 +230,15 @@ export default function RaidLog() {
         )}
 
         {/* Filter Bar */}
-        <div className="raid-filter-bar">
-          <div className="raid-search">
+        <div className="raid-filter-bar" data-testid="raid-filter-bar">
+          <div className="raid-search" data-testid="raid-search">
             <Search size={16} />
             <input
               type="text"
               placeholder="Search RAID items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              data-testid="raid-search-input"
             />
           </div>
 
@@ -243,6 +246,7 @@ export default function RaidLog() {
             className="raid-filter-select"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
+            data-testid="raid-category-filter"
           >
             <option value="all">All Categories</option>
             <option value="Risk">Risks</option>
@@ -255,6 +259,7 @@ export default function RaidLog() {
             className="raid-filter-select"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            data-testid="raid-status-filter"
           >
             <option value="all">All Statuses</option>
             <option value="Open">Open</option>
@@ -268,6 +273,7 @@ export default function RaidLog() {
             className="raid-filter-select"
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
+            data-testid="raid-severity-filter"
           >
             <option value="all">All Severities</option>
             <option value="High">High</option>
@@ -276,7 +282,7 @@ export default function RaidLog() {
           </select>
 
           {hasActiveFilters && (
-            <button className="raid-clear-filters" onClick={clearFilters}>
+            <button className="raid-clear-filters" onClick={clearFilters} data-testid="raid-clear-filters">
               <X size={14} />
               Clear filters
             </button>
@@ -291,7 +297,7 @@ export default function RaidLog() {
             const isExpanded = expandedCategories[category];
 
             return (
-              <div key={category} className={`raid-category ${config.className} ${isExpanded ? 'expanded' : ''}`}>
+              <div key={category} className={`raid-category ${config.className} ${isExpanded ? 'expanded' : ''}`} data-testid={`raid-category-${category.toLowerCase()}`}>
                 <button
                   className="raid-category-header"
                   onClick={() => setExpandedCategories(prev => ({
@@ -323,6 +329,7 @@ export default function RaidLog() {
                           key={item.id}
                           className="raid-item"
                           onClick={() => setSelectedItem(item)}
+                          data-testid={`raid-item-${item.id}`}
                         >
                           <div className="raid-item-main">
                             <div className="raid-item-content">

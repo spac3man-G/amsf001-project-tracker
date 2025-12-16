@@ -210,7 +210,7 @@ export default function AuditLog() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6" data-testid="audit-log-page">
       <PageHeader 
         title="Audit Log" 
         subtitle="Track all changes made to project data"

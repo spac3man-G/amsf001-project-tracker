@@ -235,7 +235,7 @@ export default function ExpenseDetailModal({
 
   return (
     <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()} data-testid="expense-detail-modal">
         {/* Header */}
         <header className="modal-header">
           <div className="modal-header-left">
@@ -248,10 +248,10 @@ export default function ExpenseDetailModal({
             </div>
           </div>
           <div className="modal-header-right">
-            <span className={`modal-status ${getStatusClass(expense.status)}`}>
+            <span className={`modal-status ${getStatusClass(expense.status)}`} data-testid="expense-modal-status">
               {STATUS_DISPLAY_NAMES[expense.status] || expense.status}
             </span>
-            <button className="modal-close" onClick={handleClose}>
+            <button className="modal-close" onClick={handleClose} data-testid="expense-modal-close">
               <X size={20} />
             </button>
           </div>
@@ -451,6 +451,7 @@ export default function ExpenseDetailModal({
               <button
                 onClick={() => { onDelete(expense); handleClose(); }}
                 className="btn btn-danger"
+                data-testid="expense-delete-button"
               >
                 <Trash2 size={16} /> Delete
               </button>
@@ -459,10 +460,10 @@ export default function ExpenseDetailModal({
           <div className="footer-right">
             {isEditing ? (
               <>
-                <button onClick={() => setIsEditing(false)} className="btn btn-secondary">
+                <button onClick={() => setIsEditing(false)} className="btn btn-secondary" data-testid="expense-edit-cancel">
                   Cancel
                 </button>
-                <button onClick={handleSave} className="btn btn-primary">
+                <button onClick={handleSave} className="btn btn-primary" data-testid="expense-edit-save">
                   <Save size={16} /> Save Changes
                 </button>
               </>
@@ -472,6 +473,7 @@ export default function ExpenseDetailModal({
                   <button 
                     onClick={() => { onSubmit(expense); handleClose(); }} 
                     className="btn btn-secondary"
+                    data-testid="expense-submit-button"
                   >
                     <Send size={16} /> Submit
                   </button>
@@ -481,12 +483,14 @@ export default function ExpenseDetailModal({
                     <button 
                       onClick={() => { onReject(expense.id); handleClose(); }} 
                       className="btn btn-danger"
+                      data-testid="expense-reject-button"
                     >
                       <X size={16} /> Reject
                     </button>
                     <button 
                       onClick={() => { onValidate(expense.id); handleClose(); }} 
                       className="btn btn-success"
+                      data-testid="expense-validate-button"
                     >
                       <CheckCircle size={16} /> Validate
                     </button>
@@ -496,6 +500,7 @@ export default function ExpenseDetailModal({
                   <button 
                     onClick={() => setIsEditing(true)} 
                     className="btn btn-primary"
+                    data-testid="expense-edit-button"
                   >
                     <Edit2 size={16} /> Edit
                   </button>

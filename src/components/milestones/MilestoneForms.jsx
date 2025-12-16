@@ -23,7 +23,7 @@ export function MilestoneAddForm({
   onCancel 
 }) {
   return (
-    <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid #10b981' }}>
+    <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid #10b981' }} data-testid="milestone-add-form">
       <h3 style={{ marginBottom: '1rem' }}>Add New Milestone</h3>
       
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
@@ -35,6 +35,7 @@ export function MilestoneAddForm({
             placeholder="M01"
             value={form.milestone_ref}
             onChange={(e) => onFormChange({ ...form, milestone_ref: e.target.value })}
+            data-testid="milestone-ref-input"
           />
         </div>
         <div>
@@ -45,6 +46,7 @@ export function MilestoneAddForm({
             placeholder="Milestone name"
             value={form.name}
             onChange={(e) => onFormChange({ ...form, name: e.target.value })}
+            data-testid="milestone-name-input"
           />
         </div>
       </div>
@@ -57,6 +59,7 @@ export function MilestoneAddForm({
           placeholder="Description"
           value={form.description}
           onChange={(e) => onFormChange({ ...form, description: e.target.value })}
+          data-testid="milestone-description-input"
         />
       </div>
       
@@ -71,6 +74,7 @@ export function MilestoneAddForm({
               className="form-input"
               value={form.baseline_start_date || form.start_date}
               onChange={(e) => onFormChange({ ...form, baseline_start_date: e.target.value, start_date: e.target.value })}
+              data-testid="milestone-baseline-start-input"
             />
           </div>
           <div>
@@ -80,6 +84,7 @@ export function MilestoneAddForm({
               className="form-input"
               value={form.baseline_end_date || form.end_date}
               onChange={(e) => onFormChange({ ...form, baseline_end_date: e.target.value, end_date: e.target.value })}
+              data-testid="milestone-baseline-end-input"
             />
           </div>
         </div>
@@ -120,6 +125,7 @@ export function MilestoneAddForm({
           style={{ maxWidth: '200px' }}
           value={form.billable}
           onChange={(e) => onFormChange({ ...form, billable: e.target.value })}
+          data-testid="milestone-billable-input"
         />
         <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.25rem 0 0 0' }}>
           The amount that can be invoiced when this milestone is completed (not a budget for doing the work)
@@ -138,10 +144,10 @@ export function MilestoneAddForm({
       </div>
       
       <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button className="btn btn-primary" onClick={onSubmit}>
+        <button className="btn btn-primary" onClick={onSubmit} data-testid="milestone-save-button">
           <Plus size={16} /> Add Milestone
         </button>
-        <button className="btn btn-secondary" onClick={onCancel}>
+        <button className="btn btn-secondary" onClick={onCancel} data-testid="milestone-cancel-button">
           Cancel
         </button>
       </div>
@@ -186,7 +192,7 @@ export function MilestoneEditModal({
         width: '90%',
         maxHeight: '90vh',
         overflow: 'auto'
-      }}>
+      }} data-testid="milestone-edit-modal">
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: 0 }}>
           <Edit2 size={20} />
           Edit Milestone - {form.milestone_ref}

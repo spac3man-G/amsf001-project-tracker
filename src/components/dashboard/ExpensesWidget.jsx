@@ -96,13 +96,13 @@ export default function ExpensesWidget({ refreshTrigger }) {
   }
 
   return (
-    <div className="dashboard-widget" onClick={handleClick}>
+    <div className="dashboard-widget" onClick={handleClick} data-testid="expenses-widget">
       <div className="widget-header">
         <div className="widget-icon" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
           <Receipt size={20} />
         </div>
         <span className="widget-title">Expenses</span>
-        <span className="widget-total">{formatCurrency(stats.validatedTotal)} Validated</span>
+        <span className="widget-total" data-testid="expenses-widget-total">{formatCurrency(stats.validatedTotal)} Validated</span>
       </div>
       
       <div className="widget-breakdown">

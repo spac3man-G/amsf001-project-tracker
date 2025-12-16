@@ -122,7 +122,8 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
 
   return (
     <div 
-      className="dashboard-widget billing-widget" 
+      className="dashboard-widget billing-widget"
+      data-testid="billing-widget" 
       style={{ 
         cursor: fullPage ? 'default' : 'pointer'
       }}
@@ -133,7 +134,7 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
           <PoundSterling size={20} />
         </div>
         <span className="widget-title">Billing</span>
-        <span className="widget-total">{formatCurrency(totalBillable)} Total</span>
+        <span className="widget-total" data-testid="billing-total">{formatCurrency(totalBillable)} Total</span>
       </div>
 
       {/* Summary Row */}
@@ -148,21 +149,21 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
       }}>
         <div>
           <span style={{ color: '#64748b' }}>Billed: </span>
-          <span style={{ fontWeight: '600', color: '#16a34a' }}>{formatCurrency(totalBilled)}</span>
+          <span style={{ fontWeight: '600', color: '#16a34a' }} data-testid="billing-billed-total">{formatCurrency(totalBilled)}</span>
         </div>
         <div>
           <span style={{ color: '#64748b' }}>Received: </span>
-          <span style={{ fontWeight: '600', color: '#2563eb' }}>{formatCurrency(totalReceived)}</span>
+          <span style={{ fontWeight: '600', color: '#2563eb' }} data-testid="billing-received-total">{formatCurrency(totalReceived)}</span>
         </div>
         <div>
           <span style={{ color: '#64748b' }}>Outstanding: </span>
-          <span style={{ fontWeight: '600', color: '#dc2626' }}>{formatCurrency(totalBillable - totalReceived)}</span>
+          <span style={{ fontWeight: '600', color: '#dc2626' }} data-testid="billing-outstanding-total">{formatCurrency(totalBillable - totalReceived)}</span>
         </div>
       </div>
 
       {/* Milestones Table */}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }} data-testid="billing-table">
           <thead>
             <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
               <th style={{ textAlign: 'left', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Milestone</th>
@@ -177,7 +178,8 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
           <tbody>
             {milestones.map(milestone => (
               <tr 
-                key={milestone.id} 
+                key={milestone.id}
+                data-testid={`billing-row-${milestone.id}`} 
                 style={{ 
                   borderBottom: '1px solid #f1f5f9',
                   backgroundColor: milestone.is_received ? '#f0fdf4' : 'transparent'
@@ -231,6 +233,7 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
                   <button
                     onClick={(e) => { e.stopPropagation(); handleToggle(milestone, 'is_billed'); }}
                     disabled={!allowEdit}
+                    data-testid={`billing-billed-toggle-${milestone.id}`}
                     style={{
                       width: '28px',
                       height: '28px',
@@ -251,6 +254,7 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
                   <button
                     onClick={(e) => { e.stopPropagation(); handleToggle(milestone, 'is_received'); }}
                     disabled={!allowEdit}
+                    data-testid={`billing-received-toggle-${milestone.id}`}
                     style={{
                       width: '28px',
                       height: '28px',
@@ -326,7 +330,7 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
       </div>
 
       {milestones.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+        <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }} data-testid="billing-empty-state">
           No billable milestones found
         </div>
       )}

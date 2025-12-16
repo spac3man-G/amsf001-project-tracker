@@ -265,7 +265,7 @@ export default function Gantt() {
   if (loading) return <LoadingSpinner message="Loading Gantt chart..." size="large" fullPage />;
 
   return (
-    <div className="page-container">
+    <div className="page-container" data-testid="gantt-page">
       <div className="page-header">
         <div className="page-title">
           <Calendar size={28} />

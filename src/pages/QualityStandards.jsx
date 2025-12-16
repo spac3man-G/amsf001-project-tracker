@@ -101,19 +101,19 @@ export default function QualityStandards() {
   if (loading && !projectId) return <LoadingSpinner message="Loading quality standards..." size="large" fullPage />;
 
   return (
-    <div className="qs-page">
-      <header className="qs-header">
+    <div className="qs-page" data-testid="quality-standards-page">
+      <header className="qs-header" data-testid="quality-standards-header">
         <div className="qs-header-content">
           <div className="qs-header-left">
-            <h1>Quality Standards</h1>
+            <h1 data-testid="quality-standards-title">Quality Standards</h1>
             <p>Track quality compliance across deliverables</p>
           </div>
           <div className="qs-header-actions">
-            <button className="qs-btn qs-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
+            <button className="qs-btn qs-btn-secondary" onClick={handleRefresh} disabled={refreshing} data-testid="quality-standards-refresh-button">
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
             {canEdit && !showAddForm && (
-              <button className="qs-btn qs-btn-primary" onClick={() => setShowAddForm(true)}>
+              <button className="qs-btn qs-btn-primary" onClick={() => setShowAddForm(true)} data-testid="add-quality-standard-button">
                 <Plus size={18} /> Add Quality Standard
               </button>
             )}
@@ -121,45 +121,45 @@ export default function QualityStandards() {
         </div>
       </header>
 
-      <div className="qs-content">
+      <div className="qs-content" data-testid="quality-standards-content">
         {showAddForm && canEdit && (
-          <div className="qs-add-form">
+          <div className="qs-add-form" data-testid="quality-standards-add-form">
             <div className="qs-add-form-header">
               <h3 className="qs-add-form-title"><Plus size={20} style={{ color: 'var(--ds-teal)' }} /> Add New Quality Standard</h3>
               <button className="qs-add-form-close" onClick={() => setShowAddForm(false)}><X size={18} /></button>
             </div>
             <form onSubmit={handleAdd}>
               <div className="qs-form-row two-col">
-                <div className="qs-form-group"><label>Reference *</label><input type="text" value={newQS.qs_ref} onChange={(e) => setNewQS({ ...newQS, qs_ref: e.target.value })} placeholder="e.g., QS09" style={{ fontFamily: 'var(--ds-font-mono)', fontWeight: 600 }} required /></div>
-                <div className="qs-form-group"><label>Name *</label><input type="text" value={newQS.name} onChange={(e) => setNewQS({ ...newQS, name: e.target.value })} placeholder="e.g., Documentation Quality" required /></div>
+                <div className="qs-form-group"><label>Reference *</label><input type="text" value={newQS.qs_ref} onChange={(e) => setNewQS({ ...newQS, qs_ref: e.target.value })} placeholder="e.g., QS09" style={{ fontFamily: 'var(--ds-font-mono)', fontWeight: 600 }} required data-testid="qs-ref-input" /></div>
+                <div className="qs-form-group"><label>Name *</label><input type="text" value={newQS.name} onChange={(e) => setNewQS({ ...newQS, name: e.target.value })} placeholder="e.g., Documentation Quality" required data-testid="qs-name-input" /></div>
               </div>
-              <div className="qs-form-group" style={{ marginBottom: 16 }}><label>Description</label><textarea value={newQS.description} onChange={(e) => setNewQS({ ...newQS, description: e.target.value })} placeholder="Describe what this quality standard measures..." rows={3} /></div>
+              <div className="qs-form-group" style={{ marginBottom: 16 }}><label>Description</label><textarea value={newQS.description} onChange={(e) => setNewQS({ ...newQS, description: e.target.value })} placeholder="Describe what this quality standard measures..." rows={3} data-testid="qs-description-input" /></div>
               <div className="qs-form-row targets">
-                <div className="qs-form-group"><label>Target (%)</label><input type="number" min="0" max="100" value={newQS.target} onChange={(e) => setNewQS({ ...newQS, target: e.target.value })} /></div>
+                <div className="qs-form-group"><label>Target (%)</label><input type="number" min="0" max="100" value={newQS.target} onChange={(e) => setNewQS({ ...newQS, target: e.target.value })} data-testid="qs-target-input" /></div>
                 <div className="qs-form-group"><label>Current Value (%)</label><input type="number" min="0" max="100" value={newQS.current_value} onChange={(e) => setNewQS({ ...newQS, current_value: e.target.value })} /></div>
               </div>
               <div className="qs-form-actions">
-                <button type="button" className="qs-btn qs-btn-secondary" onClick={() => setShowAddForm(false)}>Cancel</button>
-                <button type="submit" className="qs-btn qs-btn-primary" disabled={saving}><Save size={16} /> {saving ? 'Saving...' : 'Save Quality Standard'}</button>
+                <button type="button" className="qs-btn qs-btn-secondary" onClick={() => setShowAddForm(false)} data-testid="qs-cancel-button">Cancel</button>
+                <button type="submit" className="qs-btn qs-btn-primary" disabled={saving} data-testid="qs-save-button"><Save size={16} /> {saving ? 'Saving...' : 'Save Quality Standard'}</button>
               </div>
             </form>
           </div>
         )}
 
-        <div className="qs-table-card">
+        <div className="qs-table-card" data-testid="quality-standards-table-card">
           <div className="qs-table-header">
             <h2 className="qs-table-title">Quality Standards</h2>
-            <span className="qs-table-count">{qualityStandards.length} standard{qualityStandards.length !== 1 ? 's' : ''}</span>
+            <span className="qs-table-count" data-testid="quality-standards-count">{qualityStandards.length} standard{qualityStandards.length !== 1 ? 's' : ''}</span>
           </div>
           
           {qualityStandards.length === 0 ? (
-            <div className="qs-empty">
+            <div className="qs-empty" data-testid="quality-standards-empty-state">
               <div className="qs-empty-icon"><Award size={32} /></div>
               <div className="qs-empty-title">No quality standards found</div>
               <div className="qs-empty-text">{canEdit ? 'Click "Add Quality Standard" to create one.' : 'No quality standards have been defined yet.'}</div>
             </div>
           ) : (
-            <table className="qs-table">
+            <table className="qs-table" data-testid="quality-standards-table">
               <thead><tr><th>Ref</th><th>Name</th><th>Target</th><th>Current</th><th>Assessments</th></tr></thead>
               <tbody>
                 {qualityStandards.map(qs => {
@@ -167,7 +167,7 @@ export default function QualityStandards() {
                   const assessments = assessmentCounts[qs.id] || { total: 0, met: 0 };
                   const currentPercent = assessments.total > 0 ? Math.round((assessments.met / assessments.total) * 100) : qs.current_value || 0;
                   return (
-                    <tr key={qs.id} onClick={() => navigate(`/quality-standards/${qs.id}`)}>
+                    <tr key={qs.id} onClick={() => navigate(`/quality-standards/${qs.id}`)} data-testid={`qs-row-${qs.id}`}>
                       <td><span className="qs-ref">{qs.qs_ref}</span></td>
                       <td><span className="qs-name">{qs.name}</span></td>
                       <td><span className="qs-target">{qs.target}%</span></td>

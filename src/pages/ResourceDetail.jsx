@@ -272,7 +272,7 @@ export default function ResourceDetail() {
 
   if (error && !resource) {
     return (
-      <div className="page-container">
+      <div className="page-container" data-testid="resource-detail-page">
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <AlertCircle size={48} style={{ color: '#f59e0b', marginBottom: '1rem' }} />
           <h2>Resource Not Found</h2>
@@ -299,19 +299,20 @@ export default function ResourceDetail() {
   return (
     <div className="page-container">
       {/* Header */}
-      <div className="page-header">
+      <div className="page-header" data-testid="resource-detail-header">
         <div className="page-title">
           <button 
             onClick={() => navigate('/resources')} 
             className="btn btn-secondary" 
             style={{ marginRight: '1rem', padding: '0.5rem' }}
+            data-testid="resource-back-button"
           >
             <ArrowLeft size={20} />
           </button>
           <User size={28} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <h1>{resource.name}</h1>
+              <h1 data-testid="resource-name">{resource.name}</h1>
               {canSeeResourceType && (
                 <span style={{
                   display: 'inline-flex', 
@@ -333,7 +334,7 @@ export default function ResourceDetail() {
           </div>
         </div>
         {canEditResource && !isEditing && (
-          <button className="btn btn-primary" onClick={startEditing}>
+          <button className="btn btn-primary" onClick={startEditing} data-testid="resource-edit-button">
             <Edit2 size={18} /> Edit Resource
           </button>
         )}

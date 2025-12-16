@@ -107,12 +107,12 @@ export default function KPIDetail() {
 
   if (!kpi) {
     return (
-      <div className="page-container">
+      <div className="page-container" data-testid="kpi-detail-not-found">
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <AlertTriangle size={48} style={{ color: '#f59e0b', marginBottom: '1rem' }} />
           <h2>KPI Not Found</h2>
           <p style={{ color: '#64748b' }}>The requested KPI could not be found.</p>
-          <button className="btn btn-primary" onClick={() => navigate('/kpis')} style={{ marginTop: '1rem' }}>
+          <button className="btn btn-primary" onClick={() => navigate('/kpis')} style={{ marginTop: '1rem' }} data-testid="kpi-detail-back-button">
             <ArrowLeft size={16} /> Back to KPIs
           </button>
         </div>
@@ -126,20 +126,21 @@ export default function KPIDetail() {
   const canEdit = canManageKPIs;
 
   return (
-    <div className="page-container">
+    <div className="page-container" data-testid="kpi-detail-page">
       {/* Header */}
-      <div className="page-header">
+      <div className="page-header" data-testid="kpi-detail-header">
         <div className="page-title">
           <button 
             onClick={() => navigate('/kpis')} 
             style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '0.5rem' }}
+            data-testid="kpi-detail-back-nav"
           >
             <ArrowLeft size={24} />
           </button>
           <TrendingUp size={28} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <h1>{kpi.kpi_ref}</h1>
+              <h1 data-testid="kpi-detail-ref">{kpi.kpi_ref}</h1>
               <span style={{ 
                 padding: '0.25rem 0.75rem', 
                 borderRadius: '9999px',
@@ -148,14 +149,14 @@ export default function KPIDetail() {
                 backgroundColor: statusInfo.bg,
                 color: statusInfo.color
               }}>
-                {statusInfo.status}
+                <span data-testid="kpi-detail-status">{statusInfo.status}</span>
               </span>
             </div>
             <p>{kpi.name}</p>
           </div>
         </div>
         {canEdit && !editing && (
-          <button className="btn btn-primary" onClick={() => setEditing(true)}>
+          <button className="btn btn-primary" onClick={() => setEditing(true)} data-testid="kpi-detail-edit-button">
             <Edit2 size={18} /> Edit KPI Details
           </button>
         )}
@@ -165,6 +166,7 @@ export default function KPIDetail() {
               className="btn btn-primary" 
               onClick={handleSave}
               disabled={saving}
+              data-testid="kpi-detail-save-button"
             >
               {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
               {saving ? 'Saving...' : 'Save Changes'}
@@ -189,6 +191,7 @@ export default function KPIDetail() {
                 });
               }}
               disabled={saving}
+              data-testid="kpi-detail-cancel-button"
             >
               <X size={18} /> Cancel
             </button>
@@ -197,14 +200,14 @@ export default function KPIDetail() {
       </div>
 
       {/* Performance Summary */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }} data-testid="kpi-detail-stats">
         <div className="stat-card">
           <div className="stat-label">Target</div>
-          <div className="stat-value" style={{ color: '#3b82f6' }}>{kpi.target || '-'}%</div>
+          <div className="stat-value" style={{ color: '#3b82f6' }} data-testid="kpi-detail-target">{kpi.target || '-'}%</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Current</div>
-          <div className="stat-value" style={{ color: statusInfo.color }}>
+          <div className="stat-value" style={{ color: statusInfo.color }} data-testid="kpi-detail-current">
             {kpi.current_value || '0'}%
           </div>
         </div>

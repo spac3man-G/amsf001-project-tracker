@@ -14,7 +14,7 @@ import { BillingWidget } from '../components/dashboard';
 
 export default function Billing() {
   return (
-    <div className="page-container">
+    <div className="page-container" data-testid="billing-page">
       <PageHeader 
         icon={PoundSterling} 
         title="Billing" 

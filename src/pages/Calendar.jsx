@@ -641,7 +641,7 @@ export default function ProjectCalendar() {
   };
   
   return (
-    <div className="calendar-page">
+    <div className="calendar-page" data-testid="calendar-page">
       <header className="cal-header">
         <div className="cal-header-content">
           <div className="cal-header-left">

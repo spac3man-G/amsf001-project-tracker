@@ -554,11 +554,11 @@ export default function VariationForm() {
   const affectedDeliverables = getDeliverablesForAffectedMilestones();
 
   return (
-    <div className="variation-form-page">
-      <header className="vf-header">
+    <div className="variation-form-page" data-testid="variation-form-page">
+      <header className="vf-header" data-testid="variation-form-header">
         <div className="vf-header-content">
           <div className="vf-header-left">
-            <button className="vf-back-btn" onClick={handleBack}>
+            <button className="vf-back-btn" onClick={handleBack} data-testid="variation-form-back-button">
               <ArrowLeft size={20} />
             </button>
             <div>
@@ -575,7 +575,7 @@ export default function VariationForm() {
               {autoSaveStatus === 'unsaved' && 'Unsaved changes'}
               {autoSaveStatus === 'error' && 'Save failed'}
             </span>
-            <button className="vf-btn vf-btn-secondary" onClick={saveDraft} disabled={saving}>
+            <button className="vf-btn vf-btn-secondary" onClick={saveDraft} disabled={saving} data-testid="variation-form-save-draft">
               <Save size={18} />
               Save Draft
             </button>
@@ -583,7 +583,7 @@ export default function VariationForm() {
         </div>
       </header>
 
-      <div className="vf-progress">
+      <div className="vf-progress" data-testid="variation-form-progress">
         <div className="vf-progress-content">
           {STEPS.map((step, index) => {
             const StepIcon = step.icon;
@@ -1331,10 +1331,11 @@ export default function VariationForm() {
             <div className="vf-footer-right">
               {currentStep < 7 ? (
                 <button
-                  className="vf-btn vf-btn-primary"
-                  onClick={nextStep}
-                  disabled={!validateStep(currentStep)}
-                >
+              className="vf-btn vf-btn-primary"
+              onClick={nextStep}
+              disabled={!validateStep(currentStep)}
+              data-testid="variation-form-next-button"
+            >
                   Next
                   <ArrowRight size={18} />
                 </button>
@@ -1343,6 +1344,7 @@ export default function VariationForm() {
                   className="vf-btn vf-btn-submit"
                   onClick={submitForApproval}
                   disabled={saving || !formData.impact_summary}
+                  data-testid="variation-form-submit-button"
                 >
                   <Send size={18} />
                   Submit for Approval

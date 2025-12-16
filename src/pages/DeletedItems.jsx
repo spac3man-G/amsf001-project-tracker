@@ -271,7 +271,7 @@ export default function DeletedItems() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6" data-testid="deleted-items-page">
       <PageHeader 
         title="Deleted Items" 
         subtitle="View and restore soft-deleted records"

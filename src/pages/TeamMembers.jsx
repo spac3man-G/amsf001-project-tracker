@@ -458,7 +458,7 @@ export default function TeamMembers() {
 
   if (!canManageUsers) {
     return (
-      <div className="users-page">
+      <div className="users-page" data-testid="team-members-access-denied">
         <div className="access-denied">
           <Shield size={48} />
           <h2>Access Denied</h2>
@@ -471,14 +471,14 @@ export default function TeamMembers() {
   if (loading) return <LoadingSpinner message="Loading team members..." size="large" fullPage />;
 
   return (
-    <div className="users-page">
+    <div className="users-page" data-testid="team-members-page">
       {/* Header */}
-      <header className="users-header">
+      <header className="users-header" data-testid="team-members-header">
         <div className="header-content">
           <div className="header-title">
             <UsersIcon size={28} strokeWidth={1.5} />
             <div>
-              <h1>Team Members</h1>
+              <h1 data-testid="team-members-title">Team Members</h1>
               <p>{users.length} member{users.length !== 1 ? 's' : ''} in this project</p>
             </div>
           </div>
@@ -492,10 +492,10 @@ export default function TeamMembers() {
                 {showTestUsers ? 'Hide Test' : 'Show Test'}
               </button>
             )}
-            <button className="btn-secondary" onClick={fetchData}>
+            <button className="btn-secondary" onClick={fetchData} data-testid="team-members-refresh-button">
               <RefreshCw size={16} />
             </button>
-            <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+            <button className="btn-primary" onClick={() => setShowAddModal(true)} data-testid="team-members-add-button">
               <UserPlus size={16} />
               Add Team Member
             </button>
@@ -569,7 +569,7 @@ export default function TeamMembers() {
         )}
 
         {/* Users Table */}
-        <div className="table-card">
+        <div className="table-card" data-testid="team-members-table-card">
           <table>
             <thead>
               <tr>
@@ -608,7 +608,7 @@ export default function TeamMembers() {
                   const isCurrentUser = user.user_id === currentUserId;
                   
                   return (
-                    <tr key={user.id} className={isTestUser ? 'test-user-row' : ''}>
+                    <tr key={user.id} className={isTestUser ? 'test-user-row' : ''} data-testid={`team-member-row-${user.id}`}>
                       <td>
                         <div className="user-cell">
                           <div className={`user-avatar ${isTestUser ? 'test' : ''}`}>
@@ -752,7 +752,7 @@ export default function TeamMembers() {
       {/* Add Team Member Modal */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()} data-testid="team-members-add-modal">
             <div className="modal-header">
               <h3>Add Team Member</h3>
               <button className="btn-icon" onClick={() => setShowAddModal(false)}>
@@ -804,6 +804,7 @@ export default function TeamMembers() {
                 className="btn btn-primary"
                 onClick={handleAddTeamMember}
                 disabled={!selectedUserId || addingMember}
+                data-testid="team-members-add-confirm-button"
               >
                 {addingMember ? 'Adding...' : 'Add to Project'}
               </button>
@@ -844,7 +845,7 @@ export default function TeamMembers() {
       {/* Edit Team Member Modal */}
       {showEditModal && editingMember && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()} data-testid="team-members-edit-modal">
             <div className="modal-header">
               <h3>Edit Team Member</h3>
               <button className="btn-icon" onClick={() => setShowEditModal(false)}>
@@ -897,6 +898,7 @@ export default function TeamMembers() {
                 className="btn btn-primary"
                 onClick={handleSaveEdit}
                 disabled={savingEdit}
+                data-testid="team-members-edit-save-button"
               >
                 {savingEdit ? 'Saving...' : 'Save Changes'}
               </button>

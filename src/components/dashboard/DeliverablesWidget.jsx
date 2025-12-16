@@ -100,13 +100,13 @@ export default function DeliverablesWidget({ refreshTrigger }) {
   }
 
   return (
-    <div className="dashboard-widget" onClick={handleClick}>
+    <div className="dashboard-widget" onClick={handleClick} data-testid="deliverables-widget">
       <div className="widget-header">
         <div className="widget-icon" style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
           <Package size={20} />
         </div>
         <span className="widget-title">Deliverables</span>
-        <span className="widget-total">{stats.total} Total</span>
+        <span className="widget-total" data-testid="deliverables-widget-total">{stats.total} Total</span>
       </div>
       
       <div className="widget-breakdown">

@@ -36,7 +36,7 @@ function TemplateCard({ template, onSelect }) {
   const sectionCount = template.template_definition?.sections?.length || 0;
   
   return (
-    <div className="report-template-card" onClick={() => onSelect(template)}>
+    <div className="report-template-card" onClick={() => onSelect(template)} data-testid={`report-template-${template.code || template.id}`}>
       <div className="report-template-card-icon">
         <FileBarChart size={24} />
       </div>
@@ -68,7 +68,7 @@ function QuickStartSection({ onOpenWizard, onSelectTemplate }) {
       <h3>Quick Start</h3>
       <div className="report-quick-start-grid">
         {/* Create New Report */}
-        <button className="report-quick-start-card primary" onClick={onOpenWizard}>
+        <button className="report-quick-start-card primary" onClick={onOpenWizard} data-testid="report-create-button">
           <div className="quick-start-icon">
             <Plus size={24} />
           </div>
@@ -79,7 +79,7 @@ function QuickStartSection({ onOpenWizard, onSelectTemplate }) {
         </button>
 
         {/* Use AI */}
-        <button className="report-quick-start-card ai" onClick={onOpenWizard}>
+        <button className="report-quick-start-card ai" onClick={onOpenWizard} data-testid="report-ai-button">
           <div className="quick-start-icon">
             <Sparkles size={24} />
           </div>
@@ -304,7 +304,7 @@ export default function Reports() {
   // ─────────────────────────────────────────
 
   return (
-    <div className="reports-page">
+    <div className="reports-page" data-testid="reports-page">
       {/* Header */}
       <div className="card">
         <div className="card-header">
@@ -317,7 +317,7 @@ export default function Reports() {
               Generate project reports, export data, and track project progress
             </p>
           </div>
-          <button className="btn btn-primary" onClick={handleOpenWizard}>
+          <button className="btn btn-primary" onClick={handleOpenWizard} data-testid="reports-new-button">
             <Plus size={20} />
             New Report
           </button>

@@ -101,13 +101,13 @@ export default function TimesheetsWidget({ refreshTrigger }) {
   const totalCount = stats.submittedCount + stats.validatedCount;
 
   return (
-    <div className="dashboard-widget" onClick={handleClick}>
+    <div className="dashboard-widget" onClick={handleClick} data-testid="timesheets-widget">
       <div className="widget-header">
         <div className="widget-icon" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
           <Clock size={20} />
         </div>
         <span className="widget-title">Timesheets</span>
-        <span className="widget-total">{totalCount} Active</span>
+        <span className="widget-total" data-testid="timesheets-widget-total">{totalCount} Active</span>
       </div>
       
       <div className="widget-breakdown">

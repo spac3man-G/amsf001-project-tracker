@@ -215,17 +215,17 @@ export default function VariationDetail() {
   const actions = getAvailableActions();
 
   return (
-    <div className="variation-detail-page">
-      <header className="vd-header">
+    <div className="variation-detail-page" data-testid="variation-detail-page">
+      <header className="vd-header" data-testid="variation-detail-header">
         <div className="vd-header-content">
           <div className="vd-header-left">
-            <button className="vd-back-btn" onClick={handleBack}>
+            <button className="vd-back-btn" onClick={handleBack} data-testid="variation-back-button">
               <ArrowLeft size={20} />
             </button>
             <div>
               <div className="vd-header-ref">
-                <span className="vd-ref">{variation.variation_ref}</span>
-                <span className={`vd-status-badge ${getStatusBadgeClass(variation.status)}`}>
+                <span className="vd-ref" data-testid="variation-ref">{variation.variation_ref}</span>
+                <span className={`vd-status-badge ${getStatusBadgeClass(variation.status)}`} data-testid="variation-status">
                   {statusConfig?.label || variation.status}
                 </span>
               </div>
@@ -234,19 +234,19 @@ export default function VariationDetail() {
           </div>
           <div className="vd-header-actions">
             {actions.canDelete && (
-              <button className="vd-btn vd-btn-danger-outline" onClick={() => setShowDeleteConfirm(true)}>
+              <button className="vd-btn vd-btn-danger-outline" onClick={() => setShowDeleteConfirm(true)} data-testid="variation-delete-button">
                 <Trash2 size={18} />
                 Delete
               </button>
             )}
             {actions.canEdit && (
-              <button className="vd-btn vd-btn-secondary" onClick={handleEdit}>
+              <button className="vd-btn vd-btn-secondary" onClick={handleEdit} data-testid="variation-edit-button">
                 <Edit3 size={18} />
                 Edit Draft
               </button>
             )}
             {actions.canSubmit && (
-              <button className="vd-btn vd-btn-primary" onClick={handleSubmit}>
+              <button className="vd-btn vd-btn-primary" onClick={handleSubmit} data-testid="variation-submit-button">
                 <Send size={18} />
                 Submit for Approval
               </button>
@@ -472,6 +472,7 @@ export default function VariationDetail() {
                         className="vd-btn vd-btn-sign"
                         onClick={() => handleSign('supplier')}
                         disabled={signing}
+                        data-testid="variation-supplier-sign-button"
                       >
                         {signing ? <RefreshCw size={16} className="spinning" /> : <CheckCircle2 size={16} />}
                         Sign as Supplier PM
@@ -504,6 +505,7 @@ export default function VariationDetail() {
                         className="vd-btn vd-btn-sign"
                         onClick={() => handleSign('customer')}
                         disabled={signing}
+                        data-testid="variation-customer-sign-button"
                       >
                         {signing ? <RefreshCw size={16} className="spinning" /> : <CheckCircle2 size={16} />}
                         Sign as Customer PM
@@ -517,6 +519,7 @@ export default function VariationDetail() {
                   <button
                     className="vd-btn vd-btn-reject"
                     onClick={() => setShowRejectDialog(true)}
+                    data-testid="variation-reject-button"
                   >
                     <XCircle size={16} />
                     Reject Variation

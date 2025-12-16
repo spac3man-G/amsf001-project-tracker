@@ -134,7 +134,7 @@ export default function AccountSettings() {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container" data-testid="account-settings-page">
       <PageHeader
         icon={User}
         title="Account Settings"

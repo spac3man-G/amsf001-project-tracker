@@ -57,14 +57,14 @@ export default function CertificateModal({
         width: '90%',
         maxHeight: '90vh',
         overflow: 'auto'
-      }}>
+      }} data-testid="certificate-modal">
         {/* Certificate Header */}
         <div style={{ textAlign: 'center', borderBottom: '2px solid #10b981', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <Award size={32} style={{ color: '#10b981' }} />
             <h2 style={{ margin: 0, color: '#166534' }}>Milestone Acceptance Certificate</h2>
           </div>
-          <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
+          <div style={{ fontSize: '0.9rem', color: '#64748b' }} data-testid="certificate-number">
             Certificate No: <strong>{certificate.certificate_number}</strong>
           </div>
           <div style={{ 
@@ -76,7 +76,7 @@ export default function CertificateModal({
             fontWeight: '600',
             backgroundColor: statusColors.bg,
             color: statusColors.color
-          }}>
+          }} data-testid="certificate-status">
             {certificate.status}
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function CertificateModal({
         </div>
 
         {/* Delivered Items */}
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.5rem' }} data-testid="certificate-deliverables">
           <h4 style={{ margin: '0 0 0.75rem 0', color: '#1e293b' }}>Deliverables Accepted</h4>
           <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
             <table style={{ width: '100%', fontSize: '0.9rem' }}>
@@ -132,7 +132,7 @@ export default function CertificateModal({
         </div>
 
         {/* Signatures */}
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.5rem' }} data-testid="certificate-signatures">
           <h4 style={{ margin: '0 0 0.75rem 0', color: '#1e293b' }}>Signatures</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             {/* Supplier PM Signature */}
@@ -144,6 +144,7 @@ export default function CertificateModal({
               onSign={() => onSign('supplier')}
               buttonText="Sign as Supplier PM"
               buttonColor="#10b981"
+              testIdPrefix="certificate-supplier"
             />
 
             {/* Customer PM Signature */}
@@ -155,6 +156,7 @@ export default function CertificateModal({
               onSign={() => onSign('customer')}
               buttonText="Sign as Customer PM"
               buttonColor="#3b82f6"
+              testIdPrefix="certificate-customer"
             />
           </div>
         </div>
@@ -177,6 +179,7 @@ export default function CertificateModal({
               cursor: 'pointer',
               fontWeight: '500'
             }}
+            data-testid="certificate-close-button"
           >
             Close
           </button>
@@ -186,7 +189,7 @@ export default function CertificateModal({
   );
 }
 
-function SignatureBox({ label, signedBy, signedAt, canSign, onSign, buttonText, buttonColor }) {
+function SignatureBox({ label, signedBy, signedAt, canSign, onSign, buttonText, buttonColor, testIdPrefix }) {
   const isSigned = !!signedAt;
   
   return (
@@ -196,7 +199,7 @@ function SignatureBox({ label, signedBy, signedAt, canSign, onSign, buttonText, 
       borderColor: isSigned ? '#10b981' : '#e2e8f0',
       borderRadius: '8px',
       backgroundColor: isSigned ? '#f0fdf4' : '#f8fafc'
-    }}>
+    }} data-testid={testIdPrefix ? `${testIdPrefix}-signature-box` : undefined}>
       <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>{label}</div>
       {isSigned ? (
         <div>
@@ -225,6 +228,7 @@ function SignatureBox({ label, signedBy, signedAt, canSign, onSign, buttonText, 
             gap: '0.5rem',
             fontWeight: '500'
           }}
+          data-testid={testIdPrefix ? `${testIdPrefix}-sign-button` : undefined}
         >
           <PenTool size={16} /> {buttonText}
         </button>

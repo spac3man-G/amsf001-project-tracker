@@ -116,13 +116,13 @@ export default function MilestonesWidget({ refreshTrigger }) {
   }
 
   return (
-    <div className="dashboard-widget" onClick={handleClick}>
+    <div className="dashboard-widget" onClick={handleClick} data-testid="milestones-widget">
       <div className="widget-header">
         <div className="widget-icon">
           <Milestone size={20} />
         </div>
         <span className="widget-title">Milestones</span>
-        <span className="widget-total">{stats.total} Total</span>
+        <span className="widget-total" data-testid="milestones-widget-total">{stats.total} Total</span>
       </div>
       
       <div className="widget-breakdown">

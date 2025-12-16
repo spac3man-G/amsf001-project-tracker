@@ -149,19 +149,19 @@ export default function KPIs() {
   if (loading && !projectId) return <LoadingSpinner message="Loading KPIs..." size="large" fullPage />;
 
   return (
-    <div className="kpis-page">
-      <header className="kpi-header">
+    <div className="kpis-page" data-testid="kpis-page">
+      <header className="kpi-header" data-testid="kpis-header">
         <div className="kpi-header-content">
           <div className="kpi-header-left">
-            <h1>Key Performance Indicators</h1>
+            <h1 data-testid="kpis-title">Key Performance Indicators</h1>
             <p>Track project performance against SOW targets</p>
           </div>
           <div className="kpi-header-actions">
-            <button className="kpi-btn kpi-btn-secondary" onClick={handleRefresh} disabled={refreshing}>
+            <button className="kpi-btn kpi-btn-secondary" onClick={handleRefresh} disabled={refreshing} data-testid="kpis-refresh-button">
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
             {canEdit && !showAddForm && (
-              <button className="kpi-btn kpi-btn-primary" onClick={() => setShowAddForm(true)}>
+              <button className="kpi-btn kpi-btn-primary" onClick={() => setShowAddForm(true)} data-testid="add-kpi-button">
                 <Plus size={18} /> Add KPI
               </button>
             )}
@@ -169,45 +169,45 @@ export default function KPIs() {
         </div>
       </header>
 
-      <div className="kpi-content">
+      <div className="kpi-content" data-testid="kpis-content">
         {showAddForm && canEdit && (
-          <div className="kpi-add-form">
+          <div className="kpi-add-form" data-testid="kpis-add-form">
             <div className="kpi-add-form-header">
               <h3 className="kpi-add-form-title"><Plus size={20} style={{ color: 'var(--ds-teal)' }} /> Add New KPI</h3>
               <button className="kpi-add-form-close" onClick={() => setShowAddForm(false)}><X size={18} /></button>
             </div>
             <div className="kpi-form-row three-col">
-              <div className="kpi-form-group"><label>KPI Reference *</label><input type="text" value={newKPI.kpi_ref} onChange={(e) => setNewKPI({ ...newKPI, kpi_ref: e.target.value.toUpperCase() })} placeholder="KPI12" style={{ fontFamily: 'var(--ds-font-mono)', fontWeight: 600 }} /></div>
-              <div className="kpi-form-group"><label>Name *</label><input type="text" value={newKPI.name} onChange={(e) => setNewKPI({ ...newKPI, name: e.target.value })} placeholder="KPI name" /></div>
-              <div className="kpi-form-group"><label>Category *</label><select value={newKPI.category} onChange={(e) => setNewKPI({ ...newKPI, category: e.target.value })}>{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
+              <div className="kpi-form-group"><label>KPI Reference *</label><input type="text" value={newKPI.kpi_ref} onChange={(e) => setNewKPI({ ...newKPI, kpi_ref: e.target.value.toUpperCase() })} placeholder="KPI12" style={{ fontFamily: 'var(--ds-font-mono)', fontWeight: 600 }} data-testid="kpi-ref-input" /></div>
+              <div className="kpi-form-group"><label>Name *</label><input type="text" value={newKPI.name} onChange={(e) => setNewKPI({ ...newKPI, name: e.target.value })} placeholder="KPI name" data-testid="kpi-name-input" /></div>
+              <div className="kpi-form-group"><label>Category *</label><select value={newKPI.category} onChange={(e) => setNewKPI({ ...newKPI, category: e.target.value })} data-testid="kpi-category-select">{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
             </div>
             <div className="kpi-form-row three-col">
-              <div className="kpi-form-group"><label>Target (%)</label><input type="number" value={newKPI.target} onChange={(e) => setNewKPI({ ...newKPI, target: e.target.value })} min="0" max="100" /></div>
-              <div className="kpi-form-group"><label>Frequency</label><select value={newKPI.frequency} onChange={(e) => setNewKPI({ ...newKPI, frequency: e.target.value })}>{frequencies.map(freq => <option key={freq} value={freq}>{freq}</option>)}</select></div>
-              <div className="kpi-form-group"><label>Data Source</label><input type="text" value={newKPI.data_source} onChange={(e) => setNewKPI({ ...newKPI, data_source: e.target.value })} placeholder="e.g., Project Plan Records" /></div>
+              <div className="kpi-form-group"><label>Target (%)</label><input type="number" value={newKPI.target} onChange={(e) => setNewKPI({ ...newKPI, target: e.target.value })} min="0" max="100" data-testid="kpi-target-input" /></div>
+              <div className="kpi-form-group"><label>Frequency</label><select value={newKPI.frequency} onChange={(e) => setNewKPI({ ...newKPI, frequency: e.target.value })} data-testid="kpi-frequency-select">{frequencies.map(freq => <option key={freq} value={freq}>{freq}</option>)}</select></div>
+              <div className="kpi-form-group"><label>Data Source</label><input type="text" value={newKPI.data_source} onChange={(e) => setNewKPI({ ...newKPI, data_source: e.target.value })} placeholder="e.g., Project Plan Records" data-testid="kpi-data-source-input" /></div>
             </div>
-            <div className="kpi-form-group" style={{ marginBottom: 16 }}><label>Description</label><textarea value={newKPI.description} onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })} placeholder="Describe what this KPI measures" rows={2} /></div>
+            <div className="kpi-form-group" style={{ marginBottom: 16 }}><label>Description</label><textarea value={newKPI.description} onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })} placeholder="Describe what this KPI measures" rows={2} data-testid="kpi-description-input" /></div>
             <div className="kpi-form-actions">
-              <button className="kpi-btn kpi-btn-secondary" onClick={() => setShowAddForm(false)} disabled={saving}>Cancel</button>
-              <button className="kpi-btn kpi-btn-primary" onClick={handleAddKPI} disabled={saving || !newKPI.kpi_ref || !newKPI.name}><Save size={16} /> {saving ? 'Saving...' : 'Save KPI'}</button>
+              <button className="kpi-btn kpi-btn-secondary" onClick={() => setShowAddForm(false)} disabled={saving} data-testid="kpi-cancel-button">Cancel</button>
+              <button className="kpi-btn kpi-btn-primary" onClick={handleAddKPI} disabled={saving || !newKPI.kpi_ref || !newKPI.name} data-testid="kpi-save-button"><Save size={16} /> {saving ? 'Saving...' : 'Save KPI'}</button>
             </div>
           </div>
         )}
 
-        <div className="kpi-table-card">
+        <div className="kpi-table-card" data-testid="kpis-table-card">
           <div className="kpi-table-header">
             <h2 className="kpi-table-title">Key Performance Indicators</h2>
-            <span className="kpi-table-count">{kpis.length} KPI{kpis.length !== 1 ? 's' : ''}</span>
+            <span className="kpi-table-count" data-testid="kpis-count">{kpis.length} KPI{kpis.length !== 1 ? 's' : ''}</span>
           </div>
           
           {kpis.length === 0 ? (
-            <div className="kpi-empty">
+            <div className="kpi-empty" data-testid="kpis-empty-state">
               <div className="kpi-empty-icon"><TrendingUp size={32} /></div>
               <div className="kpi-empty-title">No KPIs defined yet</div>
               <div className="kpi-empty-text">Click "Add KPI" to create your first KPI.</div>
             </div>
           ) : (
-            <table className="kpi-table">
+            <table className="kpi-table" data-testid="kpis-table">
               <thead><tr><th>KPI ID</th><th>Name</th><th>Category</th><th>Target</th><th>Current</th><th>Assessments</th></tr></thead>
               <tbody>
                 {kpis.map(kpi => {
@@ -215,7 +215,7 @@ export default function KPIs() {
                   const assessments = assessmentCounts[kpi.id];
                   const currentScore = assessments ? Math.round((assessments.met / assessments.total) * 100) : 0;
                   return (
-                    <tr key={kpi.id} onClick={() => navigate(`/kpis/${kpi.id}`)}>
+                    <tr key={kpi.id} onClick={() => navigate(`/kpis/${kpi.id}`)} data-testid={`kpi-row-${kpi.id}`}>
                       <td><span className="kpi-ref">{kpi.kpi_ref}</span></td>
                       <td><span className="kpi-name">{kpi.name}</span></td>
                       <td><span className={`kpi-category-badge ${getCategoryClass(kpi.category)}`}>{kpi.category}</span></td>

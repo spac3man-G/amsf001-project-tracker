@@ -83,7 +83,7 @@ export default function ResetPassword() {
 
   if (checkingSession) {
     return (
-      <div className="auth-container">
+      <div className="auth-container" data-testid="reset-password-page">
         <div className="auth-box">
           <div style={{ textAlign: 'center', padding: '2rem' }}>
             <LoadingSpinner message="Verifying reset link..." size="medium" />

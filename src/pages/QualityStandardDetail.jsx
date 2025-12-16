@@ -101,14 +101,14 @@ export default function QualityStandardDetail() {
   const canEdit = canEditQualityStandard;
 
   if (loading) return <LoadingSpinner message="Loading quality standard..." size="large" fullPage />;
-  if (!qs) return <div className="loading">Quality Standard not found</div>;
+  if (!qs) return <div className="loading" data-testid="qs-detail-not-found">Quality Standard not found</div>;
 
   const status = getStatusInfo();
   const totalAssessments = assessments.filter(a => a.criteria_met !== null).length;
   const metAssessments = assessments.filter(a => a.criteria_met === true).length;
 
   return (
-    <div className="page-container">
+    <div className="page-container" data-testid="qs-detail-page">
       {/* Back button */}
       <button
         onClick={() => navigate('/quality-standards')}
@@ -123,6 +123,7 @@ export default function QualityStandardDetail() {
           cursor: 'pointer',
           marginBottom: '1rem'
         }}
+        data-testid="qs-detail-back-button"
       >
         <ArrowLeft size={20} />
         Back to Quality Standards
@@ -134,7 +135,7 @@ export default function QualityStandardDetail() {
         justifyContent: 'space-between', 
         alignItems: 'flex-start',
         marginBottom: '1.5rem'
-      }}>
+      }} data-testid="qs-detail-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <Award size={32} style={{ color: '#8b5cf6' }} />
           <div>
@@ -148,7 +149,7 @@ export default function QualityStandardDetail() {
               }}>
                 {qs.qs_ref}
               </span>
-              {qs.name}
+              <span data-testid="qs-detail-name">{qs.name}</span>
             </h1>
             <span style={{
               display: 'inline-block',
@@ -160,7 +161,7 @@ export default function QualityStandardDetail() {
               backgroundColor: status.bg,
               color: status.color
             }}>
-              {status.label}
+              <span data-testid="qs-detail-status">{status.label}</span>
             </span>
           </div>
         </div>
@@ -179,6 +180,7 @@ export default function QualityStandardDetail() {
               borderRadius: '6px',
               cursor: 'pointer'
             }}
+            data-testid="qs-detail-edit-button"
           >
             <Edit2 size={16} />
             Edit
@@ -187,7 +189,7 @@ export default function QualityStandardDetail() {
       </div>
 
       {/* Stats Cards */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }} data-testid="qs-detail-stats">
         <div className="stat-card">
           <div className="stat-label">
             <Target size={18} style={{ color: '#8b5cf6' }} />
@@ -420,6 +422,7 @@ export default function QualityStandardDetail() {
                   borderRadius: '6px',
                   cursor: 'pointer'
                 }}
+                data-testid="qs-detail-save-button"
               >
                 <Save size={18} />
                 Save
@@ -442,6 +445,7 @@ export default function QualityStandardDetail() {
                   borderRadius: '6px',
                   cursor: 'pointer'
                 }}
+                data-testid="qs-detail-cancel-button"
               >
                 <X size={18} />
                 Cancel
