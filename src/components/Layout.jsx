@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-// Version 11.1 - Added data-testid attributes for E2E testing
+// Version 11.2 - Fixed header z-index to ensure dropdowns appear above page content
 // - User name/role only shown in header (top right)
 // - Clicking user info in header navigates to My Account
 // - Drag and drop navigation reordering for non-viewers
@@ -445,7 +445,7 @@ export default function Layout({ children }) {
           gap: '1rem',
           position: 'sticky',
           top: 0,
-          zIndex: 40
+          zIndex: 200
         }}>
           {/* Project Switcher (only shown for users with multiple projects) */}
           <ProjectSwitcher />
