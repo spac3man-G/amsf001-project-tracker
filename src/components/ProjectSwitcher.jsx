@@ -1,5 +1,5 @@
 // src/components/ProjectSwitcher.jsx
-// Version 1.1 - Added data-testid for E2E testing
+// Version 1.2 - Fixed z-index to appear above sticky page headers
 //
 // Only displays when user has multiple project assignments.
 // Allows switching between projects with different roles.
@@ -134,7 +134,7 @@ export default function ProjectSwitcher() {
             border: '1px solid #e2e8f0',
             borderRadius: '8px',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            zIndex: 100,
+            zIndex: 1000,
             overflow: 'hidden'
           }}
         >

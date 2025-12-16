@@ -78,6 +78,93 @@ Medium (1-2 days) - Mostly refactoring existing code with thorough testing
 
 ---
 
+### TD-002: Z-Index Scale Standardisation
+
+**Priority:** Low  
+**Added:** 2025-12-16  
+**Context:** Project Switcher dropdown appearing behind page headers
+
+#### Problem
+
+The application uses inconsistent z-index values across components:
+
+| Component | Current z-index | Purpose |
+|-----------|-----------------|----------|
+| Layout sidebar | 50 | Fixed sidebar navigation |
+| Layout header | 40 | Top header bar |
+| ProjectSwitcher dropdown | 1000 (was 100) | Project selection dropdown |
+| Page sticky headers | 100 | Milestones, Timesheets, Expenses, etc. |
+| Modals | 1000+ | Dialog overlays |
+
+This was discovered when the Project Switcher dropdown was appearing behind page sticky headers because both used `z-index: 100`.
+
+#### Current State (Tactical Fix Applied)
+
+A tactical fix was applied on 2025-12-16:
+- Increased `ProjectSwitcher.jsx` dropdown z-index from `100` to `1000`
+
+This resolves the immediate issue but doesn't address the underlying inconsistency.
+
+#### Strategic Solution
+
+Establish a global z-index scale using CSS custom properties:
+
+1. **Create a z-index scale** in a global CSS file or design tokens:
+   ```css
+   :root {
+     /* Z-Index Scale */
+     --z-dropdown: 1000;
+     --z-modal-backdrop: 900;
+     --z-modal: 950;
+     --z-toast: 1100;
+     --z-tooltip: 1050;
+     --z-header-global: 50;
+     --z-header-page: 30;
+     --z-sidebar: 40;
+     --z-sticky: 10;
+   }
+   ```
+
+2. **Update Layout.jsx** to use CSS variables or consistent inline values
+
+3. **Update all page CSS files** to use the scale:
+   - `Milestones.css` - `.ms-header { z-index: var(--z-header-page); }`
+   - `Timesheets.css` - `.ts-header { z-index: var(--z-header-page); }`
+   - `Expenses.css` - `.exp-header { z-index: var(--z-header-page); }`
+   - `Resources.css` - `.res-header { z-index: var(--z-header-page); }`
+   - `QualityStandards.css`
+   - `VariationDetail.css`
+   - `TeamMembers.css`
+   - And others...
+
+4. **Update component dropdowns** to use `--z-dropdown`
+
+5. **Document the scale** in the codebase for future reference
+
+#### Benefits
+
+- Clear, predictable stacking order
+- Single source of truth for z-index values
+- Easier debugging of overlay issues
+- Prevents future z-index conflicts
+- Follows CSS best practices
+
+#### Files Affected
+
+- Create: `src/styles/variables.css` or add to existing global CSS
+- `src/components/Layout.jsx`
+- `src/components/ProjectSwitcher.jsx`
+- `src/components/ViewAsBar.jsx`
+- `src/components/NotificationBell.jsx`
+- All page CSS files with sticky headers (~10+ files)
+- Modal components
+
+#### Effort Estimate
+
+Low-Medium (0.5-1 day) - Systematic but straightforward changes
+
+---
+
 ## Future Features
 
 Planned features that are not yet implemented.
