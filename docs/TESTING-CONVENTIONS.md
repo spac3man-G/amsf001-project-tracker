@@ -1,7 +1,7 @@
 # Testing Conventions
 
 **Created:** 2025-12-14  
-**Last Updated:** 2025-12-14  
+**Last Updated:** 2025-12-15  
 **Status:** Active  
 **Applies To:** All E2E tests and testable UI components
 
@@ -551,6 +551,186 @@ Components with data-testid attributes (for searchability):
 - `settings-milestone-billable-{id}` - Settings.jsx (dynamic)
 - `settings-no-milestones` - Settings.jsx
 - `settings-info-box` - Settings.jsx
+
+### KPIs (Added 15 December 2025)
+- `kpis-page` - KPIs.jsx
+- `kpis-header` - KPIs.jsx
+- `kpis-title` - KPIs.jsx
+- `kpis-refresh-button` - KPIs.jsx
+- `add-kpi-button` - KPIs.jsx
+- `kpis-table-card` - KPIs.jsx
+- `kpis-count` - KPIs.jsx
+- `kpis-table` - KPIs.jsx
+- `kpis-empty-state` - KPIs.jsx
+- `kpi-row-{id}` - KPIs.jsx (dynamic)
+- `kpi-ref-{ref}` - KPIs.jsx (dynamic)
+- `kpi-status-{id}` - KPIs.jsx (dynamic)
+
+### KPI Detail (Added 15 December 2025)
+- `kpi-detail-page` - KPIDetail.jsx
+- `kpi-detail-not-found` - KPIDetail.jsx
+- `kpi-detail-back-button` - KPIDetail.jsx
+- `kpi-detail-header` - KPIDetail.jsx
+- `kpi-detail-back-nav` - KPIDetail.jsx
+- `kpi-detail-ref` - KPIDetail.jsx
+- `kpi-detail-status` - KPIDetail.jsx
+- `kpi-detail-edit-button` - KPIDetail.jsx
+- `kpi-detail-save-button` - KPIDetail.jsx
+- `kpi-detail-cancel-button` - KPIDetail.jsx
+- `kpi-detail-stats` - KPIDetail.jsx
+- `kpi-detail-target` - KPIDetail.jsx
+- `kpi-detail-current` - KPIDetail.jsx
+
+### Quality Standards (Added 15 December 2025)
+- `quality-standards-page` - QualityStandards.jsx
+- `quality-standards-header` - QualityStandards.jsx
+- `quality-standards-title` - QualityStandards.jsx
+- `quality-standards-refresh-button` - QualityStandards.jsx
+- `add-quality-standard-button` - QualityStandards.jsx
+- `quality-standards-table-card` - QualityStandards.jsx
+- `quality-standards-count` - QualityStandards.jsx
+- `quality-standards-table` - QualityStandards.jsx
+- `quality-standards-empty-state` - QualityStandards.jsx
+- `quality-standard-row-{id}` - QualityStandards.jsx (dynamic)
+- `quality-standard-ref-{ref}` - QualityStandards.jsx (dynamic)
+
+### Quality Standard Detail (Added 15 December 2025)
+- `quality-standard-detail-page` - QualityStandardDetail.jsx
+- `quality-standard-detail-not-found` - QualityStandardDetail.jsx
+- `quality-standard-detail-back-button` - QualityStandardDetail.jsx
+- `quality-standard-detail-header` - QualityStandardDetail.jsx
+- `quality-standard-detail-ref` - QualityStandardDetail.jsx
+- `quality-standard-detail-status` - QualityStandardDetail.jsx
+- `quality-standard-detail-edit-button` - QualityStandardDetail.jsx
+- `quality-standard-detail-save-button` - QualityStandardDetail.jsx
+- `quality-standard-detail-cancel-button` - QualityStandardDetail.jsx
+- `quality-standard-detail-stats` - QualityStandardDetail.jsx
+
+### Team Members (Added 15 December 2025)
+- `team-members-page` - TeamMembers.jsx
+- `team-members-header` - TeamMembers.jsx
+- `team-members-title` - TeamMembers.jsx
+- `team-members-refresh-button` - TeamMembers.jsx
+- `add-team-member-button` - TeamMembers.jsx
+- `team-members-content` - TeamMembers.jsx
+- `team-members-table-card` - TeamMembers.jsx
+- `team-members-count` - TeamMembers.jsx
+- `team-members-table` - TeamMembers.jsx
+- `team-members-empty-state` - TeamMembers.jsx
+- `team-member-row-{id}` - TeamMembers.jsx (dynamic)
+- `team-member-role-{id}` - TeamMembers.jsx (dynamic)
+
+### Certificate Modal (Added 15 December 2025)
+- `certificate-modal` - CertificateModal.jsx
+- `certificate-modal-close` - CertificateModal.jsx
+- `certificate-milestone-info` - CertificateModal.jsx
+- `certificate-signoff-section` - CertificateModal.jsx
+- `certificate-supplier-signoff` - CertificateModal.jsx
+- `certificate-customer-signoff` - CertificateModal.jsx
+- `certificate-sign-button` - CertificateModal.jsx
+- `certificate-download-button` - CertificateModal.jsx
+- `certificate-deliverable-{id}` - CertificateModal.jsx (dynamic)
+- `certificate-deliverable-status-{id}` - CertificateModal.jsx (dynamic)
+- `certificate-deliverable-reviewed-{id}` - CertificateModal.jsx (dynamic)
+- `certificate-deliverable-accepted-{id}` - CertificateModal.jsx (dynamic)
+
+### Timesheet Detail Modal (Added 15 December 2025)
+- `timesheet-detail-modal` - TimesheetDetailModal.jsx
+- `timesheet-modal-close` - TimesheetDetailModal.jsx
+- `timesheet-modal-ref` - TimesheetDetailModal.jsx
+- `timesheet-modal-status` - TimesheetDetailModal.jsx
+- `timesheet-modal-resource` - TimesheetDetailModal.jsx
+- `timesheet-modal-date` - TimesheetDetailModal.jsx
+- `timesheet-modal-hours` - TimesheetDetailModal.jsx
+- `timesheet-modal-edit-button` - TimesheetDetailModal.jsx
+- `timesheet-modal-delete-button` - TimesheetDetailModal.jsx
+- `timesheet-modal-submit-button` - TimesheetDetailModal.jsx
+
+### Expense Detail Modal (Added 15 December 2025)
+- `expense-detail-modal` - ExpenseDetailModal.jsx
+- `expense-modal-close` - ExpenseDetailModal.jsx
+- `expense-modal-ref` - ExpenseDetailModal.jsx
+- `expense-modal-status` - ExpenseDetailModal.jsx
+- `expense-modal-amount` - ExpenseDetailModal.jsx
+- `expense-modal-category` - ExpenseDetailModal.jsx
+- `expense-edit-button` - ExpenseDetailModal.jsx
+- `expense-delete-button` - ExpenseDetailModal.jsx
+- `expense-submit-button` - ExpenseDetailModal.jsx
+- `expense-validate-button` - ExpenseDetailModal.jsx
+
+### RAID Log (Added 15 December 2025)
+- `raid-log-page` - RaidLog.jsx
+- `raid-log-header` - RaidLog.jsx
+- `raid-log-title` - RaidLog.jsx
+- `raid-log-refresh-button` - RaidLog.jsx
+- `add-raid-item-button` - RaidLog.jsx
+- `raid-log-content` - RaidLog.jsx
+- `raid-log-filters` - RaidLog.jsx
+- `raid-log-filter-type` - RaidLog.jsx
+- `raid-log-filter-status` - RaidLog.jsx
+- `raid-log-table-card` - RaidLog.jsx
+- `raid-log-count` - RaidLog.jsx
+- `raid-log-table` - RaidLog.jsx
+- `raid-log-empty-state` - RaidLog.jsx
+- `raid-item-row-{id}` - RaidLog.jsx (dynamic)
+- `raid-item-type-{id}` - RaidLog.jsx (dynamic)
+
+### Variation Detail (Added 15 December 2025)
+- `variation-detail-page` - VariationDetail.jsx
+- `variation-detail-not-found` - VariationDetail.jsx
+- `variation-detail-back-button` - VariationDetail.jsx
+- `variation-detail-header` - VariationDetail.jsx
+- `variation-detail-ref` - VariationDetail.jsx
+- `variation-detail-status` - VariationDetail.jsx
+- `variation-detail-edit-button` - VariationDetail.jsx
+- `variation-detail-submit-button` - VariationDetail.jsx
+- `variation-detail-sign-button` - VariationDetail.jsx
+- `variation-detail-signatures` - VariationDetail.jsx
+- `variation-detail-impact` - VariationDetail.jsx
+
+### Variation Form (Added 15 December 2025)
+- `variation-form-page` - VariationForm.jsx
+- `variation-form-back-button` - VariationForm.jsx
+- `variation-form-header` - VariationForm.jsx
+- `variation-form-progress` - VariationForm.jsx
+- `variation-form-next-button` - VariationForm.jsx
+- `variation-form-prev-button` - VariationForm.jsx
+- `variation-form-submit-button` - VariationForm.jsx
+
+### Resource Detail (Added 15 December 2025)
+- `resource-detail-page` - ResourceDetail.jsx
+- `resource-detail-not-found` - ResourceDetail.jsx
+- `resource-detail-back-button` - ResourceDetail.jsx
+- `resource-detail-header` - ResourceDetail.jsx
+- `resource-detail-edit-button` - ResourceDetail.jsx
+
+### Reports (Added 15 December 2025)
+- `reports-page` - Reports.jsx
+- `reports-new-button` - Reports.jsx
+- `report-create-button` - Reports.jsx
+- `report-ai-button` - Reports.jsx
+- `report-template-{code}` - Reports.jsx (dynamic)
+
+### Dashboard Widgets (Added 15 December 2025)
+- `deliverables-widget` - DeliverablesWidget.jsx
+- `deliverables-widget-total` - DeliverablesWidget.jsx
+- `expenses-widget` - ExpensesWidget.jsx
+- `expenses-widget-total` - ExpensesWidget.jsx
+- `finance-widget` - FinanceWidget.jsx
+- `finance-total-billable` - FinanceWidget.jsx
+- `milestones-widget` - MilestonesWidget.jsx
+- `milestones-widget-total` - MilestonesWidget.jsx
+- `timesheets-widget` - TimesheetsWidget.jsx
+- `timesheets-widget-total` - TimesheetsWidget.jsx
+
+### Low Priority Pages (Added 15 December 2025)
+- `billing-page` - Billing.jsx
+- `account-settings-page` - AccountSettings.jsx
+- `audit-log-page` - AuditLog.jsx
+- `deleted-items-page` - DeletedItems.jsx
+- `reset-password-page` - ResetPassword.jsx
+- `gantt-page` - Gantt.jsx
+- `calendar-page` - Calendar.jsx
 
 ---
 

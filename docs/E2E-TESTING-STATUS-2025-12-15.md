@@ -1,157 +1,352 @@
-# E2E Testing Status - 15 December 2025
+# E2E Testing Status - 15 December 2025 (Updated)
 
 **Created:** 15 December 2025  
-**Status:** Phase 2 Resources Setup Complete, Ready for Workflow Testing
+**Last Updated:** 15 December 2025 - Phase 3 Complete
+**Status:** TestID Implementation Complete, E2E Test Suite Expanded, Full Workflow Test Added
 
 ---
 
 ## Executive Summary
 
-E2E Workflow Testing infrastructure is now in place. The E2E-WF project has been configured with users and resources, and we're ready to test timesheet and expense workflows.
+Phase 1 (TestID Implementation), Phase 2 (E2E Test Creation), and Phase 3 (Full Workflow Testing) are now complete. The application has comprehensive data-testid coverage across all major pages and components, with corresponding E2E tests and a full milestone lifecycle workflow test.
 
 ---
 
-## E2E-WF Project Status
+## Completed Work
 
-### Project Details
-| Property | Value |
-|----------|-------|
-| **Project Name** | E2E Workflow Test Project |
-| **Reference** | E2E-WF |
-| **Project ID** | `28fb9207-8ac1-4c57-b885-a48b1272010e` |
-| **Status** | ✅ Active |
+### Phase 1: TestID Implementation ✅
 
-### Users Assigned (8 total)
+**Total testids added: ~380 across 35+ components**
 
-| User | Email | Project Role | Has Resource? |
-|------|-------|--------------|---------------|
-| Glenn Nickols | glenn.nickols@jtglobal.com | Supplier PM | ✅ Yes (Third-Party via Progressive) |
-| E2E Admin | e2e.admin@amsf001.test | Admin | ❌ No (doesn't need one) |
-| E2E Supplier PM | e2e.supplier.pm@amsf001.test | Supplier PM | ✅ Yes (Internal) |
-| E2E Supplier Finance | e2e.supplier.finance@amsf001.test | Supplier Finance | ❌ No (viewing role only) |
-| E2E Customer PM | e2e.customer.pm@amsf001.test | Customer PM | ❌ No (approval role only) |
-| E2E Customer Finance | e2e.customer.finance@amsf001.test | Customer Finance | ❌ No (approval role only) |
-| E2E Contributor | e2e.contributor@amsf001.test | Contributor | ✅ Yes (Third-Party via Progressive) |
-| E2E Viewer | e2e.viewer@amsf001.test | Viewer | ❌ No (read-only) |
+#### High Priority Components (Session 1)
+| Component | TestIDs | Status |
+|-----------|---------|--------|
+| KPIDetail.jsx | 13 | ✅ Complete |
+| QualityStandardDetail.jsx | 10 | ✅ Complete |
+| TeamMembers.jsx | 12 | ✅ Complete |
+| CertificateModal.jsx | 8 (+4 dynamic) | ✅ Complete |
+| TimesheetDetailModal.jsx | 10 | ✅ Complete |
 
-### Resources Created (3 total)
+#### Medium Priority Components (Session 2)
+| Component | TestIDs | Status |
+|-----------|---------|--------|
+| RaidLog.jsx | 14 (+2 dynamic) | ✅ Complete |
+| VariationDetail.jsx | 11 | ✅ Complete |
+| VariationForm.jsx | 7 | ✅ Complete |
+| ResourceDetail.jsx | 5 | ✅ Complete |
+| ExpenseDetailModal.jsx | 10 | ✅ Complete |
 
-| Name | Type | Partner | Role | SFIA | Sell Rate | Cost Rate | Margin |
-|------|------|---------|------|------|-----------|-----------|--------|
-| Glenn Nickols | Third-Party | Progressive | Project Manager | L5 | £1050 | £750 | 29% |
-| E2E Supplier PM | Internal | - | Project Manager | L4 | £1050 | £500 | 52% |
-| E2E Contributor | Third-Party | Progressive | Technical Architect | L4 | £1050 | £750 | 29% |
+#### Reports & Dashboard Widgets (Session 3)
+| Component | TestIDs | Status |
+|-----------|---------|--------|
+| Reports.jsx | 5 (+1 dynamic) | ✅ Complete |
+| DeliverablesWidget.jsx | 2 | ✅ Complete |
+| ExpensesWidget.jsx | 2 | ✅ Complete |
+| FinanceWidget.jsx | 2 | ✅ Complete |
+| MilestonesWidget.jsx | 2 | ✅ Complete |
+| TimesheetsWidget.jsx | 2 | ✅ Complete |
 
-### Partners Available (1)
-
-| Partner | Status |
-|---------|--------|
-| Progressive | ✅ Active |
+#### Low Priority Pages (Session 3)
+| Component | TestIDs | Status |
+|-----------|---------|--------|
+| Billing.jsx | 1 | ✅ Complete |
+| AccountSettings.jsx | 1 | ✅ Complete |
+| AuditLog.jsx | 1 | ✅ Complete |
+| DeletedItems.jsx | 1 | ✅ Complete |
+| ResetPassword.jsx | 1 | ✅ Complete |
+| Gantt.jsx | 1 | ✅ Complete |
+| Calendar.jsx | 1 | ✅ Complete |
 
 ---
 
-## Completed Work (This Session)
+### Phase 2: E2E Test Implementation ✅
 
-### Features Implemented
+**6 new E2E test files created with ~243 test cases**
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| User picker dropdown | ✅ Complete | Shows project users without resources |
-| Partner dropdown | ✅ Complete | Required for third-party resources |
-| Role dropdown | ✅ Complete | Common job titles |
-| Auto-generate resource_ref | ✅ Complete | R001, R002, etc. if empty |
-| Partner validation | ✅ Complete | Third-party must have partner |
-| Team Members page hidden | ✅ Complete | Projects page used for user management |
+| Test File | Tests/Describes | Coverage |
+|-----------|-----------------|----------|
+| `milestones.spec.js` | 33 | Page load, table, form, detail nav, multi-role |
+| `expenses.spec.js` | 35 | Page load, table, filters, form, modal, multi-role |
+| `deliverables.spec.js` | 39 | Page load, table, filters, form, multi-role |
+| `resources.spec.js` | 44 | Page load, table, form, cost visibility by role |
+| `variations.spec.js` | 46 | Page load, summary, table, form page, multi-role |
+| `kpis-quality.spec.js` | 45 | KPIs + Quality Standards pages, detail views |
 
-### Bug Fixes
+#### Complete E2E Test Suite
+| Test File | Tests | Purpose |
+|-----------|-------|---------|
+| `smoke.spec.js` | 30 | Critical path verification |
+| `dashboard.spec.js` | 25 | Dashboard page tests |
+| `timesheets.spec.js` | 46 | Timesheet CRUD and workflow |
+| `milestones.spec.js` | 33 | Milestone CRUD and workflow |
+| `expenses.spec.js` | 35 | Expense CRUD and workflow |
+| `deliverables.spec.js` | 39 | Deliverable CRUD and workflow |
+| `resources.spec.js` | 44 | Resource management + cost visibility |
+| `variations.spec.js` | 46 | Variation workflow |
+| `kpis-quality.spec.js` | 45 | KPI and Quality Standards |
+| `features-by-role.spec.js` | 72 | Feature access by role |
+| `permissions-by-role.spec.js` | 56 | Permission boundaries |
+| **workflows/** | | |
+| `complete-workflows.spec.js` | ~30 | Business workflow tests |
+| `role-verification.spec.js` | ~20 | Role verification tests |
+| `milestone-lifecycle.spec.js` | ~25 | **NEW** Full milestone lifecycle workflow |
 
-| Issue | Fix |
-|-------|-----|
-| Supplier PM couldn't create resources | Added supplier_pm to canCreate check |
-| User picker query failed (no FK) | Changed to two-step fetch |
-| discount_percent column not found | Removed from code (not in schema) |
-| Duplicate resource_ref constraint | Auto-generate if empty |
+**Total: ~356 unique test cases** (run as ~4,200 with all browser/role combinations)
 
-### Code Changes
+---
 
+## Test Categories
+
+Each spec file includes these test groups:
+
+### @critical - Must Pass
+- Page loads with correct elements
+- Main navigation works
+- Authentication works
+
+### @smoke - Core Functionality
+- Tables display correctly
+- Filters work
+- Add/Create buttons visible for correct roles
+- Refresh functionality works
+
+### Multi-Role Tests
+- Admin sees all features
+- Supplier PM sees supplier features
+- Customer PM limited to customer features
+- Viewer has read-only access
+
+---
+
+## Phase 3: Milestone Lifecycle Workflow Test ✅
+
+**New comprehensive workflow test: `e2e/workflows/milestone-lifecycle.spec.js`**
+
+This test exercises the complete lifecycle of a milestone from creation through completion and billing.
+
+### Workflow Steps Tested
+
+| Phase | Description | Tests |
+|-------|-------------|-------|
+| **Phase 1: Setup** | Supplier PM creates foundation | 4 tests |
+| 1.1 | Create milestone | Milestone creation, form fill, validation |
+| 1.2 | Create 3 quality standards | QS creation loop, reference tracking |
+| 1.3 | Create 3 KPIs | KPI creation loop, target setting |
+| 1.4 | Create 3 deliverables linked to milestone | Deliverable creation, milestone association |
+| **Phase 2: Baseline** | Dual signature workflow | 3 tests |
+| 2.1 | Add baseline dates and billable amount | Edit milestone, set baseline values |
+| 2.2 | Supplier PM signs baseline | First signature of dual signature |
+| 2.3 | Customer PM signs baseline | Second signature, baseline lock verification |
+| **Phase 3: Work** | Contributor deliverable work | 4 tests |
+| 3.1 | First progress update (30%) | Status change, progress tracking |
+| 3.2 | Second progress update (80%) | Incremental progress |
+| 3.3 | Submit for review | Status transition to "Submitted for Review" |
+| 3.4 | Create 3 timesheets | Timesheet creation against milestone |
+| **Phase 4: Review** | Deliverable review workflow | 4 tests |
+| 4.1 | Customer PM rejects deliverable | Rejection with reason |
+| 4.2 | Contributor resubmits | Update and resubmit |
+| 4.3 | Supplier PM accepts with KPI scoring | Accept with 50% KPI/QS scores |
+| 4.4 | Complete remaining deliverables | Mark DEL2, DEL3 as delivered |
+| **Phase 5: Certificate** | Certificate generation and signing | 3 tests |
+| 5.1 | Generate milestone certificate | Certificate creation |
+| 5.2 | Supplier PM signs certificate | First certificate signature |
+| 5.3 | Customer PM signs certificate | Second signature, completion |
+| **Phase 6: Verification** | Billing and status verification | 5 tests |
+| 6.1 | Verify milestone in billing page | Billing page displays milestone |
+| 6.2 | Verify milestone status = Completed | Milestones list shows completion |
+| 6.3 | Verify 100% progress | Detail page shows full progress |
+| 6.4 | Verify all deliverables delivered | All 3 deliverables show "Delivered" |
+| 6.5 | Verify timesheets recorded | Timesheets appear in list |
+
+### Test Coverage Summary
+
+| Area Tested | What's Verified |
+|-------------|-----------------|
+| Milestone CRUD | Create, edit, baseline setting |
+| KPI CRUD | Create KPIs with targets |
+| Quality Standard CRUD | Create QS definitions |
+| Deliverable CRUD | Create, link to milestone, status transitions |
+| Dual Signature (Baseline) | Both PM signatures, lock verification |
+| Progress Tracking | Incremental updates, status changes |
+| Timesheet Creation | Multiple entries against milestone |
+| Review Workflow | Reject → Resubmit → Accept cycle |
+| KPI/QS Scoring | Assessment during acceptance |
+| Certificate Workflow | Generate, dual signature |
+| Billing Impact | Completed milestone appears in billing |
+
+### Running the Workflow Test
+
+```bash
+# Run milestone lifecycle workflow only
+npm run e2e -- --grep="@milestone-lifecycle"
+
+# Run all workflow tests
+npm run e2e -- --grep="@workflow"
+
+# Run workflow tests in headed mode (for debugging)
+npm run e2e -- --grep="@milestone-lifecycle" --headed
+```
+
+---
+
+## Running Tests
+
+```bash
+# Run all tests
+npm run e2e
+
+# Run smoke tests only
+npm run e2e -- --grep="@smoke"
+
+# Run critical tests only
+npm run e2e -- --grep="@critical"
+
+# Run tests for specific page
+npm run e2e -- --grep="@milestones"
+npm run e2e -- --grep="@expenses"
+npm run e2e -- --grep="@deliverables"
+npm run e2e -- --grep="@resources"
+npm run e2e -- --grep="@variations"
+npm run e2e -- --grep="@kpis"
+
+# Run as specific role
+npm run e2e -- --project=admin
+npm run e2e -- --project=supplier-pm
+npm run e2e -- --project=customer-pm
+npm run e2e -- --project=viewer
+
+# View HTML report
+npm run e2e:report
+```
+
+---
+
+## TestID Naming Conventions
+
+All testids follow consistent patterns:
+
+### Page Containers
+```
+{page-name}-page              # e.g., milestones-page, expenses-page
+```
+
+### Headers & Navigation
+```
+{page-name}-header            # e.g., milestones-header
+{page-name}-title             # e.g., milestones-title
+{page-name}-back-button       # e.g., kpi-detail-back-button
+```
+
+### Actions
+```
+add-{entity}-button           # e.g., add-milestone-button
+{page-name}-refresh-button    # e.g., milestones-refresh-button
+{entity}-save-button          # e.g., timesheet-save-button
+{entity}-cancel-button        # e.g., timesheet-cancel-button
+```
+
+### Tables & Lists
+```
+{entity}-table-card           # e.g., milestones-table-card
+{entity}-table                # e.g., milestones-table
+{entity}-count                # e.g., milestones-count
+{entity}-empty-state          # e.g., milestones-empty-state
+{entity}-row-{id}             # e.g., milestone-row-abc123 (dynamic)
+```
+
+### Filters
+```
+{page-name}-filters           # e.g., deliverables-filters
+{page-name}-filter-{field}    # e.g., deliverables-filter-milestone
+```
+
+### Forms
+```
+{entity}-form                 # e.g., timesheet-form
+{entity}-{field}-input        # e.g., timesheet-hours-input
+{entity}-{field}-select       # e.g., timesheet-milestone-select
+```
+
+### Modals
+```
+{entity}-detail-modal         # e.g., expense-detail-modal
+{entity}-modal-close          # e.g., expense-modal-close
+{entity}-modal-status         # e.g., expense-modal-status
+```
+
+### Widgets
+```
+{widget-name}-widget          # e.g., deliverables-widget
+{widget-name}-widget-total    # e.g., deliverables-widget-total
+```
+
+---
+
+## Documentation Updates Required
+
+| Document | Status | Action Needed |
+|----------|--------|---------------|
+| TESTING-CONVENTIONS.md | ⚠️ Partial | Add new testids from Phase 1 Session 3 |
+| E2E-TESTING-STATUS-2025-12-15.md | ✅ Updated | This file |
+| E2E-IMPLEMENTATION-PLAN.md | ✅ Current | No changes needed |
+| TESTING.md | ✅ Current | No changes needed |
+| TESTING_GUIDE.md | ✅ Current | No changes needed |
+
+---
+
+## Next Steps
+
+### Remaining Work
+1. **Run full test suite** - Verify all tests pass including new workflow test
+2. **CI/CD Integration** - Ensure tests run on PR/push
+
+### Future Enhancements (Workflow 2+)
+- Add workflow tests for expense validation and approval flow
+- Add workflow tests for variation dual-signature flow
+- Add workflow tests for resource capacity planning
+- Add workflow tests for multi-project scenarios
+
+---
+
+## Files Modified/Created
+
+### TestID Phase (Phase 1)
 | File | Changes |
 |------|---------|
-| `src/hooks/useResourcePermissions.js` | Allow Supplier PM to create |
-| `src/services/resources.service.js` | Add getProjectUsersWithoutResources() |
-| `src/pages/Resources.jsx` | User picker, partner dropdown, role dropdown, auto-ref |
-| `src/lib/resourceCalculations.js` | Add RESOURCE_ROLES, getRoleOptions() |
-| `src/lib/navigation.js` | Hide Team Members from nav |
-| `src/components/ProjectSwitcher.jsx` | Improved UX |
+| `src/pages/KPIDetail.jsx` | +13 testids |
+| `src/pages/QualityStandardDetail.jsx` | +10 testids |
+| `src/pages/TeamMembers.jsx` | +12 testids |
+| `src/components/milestones/CertificateModal.jsx` | +12 testids |
+| `src/components/timesheets/TimesheetDetailModal.jsx` | +10 testids |
+| `src/pages/RaidLog.jsx` | +16 testids |
+| `src/pages/VariationDetail.jsx` | +11 testids |
+| `src/pages/VariationForm.jsx` | +7 testids |
+| `src/pages/ResourceDetail.jsx` | +5 testids |
+| `src/components/expenses/ExpenseDetailModal.jsx` | +10 testids |
+| `src/pages/Reports.jsx` | +6 testids |
+| `src/components/dashboard/*.jsx` | +10 testids |
+| `src/pages/Billing.jsx` | +1 testid |
+| `src/pages/AccountSettings.jsx` | +1 testid |
+| `src/pages/AuditLog.jsx` | +1 testid |
+| `src/pages/DeletedItems.jsx` | +1 testid |
+| `src/pages/ResetPassword.jsx` | +1 testid |
+| `src/pages/Gantt.jsx` | +1 testid |
+| `src/pages/Calendar.jsx` | +1 testid |
 
----
+### E2E Test Phase (Phase 2)
+| File | Action |
+|------|--------|
+| `e2e/milestones.spec.js` | Created |
+| `e2e/expenses.spec.js` | Created |
+| `e2e/deliverables.spec.js` | Created |
+| `e2e/resources.spec.js` | Created |
+| `e2e/variations.spec.js` | Created |
+| `e2e/kpis-quality.spec.js` | Created |
 
-## Key Decisions Made
-
-| Decision | Rationale |
-|----------|-----------|
-| Only supplier_pm + contributor need resources | These roles log time; others are viewing/approval roles |
-| Customer roles don't get resources | They approve, not bill |
-| Supplier Finance is viewing role | Will get reports later, not resources |
-| Third-party resources require Partner | For billing/invoicing |
-| Use Projects page for user management | Team Members page redundant |
-| Hide Team Members page | Simplify navigation |
-
----
-
-## Next Steps: Workflow Testing
-
-### Ready to Test
-
-1. **Timesheets**
-   - Create timesheet as Contributor
-   - Submit for approval
-   - Approve as Customer PM
-   - Verify status updates
-
-2. **Expenses**
-   - Create expense as Contributor
-   - Submit for validation
-   - Validate as Customer PM (chargeable) or Supplier PM (non-chargeable)
-
-3. **Resources**
-   - Verify resource list shows all 3
-   - Test edit functionality
-   - Test delete (if allowed)
-
-### Test Data Status
-
-| Data Type | Count | Status |
-|-----------|-------|--------|
-| Milestones | 0 | Need to create for E2E-WF |
-| Deliverables | 0 | Need to create for E2E-WF |
-| Timesheets | 0 | Ready to test creation |
-| Expenses | 0 | Ready to test creation |
-
----
-
-## Documentation Updated
-
-| Document | Status |
-|----------|--------|
-| MULTI-TENANCY-ROADMAP.md | ✅ Updated with decisions |
-| PROJECT-STATE-ASSESSMENT.md | ✅ Updated session log |
-| E2E-TESTING-STATUS-2025-12-15.md | ✅ Created (this file) |
-
----
-
-## Git Commits This Session
-
-```
-7980d97d - feat: Hide Team Members page from navigation
-bc0f3bbe - feat: Auto-generate resource_ref if left empty
-fa71e76d - fix: Remove discount_percent field - not in database schema
-99d5ef20 - feat: Add partner dropdown for third-party resources
-f94017aa - docs: Update multi-tenancy roadmap with user decisions
-dbacfb66 - feat: Add role dropdown for resources with common job titles
-dcb8ff57 - fix: Fix user picker query - use two-step fetch instead of join
-7cd6fcae - feat: Add user picker to Resources page, improve project dropdown UX
-d7b9dade - fix: Allow Supplier PM to create resources (not just Admin)
-```
+### Phase 3: Full Workflow Test
+| File | Action |
+|------|--------|
+| `e2e/workflows/milestone-lifecycle.spec.js` | Created - ~1000 lines, 25 tests |
 
 ---
 
