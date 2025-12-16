@@ -755,6 +755,37 @@ export class VariationsService extends BaseService {
   }
 
   /**
+   * Reset a rejected variation back to draft status for editing and resubmission
+   */
+  async resetToDraft(variationId) {
+    try {
+      const variation = await this.getById(variationId);
+      if (!variation) {
+        throw new Error('Variation not found');
+      }
+      
+      if (variation.status !== VARIATION_STATUS.REJECTED) {
+        throw new Error('Only rejected variations can be reset to draft');
+      }
+
+      return await this.update(variationId, {
+        status: VARIATION_STATUS.DRAFT,
+        rejected_by: null,
+        rejected_at: null,
+        rejection_reason: null,
+        supplier_signed_by: null,
+        supplier_signed_at: null,
+        customer_signed_by: null,
+        customer_signed_at: null,
+        form_step: 1
+      });
+    } catch (error) {
+      console.error('VariationsService resetToDraft error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete a variation (draft, submitted, or rejected only)
    * Approved or applied variations cannot be deleted
    * Also cleans up related records in variation_milestones and variation_deliverables

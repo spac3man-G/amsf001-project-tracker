@@ -2,16 +2,15 @@
  * Variation Form Page - Multi-Step Wizard
  * 
  * Create or edit variations with:
- * - Step 1: Basic Information (title, type, priority, date_required, benefits)
- * - Step 2: Affected Milestones
- * - Step 3: Impact Details
- * - Step 4: Assumptions & Risks
- * - Step 5: Costs & Implementation
- * - Step 6: Deliverable Due Date Updates
- * - Step 7: Review & Submit
+ * - Step 1: Basic Information + Milestone Selection
+ * - Step 2: Impact Details (cost/date per milestone)
+ * - Step 3: Assumptions & Risks
+ * - Step 4: Costs & Implementation
+ * - Step 5: Deliverable Due Date Updates
+ * - Step 6: Review & Submit
  * 
- * @version 1.2
- * @updated 9 December 2025 - Added CR document fields (Phase 4)
+ * @version 1.3
+ * @updated 16 December 2025 - Moved milestone selection to Step 1, removed Impact Summary
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -53,14 +52,14 @@ import { LoadingSpinner } from '../components/common';
 import { formatDate, formatCurrency } from '../lib/formatters';
 import './VariationForm.css';
 
+// Updated: 6 steps instead of 7, milestone selection moved to Step 1
 const STEPS = [
   { id: 1, name: 'Basic Info', icon: FileText },
-  { id: 2, name: 'Milestones', icon: Milestone },
-  { id: 3, name: 'Impacts', icon: PoundSterling },
-  { id: 4, name: 'Assumptions', icon: Target },
-  { id: 5, name: 'Costs', icon: Receipt },
-  { id: 6, name: 'Deliverables', icon: Package },
-  { id: 7, name: 'Review', icon: CheckCircle2 }
+  { id: 2, name: 'Impacts', icon: PoundSterling },
+  { id: 3, name: 'Assumptions', icon: Target },
+  { id: 4, name: 'Costs', icon: Receipt },
+  { id: 5, name: 'Deliverables', icon: Package },
+  { id: 6, name: 'Review', icon: CheckCircle2 }
 ];
 
 const TYPE_OPTIONS = [
@@ -95,7 +94,7 @@ export default function VariationForm() {
   const [autoSaveStatus, setAutoSaveStatus] = useState('saved');
 
   const [formData, setFormData] = useState({
-    // Step 1: Basic Info
+    // Step 1: Basic Info + Milestones
     title: '',
     variation_type: '',
     description: '',
@@ -105,21 +104,17 @@ export default function VariationForm() {
     date_required: '',
     benefits: '',
     initiator_name: '',
-    initiator_name: '',
-    // Step 2: Milestones
     affected_milestones: [],
-    // Step 4: Assumptions & Risks
+    // Step 3: Assumptions & Risks
     assumptions: '',
     risks: '',
-    // Step 5: Costs & Implementation
+    // Step 4: Costs & Implementation
     cost_summary: '',
     impact_on_charges: '',
     impact_on_service_levels: '',
     implementation_timetable: '',
-    // Step 6: Deliverables
-    deliverable_date_updates: [],
-    // Step 7: Review
-    impact_summary: ''
+    // Step 5: Deliverables
+    deliverable_date_updates: []
   });
 
   const [variation, setVariation] = useState(null);
@@ -148,7 +143,9 @@ export default function VariationForm() {
         const v = await variationsService.getWithDetails(id);
         if (v) {
           setVariation(v);
-          setCurrentStep(v.form_step || 1);
+          // Map old step numbers to new (if form_step > 1, subtract 1 since we removed a step)
+          const mappedStep = v.form_step ? Math.min(v.form_step, 6) : 1;
+          setCurrentStep(mappedStep);
           
           if (v.form_data) {
             setFormData(prev => ({ ...prev, ...v.form_data }));
@@ -170,8 +167,7 @@ export default function VariationForm() {
               impact_on_charges: v.impact_on_charges || '',
               impact_on_service_levels: v.impact_on_service_levels || '',
               implementation_timetable: v.implementation_timetable || '',
-              deliverable_date_updates: [],
-              impact_summary: v.impact_summary || ''
+              deliverable_date_updates: []
             });
           }
         }
@@ -220,7 +216,7 @@ export default function VariationForm() {
   }
 
   async function nextStep() {
-    if (currentStep < 7) {
+    if (currentStep < 6) {
       await goToStep(currentStep + 1);
     }
   }
@@ -234,21 +230,21 @@ export default function VariationForm() {
   function validateStep(step) {
     switch (step) {
       case 1:
-        return formData.title && formData.variation_type;
+        // Must have title, type, and at least one milestone
+        return formData.title && formData.variation_type && formData.affected_milestones.length > 0;
       case 2:
-        return formData.affected_milestones.length > 0;
-      case 3:
+        // Impact details - must have cost or date change for each milestone
         return formData.affected_milestones.every(am => 
           am.new_baseline_cost !== undefined || am.new_baseline_end
         );
-      case 4:
+      case 3:
         return true; // Assumptions & Risks - optional step
-      case 5:
+      case 4:
         return true; // Costs & Implementation - optional step
-      case 6:
+      case 5:
         return true; // Deliverables - optional step
-      case 7:
-        return formData.impact_summary && formData.impact_summary.trim().length > 0;
+      case 6:
+        return true; // Review - no required fields (impact_summary removed)
       default:
         return true;
     }
@@ -410,7 +406,6 @@ export default function VariationForm() {
           description: formData.description,
           reason: formData.reason,
           contract_terms_reference: formData.contract_terms_reference,
-          // New CR document fields
           priority: formData.priority || null,
           date_required: formData.date_required || null,
           benefits: formData.benefits || null,
@@ -434,7 +429,6 @@ export default function VariationForm() {
           description: formData.description,
           reason: formData.reason,
           contract_terms_reference: formData.contract_terms_reference,
-          // New CR document fields
           priority: formData.priority || null,
           date_required: formData.date_required || null,
           benefits: formData.benefits || null,
@@ -464,14 +458,10 @@ export default function VariationForm() {
   }
 
   async function submitForApproval() {
-    // Validate all steps
-    for (let step = 1; step <= 7; step++) {
+    // Validate all steps (now 6 steps instead of 7)
+    for (let step = 1; step <= 6; step++) {
       if (!validateStep(step)) {
-        if (step === 7) {
-          showWarning('Please provide an Impact Summary before submitting');
-        } else {
-          showWarning(`Please complete Step ${step} before submitting`);
-        }
+        showWarning(`Please complete Step ${step} before submitting`);
         setCurrentStep(step);
         return;
       }
@@ -491,7 +481,6 @@ export default function VariationForm() {
           description: formData.description,
           reason: formData.reason,
           contract_terms_reference: formData.contract_terms_reference,
-          // New CR document fields
           priority: formData.priority || null,
           date_required: formData.date_required || null,
           benefits: formData.benefits || null,
@@ -503,7 +492,7 @@ export default function VariationForm() {
           impact_on_service_levels: formData.impact_on_service_levels || null,
           implementation_timetable: formData.implementation_timetable || null,
           form_data: formData,
-          form_step: 7
+          form_step: 6
         });
       }
 
@@ -529,8 +518,8 @@ export default function VariationForm() {
         });
       }
 
-      // Submit for approval
-      await variationsService.submitForApproval(currentVariation.id, formData.impact_summary);
+      // Submit for approval (pass empty string for impact_summary since it's removed)
+      await variationsService.submitForApproval(currentVariation.id, '');
       
       showSuccess('Variation submitted for approval');
       navigate(`/variations/${currentVariation.id}`);
@@ -609,7 +598,7 @@ export default function VariationForm() {
 
       <div className="vf-content">
         <div className="vf-form">
-          {/* Step 1: Basic Information */}
+          {/* Step 1: Basic Information + Milestone Selection */}
           {currentStep === 1 && (
             <div className="vf-step-content">
               <div className="vf-card">
@@ -658,7 +647,6 @@ export default function VariationForm() {
                   </div>
                 </div>
 
-                {/* New: Priority field */}
                 <div className="vf-field">
                   <label>
                     <Flag size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
@@ -684,7 +672,6 @@ export default function VariationForm() {
                   </div>
                 </div>
 
-                {/* New: Date Required field */}
                 <div className="vf-field">
                   <label>
                     <CalendarDays size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
@@ -718,7 +705,6 @@ export default function VariationForm() {
                   />
                 </div>
 
-                {/* New: Benefits field */}
                 <div className="vf-field">
                   <label>
                     <Target size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
@@ -742,14 +728,10 @@ export default function VariationForm() {
                   />
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Step 2: Affected Milestones */}
-          {currentStep === 2 && (
-            <div className="vf-step-content">
+              {/* Milestone Selection - Now part of Step 1 */}
               <div className="vf-card">
-                <h2>Affected Milestones</h2>
+                <h2>Affected Milestones *</h2>
                 <p className="vf-card-desc">Select the milestones affected by this variation.</p>
 
                 <div className="vf-milestone-selector">
@@ -805,8 +787,8 @@ export default function VariationForm() {
             </div>
           )}
 
-          {/* Step 3: Impact Details */}
-          {currentStep === 3 && (
+          {/* Step 2: Impact Details */}
+          {currentStep === 2 && (
             <div className="vf-step-content">
               <div className="vf-card">
                 <h2>Impact Details</h2>
@@ -816,7 +798,7 @@ export default function VariationForm() {
                   <div className="vf-empty">
                     <AlertTriangle size={32} />
                     <p>No milestones selected</p>
-                    <span>Go back to Step 2 to add affected milestones</span>
+                    <span>Go back to Step 1 to add affected milestones</span>
                   </div>
                 ) : (
                   <div className="vf-impacts-list">
@@ -863,16 +845,6 @@ export default function VariationForm() {
                             </div>
                           </div>
                         </div>
-
-                        <div className="vf-impact-rationale">
-                          <label>Rationale for this milestone</label>
-                          <textarea
-                            value={am.change_rationale || ''}
-                            onChange={e => updateAffectedMilestone(index, 'change_rationale', e.target.value)}
-                            placeholder="Why is this milestone affected?"
-                            rows={2}
-                          />
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -901,8 +873,8 @@ export default function VariationForm() {
             </div>
           )}
 
-          {/* Step 4: Assumptions & Risks */}
-          {currentStep === 4 && (
+          {/* Step 3: Assumptions & Risks */}
+          {currentStep === 3 && (
             <div className="vf-step-content">
               <div className="vf-card">
                 <h2>Assumptions & Risks</h2>
@@ -948,8 +920,8 @@ export default function VariationForm() {
             </div>
           )}
 
-          {/* Step 5: Costs & Implementation */}
-          {currentStep === 5 && (
+          {/* Step 4: Costs & Implementation */}
+          {currentStep === 4 && (
             <div className="vf-step-content">
               <div className="vf-card">
                 <h2>Costs & Implementation</h2>
@@ -1014,8 +986,8 @@ export default function VariationForm() {
             </div>
           )}
 
-          {/* Step 6: Deliverable Due Date Updates */}
-          {currentStep === 6 && (
+          {/* Step 5: Deliverable Due Date Updates */}
+          {currentStep === 5 && (
             <div className="vf-step-content">
               <div className="vf-card">
                 <h2>Deliverable Due Dates</h2>
@@ -1127,12 +1099,12 @@ export default function VariationForm() {
             </div>
           )}
 
-          {/* Step 7: Review & Submit */}
-          {currentStep === 7 && (
+          {/* Step 6: Review & Submit */}
+          {currentStep === 6 && (
             <div className="vf-step-content">
               <div className="vf-card">
                 <h2>Review & Submit</h2>
-                <p className="vf-card-desc">Review your variation and add a summary before submitting.</p>
+                <p className="vf-card-desc">Review your variation before submitting for approval.</p>
 
                 <div className="vf-review-section">
                   <h3>Basic Information</h3>
@@ -1298,19 +1270,6 @@ export default function VariationForm() {
                     </div>
                   </div>
                 </div>
-
-                <div className="vf-field">
-                  <label>Impact Summary *</label>
-                  <textarea
-                    value={formData.impact_summary}
-                    onChange={e => updateField('impact_summary', e.target.value)}
-                    placeholder="Provide a summary of the overall impact of this variation..."
-                    rows={4}
-                  />
-                  <span className="vf-field-hint">
-                    This summary will appear on the variation certificate
-                  </span>
-                </div>
               </div>
             </div>
           )}
@@ -1329,13 +1288,13 @@ export default function VariationForm() {
             </button>
             
             <div className="vf-footer-right">
-              {currentStep < 7 ? (
+              {currentStep < 6 ? (
                 <button
-              className="vf-btn vf-btn-primary"
-              onClick={nextStep}
-              disabled={!validateStep(currentStep)}
-              data-testid="variation-form-next-button"
-            >
+                  className="vf-btn vf-btn-primary"
+                  onClick={nextStep}
+                  disabled={!validateStep(currentStep)}
+                  data-testid="variation-form-next-button"
+                >
                   Next
                   <ArrowRight size={18} />
                 </button>
@@ -1343,7 +1302,7 @@ export default function VariationForm() {
                 <button
                   className="vf-btn vf-btn-submit"
                   onClick={submitForApproval}
-                  disabled={saving || !formData.impact_summary}
+                  disabled={saving}
                   data-testid="variation-form-submit-button"
                 >
                   <Send size={18} />

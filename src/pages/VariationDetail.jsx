@@ -4,11 +4,12 @@
  * View and manage individual variations:
  * - View variation details and affected milestones
  * - Continue editing draft variations
+ * - Edit & resubmit rejected variations
  * - Sign/reject variations
  * - View/download certificates
  * 
- * @version 1.0
- * @created 8 December 2025
+ * @version 1.1
+ * @updated 16 December 2025 - Added Edit & Resubmit for rejected variations
  */
 
 import React, { useState, useEffect } from 'react';
@@ -36,7 +37,8 @@ import {
   AlertTriangle,
   User,
   RefreshCw,
-  Trash2
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -98,6 +100,18 @@ export default function VariationDetail() {
 
   function handleEdit() {
     navigate(`/variations/${id}/edit`);
+  }
+
+  async function handleEditAndResubmit() {
+    // Reset rejected variation to draft status, then navigate to edit
+    try {
+      await variationsService.resetToDraft(id);
+      showSuccess('Variation reset to draft for editing');
+      navigate(`/variations/${id}/edit`);
+    } catch (error) {
+      console.error('Error resetting variation:', error);
+      showError('Failed to reset variation');
+    }
   }
 
   async function handleSubmit() {
@@ -179,14 +193,16 @@ export default function VariationDetail() {
     if (!variation) return {};
 
     const isDraft = variation.status === VARIATION_STATUS.DRAFT;
+    const isRejected = variation.status === VARIATION_STATUS.REJECTED;
     const isSubmitted = variation.status === VARIATION_STATUS.SUBMITTED;
     const isAwaitingCustomer = variation.status === VARIATION_STATUS.AWAITING_CUSTOMER;
     const isAwaitingSupplier = variation.status === VARIATION_STATUS.AWAITING_SUPPLIER;
     const isApplied = variation.status === VARIATION_STATUS.APPLIED;
 
     const canEdit = isDraft && canCreateVariation;
+    const canEditAndResubmit = isRejected && canCreateVariation;
     const canSubmit = isDraft && canCreateVariation;
-    const canDelete = isDraft && canDeleteVariation;
+    const canDelete = (isDraft || isRejected) && canDeleteVariation;
     
     const canSupplierSign = canSignAsSupplier && 
       (isSubmitted || isAwaitingSupplier) && 
@@ -201,7 +217,7 @@ export default function VariationDetail() {
 
     const canViewCertificate = isApplied && variation.certificate_number;
 
-    return { canEdit, canSubmit, canDelete, canSupplierSign, canCustomerSign, canReject, canViewCertificate };
+    return { canEdit, canEditAndResubmit, canSubmit, canDelete, canSupplierSign, canCustomerSign, canReject, canViewCertificate };
   }
 
   if (loading) {
@@ -243,6 +259,12 @@ export default function VariationDetail() {
               <button className="vd-btn vd-btn-secondary" onClick={handleEdit} data-testid="variation-edit-button">
                 <Edit3 size={18} />
                 Edit Draft
+              </button>
+            )}
+            {actions.canEditAndResubmit && (
+              <button className="vd-btn vd-btn-primary" onClick={handleEditAndResubmit} data-testid="variation-edit-resubmit-button">
+                <RotateCcw size={18} />
+                Edit & Resubmit
               </button>
             )}
             {actions.canSubmit && (
@@ -619,7 +641,7 @@ export default function VariationDetail() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Delete Draft Variation"
+        title="Delete Variation"
         message={`Are you sure you want to delete ${variation?.variation_ref}?\n\n"${variation?.title}"\n\nThis action cannot be undone.`}
         confirmLabel="Delete"
         confirmVariant="danger"
