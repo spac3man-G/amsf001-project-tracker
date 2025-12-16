@@ -7,7 +7,7 @@
  * - Acceptance certificate workflow
  * - Sortable columns
  * 
- * @version 4.3 - Added sortable columns
+ * @version 4.4 - Fixed SortIndicator component, sortable columns working
  * @refactored 5 December 2025
  * @updated 16 December 2025
  */
@@ -45,6 +45,18 @@ import {
 } from '../lib/milestoneCalculations';
 import { formatDate, formatCurrency } from '../lib/formatters';
 import './Milestones.css';
+
+// Sort indicator component - defined outside main component to avoid re-render issues
+function SortIndicator({ column, sortColumn, sortDirection }) {
+  if (sortColumn !== column) {
+    return <span className="ms-sort-icon inactive"><ChevronUp size={14} /></span>;
+  }
+  return (
+    <span className="ms-sort-icon active">
+      {sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+    </span>
+  );
+}
 
 export default function Milestones() {
   const navigate = useNavigate();
@@ -343,18 +355,6 @@ export default function Milestones() {
     }
   }
 
-  // Render sort indicator
-  function SortIndicator({ column }) {
-    if (sortColumn !== column) {
-      return <span className="ms-sort-icon inactive"><ChevronUp size={14} /></span>;
-    }
-    return (
-      <span className="ms-sort-icon active">
-        {sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-      </span>
-    );
-  }
-
   const canEdit = canEditMilestone;
 
   if (loading) return <LoadingSpinner message="Loading milestones..." size="large" fullPage />;
@@ -367,67 +367,60 @@ export default function Milestones() {
   }));
 
   // Sort milestones
-  const sortedMilestones = useMemo(() => {
-    const sorted = [...milestonesWithStatus];
+  const sortedMilestones = [...milestonesWithStatus].sort((a, b) => {
+    let aVal, bVal;
     
-    sorted.sort((a, b) => {
-      let aVal, bVal;
-      
-      switch (sortColumn) {
-        case 'milestone_ref':
-          aVal = a.milestone_ref || '';
-          bVal = b.milestone_ref || '';
-          break;
-        case 'name':
-          aVal = a.name || '';
-          bVal = b.name || '';
-          break;
-        case 'baseline':
-          // Sort by baseline agreed status
-          const aBaseline = getBaselineAgreedDisplay(a);
-          const bBaseline = getBaselineAgreedDisplay(b);
-          aVal = aBaseline.text;
-          bVal = bBaseline.text;
-          break;
-        case 'status':
-          aVal = a.computedStatus || '';
-          bVal = b.computedStatus || '';
-          break;
-        case 'progress':
-          aVal = a.computedProgress || 0;
-          bVal = b.computedProgress || 0;
-          break;
-        case 'forecast_end':
-          aVal = a.forecast_end_date || a.end_date || '';
-          bVal = b.forecast_end_date || b.end_date || '';
-          break;
-        case 'billable':
-          aVal = a.billable || 0;
-          bVal = b.billable || 0;
-          break;
-        case 'certificate':
-          const aCert = certificates[a.id];
-          const bCert = certificates[b.id];
-          aVal = aCert ? aCert.status : (a.computedStatus === 'Completed' ? 'Ready' : 'Not ready');
-          bVal = bCert ? bCert.status : (b.computedStatus === 'Completed' ? 'Ready' : 'Not ready');
-          break;
-        default:
-          aVal = a.milestone_ref || '';
-          bVal = b.milestone_ref || '';
-      }
-      
-      // Handle numeric vs string comparison
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-      
-      // String comparison
-      const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
+    switch (sortColumn) {
+      case 'milestone_ref':
+        aVal = a.milestone_ref || '';
+        bVal = b.milestone_ref || '';
+        break;
+      case 'name':
+        aVal = a.name || '';
+        bVal = b.name || '';
+        break;
+      case 'baseline':
+        const aBaseline = getBaselineAgreedDisplay(a);
+        const bBaseline = getBaselineAgreedDisplay(b);
+        aVal = aBaseline.text;
+        bVal = bBaseline.text;
+        break;
+      case 'status':
+        aVal = a.computedStatus || '';
+        bVal = b.computedStatus || '';
+        break;
+      case 'progress':
+        aVal = a.computedProgress || 0;
+        bVal = b.computedProgress || 0;
+        break;
+      case 'forecast_end':
+        aVal = a.forecast_end_date || a.end_date || '';
+        bVal = b.forecast_end_date || b.end_date || '';
+        break;
+      case 'billable':
+        aVal = a.billable || 0;
+        bVal = b.billable || 0;
+        break;
+      case 'certificate':
+        const aCert = certificates[a.id];
+        const bCert = certificates[b.id];
+        aVal = aCert ? aCert.status : (a.computedStatus === 'Completed' ? 'Ready' : 'Not ready');
+        bVal = bCert ? bCert.status : (b.computedStatus === 'Completed' ? 'Ready' : 'Not ready');
+        break;
+      default:
+        aVal = a.milestone_ref || '';
+        bVal = b.milestone_ref || '';
+    }
     
-    return sorted;
-  }, [milestonesWithStatus, sortColumn, sortDirection, certificates]);
+    // Handle numeric vs string comparison
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+    
+    // String comparison
+    const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
 
   return (
     <div className="milestones-page" data-testid="milestones-page">
@@ -498,28 +491,28 @@ export default function Milestones() {
               <thead>
                 <tr>
                   <th className="ms-sortable" onClick={() => handleSort('milestone_ref')}>
-                    Ref <SortIndicator column="milestone_ref" />
+                    Ref <SortIndicator column="milestone_ref" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
                   <th className="ms-sortable" onClick={() => handleSort('name')}>
-                    Name <SortIndicator column="name" />
+                    Name <SortIndicator column="name" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
                   <th className="ms-sortable" onClick={() => handleSort('baseline')}>
-                    Baseline <SortIndicator column="baseline" />
+                    Baseline <SortIndicator column="baseline" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
                   <th className="ms-sortable" onClick={() => handleSort('status')}>
-                    Status <SortIndicator column="status" />
+                    Status <SortIndicator column="status" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
                   <th className="ms-sortable" onClick={() => handleSort('progress')}>
-                    Progress <SortIndicator column="progress" />
+                    Progress <SortIndicator column="progress" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
                   <th className="ms-sortable" onClick={() => handleSort('forecast_end')}>
-                    Forecast End <SortIndicator column="forecast_end" />
+                    Forecast End <SortIndicator column="forecast_end" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
                   <th className="ms-sortable" onClick={() => handleSort('billable')}>
-                    Billable <SortIndicator column="billable" />
+                    Billable <SortIndicator column="billable" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
                   <th className="ms-sortable" onClick={() => handleSort('certificate')}>
-                    Certificate <SortIndicator column="certificate" />
+                    Certificate <SortIndicator column="certificate" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
                 </tr>
               </thead>

@@ -4,7 +4,7 @@
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
  * Click on any deliverable to view details and perform workflow actions.
  * 
- * @version 3.5 - Added sortable columns
+ * @version 3.6 - Fixed SortIndicator, added Due Date column
  * @updated 16 December 2025
  */
 
@@ -27,6 +27,18 @@ import { LoadingSpinner, PageHeader, ConfirmDialog, MultiSelectList } from '../c
 import { formatDate } from '../lib/formatters';
 import { DeliverableDetailModal } from '../components/deliverables';
 import './Deliverables.css';
+
+// Sort indicator component - defined outside main component to avoid re-render issues
+function SortIndicator({ column, sortColumn, sortDirection }) {
+  if (sortColumn !== column) {
+    return <span className="del-sort-icon inactive"><ChevronUp size={14} /></span>;
+  }
+  return (
+    <span className="del-sort-icon active">
+      {sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+    </span>
+  );
+}
 
 // Render functions for MultiSelectList items
 const renderKPIItem = (kpi) => (
@@ -258,16 +270,10 @@ export default function Deliverables() {
     }
   }
 
-  // Render sort indicator
-  function SortIndicator({ column }) {
-    if (sortColumn !== column) {
-      return <span className="del-sort-icon inactive"><ChevronUp size={14} /></span>;
-    }
-    return (
-      <span className="del-sort-icon active">
-        {sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-      </span>
-    );
+  // Helper to get due date from milestone
+  function getDueDate(deliverable) {
+    if (!deliverable.milestones) return null;
+    return deliverable.milestones.forecast_end_date || deliverable.milestones.end_date || null;
   }
 
   // Filter deliverables
@@ -277,50 +283,48 @@ export default function Deliverables() {
   if (showAwaitingReview) filteredDeliverables = filteredDeliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW);
 
   // Sort deliverables
-  const sortedDeliverables = useMemo(() => {
-    const sorted = [...filteredDeliverables];
+  const sortedDeliverables = [...filteredDeliverables].sort((a, b) => {
+    let aVal, bVal;
     
-    sorted.sort((a, b) => {
-      let aVal, bVal;
-      
-      switch (sortColumn) {
-        case 'deliverable_ref':
-          aVal = a.deliverable_ref || '';
-          bVal = b.deliverable_ref || '';
-          break;
-        case 'name':
-          aVal = a.name || '';
-          bVal = b.name || '';
-          break;
-        case 'milestone':
-          aVal = a.milestones?.milestone_ref || '';
-          bVal = b.milestones?.milestone_ref || '';
-          break;
-        case 'status':
-          aVal = a.status || '';
-          bVal = b.status || '';
-          break;
-        case 'progress':
-          aVal = a.progress || 0;
-          bVal = b.progress || 0;
-          break;
-        default:
-          aVal = a.deliverable_ref || '';
-          bVal = b.deliverable_ref || '';
-      }
-      
-      // Handle numeric vs string comparison
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-      
-      // String comparison
-      const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
+    switch (sortColumn) {
+      case 'deliverable_ref':
+        aVal = a.deliverable_ref || '';
+        bVal = b.deliverable_ref || '';
+        break;
+      case 'name':
+        aVal = a.name || '';
+        bVal = b.name || '';
+        break;
+      case 'milestone':
+        aVal = a.milestones?.milestone_ref || '';
+        bVal = b.milestones?.milestone_ref || '';
+        break;
+      case 'due_date':
+        aVal = getDueDate(a) || '';
+        bVal = getDueDate(b) || '';
+        break;
+      case 'status':
+        aVal = a.status || '';
+        bVal = b.status || '';
+        break;
+      case 'progress':
+        aVal = a.progress || 0;
+        bVal = b.progress || 0;
+        break;
+      default:
+        aVal = a.deliverable_ref || '';
+        bVal = b.deliverable_ref || '';
+    }
     
-    return sorted;
-  }, [filteredDeliverables, sortColumn, sortDirection]);
+    // Handle numeric vs string comparison
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+    
+    // String comparison
+    const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
 
   const submittedForReview = deliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW).length;
   const canEdit = canEditDeliverable;
@@ -491,32 +495,36 @@ export default function Deliverables() {
             <thead>
               <tr>
                 <th className="del-sortable" onClick={() => handleSort('deliverable_ref')}>
-                  Ref <SortIndicator column="deliverable_ref" />
+                  Ref <SortIndicator column="deliverable_ref" sortColumn={sortColumn} sortDirection={sortDirection} />
                 </th>
                 <th className="del-sortable" onClick={() => handleSort('name')}>
-                  Name <SortIndicator column="name" />
+                  Name <SortIndicator column="name" sortColumn={sortColumn} sortDirection={sortDirection} />
                 </th>
                 <th className="del-sortable" onClick={() => handleSort('milestone')}>
-                  Milestone <SortIndicator column="milestone" />
+                  Milestone <SortIndicator column="milestone" sortColumn={sortColumn} sortDirection={sortDirection} />
+                </th>
+                <th className="del-sortable" onClick={() => handleSort('due_date')}>
+                  Due Date <SortIndicator column="due_date" sortColumn={sortColumn} sortDirection={sortDirection} />
                 </th>
                 <th className="del-sortable" onClick={() => handleSort('status')}>
-                  Status <SortIndicator column="status" />
+                  Status <SortIndicator column="status" sortColumn={sortColumn} sortDirection={sortDirection} />
                 </th>
                 <th className="del-sortable" onClick={() => handleSort('progress')}>
-                  Progress <SortIndicator column="progress" />
+                  Progress <SortIndicator column="progress" sortColumn={sortColumn} sortDirection={sortDirection} />
                 </th>
               </tr>
             </thead>
             <tbody>
               {sortedDeliverables.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="del-empty-cell" data-testid="deliverables-empty-state">
+                  <td colSpan={6} className="del-empty-cell" data-testid="deliverables-empty-state">
                     No deliverables found
                   </td>
                 </tr>
               ) : sortedDeliverables.map(d => {
                 const statusInfo = DELIVERABLE_STATUS_CONFIG[d.status] || DELIVERABLE_STATUS_CONFIG[DELIVERABLE_STATUS.NOT_STARTED];
                 const StatusIcon = statusInfo.icon;
+                const dueDate = getDueDate(d);
                 return (
                   <tr key={d.id} onClick={() => handleRowClick(d)} data-testid={`deliverable-row-${d.id}`}>
                     <td>
@@ -526,6 +534,11 @@ export default function Deliverables() {
                     </td>
                     <td><span className="del-name">{d.name}</span></td>
                     <td>{d.milestones ? <span className="del-milestone-link">{d.milestones.milestone_ref}</span> : '—'}</td>
+                    <td>
+                      <span className="del-due-date">
+                        {dueDate ? formatDate(dueDate) : '—'}
+                      </span>
+                    </td>
                     <td>
                       <span 
                         className="del-status-badge" 
