@@ -275,6 +275,67 @@ Team Member (for internal staff)
 
 ---
 
+## Part 2C: Entity Permission Hook Pattern (Future Refactoring)
+
+### Current Inconsistency Problem
+
+**Added:** 2025-12-16  
+**Related Issues:** Test Session Issues #5, #6 (Customer PM deliverable permissions)
+
+The codebase has inconsistent patterns for how entity modals receive and check permissions:
+
+| Modal | Permission Source | Pattern |
+|-------|------------------|--------|
+| TimesheetDetailModal | Props from parent | Functions passed as props (e.g., `canSubmitTimesheet={canSubmitTimesheet}`) |
+| ExpenseDetailModal | Props from parent | Functions passed as props |
+| RaidDetailModal | Props from parent | Simple booleans |
+| DeliverableDetailModal | **Hybrid** | Booleans as props + `useDeliverablePermissions` hook internally |
+
+The deliverable modal has a dedicated `useDeliverablePermissions` hook that correctly combines role-based and status-based checks, but the modal doesn't fully use it. Instead, it mixes prop-based permissions with internal hook usage.
+
+### Proposed Strategic Pattern
+
+Create entity-specific permission hooks for each major entity that encapsulate:
+1. **Role-based permissions** (from permission matrix)
+2. **Status-based workflow checks** (from calculation functions)
+3. **Object-level checks** (ownership, assignment)
+
+Example structure:
+```javascript
+function useDeliverablePermissions(deliverable) {
+  return {
+    canView: true,
+    canCreate: /* role check */,
+    canEdit: /* role check + status check */,
+    canDelete: /* role check + status check */,
+    canSubmit: /* role check + status check */,
+    canReview: /* role check + status check */,
+    canSign: /* role check + signature state */,
+    // ... etc
+  };
+}
+```
+
+### Benefits
+- **Self-contained components** - modals don't need permission props
+- **Single source of truth** - one hook per entity for all permission logic
+- **Easier testing** - hook can be unit tested independently
+- **Consistent pattern** - same approach for all entity modals
+
+### Implementation Approach
+1. Fix/complete `useDeliverablePermissions` hook as the template
+2. Refactor `DeliverableDetailModal` to use hook exclusively
+3. Create similar hooks for timesheets, expenses, RAID
+4. Refactor other modals to use their respective hooks
+5. Remove permission props from modals (or make optional overrides)
+
+### Decision Status
+- **Tactical fix applied** (2025-12-16): Added `canSubmit` prop to align with existing pattern
+- **Strategic refactoring deferred** - Lower priority than multi-tenancy work
+- **Effort estimate:** 2-3 days for full implementation across all entities
+
+---
+
 ## Part 3: RLS Policy Overhaul
 
 ### 3.1 Current RLS Pattern
