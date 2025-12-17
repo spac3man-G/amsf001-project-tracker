@@ -1,8 +1,11 @@
 # Technical Debt and Future Features
 
 **Created:** 2025-12-16  
-**Last Updated:** 2025-12-16  
+**Last Updated:** 2025-12-17  
 **Purpose:** Track technical debt items and planned future features for prioritisation
+
+> **Note:** Items TD-004 through TD-008 were added during E2E testing documentation consolidation.  
+> See `TECH-SPEC-09-Testing-Infrastructure.md` for the consolidated testing reference.
 
 ---
 
@@ -169,7 +172,354 @@ Low-Medium (0.5-1 day) - Systematic but straightforward changes
 
 Planned features that are not yet implemented.
 
-*No items yet.*
+### FF-001: Workflow Email Notifications
+
+**Priority:** Medium  
+**Added:** 2025-12-16  
+**Requested By:** Workflow System Enhancement
+
+#### Description
+Send email notifications when workflow items require user action.
+
+#### User Story
+As a Project Manager, I want to receive email notifications when items require my action, so that I don't miss important approvals.
+
+#### Acceptance Criteria
+- Email sent when item enters user's action queue
+- Email includes item summary and direct link
+- Configurable notification preferences per user
+- Daily digest option for low-priority items
+- Immediate notification for urgent items (5+ days pending)
+
+#### Dependencies
+- Email service integration (e.g., Resend, SendGrid)
+- User notification preferences table
+- Background job processing
+
+#### Effort Estimate
+Medium (2-3 days)
+
+---
+
+### FF-002: Workflow Audit Trail
+
+**Priority:** Low  
+**Added:** 2025-12-16  
+**Requested By:** Workflow System Enhancement
+
+#### Description
+Track and display history of all actions taken on workflow items.
+
+#### User Story
+As an Admin, I want to see the complete history of actions on workflow items, so that I can audit approval processes.
+
+#### Acceptance Criteria
+- Record timestamp, user, action for each workflow state change
+- Display audit trail in item detail modal
+- Filter audit log by date range, user, action type
+- Export audit data for compliance
+
+#### Dependencies
+- Workflow audit log table
+- UI for displaying audit trail
+
+#### Effort Estimate
+Low-Medium (1-2 days)
+
+---
+
+### FF-003: Workflow Delegation
+
+**Priority:** Low  
+**Added:** 2025-12-16  
+**Requested By:** Workflow System Enhancement
+
+#### Description
+Allow users to delegate their workflow responsibilities to another user temporarily.
+
+#### User Story
+As a Customer PM, I want to delegate my approval responsibilities to a colleague when I'm on leave, so that approvals don't get blocked.
+
+#### Acceptance Criteria
+- Set delegation period (start/end date)
+- Choose which workflow categories to delegate
+- Delegated items appear in delegate's action queue
+- Original user still has visibility
+- Audit trail shows delegation
+
+#### Dependencies
+- Delegation configuration table
+- Modification to role-based filtering logic
+
+#### Effort Estimate
+Medium (2-3 days)
+
+---
+
+### TD-003: Workflow System - Segment 5 Testing & Polish
+
+**Priority:** Medium  
+**Added:** 2025-12-17  
+**Context:** Workflow System Enhancement - Segments 1-4 complete, Segment 5 pending
+
+#### Problem
+
+The Workflow System implementation (Segments 1-4) is complete and functional, but comprehensive E2E testing and final polish items remain unfinished. The system is working but lacks:
+
+1. **Dedicated E2E test coverage** - No `e2e/workflow.spec.js` file exists
+2. **Formal test verification** of role-based action indicators
+3. **Polish items** for production readiness
+
+#### Current State
+
+**Implemented (Segments 1-4):**
+- `src/services/workflow.service.js` - Centralised workflow service with all 13 categories
+- `src/contexts/NotificationContext.jsx` - Uses workflow service, actual timestamps
+- `src/pages/WorkflowSummary.jsx` - Full UI with role-based indicators
+- `src/components/NotificationBell.jsx` - Actionable item highlighting
+- Project builds successfully with no errors
+
+**Missing (Segment 5):**
+
+##### E2E Tests Required (`e2e/workflow.spec.js`)
+
+| Test | Description | Status |
+|------|-------------|--------|
+| Supplier PM View | Login → Workflow Summary → Verify supplier actions as "Your Action" | 🔲 |
+| Customer PM View | Login → Workflow Summary → Verify customer actions as "Your Action" | 🔲 |
+| Notification Bell | Count matches actionable items, correct timestamps, navigation | 🔲 |
+| Deep Linking | Submit item → Workflow Summary → "Go" button → Verify highlight | 🔲 |
+| All 13 Categories | Test data for each → Verify in WorkflowSummary and NotificationBell | 🔲 |
+
+##### Polish Items
+
+| Item | Description | Status |
+|------|-------------|--------|
+| Loading States | Add loading indicators for workflow fetches | ⚠️ Partial (LoadingSpinner used) |
+| Error Handling | Graceful error states for failed fetches | ⚠️ Basic try/catch exists |
+| Mobile Responsive | Verify layout works on mobile devices | 🔲 Not verified |
+| Empty States | Category-specific empty state messages | ⚠️ Partial |
+| Accessibility | ARIA labels, keyboard navigation | 🔲 Not verified |
+| Performance | Prevent duplicate fetches, optimise queries | 🔲 Not verified |
+
+#### Strategic Solution
+
+1. **Create `e2e/workflow.spec.js`** with comprehensive test scenarios:
+   ```javascript
+   // Test scenarios to implement:
+   // - Supplier PM sees only supplier actions as "Your Action"
+   // - Customer PM sees timesheets/chargeable expenses as actionable
+   // - Customer PM sees non-chargeable expenses as "Info Only"
+   // - Notification bell count matches actionable items
+   // - Deep linking with ?highlight= parameter works
+   // - All 13 workflow categories appear correctly
+   ```
+
+2. **Add data-testid attributes** to WorkflowSummary.jsx for testability:
+   - `workflow-summary-page`
+   - `workflow-stat-total`, `workflow-stat-timesheets`, etc.
+   - `workflow-item-row`
+   - `workflow-action-badge` / `workflow-info-badge`
+   - `workflow-my-actions-toggle`
+
+3. **Polish items**:
+   - Add error boundary around WorkflowSummary
+   - Improve empty state messages per category
+   - Add `aria-label` attributes to interactive elements
+   - Test mobile layout and fix any issues
+   - Add React Query or similar for cache management
+
+#### Benefits
+
+- Confidence in role-based filtering logic
+- Regression protection for workflow system
+- Production-ready polish
+- Accessibility compliance
+- Better user experience on mobile
+
+#### Files Affected
+
+- Create: `e2e/workflow.spec.js`
+- Modify: `src/pages/WorkflowSummary.jsx` (add data-testid, polish)
+- Modify: `src/components/NotificationBell.jsx` (add data-testid, polish)
+- Potentially: `src/contexts/NotificationContext.jsx` (error handling)
+
+#### Effort Estimate
+
+Medium (1-2 days)
+- E2E tests: 0.5-1 day
+- Polish items: 0.5-1 day
+
+#### Reference Documents
+
+- `/docs/WORKFLOW-SYSTEM-IMPLEMENTATION-PLAN.md` - Full implementation plan
+- `/docs/WORKFLOW-IMPLEMENTATION-PROGRESS.md` - Progress tracking
+
+---
+
+### TD-004: Finance Role Workflow Implementation
+
+**Priority:** Medium  
+**Added:** 2025-12-17  
+**Context:** E2E Testing Infrastructure - Legacy documentation consolidation
+
+#### Problem
+
+The `supplier_finance` and `customer_finance` roles have permissions defined in `permissionMatrix.js`, but their UI workflows have not been built. The E2E test infrastructure marks these roles as `workflowsImplemented: false` in `e2e/helpers/test-users.js`.
+
+#### Current State
+
+- Permissions are defined in the permission matrix
+- Test users exist in Supabase
+- Auth states are generated for these roles
+- E2E tests for these roles will fail because UI workflows don't exist
+
+#### Strategic Solution
+
+1. Design and implement finance-specific UI workflows:
+   - Expense validation workflow for customer_finance
+   - Invoice/billing workflow for supplier_finance
+   - Budget approval workflow
+
+2. Update `e2e/helpers/test-users.js` to set `workflowsImplemented: true` once complete
+
+3. Add finance-specific E2E tests
+
+#### Files Affected
+
+- `src/pages/Expenses.jsx` - Add finance approval workflow
+- `src/pages/Billing.jsx` - Add finance-specific views
+- `e2e/helpers/test-users.js` - Update workflow flags
+- Create new E2E spec files for finance workflows
+
+#### Effort Estimate
+
+High (3-5 days) - Requires new UI design and implementation
+
+---
+
+### TD-005: Unit Test React Testing Library Fix
+
+**Priority:** Medium  
+**Added:** 2025-12-17  
+**Context:** E2E Testing Infrastructure - 27 failing unit tests
+
+#### Problem
+
+27 unit test failures in `usePermissions.test.jsx` due to React Testing Library compatibility issue with Vitest.
+
+#### Root Cause
+
+React Testing Library requires `mode: 'development'` in Vitest config for proper operation.
+
+#### Strategic Solution
+
+Add to `vite.config.js`:
+
+```javascript
+test: {
+  mode: 'development',
+  // ... other config
+}
+```
+
+#### Files Affected
+
+- `vite.config.js`
+
+#### Effort Estimate
+
+Low (30 minutes)
+
+---
+
+### TD-006: Mobile Chrome Responsive Design Fix
+
+**Priority:** Low  
+**Added:** 2025-12-17  
+**Context:** E2E Testing Infrastructure - 1 failing E2E test on Mobile Chrome
+
+#### Problem
+
+1 E2E test failure on Mobile Chrome: Sidebar overlaps user menu on mobile viewport.
+
+#### Strategic Solution
+
+CSS fix to ensure proper z-index and layout on mobile breakpoints. Related to TD-002 (Z-Index Scale Standardisation).
+
+#### Files Affected
+
+- `src/components/Layout.jsx` or related CSS
+
+#### Effort Estimate
+
+Low (1 hour)
+
+---
+
+### TD-007: Database Tests (pgTAP) Setup
+
+**Priority:** Low  
+**Added:** 2025-12-17  
+**Context:** E2E Testing Infrastructure - Legacy documentation consolidation
+
+#### Problem
+
+Database tests using pgTAP are documented but not regularly executed. The `npm run test:db` script exists but requires local Supabase CLI setup.
+
+#### Current State
+
+- Schema documented in `supabase/` directory
+- RLS policies documented in tech specs
+- No automated CI/CD pipeline for database tests
+
+#### Strategic Solution
+
+1. Create comprehensive pgTAP test suite for RLS policies
+2. Add database tests to CI/CD pipeline (if Supabase CLI available)
+3. Document local setup requirements
+
+#### Files Affected
+
+- Create `supabase/tests/*.test.sql` files
+- Update GitHub Actions workflows
+
+#### Effort Estimate
+
+Medium (2-3 days)
+
+---
+
+### TD-008: Test Data Cleanup Automation
+
+**Priority:** Low  
+**Added:** 2025-12-17  
+**Context:** E2E Testing Infrastructure - Legacy documentation consolidation
+
+#### Problem
+
+Test data uses `[TEST]` prefix for identification, but automated cleanup after test runs is not implemented in CI/CD.
+
+#### Current State
+
+- `npm run e2e:cleanup` script exists
+- Manual cleanup required
+- Test data can accumulate over time
+
+#### Strategic Solution
+
+1. Add post-test cleanup to CI workflows
+2. Consider implementing automatic cleanup via database triggers
+3. Add data retention policies
+
+#### Files Affected
+
+- `.github/workflows/staging-tests.yml`
+- `scripts/e2e/cleanup-test-data.js`
+
+#### Effort Estimate
+
+Low (1-2 hours)
 
 ---
 

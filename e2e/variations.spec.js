@@ -3,12 +3,14 @@
  * Location: e2e/variations.spec.js
  * 
  * Tests variation/change request functionality including page load,
- * creation workflow, signature collection, and role-based access.
+ * creation workflow, signature collection, apply workflow, milestone
+ * impact verification, and role-based access.
  * 
  * IMPORTANT: All selectors use data-testid per docs/TESTING-CONVENTIONS.md
  * 
- * @version 1.0
+ * @version 1.1
  * @created 15 December 2025
+ * @updated 17 December 2025 - Added apply workflow and milestone impact tests
  */
 
 import { test, expect } from '@playwright/test';
@@ -312,5 +314,272 @@ test.describe('Variations - Navigation @variations', () => {
     await navigateTo(page, 'milestones');
     
     await expect(page).toHaveURL(/\/milestones/);
+  });
+});
+
+// ============================================
+// VARIATION DETAIL PAGE TESTS
+// ============================================
+test.describe('Variation Detail Page @variations', () => {
+  test.use({ storageState: 'playwright/.auth/admin.json' });
+
+  test.describe('Page Elements', () => {
+    test('variation detail page loads with correct elements', async ({ page }) => {
+      await page.goto('/variations');
+      await waitForPageLoad(page);
+      
+      // Find first variation row and click it
+      const rows = page.locator('[data-testid^="variation-row-"]');
+      const rowCount = await rows.count();
+      
+      if (rowCount > 0) {
+        await rows.first().click();
+        await waitForPageLoad(page);
+        
+        // Should navigate to detail page
+        await expect(page).toHaveURL(/\/variations\/[a-f0-9-]+/);
+        
+        // Verify core elements
+        await expect(page.locator('[data-testid="variation-detail-page"]')).toBeVisible({ timeout: 15000 });
+      }
+    });
+
+    test('variation detail shows affected milestones section', async ({ page }) => {
+      await page.goto('/variations');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="variation-row-"]');
+      const rowCount = await rows.count();
+      
+      if (rowCount > 0) {
+        await rows.first().click();
+        await waitForPageLoad(page);
+        
+        // Should have affected milestones section
+        await expect(page.locator('[data-testid="variation-milestones-section"]')).toBeVisible({ timeout: 10000 });
+      }
+    });
+  });
+});
+
+// ============================================
+// VARIATION WORKFLOW TESTS - APPLIED VARIATIONS
+// ============================================
+test.describe('Variation Applied Status @variations @workflow', () => {
+  test.use({ storageState: 'playwright/.auth/admin.json' });
+
+  test.describe('Applied Variation Verification', () => {
+    test('applied variation shows correct status badge', async ({ page }) => {
+      await page.goto('/variations');
+      await waitForPageLoad(page);
+      
+      // Look for an applied variation
+      const appliedBadges = page.locator('[data-testid^="variation-status-"]').filter({ hasText: /applied/i });
+      const hasApplied = await appliedBadges.count() > 0;
+      
+      if (hasApplied) {
+        await expect(appliedBadges.first()).toBeVisible();
+      } else {
+        // No applied variations exist - skip test
+        test.skip();
+      }
+    });
+
+    test('clicking applied variation navigates to detail page', async ({ page }) => {
+      await page.goto('/variations');
+      await waitForPageLoad(page);
+      
+      // Find row with applied status
+      const rows = page.locator('[data-testid^="variation-row-"]');
+      const rowCount = await rows.count();
+      
+      for (let i = 0; i < rowCount; i++) {
+        const row = rows.nth(i);
+        const statusText = await row.locator('[data-testid^="variation-status-"]').textContent();
+        
+        if (statusText?.toLowerCase().includes('applied')) {
+          await row.click();
+          await waitForPageLoad(page);
+          
+          await expect(page).toHaveURL(/\/variations\/[a-f0-9-]+/);
+          return;
+        }
+      }
+      
+      test.skip();
+    });
+  });
+});
+
+// ============================================
+// VARIATION MILESTONE IMPACT VERIFICATION
+// ============================================
+test.describe('Variation Milestone Impact @variations @workflow', () => {
+  test.use({ storageState: 'playwright/.auth/admin.json' });
+
+  test.describe('Verify Applied Variation Updates Milestone', () => {
+    test('milestone affected by applied variation shows updated baseline', async ({ page }) => {
+      // First, find an applied variation to get its affected milestone
+      await page.goto('/variations');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="variation-row-"]');
+      const rowCount = await rows.count();
+      
+      let foundAppliedVariation = false;
+      
+      for (let i = 0; i < rowCount; i++) {
+        const row = rows.nth(i);
+        const statusText = await row.locator('[data-testid^="variation-status-"]').textContent();
+        
+        if (statusText?.toLowerCase().includes('applied')) {
+          foundAppliedVariation = true;
+          await row.click();
+          await waitForPageLoad(page);
+          
+          // Now we're on the variation detail page
+          // Look for milestone links in the affected milestones section
+          const milestoneLinks = page.locator('[data-testid="variation-milestones-section"] a[href*="/milestones/"]');
+          const milestoneCount = await milestoneLinks.count();
+          
+          if (milestoneCount > 0) {
+            // Get the href of the first milestone
+            const href = await milestoneLinks.first().getAttribute('href');
+            
+            // Navigate to that milestone
+            await page.goto(href);
+            await waitForPageLoad(page);
+            
+            // Verify the milestone detail page loads
+            await expect(page.locator('[data-testid="milestone-detail-ref"]')).toBeVisible({ timeout: 10000 });
+            
+            // Check if baseline history section exists (indicates variation was applied)
+            const historySection = page.locator('[data-testid="milestone-baseline-history-section"]');
+            const hasHistory = await historySection.count() > 0;
+            
+            if (hasHistory) {
+              await expect(historySection).toBeVisible();
+              
+              // Expand history
+              await page.locator('[data-testid="baseline-history-toggle"]').click();
+              
+              // Should have at least 2 versions (original + variation update)
+              const versions = page.locator('[data-testid^="baseline-version-"]');
+              const versionCount = await versions.count();
+              expect(versionCount).toBeGreaterThanOrEqual(2);
+              
+              return;
+            }
+          }
+          break;
+        }
+      }
+      
+      if (!foundAppliedVariation) {
+        test.skip();
+      }
+    });
+
+    test('milestone version indicator links back to variation', async ({ page }) => {
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      // Try each milestone to find one with version indicator
+      for (let i = 0; i < Math.min(rowCount, 5); i++) {
+        await page.goto('/milestones');
+        await waitForPageLoad(page);
+        
+        await rows.nth(i).click();
+        await waitForPageLoad(page);
+        
+        const versionIndicator = page.locator('[data-testid="baseline-version-indicator"]');
+        const hasIndicator = await versionIndicator.count() > 0;
+        
+        if (hasIndicator) {
+          // Check if there's a variation link in the indicator
+          const variationLink = versionIndicator.locator('a[href*="/variations/"]');
+          const hasLink = await variationLink.count() > 0;
+          
+          if (hasLink) {
+            // Click the variation link
+            await variationLink.click();
+            await waitForPageLoad(page);
+            
+            // Should navigate to variation detail
+            await expect(page).toHaveURL(/\/variations\/[a-f0-9-]+/);
+            return;
+          }
+        }
+      }
+      
+      test.skip();
+    });
+  });
+});
+
+// ============================================
+// VARIATION APPLY WORKFLOW (End-to-End)
+// ============================================
+test.describe('Variation Apply Workflow @variations @workflow @e2e', () => {
+  // This test requires specific data setup and both PM signatures
+  // It uses admin to test the full flow
+  test.use({ storageState: 'playwright/.auth/admin.json' });
+
+  test.describe('Full Workflow - Apply Approved Variation', () => {
+    test('approved variation can be applied and updates milestone', async ({ page }) => {
+      await page.goto('/variations');
+      await waitForPageLoad(page);
+      
+      // Look for an approved (but not applied) variation
+      const rows = page.locator('[data-testid^="variation-row-"]');
+      const rowCount = await rows.count();
+      
+      for (let i = 0; i < rowCount; i++) {
+        const row = rows.nth(i);
+        const statusText = await row.locator('[data-testid^="variation-status-"]').textContent();
+        
+        // Look for "approved" status (not "applied")
+        if (statusText?.toLowerCase() === 'approved') {
+          await row.click();
+          await waitForPageLoad(page);
+          
+          // On detail page, look for Apply button
+          const applyButton = page.locator('[data-testid="variation-apply-button"]');
+          const canApply = await applyButton.count() > 0;
+          
+          if (canApply && await applyButton.isEnabled()) {
+            // Store the variation ref for verification
+            const variationRef = await page.locator('[data-testid="variation-detail-ref"]').textContent();
+            
+            // Click apply
+            await applyButton.click();
+            
+            // Wait for confirmation dialog or action
+            await page.waitForTimeout(1000);
+            
+            // Confirm if dialog appears
+            const confirmButton = page.locator('[data-testid="confirm-apply-button"], button:has-text("Confirm"), button:has-text("Apply")');
+            if (await confirmButton.count() > 0) {
+              await confirmButton.click();
+            }
+            
+            // Wait for success toast or status change
+            await page.waitForTimeout(2000);
+            
+            // Verify status changed to applied
+            const newStatus = await page.locator('[data-testid="variation-detail-status"]').textContent();
+            expect(newStatus?.toLowerCase()).toContain('applied');
+            
+            return;
+          }
+        }
+      }
+      
+      // No approved variations available to apply - skip
+      test.skip();
+    });
   });
 });

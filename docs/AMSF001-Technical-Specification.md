@@ -532,6 +532,12 @@ export const entityService = new EntityService();
 | [DOCUMENT-TEMPLATES-SPECIFICATION.md](./DOCUMENT-TEMPLATES-SPECIFICATION.md) | JSONB template system specification |
 | [MULTI-TENANCY-ANALYSIS-2025-12-08.md](./MULTI-TENANCY-ANALYSIS-2025-12-08.md) | Multi-tenancy implementation analysis |
 
+### 9.3 Feature Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [WORKFLOW-SYSTEM-DOCUMENTATION.md](./WORKFLOW-SYSTEM-DOCUMENTATION.md) | Workflow/notification system - categories, role permissions, service API |
+
 ---
 
 ## 10. Key Concepts

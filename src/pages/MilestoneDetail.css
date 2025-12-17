@@ -1089,6 +1089,279 @@
   color: #16a34a;
 }
 
+/* ==========================================
+   BASELINE VERSION INDICATOR (in Schedule section)
+   ========================================== */
+
+.date-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.baseline-version-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.baseline-variation-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 0.125rem;
+  color: #0d9488;
+  background: rgba(13, 148, 136, 0.15);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.baseline-variation-link:hover {
+  background: rgba(13, 148, 136, 0.25);
+  color: #0f766e;
+}
+
+/* ==========================================
+   BASELINE HISTORY SECTION
+   ========================================== */
+
+.baseline-history-section {
+  padding: 0;
+  overflow: hidden;
+}
+
+.section-header-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.section-header-toggle:hover {
+  background: rgba(0, 122, 255, 0.04);
+}
+
+.section-header-toggle .section-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.history-version-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.baseline-history-content {
+  padding: 0 1.25rem 1.25rem;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Timeline */
+.history-timeline {
+  position: relative;
+  padding-left: 0;
+}
+
+.history-item {
+  display: flex;
+  gap: 1rem;
+  position: relative;
+  padding-bottom: 1.5rem;
+}
+
+.history-item:last-child {
+  padding-bottom: 0;
+}
+
+/* Timeline marker */
+.history-item-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 20px;
+}
+
+.marker-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #e2e8f0;
+  z-index: 1;
+}
+
+.history-item.latest .marker-dot {
+  background: #007aff;
+  box-shadow: 0 0 0 2px #007aff;
+}
+
+.history-item.original .marker-dot {
+  background: #8b5cf6;
+  box-shadow: 0 0 0 2px #8b5cf6;
+}
+
+.marker-line {
+  width: 2px;
+  flex: 1;
+  background: #e2e8f0;
+  margin-top: 4px;
+}
+
+/* Timeline content */
+.history-item-content {
+  flex: 1;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.history-item.latest .history-item-content {
+  background: rgba(0, 122, 255, 0.04);
+  border-color: rgba(0, 122, 255, 0.2);
+}
+
+.history-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.version-label {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.current-badge {
+  display: inline-flex;
+  padding: 0.125rem 0.5rem;
+  background: #007aff;
+  color: white;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.variation-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.625rem;
+  background: rgba(13, 148, 136, 0.1);
+  color: #0d9488;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.variation-link:hover {
+  background: rgba(13, 148, 136, 0.2);
+  color: #0f766e;
+}
+
+.history-item-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.history-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.history-detail .detail-label {
+  color: #64748b;
+}
+
+.history-detail .detail-value {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.history-detail.change-detail .detail-value.change-positive {
+  color: #16a34a;
+}
+
+.history-detail.change-detail .detail-value.change-negative {
+  color: #dc2626;
+}
+
+.history-item-reason {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.history-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.history-item-meta .meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #16a34a;
+}
+
+.history-item-meta .meta-item svg {
+  flex-shrink: 0;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .milestone-header {
@@ -1148,5 +1421,182 @@
     justify-content: space-between;
     align-items: center;
     text-align: left;
+  }
+
+  /* Baseline History Mobile */
+  .history-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .history-item-details {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* ===========================================
+   Baseline Commitment - Original + Amendments
+   =========================================== */
+
+.baseline-original-commitment {
+  margin-bottom: 1rem;
+}
+
+.baseline-section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.baseline-section-label .label-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.baseline-section-label .version-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.baseline-section-label .version-badge.current {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.baseline-section-label .amendment-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #d97706;
+}
+
+/* Variation Amendments */
+.baseline-amendments {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px dashed #e2e8f0;
+}
+
+.amendments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.amendment-item {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  border-left: 3px solid #f59e0b;
+}
+
+.amendment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.amendment-variation-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #d97706;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.amendment-variation-link:hover {
+  color: #b45309;
+  text-decoration: underline;
+}
+
+.amendment-version {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #92400e;
+  background: rgba(251, 191, 36, 0.3);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.amendment-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.85rem;
+}
+
+.amendment-dates {
+  color: #78716c;
+}
+
+.amendment-cost {
+  font-weight: 600;
+}
+
+.amendment-cost.positive {
+  color: #16a34a;
+}
+
+.amendment-cost.negative {
+  color: #dc2626;
+}
+
+.amendment-reason {
+  font-size: 0.8rem;
+  color: #78716c;
+  margin-top: 0.5rem;
+}
+
+/* Current Baseline Summary */
+.baseline-current-summary {
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.baseline-values.current {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.baseline-values.current .baseline-value {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+/* Mobile adjustments for amendments */
+@media (max-width: 768px) {
+  .amendment-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .amendment-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
 }

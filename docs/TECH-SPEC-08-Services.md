@@ -1,7 +1,8 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Created:** 11 December 2025  
+**Updated:** 17 December 2025  
 **Session:** 1.8  
 **Status:** Complete
 
@@ -662,8 +663,30 @@ export const VARIATION_TYPE = {
 | `submitForApproval(variationId, impactSummary)` | variationId, summary | Submit for approval |
 | `signVariation(variationId, signerRole, userId)` | variationId, role, userId | Sign as supplier/customer |
 | `rejectVariation(variationId, userId, reason)` | variationId, userId, reason | Reject variation |
-| `applyVariation(variationId)` | variationId | Apply to baselines |
+| `applyVariation(variationId)` | variationId | Apply approved variation to milestone baselines |
 | `deleteDraftVariation(variationId)` | variationId | Delete draft/submitted/rejected |
+| `resetToDraft(variationId)` | variationId | Reset rejected variation to draft for re-editing |
+
+#### applyVariation Behavior (v1.2)
+
+When `applyVariation()` is called on an approved variation, it updates the following fields on each affected milestone:
+
+| Field | Update | Purpose |
+|-------|--------|--------|
+| `baseline_start_date` | `new_baseline_start` | New contracted start date |
+| `baseline_end_date` | `new_baseline_end` | New contracted end date |
+| `baseline_billable` | `new_baseline_cost` | New contracted billable amount |
+| `start_date` | `new_baseline_start` | Forecast start (reset to match baseline) |
+| `forecast_end_date` | `new_baseline_end` | Forecast end (reset to match baseline) |
+| `forecast_billable` | `new_baseline_cost` | Forecast billable (reset to match baseline) |
+| `billable` | `new_baseline_cost` | Current billable for invoicing |
+
+The method also:
+- Creates a new `milestone_baseline_versions` record with the new version number
+- Links the version to the variation via `variation_id`
+- Stores signature information from the variation
+- Generates a certificate number and stores certificate data
+- Updates the variation status to `applied`
 
 #### Baseline History Methods
 

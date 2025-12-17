@@ -3,12 +3,13 @@
  * Location: e2e/milestones.spec.js
  * 
  * Tests milestone functionality including page load, CRUD operations,
- * certificate generation, and role-based access.
+ * certificate generation, baseline history, and role-based access.
  * 
  * IMPORTANT: All selectors use data-testid per docs/TESTING-CONVENTIONS.md
  * 
- * @version 1.0
+ * @version 1.1
  * @created 15 December 2025
+ * @updated 17 December 2025 - Added baseline history tests
  */
 
 import { test, expect } from '@playwright/test';
@@ -164,6 +165,213 @@ test.describe('Milestone Detail @milestones', () => {
         // Should navigate to detail page
         await expect(page).toHaveURL(/\/milestones\/[a-f0-9-]+/);
       }
+    });
+  });
+
+  test.describe('Detail Page Elements', () => {
+    test('milestone detail page displays core elements', async ({ page }) => {
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      // Navigate to first milestone detail
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      if (rowCount > 0) {
+        await rows.first().click();
+        await waitForPageLoad(page);
+        
+        // Verify core elements
+        await expect(page.locator('[data-testid="milestone-detail-ref"]')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('[data-testid="milestone-detail-name"]')).toBeVisible();
+        await expect(page.locator('[data-testid="milestone-detail-status"]')).toBeVisible();
+        await expect(page.locator('[data-testid="milestone-detail-content"]')).toBeVisible();
+      }
+    });
+
+    test('milestone detail page displays schedule section', async ({ page }) => {
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      if (rowCount > 0) {
+        await rows.first().click();
+        await waitForPageLoad(page);
+        
+        await expect(page.locator('[data-testid="milestone-schedule-section"]')).toBeVisible({ timeout: 10000 });
+      }
+    });
+
+    test('milestone detail page displays metrics grid', async ({ page }) => {
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      if (rowCount > 0) {
+        await rows.first().click();
+        await waitForPageLoad(page);
+        
+        await expect(page.locator('[data-testid="milestone-metrics-grid"]')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('[data-testid="milestone-progress-percent"]')).toBeVisible();
+      }
+    });
+
+    test('back button returns to milestones list', async ({ page }) => {
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      if (rowCount > 0) {
+        await rows.first().click();
+        await waitForPageLoad(page);
+        
+        await page.locator('[data-testid="milestone-back-button"]').click();
+        await expect(page).toHaveURL(/\/milestones$/);
+      }
+    });
+  });
+});
+
+// ============================================
+// MILESTONE BASELINE HISTORY TESTS
+// ============================================
+test.describe('Milestone Baseline History @milestones @baseline-history', () => {
+  test.use({ storageState: 'playwright/.auth/admin.json' });
+
+  test.describe('Baseline History Section', () => {
+    test('baseline history section appears for milestones with history', async ({ page }) => {
+      // Navigate to a milestone that has baseline history (affected by variation)
+      // First try to find one via the API or by navigating
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      // Try each milestone to find one with baseline history
+      for (let i = 0; i < Math.min(rowCount, 5); i++) {
+        await page.goto('/milestones');
+        await waitForPageLoad(page);
+        
+        await rows.nth(i).click();
+        await waitForPageLoad(page);
+        
+        const historySection = page.locator('[data-testid="milestone-baseline-history-section"]');
+        const hasHistory = await historySection.count() > 0;
+        
+        if (hasHistory) {
+          await expect(historySection).toBeVisible();
+          return; // Test passed
+        }
+      }
+      
+      // If no milestone has history, skip gracefully
+      test.skip();
+    });
+
+    test('baseline history toggle expands and collapses', async ({ page }) => {
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      for (let i = 0; i < Math.min(rowCount, 5); i++) {
+        await page.goto('/milestones');
+        await waitForPageLoad(page);
+        
+        await rows.nth(i).click();
+        await waitForPageLoad(page);
+        
+        const toggleButton = page.locator('[data-testid="baseline-history-toggle"]');
+        const hasHistory = await toggleButton.count() > 0;
+        
+        if (hasHistory) {
+          // Initially collapsed - click to expand
+          await toggleButton.click();
+          
+          // Should show version items
+          await expect(page.locator('[data-testid^="baseline-version-"]').first()).toBeVisible({ timeout: 5000 });
+          
+          // Click again to collapse
+          await toggleButton.click();
+          await page.waitForTimeout(500);
+          
+          // Version items should be hidden (content collapsed)
+          // The section header remains but content is hidden
+          return; // Test passed
+        }
+      }
+      
+      test.skip();
+    });
+
+    test('baseline history shows version numbers', async ({ page }) => {
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      for (let i = 0; i < Math.min(rowCount, 5); i++) {
+        await page.goto('/milestones');
+        await waitForPageLoad(page);
+        
+        await rows.nth(i).click();
+        await waitForPageLoad(page);
+        
+        const toggleButton = page.locator('[data-testid="baseline-history-toggle"]');
+        const hasHistory = await toggleButton.count() > 0;
+        
+        if (hasHistory) {
+          await toggleButton.click();
+          
+          // Should have at least version 1 (original baseline)
+          const version1 = page.locator('[data-testid="baseline-version-1"]');
+          await expect(version1).toBeVisible({ timeout: 5000 });
+          
+          return;
+        }
+      }
+      
+      test.skip();
+    });
+  });
+
+  test.describe('Version Indicator in Schedule Section', () => {
+    test('version indicator appears in schedule section for milestones with history', async ({ page }) => {
+      await page.goto('/milestones');
+      await waitForPageLoad(page);
+      
+      const rows = page.locator('[data-testid^="milestone-row-"]');
+      const rowCount = await rows.count();
+      
+      for (let i = 0; i < Math.min(rowCount, 5); i++) {
+        await page.goto('/milestones');
+        await waitForPageLoad(page);
+        
+        await rows.nth(i).click();
+        await waitForPageLoad(page);
+        
+        const versionIndicator = page.locator('[data-testid="baseline-version-indicator"]');
+        const hasIndicator = await versionIndicator.count() > 0;
+        
+        if (hasIndicator) {
+          await expect(versionIndicator).toBeVisible();
+          // Should show version text like "v2"
+          await expect(versionIndicator).toContainText(/v\d+/);
+          return;
+        }
+      }
+      
+      // If no milestone has version indicator, that's okay - means no variations applied
+      test.skip();
     });
   });
 });

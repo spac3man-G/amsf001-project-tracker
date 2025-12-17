@@ -3,9 +3,10 @@
  * 
  * Handles all milestone-related data operations.
  * 
- * @version 2.1
- * @updated 5 December 2025
+ * @version 2.2
+ * @updated 17 December 2025
  * @phase Production Hardening - Service Layer
+ * @changes v2.2: Create original baseline version (v1) when baseline is locked
  */
 
 import { BaseService } from './base.service';
@@ -354,6 +355,7 @@ export class MilestonesService extends BaseService {
 
       const now = new Date().toISOString();
       const updates = {};
+      let willLock = false;
 
       if (signerRole === 'supplier') {
         updates.baseline_supplier_pm_id = userId;
@@ -362,6 +364,7 @@ export class MilestonesService extends BaseService {
         // Lock if other party already signed
         if (milestone.baseline_customer_pm_signed_at) {
           updates.baseline_locked = true;
+          willLock = true;
         }
       } else if (signerRole === 'customer') {
         updates.baseline_customer_pm_id = userId;
@@ -370,15 +373,92 @@ export class MilestonesService extends BaseService {
         // Lock if other party already signed
         if (milestone.baseline_supplier_pm_signed_at) {
           updates.baseline_locked = true;
+          willLock = true;
         }
       } else {
         throw new Error('Invalid signer role. Must be "supplier" or "customer".');
       }
 
-      return await this.update(milestoneId, updates);
+      // Update the milestone
+      const updatedMilestone = await this.update(milestoneId, updates);
+
+      // If baseline is now locked (both parties signed), create the original baseline version record (v1)
+      // This preserves the original signed commitment for audit trail
+      if (willLock) {
+        await this.createOriginalBaselineVersion(milestoneId, milestone, updates, signerRole);
+      }
+
+      return updatedMilestone;
     } catch (error) {
       console.error('MilestonesService signBaseline error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Create the original baseline version (v1) when baseline is first locked.
+   * This preserves the original signed commitment values before any variations.
+   * 
+   * @param {string} milestoneId - The milestone ID
+   * @param {Object} milestone - The milestone data before this signature
+   * @param {Object} updates - The signature updates being applied
+   * @param {string} signerRole - Who just signed ('supplier' or 'customer')
+   */
+  async createOriginalBaselineVersion(milestoneId, milestone, updates, signerRole) {
+    try {
+      // Check if v1 already exists (shouldn't happen, but be safe)
+      const { data: existing } = await supabase
+        .from('milestone_baseline_versions')
+        .select('id')
+        .eq('milestone_id', milestoneId)
+        .eq('version', 1)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        console.log('Original baseline version (v1) already exists for milestone:', milestoneId);
+        return;
+      }
+
+      // Determine supplier and customer signer info
+      // The current signer's info is in updates, the other party's is in milestone
+      const supplierSignedBy = signerRole === 'supplier' 
+        ? updates.baseline_supplier_pm_id 
+        : milestone.baseline_supplier_pm_id;
+      const supplierSignedAt = signerRole === 'supplier' 
+        ? updates.baseline_supplier_pm_signed_at 
+        : milestone.baseline_supplier_pm_signed_at;
+      const customerSignedBy = signerRole === 'customer' 
+        ? updates.baseline_customer_pm_id 
+        : milestone.baseline_customer_pm_id;
+      const customerSignedAt = signerRole === 'customer' 
+        ? updates.baseline_customer_pm_signed_at 
+        : milestone.baseline_customer_pm_signed_at;
+
+      // Create the original baseline version (v1)
+      const { error } = await supabase
+        .from('milestone_baseline_versions')
+        .insert({
+          milestone_id: milestoneId,
+          version: 1,
+          variation_id: null,  // No variation - this is the original commitment
+          baseline_start_date: milestone.baseline_start_date,
+          baseline_end_date: milestone.baseline_end_date,
+          baseline_billable: milestone.baseline_billable ?? milestone.billable ?? 0,
+          supplier_signed_by: supplierSignedBy,
+          supplier_signed_at: supplierSignedAt,
+          customer_signed_by: customerSignedBy,
+          customer_signed_at: customerSignedAt
+        });
+
+      if (error) {
+        console.error('Error creating original baseline version:', error);
+        // Don't throw - the baseline is still locked, this is supplementary
+      } else {
+        console.log('Created original baseline version (v1) for milestone:', milestoneId);
+      }
+    } catch (error) {
+      console.error('MilestonesService createOriginalBaselineVersion error:', error);
+      // Don't throw - the baseline is still locked, this is supplementary
     }
   }
 

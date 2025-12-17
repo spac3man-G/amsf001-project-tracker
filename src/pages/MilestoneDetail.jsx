@@ -4,22 +4,23 @@
  * Displays detailed information for a single milestone including:
  * - Progress and billable metrics
  * - Schedule (baseline/forecast/actual)
+ * - Baseline history (collapsible timeline showing version changes via variations)
  * - Linked deliverables
  * - Baseline commitment workflow (dual signature)
  * - Acceptance certificate workflow (dual signature)
  * 
- * @version 4.1 - Fixed deliverable click navigation to use highlight param
- * @updated 16 December 2025
+ * @version 4.4 - Updated Baseline Commitment to show original signed values + variation amendments
+ * @updated 17 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { milestonesService, deliverablesService } from '../services';
+import { milestonesService, deliverablesService, variationsService } from '../services';
 import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft, AlertCircle, RefreshCw, Calendar, 
   PoundSterling, Package, CheckCircle, Clock, ChevronRight,
-  Edit2, Lock, Unlock, Award, FileCheck
+  Edit2, Lock, Unlock, Award, FileCheck, History, ChevronDown, ChevronUp, GitBranch
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -48,6 +49,8 @@ export default function MilestoneDetail() {
   const [milestone, setMilestone] = useState(null);
   const [deliverables, setDeliverables] = useState([]);
   const [certificate, setCertificate] = useState(null);
+  const [baselineHistory, setBaselineHistory] = useState([]);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -106,6 +109,10 @@ export default function MilestoneDetail() {
       // Fetch certificate using service method
       const certData = await milestonesService.getCertificateByMilestoneId(id);
       setCertificate(certData);
+
+      // Fetch baseline history
+      const historyData = await variationsService.getMilestoneBaselineHistory(id);
+      setBaselineHistory(historyData || []);
     } catch (error) {
       console.error('Error fetching milestone data:', error);
       showError('Failed to load milestone data');
@@ -439,7 +446,29 @@ export default function MilestoneDetail() {
           </h3>
           <div className="dates-grid">
             <div className="date-group">
-              <h4 className="date-group-title">Baseline</h4>
+              <h4 className="date-group-title">
+                Baseline
+                {baselineHistory.length > 0 && (
+                  <span className="baseline-version-indicator" data-testid="baseline-version-indicator">
+                    v{baselineHistory.length}
+                    {(() => {
+                      const latestVersion = baselineHistory[baselineHistory.length - 1];
+                      if (latestVersion?.variation) {
+                        return (
+                          <Link 
+                            to={`/variations/${latestVersion.variation_id}`}
+                            className="baseline-variation-link"
+                            title={`Updated by ${latestVersion.variation.variation_ref}`}
+                          >
+                            <GitBranch size={12} />
+                          </Link>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </span>
+                )}
+              </h4>
               <div className="date-row">
                 <span className="date-label">Start</span>
                 <span className="date-value">{formatDate(milestone.baseline_start_date)}</span>
@@ -485,6 +514,108 @@ export default function MilestoneDetail() {
             </div>
           </div>
         </div>
+
+        {/* Baseline History Section - Only show if there's history */}
+        {baselineHistory.length > 0 && (
+          <div className="section-card baseline-history-section" data-testid="milestone-baseline-history-section">
+            <button 
+              className="section-header-toggle" 
+              onClick={() => setHistoryExpanded(!historyExpanded)}
+              data-testid="baseline-history-toggle"
+            >
+              <h3 className="section-title">
+                <History size={18} />
+                Baseline History
+                <span className="history-version-badge">v{baselineHistory.length}</span>
+              </h3>
+              {historyExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </button>
+
+            {historyExpanded && (
+              <div className="baseline-history-content">
+                <div className="history-timeline">
+                  {baselineHistory.map((version, index) => {
+                    const isOriginal = version.version === 1 || !version.variation_id;
+                    const isLatest = index === baselineHistory.length - 1;
+                    
+                    return (
+                      <div 
+                        key={version.id} 
+                        className={`history-item ${isLatest ? 'latest' : ''} ${isOriginal ? 'original' : ''}`}
+                        data-testid={`baseline-version-${version.version}`}
+                      >
+                        <div className="history-item-marker">
+                          <div className="marker-dot" />
+                          {index < baselineHistory.length - 1 && <div className="marker-line" />}
+                        </div>
+                        
+                        <div className="history-item-content">
+                          <div className="history-item-header">
+                            <span className="version-label">
+                              {isOriginal ? 'Original Baseline' : `Baseline v${version.version}`}
+                              {isLatest && <span className="current-badge">Current</span>}
+                            </span>
+                            {version.variation && (
+                              <Link 
+                                to={`/variations/${version.variation_id}`} 
+                                className="variation-link"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <GitBranch size={14} />
+                                {version.variation.variation_ref}
+                              </Link>
+                            )}
+                          </div>
+                          
+                          <div className="history-item-details">
+                            <div className="history-detail">
+                              <span className="detail-label">Period:</span>
+                              <span className="detail-value">
+                                {formatDate(version.baseline_start_date)} — {formatDate(version.baseline_end_date)}
+                              </span>
+                            </div>
+                            <div className="history-detail">
+                              <span className="detail-label">Billable:</span>
+                              <span className="detail-value">{formatCurrency(version.baseline_billable)}</span>
+                            </div>
+                            {index > 0 && (
+                              <div className="history-detail change-detail">
+                                <span className="detail-label">Change:</span>
+                                <span className={`detail-value ${
+                                  (version.baseline_billable - baselineHistory[index - 1].baseline_billable) >= 0 
+                                    ? 'change-positive' 
+                                    : 'change-negative'
+                                }`}>
+                                  {(version.baseline_billable - baselineHistory[index - 1].baseline_billable) >= 0 ? '+' : ''}
+                                  {formatCurrency(version.baseline_billable - baselineHistory[index - 1].baseline_billable)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {version.variation && version.variation.title && (
+                            <div className="history-item-reason">
+                              <em>"{version.variation.title}"</em>
+                            </div>
+                          )}
+                          
+                          <div className="history-item-meta">
+                            {version.supplier_signed_at && (
+                              <span className="meta-item">
+                                <CheckCircle size={12} />
+                                Signed {formatDate(version.supplier_signed_at)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Deliverables Section */}
         <div className="section-card" data-testid="milestone-deliverables-section">
@@ -547,20 +678,115 @@ export default function MilestoneDetail() {
             </span>
           </div>
 
-          <div className="baseline-values">
-            <div className="baseline-item">
-              <span className="baseline-label">Start Date</span>
-              <span className="baseline-value">{formatDate(milestone.baseline_start_date)}</span>
-            </div>
-            <div className="baseline-item">
-              <span className="baseline-label">End Date</span>
-              <span className="baseline-value">{formatDate(milestone.baseline_end_date)}</span>
-            </div>
-            <div className="baseline-item">
-              <span className="baseline-label">Billable Amount</span>
-              <span className="baseline-value">{formatCurrency(baselineBillable)}</span>
-            </div>
-          </div>
+          {/* Original Baseline Values - from v1 if available, otherwise current milestone */}
+          {(() => {
+            const originalBaseline = baselineHistory.find(v => v.version === 1 && !v.variation_id);
+            const variationAmendments = baselineHistory.filter(v => v.variation_id);
+            const hasVariations = variationAmendments.length > 0;
+            
+            // Use original baseline if available, otherwise use current milestone values
+            const displayStartDate = originalBaseline?.baseline_start_date || milestone.baseline_start_date;
+            const displayEndDate = originalBaseline?.baseline_end_date || milestone.baseline_end_date;
+            const displayBillable = originalBaseline?.baseline_billable ?? baselineBillable;
+            
+            return (
+              <>
+                {/* Original Signed Commitment */}
+                <div className="baseline-original-commitment">
+                  {hasVariations && (
+                    <div className="baseline-section-label">
+                      <span className="label-text">Original Commitment</span>
+                      <span className="version-badge">v1</span>
+                    </div>
+                  )}
+                  <div className="baseline-values">
+                    <div className="baseline-item">
+                      <span className="baseline-label">Start Date</span>
+                      <span className="baseline-value">{formatDate(displayStartDate)}</span>
+                    </div>
+                    <div className="baseline-item">
+                      <span className="baseline-label">End Date</span>
+                      <span className="baseline-value">{formatDate(displayEndDate)}</span>
+                    </div>
+                    <div className="baseline-item">
+                      <span className="baseline-label">Billable Amount</span>
+                      <span className="baseline-value">{formatCurrency(displayBillable)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Variation Amendments - only show if there are variations */}
+                {hasVariations && (
+                  <div className="baseline-amendments" data-testid="baseline-variation-amendments">
+                    <div className="baseline-section-label">
+                      <span className="label-text">Variation Amendments</span>
+                      <span className="amendment-count">{variationAmendments.length}</span>
+                    </div>
+                    <div className="amendments-list">
+                      {variationAmendments.map((version, index) => {
+                        const prevVersion = index === 0 
+                          ? originalBaseline || { baseline_billable: displayBillable }
+                          : variationAmendments[index - 1];
+                        const costChange = (version.baseline_billable || 0) - (prevVersion.baseline_billable || 0);
+                        
+                        return (
+                          <div key={version.id} className="amendment-item" data-testid={`variation-amendment-${version.version}`}>
+                            <div className="amendment-header">
+                              {version.variation && (
+                                <Link 
+                                  to={`/variations/${version.variation_id}`}
+                                  className="amendment-variation-link"
+                                >
+                                  <GitBranch size={14} />
+                                  {version.variation.variation_ref}
+                                </Link>
+                              )}
+                              <span className="amendment-version">→ v{version.version}</span>
+                            </div>
+                            <div className="amendment-details">
+                              <span className="amendment-dates">
+                                {formatDate(version.baseline_start_date)} — {formatDate(version.baseline_end_date)}
+                              </span>
+                              <span className={`amendment-cost ${costChange >= 0 ? 'positive' : 'negative'}`}>
+                                {costChange >= 0 ? '+' : ''}{formatCurrency(costChange)}
+                              </span>
+                            </div>
+                            {version.variation?.title && (
+                              <div className="amendment-reason">
+                                <em>"{version.variation.title}"</em>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Current Baseline Summary */}
+                    <div className="baseline-current-summary" data-testid="baseline-current-summary">
+                      <div className="baseline-section-label">
+                        <span className="label-text">Current Baseline</span>
+                        <span className="version-badge current">v{baselineHistory.length || 1}</span>
+                      </div>
+                      <div className="baseline-values current">
+                        <div className="baseline-item">
+                          <span className="baseline-label">Start Date</span>
+                          <span className="baseline-value">{formatDate(milestone.baseline_start_date)}</span>
+                        </div>
+                        <div className="baseline-item">
+                          <span className="baseline-label">End Date</span>
+                          <span className="baseline-value">{formatDate(milestone.baseline_end_date)}</span>
+                        </div>
+                        <div className="baseline-item">
+                          <span className="baseline-label">Billable Amount</span>
+                          <span className="baseline-value">{formatCurrency(baselineBillable)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           <DualSignature
             supplier={{

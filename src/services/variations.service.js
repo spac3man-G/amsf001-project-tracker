@@ -8,8 +8,9 @@
  * - Dual-signature approval workflow
  * - Certificate generation
  * 
- * @version 1.0
+ * @version 1.2
  * @created 8 December 2025
+ * @updated 17 December 2025 - Fixed applyVariation to update baseline_billable, forecast fields, and billable amount
  */
 
 import { BaseService } from './base.service';
@@ -501,12 +502,19 @@ export class VariationsService extends BaseService {
       // Apply changes to each affected milestone
       for (const vm of variation.affected_milestones) {
         if (vm.milestone_id) {
-          // Update milestone baselines
+          // Update milestone baselines and reset forecast to match new baseline
           const { error: updateError } = await supabase
             .from('milestones')
             .update({
+              // Update baseline fields
               baseline_start_date: vm.new_baseline_start,
               baseline_end_date: vm.new_baseline_end,
+              baseline_billable: vm.new_baseline_cost,
+              // Reset forecast to match new baseline (can be edited later)
+              start_date: vm.new_baseline_start,
+              forecast_end_date: vm.new_baseline_end,
+              forecast_billable: vm.new_baseline_cost,
+              // Update billable amount for invoicing (reflects new contract value)
               billable: vm.new_baseline_cost
             })
             .eq('id', vm.milestone_id);

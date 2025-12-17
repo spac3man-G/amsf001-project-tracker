@@ -8,8 +8,8 @@
  * - Sign/reject variations
  * - View/download certificates
  * 
- * @version 1.1
- * @updated 16 December 2025 - Added Edit & Resubmit for rejected variations
+ * @version 1.2
+ * @updated 17 December 2025 - Added data-testid attributes for E2E testing
  */
 
 import React, { useState, useEffect } from 'react';
@@ -240,8 +240,8 @@ export default function VariationDetail() {
             </button>
             <div>
               <div className="vd-header-ref">
-                <span className="vd-ref" data-testid="variation-ref">{variation.variation_ref}</span>
-                <span className={`vd-status-badge ${getStatusBadgeClass(variation.status)}`} data-testid="variation-status">
+                <span className="vd-ref" data-testid="variation-detail-ref">{variation.variation_ref}</span>
+                <span className={`vd-status-badge ${getStatusBadgeClass(variation.status)}`} data-testid="variation-detail-status">
                   {statusConfig?.label || variation.status}
                 </span>
               </div>
@@ -374,7 +374,7 @@ export default function VariationDetail() {
             </div>
 
             {/* Affected Milestones Card */}
-            <div className="vd-card">
+            <div className="vd-card" data-testid="variation-milestones-section">
               <div className="vd-card-header">
                 <h2>Affected Milestones</h2>
                 <span className="vd-card-count">
