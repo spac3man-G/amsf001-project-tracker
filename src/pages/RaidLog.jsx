@@ -80,18 +80,21 @@ export default function RaidLog() {
       setSummary(summaryData);
       
       // Fetch team members for owner dropdown
+      // Use explicit foreign key hint for the profiles join
       const { data: userProjectsData, error: upError } = await supabase
         .from('user_projects')
         .select(`
           user_id,
           role,
-          profiles:user_id(id, full_name, email)
+          profiles!user_projects_user_id_fkey(id, full_name, email)
         `)
         .eq('project_id', projectId);
       
       if (upError) {
         console.error('Error fetching team members for RAID:', upError);
       }
+      
+      console.log('Raw userProjectsData:', userProjectsData);
       
       const members = (userProjectsData || [])
         .filter(up => up.profiles)
@@ -103,7 +106,7 @@ export default function RaidLog() {
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
       
-      console.log('RAID teamMembers loaded:', members.length, 'members');
+      console.log('RAID teamMembers loaded:', members.length, 'members', members);
       setTeamMembers(members);
     } catch (error) {
       console.error('Error fetching RAID data:', error);
