@@ -46,30 +46,46 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch team members (all users with project access)
+        // First get the user_projects for this project
         const { data: userProjectsData, error: upError } = await supabase
           .from('user_projects')
-          .select(`
-            user_id,
-            role,
-            profiles:user_id(id, full_name, email)
-          `)
+          .select('user_id, role')
           .eq('project_id', projectId);
         
         if (upError) {
-          console.error('Error fetching team members:', upError);
+          console.error('Error fetching user_projects:', upError);
         }
         
-        // Transform to flat list with name for display
-        const members = (userProjectsData || [])
-          .filter(up => up.profiles) // Ensure profile exists
-          .map(up => ({
-            id: up.profiles.id,
-            name: up.profiles.full_name || up.profiles.email,
-            email: up.profiles.email,
-            role: up.role
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name));
+        let members = [];
+        if (userProjectsData && userProjectsData.length > 0) {
+          // Get the user IDs
+          const userIds = userProjectsData.map(up => up.user_id);
+          
+          // Fetch profiles for these users
+          const { data: profilesData, error: profError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds);
+          
+          if (profError) {
+            console.error('Error fetching profiles:', profError);
+          }
+          
+          // Merge the data
+          members = userProjectsData
+            .map(up => {
+              const profile = (profilesData || []).find(p => p.id === up.user_id);
+              if (!profile) return null;
+              return {
+                id: profile.id,
+                name: profile.full_name || profile.email,
+                email: profile.email,
+                role: up.role
+              };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.name.localeCompare(b.name));
+        }
         
         // Fetch milestones
         const { data: milestonesData } = await supabase

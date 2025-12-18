@@ -65,28 +65,49 @@ export default function RaidDetailModal({
       if (!projectId) return;
       
       try {
-        const { data: userProjectsData, error } = await supabase
+        // First get the user_projects for this project
+        const { data: userProjectsData, error: upError } = await supabase
           .from('user_projects')
-          .select(`
-            user_id,
-            role,
-            profiles:user_id(id, full_name, email)
-          `)
+          .select('user_id, role')
           .eq('project_id', projectId);
         
-        if (error) {
-          console.error('RaidDetailModal: Error fetching team members:', error);
+        if (upError) {
+          console.error('RaidDetailModal: Error fetching user_projects:', upError);
           return;
         }
         
-        const members = (userProjectsData || [])
-          .filter(up => up.profiles)
-          .map(up => ({
-            id: up.profiles.id,
-            name: up.profiles.full_name || up.profiles.email,
-            email: up.profiles.email,
-            role: up.role
-          }))
+        if (!userProjectsData || userProjectsData.length === 0) {
+          console.log('RaidDetailModal: No user_projects found for project');
+          return;
+        }
+        
+        // Get the user IDs
+        const userIds = userProjectsData.map(up => up.user_id);
+        
+        // Fetch profiles for these users
+        const { data: profilesData, error: profError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds);
+        
+        if (profError) {
+          console.error('RaidDetailModal: Error fetching profiles:', profError);
+          return;
+        }
+        
+        // Merge the data
+        const members = userProjectsData
+          .map(up => {
+            const profile = (profilesData || []).find(p => p.id === up.user_id);
+            if (!profile) return null;
+            return {
+              id: profile.id,
+              name: profile.full_name || profile.email,
+              email: profile.email,
+              role: up.role
+            };
+          })
+          .filter(Boolean)
           .sort((a, b) => a.name.localeCompare(b.name));
         
         setTeamMembers(members);
