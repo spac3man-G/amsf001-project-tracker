@@ -3,19 +3,22 @@
  * 
  * Provides application-wide toast notifications.
  * Replaces browser alerts with styled, auto-dismissing notifications.
+ * Now supports action buttons (e.g., Undo) for enhanced UX.
  * 
  * Usage:
  *   import { useToast } from '../contexts/ToastContext';
  *   
- *   const { showToast, showSuccess, showError, showWarning } = useToast();
+ *   const { showToast, showSuccess, showError, showWarning, showWithUndo } = useToast();
  *   
  *   showSuccess('Record saved successfully');
  *   showError('Failed to save record');
  *   showWarning('Please complete all required fields');
  *   showToast('Custom message', 'info', 5000);
+ *   showWithUndo('Item deleted', handleUndo, 8000);
  * 
- * @version 1.1
+ * @version 1.2
  * @created 30 November 2025
+ * @updated 18 December 2025 - Added action button support (Undo)
  */
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
@@ -24,6 +27,7 @@ import { ToastContainer } from '../components/common';
 const ToastContext = createContext(null);
 
 const DEFAULT_DURATION = 4000; // 4 seconds
+const UNDO_DURATION = 8000; // 8 seconds for undo toasts
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -34,14 +38,15 @@ export function ToastProvider({ children }) {
   }, []);
 
   // Add a new toast
-  const showToast = useCallback((message, type = 'info', duration = DEFAULT_DURATION) => {
+  const showToast = useCallback((message, type = 'info', duration = DEFAULT_DURATION, action = null) => {
     const id = Date.now() + Math.random();
     
     const newToast = {
       id,
       message,
       type,
-      duration
+      duration,
+      action // { label: string, onClick: function }
     };
 
     setToasts(prev => [...prev, newToast]);
@@ -66,12 +71,21 @@ export function ToastProvider({ children }) {
     return showToast(message, 'info', duration);
   }, [showToast]);
 
+  // Show toast with Undo action
+  const showWithUndo = useCallback((message, onUndo, duration = UNDO_DURATION) => {
+    return showToast(message, 'info', duration, {
+      label: 'Undo',
+      onClick: onUndo
+    });
+  }, [showToast]);
+
   const value = {
     showToast,
     showSuccess,
     showError,
     showWarning,
     showInfo,
+    showWithUndo,
     removeToast
   };
 

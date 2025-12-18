@@ -6,10 +6,11 @@
  * - Status/progress calculation from deliverables
  * - Acceptance certificate workflow
  * - Sortable columns
+ * - Soft delete with undo capability
  * 
- * @version 4.4 - Fixed SortIndicator component, sortable columns working
+ * @version 4.5 - Added soft delete with undo toast
  * @refactored 5 December 2025
- * @updated 16 December 2025
+ * @updated 18 December 2025
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -62,7 +63,7 @@ export default function Milestones() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { projectId } = useProject();
-  const { showSuccess, showError, showWarning } = useToast();
+  const { showSuccess, showError, showWarning, showWithUndo } = useToast();
   const currentUserId = user?.id || null;
   const currentUserName = profile?.full_name || user?.email || 'Unknown';
 
@@ -196,10 +197,60 @@ export default function Milestones() {
     
     setSaving(true);
     try {
-      await milestonesService.delete(milestone.id);
+      await milestonesService.delete(milestone.id, currentUserId);
       await fetchMilestones();
       setDeleteDialog({ isOpen: false, milestone: null });
-      showSuccess('Milestone deleted successfully!');
+      
+      // Show undo toast
+      showWithUndo(
+        `Milestone "${milestone.milestone_ref}" moved to Deleted Items`,
+        async () => {
+          try {
+            await milestonesService.restore(milestone.id);
+            await fetchMilestones();
+            showSuccess('Milestone restored successfully!');
+          } catch (error) {
+            console.error('Error restoring milestone:', error);
+            showError('Failed to restore milestone');
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error deleting milestone:', error);
+      showError('Failed to delete milestone: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Handle delete from edit modal
+  async function handleDeleteFromModal() {
+    const milestoneId = editForm.id;
+    const milestoneRef = editForm.milestone_ref;
+    const milestoneName = editForm.name;
+    
+    if (!milestoneId) return;
+    
+    setSaving(true);
+    try {
+      await milestonesService.delete(milestoneId, currentUserId);
+      setShowEditModal(false);
+      await fetchMilestones();
+      
+      // Show undo toast
+      showWithUndo(
+        `Milestone "${milestoneRef}" moved to Deleted Items`,
+        async () => {
+          try {
+            await milestonesService.restore(milestoneId);
+            await fetchMilestones();
+            showSuccess('Milestone restored successfully!');
+          } catch (error) {
+            console.error('Error restoring milestone:', error);
+            showError('Failed to restore milestone');
+          }
+        }
+      );
     } catch (error) {
       console.error('Error deleting milestone:', error);
       showError('Failed to delete milestone: ' + error.message);
@@ -637,6 +688,10 @@ export default function Milestones() {
           onFormChange={setEditForm}
           onSave={handleSaveEdit}
           onClose={() => setShowEditModal(false)}
+          onDelete={handleDeleteFromModal}
+          canDelete={canDeleteMilestone}
+          deliverablesCount={milestoneDeliverables[editForm.id]?.length || 0}
+          saving={saving}
         />
       )}
 

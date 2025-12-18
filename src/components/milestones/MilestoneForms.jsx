@@ -3,15 +3,16 @@
  * 
  * Form components for milestone management:
  * - MilestoneAddForm - Inline form for adding new milestones
- * - MilestoneEditModal - Modal for editing existing milestones
+ * - MilestoneEditModal - Modal for editing existing milestones (includes delete)
  * 
- * @version 1.0
+ * @version 1.1
  * @created 1 December 2025
+ * @updated 18 December 2025 - Added delete functionality with warnings
  * @extracted-from Milestones.jsx
  */
 
-import React from 'react';
-import { Plus, Edit2, Save, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Edit2, Save, X, Trash2, AlertTriangle } from 'lucide-react';
 
 /**
  * Add Milestone Form - Inline expandable form
@@ -157,18 +158,36 @@ export function MilestoneAddForm({
 
 /**
  * Edit Milestone Modal
+ * Includes reference editing and delete functionality with warnings
  */
 export function MilestoneEditModal({ 
   form, 
   onFormChange, 
   onSave, 
-  onClose 
+  onClose,
+  onDelete,
+  canDelete = true,
+  deliverablesCount = 0,
+  saving = false
 }) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
   const inputStyle = { 
     width: '100%', 
     padding: '0.5rem', 
     border: '1px solid #e2e8f0', 
     borderRadius: '6px' 
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (onDelete) {
+      onDelete();
+    }
+    setShowDeleteConfirm(false);
   };
 
   return (
@@ -195,9 +214,10 @@ export function MilestoneEditModal({
       }} data-testid="milestone-edit-modal">
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: 0 }}>
           <Edit2 size={20} />
-          Edit Milestone - {form.milestone_ref}
+          Edit Milestone
         </h3>
 
+        {/* Reference and Name - Reference is now editable */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
           <div>
             <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>Reference *</label>
@@ -206,6 +226,7 @@ export function MilestoneEditModal({
               value={form.milestone_ref}
               onChange={(e) => onFormChange({ ...form, milestone_ref: e.target.value })}
               style={inputStyle}
+              data-testid="milestone-edit-ref-input"
             />
           </div>
           <div>
@@ -308,39 +329,135 @@ export function MilestoneEditModal({
           </ul>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#f1f5f9',
-              color: '#64748b',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem'
-            }}
-          >
-            <X size={16} /> Cancel
-          </button>
-          <button
-            onClick={onSave}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem'
-            }}
-          >
-            <Save size={16} /> Save Changes
-          </button>
+        {/* Delete Confirmation */}
+        {showDeleteConfirm && (
+          <div style={{
+            padding: '1rem',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            marginBottom: '1rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+              <AlertTriangle size={24} style={{ color: '#dc2626', flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <h4 style={{ margin: '0 0 0.5rem 0', color: '#991b1b' }}>Delete this milestone?</h4>
+                <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.875rem', color: '#7f1d1d' }}>
+                  This will move the milestone <strong>"{form.milestone_ref}: {form.name}"</strong> to Deleted Items.
+                  {deliverablesCount > 0 && (
+                    <span style={{ display: 'block', marginTop: '0.5rem', fontWeight: '600' }}>
+                      ⚠️ This milestone has {deliverablesCount} linked deliverable{deliverablesCount !== 1 ? 's' : ''} that will also be affected.
+                    </span>
+                  )}
+                </p>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#991b1b' }}>
+                  You can restore it from the <em>Deleted Items</em> page if needed.
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    onClick={handleConfirmDelete}
+                    disabled={saving}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontSize: '0.875rem',
+                      fontWeight: '500'
+                    }}
+                    data-testid="milestone-confirm-delete-button"
+                  >
+                    <Trash2 size={16} />
+                    {saving ? 'Deleting...' : 'Yes, Delete Milestone'}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: '#f1f5f9',
+                      color: '#64748b',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Delete button on the left */}
+          {canDelete && onDelete && !showDeleteConfirm && (
+            <button
+              onClick={handleDeleteClick}
+              disabled={saving}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#fef2f2',
+                color: '#dc2626',
+                border: '1px solid #fecaca',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                fontSize: '0.875rem'
+              }}
+              data-testid="milestone-delete-button"
+            >
+              <Trash2 size={16} />
+              Delete
+            </button>
+          )}
+          {(!canDelete || !onDelete || showDeleteConfirm) && <div />}
+          
+          {/* Save/Cancel on the right */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={onClose}
+              disabled={saving}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#f1f5f9',
+                color: '#64748b',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+            >
+              <X size={16} /> Cancel
+            </button>
+            <button
+              onClick={onSave}
+              disabled={saving}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+            >
+              <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -8,9 +8,10 @@
  * - Linked deliverables
  * - Baseline commitment workflow (dual signature)
  * - Acceptance certificate workflow (dual signature)
+ * - Edit milestone (including reference) with delete capability
  * 
- * @version 4.4 - Updated Baseline Commitment to show original signed values + variation amendments
- * @updated 17 December 2025
+ * @version 4.5 - Added reference editing and soft delete with undo
+ * @updated 18 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -20,7 +21,7 @@ import { supabase } from '../lib/supabase';
 import { 
   ArrowLeft, AlertCircle, RefreshCw, Calendar, 
   PoundSterling, Package, CheckCircle, Clock, ChevronRight,
-  Edit2, Lock, Unlock, Award, FileCheck, History, ChevronDown, ChevronUp, GitBranch
+  Edit2, Lock, Unlock, Award, FileCheck, History, ChevronDown, ChevronUp, GitBranch, Trash2, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -43,7 +44,7 @@ import './MilestoneDetail.css';
 export default function MilestoneDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { showSuccess, showError, showWarning } = useToast();
+  const { showSuccess, showError, showWarning, showWithUndo } = useToast();
   
   // State
   const [milestone, setMilestone] = useState(null);
@@ -58,6 +59,7 @@ export default function MilestoneDetail() {
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Confirmation dialogs
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: null });
@@ -68,6 +70,7 @@ export default function MilestoneDetail() {
     currentUserId, 
     currentUserName,
     canEdit,
+    canDelete,
     canEditBaseline,
     canSignBaselineAsSupplier,
     canSignBaselineAsCustomer,
@@ -129,6 +132,7 @@ export default function MilestoneDetail() {
   // Open edit modal
   function openEditModal() {
     setEditForm({
+      milestone_ref: milestone.milestone_ref || '',
       name: milestone.name || '',
       description: milestone.description || '',
       baseline_start_date: milestone.baseline_start_date || '',
@@ -140,15 +144,22 @@ export default function MilestoneDetail() {
       actual_start_date: milestone.actual_start_date || '',
       billable: milestone.billable || 0
     });
+    setShowDeleteConfirm(false);
     setShowEditModal(true);
   }
 
   // Save edit
   async function handleSaveEdit() {
+    if (!editForm.milestone_ref || !editForm.name) {
+      showWarning('Please fill in at least Milestone Reference and Name');
+      return;
+    }
+    
     try {
       setSaving(true);
       
       const updates = {
+        milestone_ref: editForm.milestone_ref,
         name: editForm.name,
         description: editForm.description,
         start_date: editForm.start_date || null,
@@ -171,6 +182,45 @@ export default function MilestoneDetail() {
     } catch (error) {
       console.error('Error updating milestone:', error);
       showError('Failed to update milestone: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Delete milestone with undo capability
+  async function handleDeleteMilestone() {
+    if (!milestone) return;
+    
+    const milestoneRef = editForm.milestone_ref || milestone.milestone_ref;
+    const milestoneName = editForm.name || milestone.name;
+    
+    setSaving(true);
+    try {
+      await milestonesService.delete(id, currentUserId);
+      setShowEditModal(false);
+      setShowDeleteConfirm(false);
+      
+      // Show undo toast and navigate back
+      showWithUndo(
+        `Milestone "${milestoneRef}" moved to Deleted Items`,
+        async () => {
+          try {
+            await milestonesService.restore(id);
+            // Navigate back to the milestone
+            navigate(`/milestones/${id}`);
+            showSuccess('Milestone restored successfully!');
+          } catch (error) {
+            console.error('Error restoring milestone:', error);
+            showError('Failed to restore milestone');
+          }
+        }
+      );
+      
+      // Navigate to milestones list
+      navigate('/milestones');
+    } catch (error) {
+      console.error('Error deleting milestone:', error);
+      showError('Failed to delete milestone: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -949,9 +999,22 @@ export default function MilestoneDetail() {
             </div>
 
             <div className="modal-body">
-              <div className="form-group">
-                <label>Name</label>
-                <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} data-testid="milestone-edit-name-input" />
+              {/* Reference and Name */}
+              <div className="form-row">
+                <div className="form-group" style={{ flex: '0 0 150px' }}>
+                  <label>Reference *</label>
+                  <input 
+                    type="text" 
+                    value={editForm.milestone_ref} 
+                    onChange={e => setEditForm({ ...editForm, milestone_ref: e.target.value })} 
+                    data-testid="milestone-edit-ref-input"
+                    placeholder="M01"
+                  />
+                </div>
+                <div className="form-group" style={{ flex: '1' }}>
+                  <label>Name *</label>
+                  <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} data-testid="milestone-edit-name-input" />
+                </div>
               </div>
 
               <div className="form-group">
@@ -1010,13 +1073,108 @@ export default function MilestoneDetail() {
                 <input type="number" step="0.01" value={editForm.billable} onChange={e => setEditForm({ ...editForm, billable: e.target.value })} />
                 <span className="form-hint">The billable amount to be invoiced</span>
               </div>
+
+              {/* Delete Confirmation Section */}
+              {showDeleteConfirm && (
+                <div style={{
+                  padding: '1rem',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  marginTop: '1rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <AlertTriangle size={24} style={{ color: '#dc2626', flexShrink: 0, marginTop: '2px' }} />
+                    <div>
+                      <h4 style={{ margin: '0 0 0.5rem 0', color: '#991b1b' }}>Delete this milestone?</h4>
+                      <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.875rem', color: '#7f1d1d' }}>
+                        This will move the milestone <strong>"{editForm.milestone_ref}: {editForm.name}"</strong> to Deleted Items.
+                        {deliverables.length > 0 && (
+                          <span style={{ display: 'block', marginTop: '0.5rem', fontWeight: '600' }}>
+                            ⚠️ This milestone has {deliverables.length} linked deliverable{deliverables.length !== 1 ? 's' : ''} that will also be affected.
+                          </span>
+                        )}
+                      </p>
+                      <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#991b1b' }}>
+                        You can restore it from the <em>Deleted Items</em> page if needed.
+                      </p>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          onClick={handleDeleteMilestone}
+                          disabled={saving}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            backgroundColor: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            fontSize: '0.875rem',
+                            fontWeight: '500'
+                          }}
+                          data-testid="milestone-confirm-delete-button"
+                        >
+                          <Trash2 size={16} />
+                          {saving ? 'Deleting...' : 'Yes, Delete Milestone'}
+                        </button>
+                        <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            backgroundColor: '#f1f5f9',
+                            color: '#64748b',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowEditModal(false)} data-testid="milestone-edit-cancel-button">Cancel</button>
-              <button className="btn-primary" onClick={handleSaveEdit} disabled={saving} data-testid="milestone-edit-save-button">
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
+            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+              {/* Delete button on the left */}
+              {canDelete && !showDeleteConfirm ? (
+                <button 
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={saving}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#fef2f2',
+                    color: '#dc2626',
+                    border: '1px solid #fecaca',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    fontSize: '0.875rem'
+                  }}
+                  data-testid="milestone-delete-button"
+                >
+                  <Trash2 size={16} />
+                  Delete
+                </button>
+              ) : (
+                <div />
+              )}
+              
+              {/* Save/Cancel on the right */}
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn-secondary" onClick={() => { setShowEditModal(false); setShowDeleteConfirm(false); }} data-testid="milestone-edit-cancel-button">Cancel</button>
+                <button className="btn-primary" onClick={handleSaveEdit} disabled={saving || showDeleteConfirm} data-testid="milestone-edit-save-button">
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

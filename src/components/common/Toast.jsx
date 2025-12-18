@@ -2,21 +2,23 @@
  * Toast Notification Component
  * 
  * Provides non-intrusive notifications for user feedback.
+ * Supports action buttons (like Undo) for interactive toasts.
  * 
  * Usage:
  *   import { useToast } from '../contexts/ToastContext';
- *   const { showToast } = useToast();
+ *   const { showToast, showWithUndo } = useToast();
  *   showToast('Success message', 'success');
- *   showToast('Error occurred', 'error');
+ *   showWithUndo('Item deleted', handleUndo);
  * 
  * Test IDs (see docs/TESTING-CONVENTIONS.md):
  *   - toast-success, toast-error, toast-warning, toast-info
  *   - toast-close-button
+ *   - toast-action-button
  *   - toast-container
  * 
- * @version 1.1
+ * @version 1.2
  * @created 30 November 2025
- * @modified 14 December 2025 - Added data-testid for E2E testing
+ * @modified 18 December 2025 - Added action button support (Undo)
  * @phase Phase 1 - Stabilisation
  */
 
@@ -54,7 +56,7 @@ const TOAST_TYPES = {
   }
 };
 
-export function Toast({ id, message, type = 'info', duration = 4000, onClose }) {
+export function Toast({ id, message, type = 'info', duration = 4000, action, onClose }) {
   const config = TOAST_TYPES[type] || TOAST_TYPES.info;
   const Icon = config.icon;
 
@@ -66,6 +68,13 @@ export function Toast({ id, message, type = 'info', duration = 4000, onClose }) 
       return () => clearTimeout(timer);
     }
   }, [id, duration, onClose]);
+
+  const handleActionClick = () => {
+    if (action?.onClick) {
+      action.onClick();
+      onClose(id);
+    }
+  };
 
   return (
     <div
@@ -80,7 +89,7 @@ export function Toast({ id, message, type = 'info', duration = 4000, onClose }) 
         borderRadius: '8px',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         minWidth: '300px',
-        maxWidth: '450px',
+        maxWidth: '500px',
         animation: 'slideIn 0.3s ease-out'
       }}
     >
@@ -93,6 +102,28 @@ export function Toast({ id, message, type = 'info', duration = 4000, onClose }) 
       }}>
         {message}
       </span>
+      {action && (
+        <button
+          data-testid="toast-action-button"
+          onClick={handleActionClick}
+          style={{
+            background: 'white',
+            border: `1px solid ${config.borderColor}`,
+            cursor: 'pointer',
+            padding: '0.375rem 0.75rem',
+            fontSize: '0.8125rem',
+            fontWeight: '600',
+            color: config.textColor,
+            borderRadius: '4px',
+            marginRight: '0.25rem',
+            transition: 'background-color 0.15s ease'
+          }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = config.bgColor}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+        >
+          {action.label}
+        </button>
+      )}
       <button
         data-testid="toast-close-button"
         onClick={() => onClose(id)}
@@ -154,6 +185,7 @@ export function ToastContainer({ toasts, removeToast }) {
           message={toast.message}
           type={toast.type}
           duration={toast.duration}
+          action={toast.action}
           onClose={removeToast}
         />
       ))}
