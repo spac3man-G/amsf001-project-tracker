@@ -241,5 +241,22 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
+## Post-Test Features Implemented
+
+After the test run, the following features were implemented (v0.9.3):
+
+### Milestone Reference Editing
+- Reference codes can now be edited from the milestone detail page
+- Edit modal includes Reference field at the top
+
+### Milestone Soft Delete with Undo
+- Delete button added to Edit Milestone modal
+- Confirmation warning shows linked deliverables count
+- Soft delete (moves to Deleted Items)
+- Undo toast notification for quick recovery
+- Restore available from Deleted Items page
+
+---
+
 *Document created: December 18, 2025*  
 *Last updated: December 18, 2025*

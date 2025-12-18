@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.3] - 2025-12-18
+
+### Added
+
+#### Milestone Reference Editing
+- Milestone reference codes can now be edited after creation
+- Reference field added to the Edit Milestone modal on the detail page
+- Reference appears alongside Name at the top of the edit form
+
+#### Milestone Soft Delete with Undo
+- Added **Delete button** to the Edit Milestone modal (bottom-left corner)
+- Delete triggers a confirmation warning showing:
+  - The milestone reference and name being deleted
+  - Count of linked deliverables that will be affected
+  - Information that the item goes to "Deleted Items" and can be restored
+- **Soft delete** implementation - records are marked as `is_deleted = true` rather than permanently deleted
+- **Undo capability** via toast notification with "Undo" button (appears for ~5 seconds after deletion)
+- Deleted milestones can also be restored from the **Deleted Items** page
+
+### Changed
+
+#### MilestoneDetail Page (v4.5)
+- Edit modal now includes Reference field (editable)
+- Edit modal footer redesigned with Delete button on left, Save/Cancel on right
+- Delete confirmation section with warning about linked deliverables
+
+#### MilestoneForms Component
+- `MilestoneEditModal` already supported reference editing and delete (now consistent with detail page)
+
+### Technical Details
+
+**Delete Workflow:**
+1. User clicks Edit on milestone detail page
+2. Clicks Delete button (red, bottom-left)
+3. Confirmation section appears with impact warning
+4. On confirm: `milestonesService.delete()` performs soft delete
+5. User redirected to milestones list
+6. Toast appears with Undo option
+7. If Undo clicked: `milestonesService.restore()` reverses the deletion
+
+**Files Changed:**
+- `src/pages/MilestoneDetail.jsx` (v4.5) - Reference field, delete UI
+- `src/pages/MilestoneDetail.css` - Form row layout updates
+- `src/components/milestones/MilestoneForms.jsx` - Already had delete capability
+- `src/pages/Milestones.jsx` - Delete from list also supports undo
+
+---
+
 ## [0.9.2] - 2025-12-17
 
 ### Fixed
