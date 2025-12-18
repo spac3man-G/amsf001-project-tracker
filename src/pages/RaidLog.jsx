@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import './RaidLog.css';
 import { raidService } from '../services';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -44,6 +45,7 @@ export default function RaidLog() {
   // State
   const [items, setItems] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -76,6 +78,28 @@ export default function RaidLog() {
       ]);
       setItems(itemsData || []);
       setSummary(summaryData);
+      
+      // Fetch team members for owner dropdown
+      const { data: userProjectsData } = await supabase
+        .from('user_projects')
+        .select(`
+          user_id,
+          role,
+          profiles:user_id(id, full_name, email)
+        `)
+        .eq('project_id', projectId);
+      
+      const members = (userProjectsData || [])
+        .filter(up => up.profiles)
+        .map(up => ({
+          id: up.profiles.id,
+          name: up.profiles.full_name || up.profiles.email,
+          email: up.profiles.email,
+          role: up.role
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      
+      setTeamMembers(members);
     } catch (error) {
       console.error('Error fetching RAID data:', error);
     } finally {
@@ -396,6 +420,7 @@ export default function RaidLog() {
           item={selectedItem}
           canEdit={canEdit}
           canDelete={canDelete}
+          teamMembers={teamMembers}
           onClose={() => setSelectedItem(null)}
           onUpdate={async (updates) => {
             await raidService.update(selectedItem.id, updates);

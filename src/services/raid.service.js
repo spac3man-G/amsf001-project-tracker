@@ -20,6 +20,7 @@ class RaidService extends BaseService {
 
   /**
    * Get all RAID items with related data (owner, milestone)
+   * Supports both legacy owner_id (resource) and new owner_user_id (profile)
    * @param {string} projectId - Project UUID
    * @param {Object} options - Query options
    * @returns {Promise<Array>} Array of RAID items
@@ -31,6 +32,7 @@ class RaidService extends BaseService {
         .select(`
           *,
           owner:resources!raid_items_owner_id_fkey(id, name, email),
+          owner_user:profiles!raid_items_owner_user_id_fkey(id, full_name, email),
           milestone:milestones!raid_items_milestone_id_fkey(id, name, milestone_ref)
         `)
         .eq('project_id', projectId);

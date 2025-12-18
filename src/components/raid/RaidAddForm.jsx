@@ -23,7 +23,7 @@ const CATEGORIES = [
 
 export default function RaidAddForm({ projectId, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
-  const [resources, setResources] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [milestones, setMilestones] = useState([]);
   
   const [formData, setFormData] = useState({
@@ -36,32 +36,50 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
     severity: 'Medium',
     mitigation: '',
     status: 'Open',
-    owner_id: '',
+    owner_user_id: '',
     milestone_id: '',
     due_date: '',
     source: ''
   });
 
-  // Fetch resources and milestones for dropdowns
+  // Fetch team members and milestones for dropdowns
   useEffect(() => {
     async function fetchData() {
       try {
-        const [{ data: resourcesData }, { data: milestonesData }] = await Promise.all([
-          supabase
-            .from('resources')
-            .select('id, name, email')
-            .eq('project_id', projectId)
-            .is('deleted_at', null)
-            .order('name'),
-          supabase
-            .from('milestones')
-            .select('id, name, milestone_ref')
-            .eq('project_id', projectId)
-            .is('deleted_at', null)
-            .order('milestone_ref')
-        ]);
+        // Fetch team members (all users with project access)
+        const { data: userProjectsData, error: upError } = await supabase
+          .from('user_projects')
+          .select(`
+            user_id,
+            role,
+            profiles:user_id(id, full_name, email)
+          `)
+          .eq('project_id', projectId);
         
-        setResources(resourcesData || []);
+        if (upError) {
+          console.error('Error fetching team members:', upError);
+        }
+        
+        // Transform to flat list with name for display
+        const members = (userProjectsData || [])
+          .filter(up => up.profiles) // Ensure profile exists
+          .map(up => ({
+            id: up.profiles.id,
+            name: up.profiles.full_name || up.profiles.email,
+            email: up.profiles.email,
+            role: up.role
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Fetch milestones
+        const { data: milestonesData } = await supabase
+          .from('milestones')
+          .select('id, name, milestone_ref')
+          .eq('project_id', projectId)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .order('milestone_ref');
+        
+        setTeamMembers(members);
         setMilestones(milestonesData || []);
       } catch (error) {
         console.error('Error fetching dropdown data:', error);
@@ -106,7 +124,7 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
         severity: formData.severity || null,
         mitigation: formData.mitigation || null,
         status: formData.status,
-        owner_id: formData.owner_id || null,
+        owner_user_id: formData.owner_user_id || null,
         milestone_id: formData.milestone_id || null,
         due_date: formData.due_date || null,
         source: formData.source || null,
@@ -255,13 +273,13 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
             <div className="raid-form-group">
               <label className="raid-form-label">Owner</label>
               <select
-                value={formData.owner_id}
-                onChange={(e) => handleChange('owner_id', e.target.value)}
+                value={formData.owner_user_id}
+                onChange={(e) => handleChange('owner_user_id', e.target.value)}
                 className="raid-form-select"
               >
                 <option value="">Select owner...</option>
-                {resources.map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                {teamMembers.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>

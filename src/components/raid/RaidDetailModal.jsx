@@ -46,7 +46,8 @@ function getStatusClass(status) {
 export default function RaidDetailModal({ 
   item, 
   canEdit, 
-  canDelete, 
+  canDelete,
+  teamMembers = [],
   onClose, 
   onUpdate, 
   onDelete 
@@ -64,7 +65,7 @@ export default function RaidDetailModal({
     setSaving(true);
     try {
       // Strip out relation objects that can't be saved to the database
-      const { owner, milestone, ...updateData } = editData;
+      const { owner, owner_user, milestone, ...updateData } = editData;
       await onUpdate(updateData);
     } catch (error) {
       console.error('Error saving:', error);
@@ -224,6 +225,19 @@ export default function RaidDetailModal({
 
               <div className="raid-form-row">
                 <div className="raid-form-group">
+                  <label>Owner</label>
+                  <select
+                    value={editData.owner_user_id || ''}
+                    onChange={(e) => setEditData(prev => ({ ...prev, owner_user_id: e.target.value || null }))}
+                  >
+                    <option value="">Select owner...</option>
+                    {teamMembers.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="raid-form-group">
                   <label>Due Date</label>
                   <input
                     type="date"
@@ -231,16 +245,16 @@ export default function RaidDetailModal({
                     onChange={(e) => setEditData(prev => ({ ...prev, due_date: e.target.value }))}
                   />
                 </div>
+              </div>
 
-                <div className="raid-form-group">
-                  <label>Resolution</label>
-                  <input
-                    type="text"
-                    value={editData.resolution || ''}
-                    onChange={(e) => setEditData(prev => ({ ...prev, resolution: e.target.value }))}
-                    placeholder="How was this resolved?"
-                  />
-                </div>
+              <div className="raid-form-group">
+                <label>Resolution</label>
+                <input
+                  type="text"
+                  value={editData.resolution || ''}
+                  onChange={(e) => setEditData(prev => ({ ...prev, resolution: e.target.value }))}
+                  placeholder="How was this resolved?"
+                />
               </div>
             </div>
           ) : (
@@ -307,10 +321,10 @@ export default function RaidDetailModal({
 
               {/* Metadata */}
               <div className="raid-metadata">
-                {item.owner && (
+                {(item.owner_user || item.owner) && (
                   <div className="raid-meta-item">
                     <User size={15} />
-                    <span>Owner: {item.owner.name}</span>
+                    <span>Owner: {item.owner_user?.full_name || item.owner?.name}</span>
                   </div>
                 )}
                 {item.due_date && (
