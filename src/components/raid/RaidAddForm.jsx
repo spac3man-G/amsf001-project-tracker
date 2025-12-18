@@ -279,7 +279,9 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
               >
                 <option value="">Select owner...</option>
                 {teamMembers.map(m => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
+                  <option key={m.id} value={m.id}>
+                    {m.name}{m.role ? ` (${m.role.replace('_', ' ')})` : ''}
+                  </option>
                 ))}
               </select>
             </div>
