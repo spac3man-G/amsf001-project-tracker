@@ -189,3 +189,20 @@
   color: #2563eb;
   border: 1px solid #93c5fd;
 }
+
+
+/* ============================================
+   SIGNATURE DISABLED STATE
+   ============================================ */
+
+.signature-disabled {
+  padding: 0.5rem 0;
+}
+
+.signature-disabled .disabled-reason {
+  display: block;
+  font-size: 0.8rem;
+  color: #f59e0b;
+  font-style: italic;
+  text-align: center;
+}

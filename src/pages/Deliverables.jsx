@@ -244,9 +244,53 @@ export default function Deliverables() {
     catch (error) { showError('Failed: ' + error.message); }
   }
 
-  async function handleSign(deliverableId, signerRole) {
+  async function handleSign(deliverableId, signerRole, assessmentData = null) {
     try {
       const userName = user?.user_metadata?.name || user?.email || 'Unknown User';
+      
+      // If customer is signing with assessments, handle the full workflow
+      if (signerRole === 'customer' && assessmentData) {
+        // First, sync any KPI/QS link changes
+        if (assessmentData.newKPILinks?.length > 0 || assessmentData.removedKPILinks?.length > 0) {
+          const currentKPIIds = (await deliverablesService.getById(deliverableId))
+            ?.deliverable_kpis?.map(dk => dk.kpi_id) || [];
+          const newKPIIds = [
+            ...currentKPIIds.filter(id => !assessmentData.removedKPILinks?.includes(id)),
+            ...(assessmentData.newKPILinks || [])
+          ];
+          await deliverablesService.syncKPILinks(deliverableId, newKPIIds);
+        }
+        
+        if (assessmentData.newQSLinks?.length > 0 || assessmentData.removedQSLinks?.length > 0) {
+          const currentQSIds = (await deliverablesService.getById(deliverableId))
+            ?.deliverable_quality_standards?.map(dqs => dqs.quality_standard_id) || [];
+          const newQSIds = [
+            ...currentQSIds.filter(id => !assessmentData.removedQSLinks?.includes(id)),
+            ...(assessmentData.newQSLinks || [])
+          ];
+          await deliverablesService.syncQSLinks(deliverableId, newQSIds);
+        }
+        
+        // Save KPI assessments
+        if (assessmentData.kpiAssessments?.length > 0) {
+          await deliverablesService.upsertKPIAssessments(
+            deliverableId, 
+            assessmentData.kpiAssessments, 
+            currentUserId
+          );
+        }
+        
+        // Save QS assessments
+        if (assessmentData.qsAssessments?.length > 0) {
+          await deliverablesService.upsertQSAssessments(
+            deliverableId, 
+            assessmentData.qsAssessments, 
+            currentUserId
+          );
+        }
+      }
+      
+      // Now sign the deliverable
       await deliverablesService.signDeliverable(deliverableId, signerRole, currentUserId, userName);
       fetchData();
       refreshMetrics();

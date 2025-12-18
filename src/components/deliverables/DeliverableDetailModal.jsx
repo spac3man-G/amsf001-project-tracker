@@ -11,9 +11,9 @@
  * - Progress: Supplier PM or Contributor
  * - KPI/QS Links: Supplier PM only
  * 
- * @version 2.4 - Fixed permission handling: separate canSubmit prop from canEdit
+ * @version 2.5 - Added KPI/QS assessment during customer sign-off
  * @created 4 December 2025
- * @updated 16 December 2025
+ * @updated 18 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -21,7 +21,8 @@ import { Link } from 'react-router-dom';
 import { 
   X, Save, Send, CheckCircle, Trash2, Edit2,
   Package, Calendar, FileText, Clock,
-  ThumbsUp, RotateCcw, Target, Award, PenTool
+  ThumbsUp, RotateCcw, Target, Award, PenTool,
+  Plus, Check
 } from 'lucide-react';
 
 // Centralised utilities
@@ -181,6 +182,209 @@ function QSSelector({ qualityStandards, selectedIds, onChange, disabled }) {
   );
 }
 
+/**
+ * Assessment Item Component - for KPI/QS assessment during sign-off
+ */
+function AssessmentItem({ item, itemRef, itemName, type, assessment, onAssess, onRemove }) {
+  const isKPI = type === 'kpi';
+  
+  return (
+    <div className="assessment-item">
+      <div className="assessment-item-info">
+        <span className={`item-badge ${isKPI ? 'kpi' : 'quality-standard'}`}>
+          {itemRef}
+        </span>
+        <span className="item-name">{itemName}</span>
+      </div>
+      <div className="assessment-item-actions">
+        <button
+          type="button"
+          className={`btn btn-sm ${assessment === true ? 'btn-success' : 'btn-outline'}`}
+          onClick={() => onAssess(true)}
+          title="Criteria Met"
+        >
+          <Check size={14} /> Yes
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${assessment === false ? 'btn-danger' : 'btn-outline'}`}
+          onClick={() => onAssess(false)}
+          title="Criteria Not Met"
+        >
+          <X size={14} /> No
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm btn-ghost"
+          onClick={onRemove}
+          title="Remove from assessment"
+        >
+          <X size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Assessment Section Component - Shows during customer sign-off
+ */
+function AssessmentSection({ 
+  kpis, 
+  qualityStandards, 
+  linkedKPIs, 
+  linkedQS,
+  kpiAssessments, 
+  qsAssessments,
+  onKPIAssess,
+  onQSAssess,
+  onAddKPI,
+  onRemoveKPI,
+  onAddQS,
+  onRemoveQS
+}) {
+  const [showKPISelector, setShowKPISelector] = useState(false);
+  const [showQSSelector, setShowQSSelector] = useState(false);
+
+  // Get available KPIs (not already linked)
+  const linkedKPIIds = linkedKPIs.map(dk => dk.kpi_id);
+  const availableKPIs = kpis?.filter(k => !linkedKPIIds.includes(k.id)) || [];
+
+  // Get available QS (not already linked)
+  const linkedQSIds = linkedQS.map(dqs => dqs.quality_standard_id);
+  const availableQS = qualityStandards?.filter(qs => !linkedQSIds.includes(qs.id)) || [];
+
+  return (
+    <div className="assessment-section">
+      {/* KPI Assessments */}
+      <div className="assessment-group">
+        <div className="assessment-group-header">
+          <div className="assessment-group-title">
+            <Target size={16} />
+            <span>KPI Assessment</span>
+            <span className="assessment-count">({linkedKPIs.length})</span>
+          </div>
+          {availableKPIs.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              onClick={() => setShowKPISelector(!showKPISelector)}
+            >
+              <Plus size={14} /> Add KPI
+            </button>
+          )}
+        </div>
+
+        {/* KPI Add Selector */}
+        {showKPISelector && availableKPIs.length > 0 && (
+          <div className="assessment-add-selector">
+            {availableKPIs.map(kpi => (
+              <div 
+                key={kpi.id} 
+                className="assessment-add-item"
+                onClick={() => {
+                  onAddKPI(kpi);
+                  setShowKPISelector(false);
+                }}
+              >
+                <span className="item-badge kpi">{kpi.kpi_ref}</span>
+                <span className="item-name">{kpi.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* KPI Assessment Items */}
+        {linkedKPIs.length > 0 ? (
+          <div className="assessment-items">
+            {linkedKPIs.map(dk => {
+              const kpi = kpis?.find(k => k.id === dk.kpi_id);
+              if (!kpi) return null;
+              return (
+                <AssessmentItem
+                  key={dk.kpi_id}
+                  item={kpi}
+                  itemRef={kpi.kpi_ref}
+                  itemName={kpi.name}
+                  type="kpi"
+                  assessment={kpiAssessments[dk.kpi_id]}
+                  onAssess={(value) => onKPIAssess(dk.kpi_id, value)}
+                  onRemove={() => onRemoveKPI(dk.kpi_id)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="assessment-empty">No KPIs linked to this deliverable</div>
+        )}
+      </div>
+
+      {/* QS Assessments */}
+      <div className="assessment-group">
+        <div className="assessment-group-header">
+          <div className="assessment-group-title">
+            <Award size={16} />
+            <span>Quality Standards Assessment</span>
+            <span className="assessment-count">({linkedQS.length})</span>
+          </div>
+          {availableQS.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              onClick={() => setShowQSSelector(!showQSSelector)}
+            >
+              <Plus size={14} /> Add QS
+            </button>
+          )}
+        </div>
+
+        {/* QS Add Selector */}
+        {showQSSelector && availableQS.length > 0 && (
+          <div className="assessment-add-selector">
+            {availableQS.map(qs => (
+              <div 
+                key={qs.id} 
+                className="assessment-add-item"
+                onClick={() => {
+                  onAddQS(qs);
+                  setShowQSSelector(false);
+                }}
+              >
+                <span className="item-badge quality-standard">{qs.qs_ref}</span>
+                <span className="item-name">{qs.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* QS Assessment Items */}
+        {linkedQS.length > 0 ? (
+          <div className="assessment-items">
+            {linkedQS.map(dqs => {
+              const qs = qualityStandards?.find(q => q.id === dqs.quality_standard_id);
+              if (!qs) return null;
+              return (
+                <AssessmentItem
+                  key={dqs.quality_standard_id}
+                  item={qs}
+                  itemRef={qs.qs_ref}
+                  itemName={qs.name}
+                  type="qs"
+                  assessment={qsAssessments[dqs.quality_standard_id]}
+                  onAssess={(value) => onQSAssess(dqs.quality_standard_id, value)}
+                  onRemove={() => onRemoveQS(dqs.quality_standard_id)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="assessment-empty">No Quality Standards linked to this deliverable</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DeliverableDetailModal({
   isOpen,
   deliverable,
@@ -201,6 +405,12 @@ export default function DeliverableDetailModal({
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  
+  // Assessment state for customer sign-off
+  const [kpiAssessments, setKpiAssessments] = useState({});
+  const [qsAssessments, setQsAssessments] = useState({});
+  const [assessmentKPIs, setAssessmentKPIs] = useState([]);
+  const [assessmentQS, setAssessmentQS] = useState([]);
 
   // Get permissions from hook (includes role info)
   const permissions = useDeliverablePermissions(deliverable);
@@ -212,7 +422,7 @@ export default function DeliverableDetailModal({
   const canEditProgress = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor;
   const canEditLinks = permissions.isSupplierPM || permissions.isAdmin;
 
-  // Reset form when deliverable changes
+  // Reset form and assessments when deliverable changes
   useEffect(() => {
     if (deliverable) {
       setEditForm({
@@ -225,6 +435,12 @@ export default function DeliverableDetailModal({
         qs_ids: deliverable.deliverable_quality_standards?.map(dqs => dqs.quality_standard_id) || []
       });
       setIsEditing(false);
+      
+      // Reset assessments and initialize with linked items
+      setKpiAssessments({});
+      setQsAssessments({});
+      setAssessmentKPIs(deliverable.deliverable_kpis || []);
+      setAssessmentQS(deliverable.deliverable_quality_standards || []);
     }
   }, [deliverable]);
 
@@ -252,8 +468,59 @@ export default function DeliverableDetailModal({
                              hasAnySignature || 
                              isComplete;
 
+  // Customer sign-off requires assessments - check if supplier has signed (awaiting customer)
+  const isAwaitingCustomerSignature = signOffStatus === SIGN_OFF_STATUS.AWAITING_CUSTOMER;
+  const showAssessmentSection = showSignOffSection && 
+                                 permissions.canSignAsCustomer && 
+                                 !deliverable.customer_pm_signed_at &&
+                                 deliverable.supplier_pm_signed_at;
+
+  // Check if all assessments are complete
+  const allKPIsAssessed = assessmentKPIs.length === 0 || 
+    assessmentKPIs.every(dk => kpiAssessments[dk.kpi_id] !== undefined);
+  const allQSAssessed = assessmentQS.length === 0 || 
+    assessmentQS.every(dqs => qsAssessments[dqs.quality_standard_id] !== undefined);
+  const allAssessmentsComplete = allKPIsAssessed && allQSAssessed;
+
   // Due date derived from milestone
   const dueDate = milestone?.forecast_end_date || milestone?.end_date;
+
+  // Assessment handlers
+  function handleKPIAssess(kpiId, value) {
+    setKpiAssessments(prev => ({ ...prev, [kpiId]: value }));
+  }
+
+  function handleQSAssess(qsId, value) {
+    setQsAssessments(prev => ({ ...prev, [qsId]: value }));
+  }
+
+  function handleAddKPI(kpi) {
+    // Add to assessment list (creates a temporary link structure)
+    setAssessmentKPIs(prev => [...prev, { kpi_id: kpi.id, kpis: kpi }]);
+  }
+
+  function handleRemoveKPI(kpiId) {
+    setAssessmentKPIs(prev => prev.filter(dk => dk.kpi_id !== kpiId));
+    setKpiAssessments(prev => {
+      const updated = { ...prev };
+      delete updated[kpiId];
+      return updated;
+    });
+  }
+
+  function handleAddQS(qs) {
+    // Add to assessment list (creates a temporary link structure)
+    setAssessmentQS(prev => [...prev, { quality_standard_id: qs.id, quality_standards: qs }]);
+  }
+
+  function handleRemoveQS(qsId) {
+    setAssessmentQS(prev => prev.filter(dqs => dqs.quality_standard_id !== qsId));
+    setQsAssessments(prev => {
+      const updated = { ...prev };
+      delete updated[qsId];
+      return updated;
+    });
+  }
 
   // Handlers
   async function handleSave() {
@@ -290,11 +557,54 @@ export default function DeliverableDetailModal({
 
   async function handleSign(signerRole) {
     if (!onSign) return;
-    setSaving(true);
-    try {
-      await onSign(deliverable.id, signerRole);
-    } finally {
-      setSaving(false);
+    
+    // For customer sign-off, include assessments
+    if (signerRole === 'customer' && showAssessmentSection) {
+      if (!allAssessmentsComplete) {
+        // This shouldn't happen as button should be disabled, but just in case
+        return;
+      }
+      
+      // Build assessment data
+      const assessmentData = {
+        kpiAssessments: assessmentKPIs.map(dk => ({
+          kpiId: dk.kpi_id,
+          criteriaMet: kpiAssessments[dk.kpi_id]
+        })),
+        qsAssessments: assessmentQS.map(dqs => ({
+          qsId: dqs.quality_standard_id,
+          criteriaMet: qsAssessments[dqs.quality_standard_id]
+        })),
+        // Include IDs of newly added items that need to be linked
+        newKPILinks: assessmentKPIs
+          .filter(dk => !linkedKPIs.find(lk => lk.kpi_id === dk.kpi_id))
+          .map(dk => dk.kpi_id),
+        newQSLinks: assessmentQS
+          .filter(dqs => !linkedQS.find(lqs => lqs.quality_standard_id === dqs.quality_standard_id))
+          .map(dqs => dqs.quality_standard_id),
+        // Include IDs of removed items
+        removedKPILinks: linkedKPIs
+          .filter(lk => !assessmentKPIs.find(dk => dk.kpi_id === lk.kpi_id))
+          .map(lk => lk.kpi_id),
+        removedQSLinks: linkedQS
+          .filter(lqs => !assessmentQS.find(dqs => dqs.quality_standard_id === lqs.quality_standard_id))
+          .map(lqs => lqs.quality_standard_id)
+      };
+      
+      setSaving(true);
+      try {
+        await onSign(deliverable.id, signerRole, assessmentData);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // Supplier sign-off or no assessment needed
+      setSaving(true);
+      try {
+        await onSign(deliverable.id, signerRole);
+      } finally {
+        setSaving(false);
+      }
     }
   }
 
@@ -308,8 +618,8 @@ export default function DeliverableDetailModal({
             <div 
               className="deliverable-modal-icon"
               style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
-                data-testid="deliverable-modal-status"
-          >
+              data-testid="deliverable-modal-status"
+            >
               <Package size={20} />
             </div>
             <div className="deliverable-modal-titles">
@@ -486,8 +796,8 @@ export default function DeliverableDetailModal({
                 </div>
               </div>
 
-              {/* Linked KPIs */}
-              {linkedKPIs.length > 0 && (
+              {/* Linked KPIs - Only show if NOT in assessment mode */}
+              {linkedKPIs.length > 0 && !showAssessmentSection && (
                 <div className="linked-items-section">
                   <div className="section-header">
                     <Target size={14} />
@@ -503,8 +813,8 @@ export default function DeliverableDetailModal({
                 </div>
               )}
 
-              {/* Linked Quality Standards */}
-              {linkedQS.length > 0 && (
+              {/* Linked Quality Standards - Only show if NOT in assessment mode */}
+              {linkedQS.length > 0 && !showAssessmentSection && (
                 <div className="linked-items-section">
                   <div className="section-header">
                     <Award size={14} />
@@ -531,23 +841,46 @@ export default function DeliverableDetailModal({
                   {isComplete && signOffStatus === SIGN_OFF_STATUS.SIGNED ? (
                     <SignatureComplete message="Deliverable accepted and delivered" />
                   ) : (
-                    <DualSignature
-                      supplier={{
-                        signedBy: deliverable.supplier_pm_name,
-                        signedAt: deliverable.supplier_pm_signed_at,
-                        canSign: permissions.canSignAsSupplier && onSign,
-                        onSign: () => handleSign('supplier')
-                      }}
-                      customer={{
-                        signedBy: deliverable.customer_pm_name,
-                        signedAt: deliverable.customer_pm_signed_at,
-                        canSign: permissions.canSignAsCustomer && onSign,
-                        onSign: () => handleSign('customer')
-                      }}
-                      saving={saving}
-                      supplierButtonText="Sign as Supplier PM"
-                      customerButtonText="Sign as Customer PM"
-                    />
+                    <>
+                      {/* Assessment Section - Only for Customer PM when awaiting their signature */}
+                      {showAssessmentSection && (
+                        <AssessmentSection
+                          kpis={kpis}
+                          qualityStandards={qualityStandards}
+                          linkedKPIs={assessmentKPIs}
+                          linkedQS={assessmentQS}
+                          kpiAssessments={kpiAssessments}
+                          qsAssessments={qsAssessments}
+                          onKPIAssess={handleKPIAssess}
+                          onQSAssess={handleQSAssess}
+                          onAddKPI={handleAddKPI}
+                          onRemoveKPI={handleRemoveKPI}
+                          onAddQS={handleAddQS}
+                          onRemoveQS={handleRemoveQS}
+                        />
+                      )}
+                      
+                      <DualSignature
+                        supplier={{
+                          signedBy: deliverable.supplier_pm_name,
+                          signedAt: deliverable.supplier_pm_signed_at,
+                          canSign: permissions.canSignAsSupplier && onSign,
+                          onSign: () => handleSign('supplier')
+                        }}
+                        customer={{
+                          signedBy: deliverable.customer_pm_name,
+                          signedAt: deliverable.customer_pm_signed_at,
+                          canSign: permissions.canSignAsCustomer && onSign && (!showAssessmentSection || allAssessmentsComplete),
+                          onSign: () => handleSign('customer'),
+                          disabledReason: showAssessmentSection && !allAssessmentsComplete 
+                            ? 'Complete all assessments before signing' 
+                            : null
+                        }}
+                        saving={saving}
+                        supplierButtonText="Sign as Supplier PM"
+                        customerButtonText="Sign as Customer PM"
+                      />
+                    </>
                   )}
                   
                   {/* Sign-off status indicator */}
@@ -622,8 +955,8 @@ export default function DeliverableDetailModal({
                   <button 
                     className="btn btn-secondary"
                     onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW)}
-                      data-testid="deliverable-submit-button"
-                >
+                    data-testid="deliverable-submit-button"
+                  >
                     <Send size={16} /> Submit for Review
                   </button>
                 )}
@@ -634,15 +967,15 @@ export default function DeliverableDetailModal({
                     <button 
                       className="btn btn-danger"
                       onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.RETURNED_FOR_MORE_WORK)}
-                        data-testid="deliverable-return-button"
-                  >
+                      data-testid="deliverable-return-button"
+                    >
                       <RotateCcw size={16} /> Return for More Work
                     </button>
                     <button 
                       className="btn btn-success"
                       onClick={() => handleStatusChangeAndClose(DELIVERABLE_STATUS.REVIEW_COMPLETE)}
-                        data-testid="deliverable-accept-button"
-                  >
+                      data-testid="deliverable-accept-button"
+                    >
                       <ThumbsUp size={16} /> Accept Review
                     </button>
                   </>
@@ -653,8 +986,8 @@ export default function DeliverableDetailModal({
                   <button 
                     className="btn btn-success"
                     onClick={() => { onOpenCompletion(deliverable); handleClose(); }}
-                      data-testid="deliverable-signoff-button"
-                >
+                    data-testid="deliverable-signoff-button"
+                  >
                     <CheckCircle size={16} /> Assess & Sign Off
                   </button>
                 )}
@@ -664,8 +997,8 @@ export default function DeliverableDetailModal({
                   <button 
                     className="btn btn-primary"
                     onClick={() => setIsEditing(true)}
-                      data-testid="deliverable-edit-button"
-                >
+                    data-testid="deliverable-edit-button"
+                  >
                     <Edit2 size={16} /> Edit
                   </button>
                 )}

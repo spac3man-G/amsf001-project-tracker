@@ -29,6 +29,7 @@ import './SignatureBox.css';
  * @param {boolean} props.saving - Whether a save operation is in progress
  * @param {'default' | 'customer'} props.variant - Visual variant
  * @param {string} props.buttonText - Custom button text (default: "Sign to Commit")
+ * @param {string} props.disabledReason - Reason why signing is disabled (shows as tooltip/message)
  */
 export function SignatureBox({
   role,
@@ -38,7 +39,8 @@ export function SignatureBox({
   onSign,
   saving = false,
   variant = 'default',
-  buttonText = 'Sign to Commit'
+  buttonText = 'Sign to Commit',
+  disabledReason = null
 }) {
   const isSigned = !!signedAt;
   
@@ -66,6 +68,10 @@ export function SignatureBox({
           <PenTool size={14} />
           {saving ? 'Signing...' : buttonText}
         </button>
+      ) : disabledReason ? (
+        <div className="signature-disabled">
+          <span className="disabled-reason">{disabledReason}</span>
+        </div>
       ) : (
         <span className="awaiting-text">Awaiting signature</span>
       )}
@@ -96,11 +102,13 @@ export function SignatureGrid({ children }) {
  * @param {string} props.supplier.signedAt - Supplier signature date
  * @param {boolean} props.supplier.canSign - Can current user sign as supplier
  * @param {function} props.supplier.onSign - Supplier sign callback
+ * @param {string} props.supplier.disabledReason - Reason why signing is disabled
  * @param {Object} props.customer - Customer signature data
  * @param {string} props.customer.signedBy - Customer signer name
  * @param {string} props.customer.signedAt - Customer signature date
  * @param {boolean} props.customer.canSign - Can current user sign as customer
  * @param {function} props.customer.onSign - Customer sign callback
+ * @param {string} props.customer.disabledReason - Reason why signing is disabled
  * @param {boolean} props.saving - Whether a save operation is in progress
  * @param {string} props.supplierButtonText - Custom supplier button text
  * @param {string} props.customerButtonText - Custom customer button text
@@ -122,6 +130,7 @@ export function DualSignature({
         onSign={supplier.onSign}
         saving={saving}
         buttonText={supplierButtonText}
+        disabledReason={supplier.disabledReason}
       />
       <SignatureBox
         role="Customer PM"
@@ -132,6 +141,7 @@ export function DualSignature({
         saving={saving}
         variant="customer"
         buttonText={customerButtonText}
+        disabledReason={customer.disabledReason}
       />
     </SignatureGrid>
   );
