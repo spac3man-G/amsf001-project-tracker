@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.4] - 2025-12-18
+
+### Added
+
+#### RAID Category Change in Edit Mode
+- RAID items can now have their **category changed** after creation
+- Category selector buttons added to the edit modal (Risk, Assumption, Issue, Dependency)
+- Header updates dynamically to reflect the selected category
+- **Use cases:**
+  - Risk materializes → convert to Issue
+  - Issue resolved → convert to Risk for future tracking
+  - Dependency becomes a blocker → convert to Issue
+
+#### RAID Owner - Any Team Member
+- Owner dropdown now shows **all project team members** (not just billable resources)
+- Includes Customer PM, Finance roles, Viewers - anyone assigned to the project
+- Role displayed in dropdown: "Glenn Nickols (supplier pm)"
+- Works in both Add and Edit forms
+
+### Fixed
+
+#### Report Milestone Status Calculation
+- **Bug fix:** Reports now calculate milestone status from deliverables dynamically
+- Previously, reports read stale `status` field from milestone table
+- Now uses `calculateMilestoneStatus()` from deliverables, matching the Milestones page
+- Milestones with started deliverables now correctly show as "In Progress" in reports
+
+### Technical Details
+
+**RAID Owner Migration Required:**
+```sql
+ALTER TABLE raid_items 
+ADD COLUMN IF NOT EXISTS owner_user_id UUID REFERENCES profiles(id);
+
+CREATE INDEX IF NOT EXISTS idx_raid_items_owner_user_id ON raid_items(owner_user_id);
+```
+
+**Files Changed:**
+- `src/components/raid/RaidDetailModal.jsx` - Category selector, self-contained team member fetch
+- `src/components/raid/RaidDetailModal.css` - Category button styles
+- `src/components/raid/RaidAddForm.jsx` - Team member fetch (two-step query)
+- `src/services/raid.service.js` - Fallback query for owner_user_id
+- `src/services/metrics.service.js` - Calculate milestone status from deliverables
+
+---
+
 ## [0.9.3] - 2025-12-18
 
 ### Added

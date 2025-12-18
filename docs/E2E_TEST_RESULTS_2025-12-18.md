@@ -243,18 +243,21 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ## Post-Test Features Implemented
 
-After the test run, the following features were implemented (v0.9.3):
+After the test run, the following features were implemented:
 
-### Milestone Reference Editing
-- Reference codes can now be edited from the milestone detail page
-- Edit modal includes Reference field at the top
+### v0.9.3 - Milestone Enhancements
+- **Reference Editing** - Reference codes can now be edited from the milestone detail page
+- **Soft Delete with Undo** - Delete button in Edit modal with confirmation, undo toast, Deleted Items restore
 
-### Milestone Soft Delete with Undo
-- Delete button added to Edit Milestone modal
-- Confirmation warning shows linked deliverables count
-- Soft delete (moves to Deleted Items)
-- Undo toast notification for quick recovery
-- Restore available from Deleted Items page
+### v0.9.4 - RAID & Report Fixes
+- **RAID Category Change** - Items can be converted between Risk/Assumption/Issue/Dependency in edit mode
+- **RAID Owner - Any Team Member** - Owner dropdown now shows all project team members (not just resources)
+- **Report Fix** - Milestone status now calculated from deliverables dynamically (was showing stale data)
+
+**Database migration required for RAID owner feature:**
+```sql
+ALTER TABLE raid_items ADD COLUMN IF NOT EXISTS owner_user_id UUID REFERENCES profiles(id);
+```
 
 ---
 
