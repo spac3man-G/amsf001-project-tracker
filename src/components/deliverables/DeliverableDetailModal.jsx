@@ -468,12 +468,10 @@ export default function DeliverableDetailModal({
                              hasAnySignature || 
                              isComplete;
 
-  // Customer sign-off requires assessments - check if supplier has signed (awaiting customer)
-  const isAwaitingCustomerSignature = signOffStatus === SIGN_OFF_STATUS.AWAITING_CUSTOMER;
+  // Customer sign-off shows assessment section - regardless of whether supplier has signed
   const showAssessmentSection = showSignOffSection && 
                                  permissions.canSignAsCustomer && 
-                                 !deliverable.customer_pm_signed_at &&
-                                 deliverable.supplier_pm_signed_at;
+                                 !deliverable.customer_pm_signed_at;
 
   // Check if all assessments are complete
   const allKPIsAssessed = assessmentKPIs.length === 0 || 
@@ -979,17 +977,6 @@ export default function DeliverableDetailModal({
                       <ThumbsUp size={16} /> Accept Review
                     </button>
                   </>
-                )}
-
-                {/* Mark as Delivered - only show if no signatures yet */}
-                {showMarkDelivered && !hasAnySignature && (
-                  <button 
-                    className="btn btn-success"
-                    onClick={() => { onOpenCompletion(deliverable); handleClose(); }}
-                    data-testid="deliverable-signoff-button"
-                  >
-                    <CheckCircle size={16} /> Assess & Sign Off
-                  </button>
                 )}
 
                 {/* Edit Button */}
