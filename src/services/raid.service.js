@@ -27,12 +27,13 @@ class RaidService extends BaseService {
    */
   async getAllWithRelations(projectId, options = {}) {
     try {
+      // Try with owner_user relation first (new schema)
       let query = supabase
         .from('raid_items')
         .select(`
           *,
           owner:resources!raid_items_owner_id_fkey(id, name, email),
-          owner_user:profiles!raid_items_owner_user_id_fkey(id, full_name, email),
+          owner_user:owner_user_id(id, full_name, email),
           milestone:milestones!raid_items_milestone_id_fkey(id, name, milestone_ref)
         `)
         .eq('project_id', projectId);
@@ -61,11 +62,39 @@ class RaidService extends BaseService {
       const orderAsc = options.orderBy?.ascending ?? true;
       query = query.order(orderColumn, { ascending: orderAsc });
 
-      const { data, error } = await query;
+      let { data, error } = await query;
 
+      // If query fails (likely due to missing owner_user_id column), try fallback query
       if (error) {
-        console.error('RAID getAllWithRelations error:', error);
-        throw error;
+        console.warn('RAID query with owner_user failed, falling back to legacy query:', error.message);
+        
+        // Fallback: query without owner_user relation
+        const fallbackQuery = supabase
+          .from('raid_items')
+          .select(`
+            *,
+            owner:resources!raid_items_owner_id_fkey(id, name, email),
+            milestone:milestones!raid_items_milestone_id_fkey(id, name, milestone_ref)
+          `)
+          .eq('project_id', projectId);
+        
+        if (options.category) fallbackQuery.eq('category', options.category);
+        if (options.status) {
+          if (Array.isArray(options.status)) {
+            fallbackQuery.in('status', options.status);
+          } else {
+            fallbackQuery.eq('status', options.status);
+          }
+        }
+        if (options.severity) fallbackQuery.eq('severity', options.severity);
+        fallbackQuery.order(orderColumn, { ascending: orderAsc });
+        
+        const fallbackResult = await fallbackQuery;
+        if (fallbackResult.error) {
+          console.error('RAID fallback query also failed:', fallbackResult.error);
+          throw fallbackResult.error;
+        }
+        data = fallbackResult.data;
       }
 
       // Filter out soft-deleted records client-side
