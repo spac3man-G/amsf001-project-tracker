@@ -23,6 +23,11 @@ import {
   timesheetContributesToSpend,
   expenseContributesToSpend
 } from '../config/metricsConfig';
+import {
+  calculateMilestoneStatus,
+  calculateMilestoneProgress,
+  MILESTONE_STATUS
+} from '../lib/milestoneCalculations';
 
 class MetricsService {
   constructor() {
@@ -61,6 +66,7 @@ class MetricsService {
 
   /**
    * Get all milestone metrics for a project
+   * Status and progress are CALCULATED from deliverables, not read from milestone table
    */
   async getMilestoneMetrics(projectId) {
     const cacheKey = `milestones_${projectId}`;
@@ -69,38 +75,70 @@ class MetricsService {
 
     try {
       // Query milestones including baseline_billable for budget calculation
-      // Budget = SUM(baseline_billable) where baseline = original + approved variations
-      const { data: rawMilestones, error } = await supabase
+      const { data: rawMilestones, error: msError } = await supabase
         .from('milestones')
-        .select('id, milestone_ref, name, status, progress, percent_complete, baseline_billable, billable, is_deleted')
+        .select('id, milestone_ref, name, baseline_billable, billable, is_deleted')
         .eq('project_id', projectId)
         .order('milestone_ref');
 
-      if (error) throw error;
+      if (msError) throw msError;
 
       // Filter out soft-deleted records
       const milestones = rawMilestones?.filter(m => m.is_deleted !== true) || [];
+
+      // Fetch ALL deliverables for this project to calculate milestone status/progress
+      const { data: deliverables, error: delError } = await supabase
+        .from('deliverables')
+        .select('id, milestone_id, status, progress, is_deleted')
+        .eq('project_id', projectId);
+
+      if (delError) throw delError;
+
+      // Filter out soft-deleted deliverables
+      const activeDeliverables = (deliverables || []).filter(d => d.is_deleted !== true);
+
+      // Group deliverables by milestone
+      const deliverablesByMilestone = {};
+      activeDeliverables.forEach(d => {
+        if (d.milestone_id) {
+          if (!deliverablesByMilestone[d.milestone_id]) {
+            deliverablesByMilestone[d.milestone_id] = [];
+          }
+          deliverablesByMilestone[d.milestone_id].push(d);
+        }
+      });
+
+      // Calculate status and progress for each milestone from its deliverables
+      const milestonesWithStatus = milestones.map(m => {
+        const msDeliverables = deliverablesByMilestone[m.id] || [];
+        return {
+          ...m,
+          status: calculateMilestoneStatus(msDeliverables),
+          progress: calculateMilestoneProgress(msDeliverables),
+          percent_complete: calculateMilestoneProgress(msDeliverables),
+          deliverableCount: msDeliverables.length
+        };
+      });
 
       // Total budget = sum of baseline_billable (committed contract value)
       const totalBudget = milestones.reduce((sum, m) => sum + (parseFloat(m.baseline_billable) || 0), 0);
 
       const metrics = {
-        total: milestones.length,
-        completed: milestones.filter(m => VALID_STATUSES.milestones.completed.includes(m.status)).length,
-        inProgress: milestones.filter(m => VALID_STATUSES.milestones.inProgress.includes(m.status)).length,
-        notStarted: milestones.filter(m => VALID_STATUSES.milestones.notStarted.includes(m.status)).length,
-        totalBudget, // Sum of baseline_billable from all milestones
-        averageProgress: milestones.length > 0 
-          ? Math.round(milestones.reduce((sum, m) => sum + (m.progress || 0), 0) / milestones.length)
+        total: milestonesWithStatus.length,
+        completed: milestonesWithStatus.filter(m => m.status === MILESTONE_STATUS.COMPLETED).length,
+        inProgress: milestonesWithStatus.filter(m => m.status === MILESTONE_STATUS.IN_PROGRESS).length,
+        notStarted: milestonesWithStatus.filter(m => m.status === MILESTONE_STATUS.NOT_STARTED).length,
+        totalBudget,
+        averageProgress: milestonesWithStatus.length > 0 
+          ? Math.round(milestonesWithStatus.reduce((sum, m) => sum + (m.progress || 0), 0) / milestonesWithStatus.length)
           : 0,
-        milestones // Include raw data for charts
+        milestones: milestonesWithStatus
       };
 
       this.setCache(cacheKey, metrics);
       return metrics;
     } catch (error) {
       console.error('MetricsService.getMilestoneMetrics error:', error);
-      // Re-throw with a clear message
       throw new Error(`Failed to fetch milestone metrics: ${error?.message || error?.toString() || 'Unknown error'}`);
     }
   }
