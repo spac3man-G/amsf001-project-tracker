@@ -56,7 +56,9 @@ export default function RaidDetailModal({
   const [saving, setSaving] = useState(false);
 
   const config = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.Risk;
-  const CategoryIcon = config.icon;
+  const editConfig = CATEGORY_CONFIG[editData.category] || CATEGORY_CONFIG.Risk;
+  const activeConfig = isEditing ? editConfig : config;
+  const CategoryIcon = activeConfig.icon;
 
   async function handleSave() {
     setSaving(true);
@@ -91,15 +93,15 @@ export default function RaidDetailModal({
   return (
     <div className="raid-modal-overlay" onClick={onClose}>
       <div className="raid-modal-container" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <header className={`raid-modal-header ${config.className}`}>
+        {/* Header - updates dynamically when category changes in edit mode */}
+        <header className={`raid-modal-header ${activeConfig.className}`}>
           <div className="raid-modal-header-left">
             <div className="raid-modal-icon">
               <CategoryIcon size={22} />
             </div>
             <div className="raid-modal-title-group">
               <span className="raid-modal-ref">{item.raid_ref}</span>
-              <h2>{item.category}</h2>
+              <h2>{isEditing ? editData.category : item.category}</h2>
             </div>
           </div>
           <div className="raid-modal-header-right">
@@ -117,6 +119,28 @@ export default function RaidDetailModal({
           {isEditing ? (
             /* Edit Form */
             <div className="raid-edit-form">
+              {/* Category Selector - allows changing Risk to Issue, etc. */}
+              <div className="raid-form-group">
+                <label>Category</label>
+                <div className="raid-category-selector">
+                  {Object.keys(CATEGORY_CONFIG).map(cat => {
+                    const CatIcon = CATEGORY_CONFIG[cat].icon;
+                    const isSelected = editData.category === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        className={`raid-category-btn ${CATEGORY_CONFIG[cat].className} ${isSelected ? 'selected' : ''}`}
+                        onClick={() => setEditData(prev => ({ ...prev, category: cat }))}
+                      >
+                        <CatIcon size={18} />
+                        <span>{cat}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="raid-form-group">
                 <label>Title</label>
                 <input
