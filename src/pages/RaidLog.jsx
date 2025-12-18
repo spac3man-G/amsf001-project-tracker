@@ -45,7 +45,6 @@ export default function RaidLog() {
   // State
   const [items, setItems] = useState([]);
   const [summary, setSummary] = useState(null);
-  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -78,36 +77,6 @@ export default function RaidLog() {
       ]);
       setItems(itemsData || []);
       setSummary(summaryData);
-      
-      // Fetch team members for owner dropdown
-      // Use explicit foreign key hint for the profiles join
-      const { data: userProjectsData, error: upError } = await supabase
-        .from('user_projects')
-        .select(`
-          user_id,
-          role,
-          profiles!user_projects_user_id_fkey(id, full_name, email)
-        `)
-        .eq('project_id', projectId);
-      
-      if (upError) {
-        console.error('Error fetching team members for RAID:', upError);
-      }
-      
-      console.log('Raw userProjectsData:', userProjectsData);
-      
-      const members = (userProjectsData || [])
-        .filter(up => up.profiles)
-        .map(up => ({
-          id: up.profiles.id,
-          name: up.profiles.full_name || up.profiles.email,
-          email: up.profiles.email,
-          role: up.role
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      
-      console.log('RAID teamMembers loaded:', members.length, 'members', members);
-      setTeamMembers(members);
     } catch (error) {
       console.error('Error fetching RAID data:', error);
     } finally {
@@ -428,7 +397,6 @@ export default function RaidLog() {
           item={selectedItem}
           canEdit={canEdit}
           canDelete={canDelete}
-          teamMembers={teamMembers}
           onClose={() => setSelectedItem(null)}
           onUpdate={async (updates) => {
             await raidService.update(selectedItem.id, updates);

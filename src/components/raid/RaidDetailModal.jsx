@@ -4,15 +4,17 @@
  * View and edit RAID (Risk, Assumption, Issue, Dependency) items.
  * Consistent styling with ExpenseDetailModal.
  * 
- * @version 2.0
- * @updated 5 December 2025
+ * @version 2.1
+ * @updated 18 December 2025 - Fetch teamMembers internally for owner dropdown
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Edit2, Trash2, Save, AlertTriangle, AlertCircle, 
   Info, Link2, User, Calendar, CheckCircle, Clock, Flag
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useProject } from '../../contexts/ProjectContext';
 import './RaidDetailModal.css';
 
 // Category configuration
@@ -47,14 +49,54 @@ export default function RaidDetailModal({
   item, 
   canEdit, 
   canDelete,
-  teamMembers = [],
   onClose, 
   onUpdate, 
   onDelete 
 }) {
+  const { projectId } = useProject();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ ...item });
   const [saving, setSaving] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+
+  // Fetch team members for owner dropdown
+  useEffect(() => {
+    async function fetchTeamMembers() {
+      if (!projectId) return;
+      
+      try {
+        const { data: userProjectsData, error } = await supabase
+          .from('user_projects')
+          .select(`
+            user_id,
+            role,
+            profiles:user_id(id, full_name, email)
+          `)
+          .eq('project_id', projectId);
+        
+        if (error) {
+          console.error('RaidDetailModal: Error fetching team members:', error);
+          return;
+        }
+        
+        const members = (userProjectsData || [])
+          .filter(up => up.profiles)
+          .map(up => ({
+            id: up.profiles.id,
+            name: up.profiles.full_name || up.profiles.email,
+            email: up.profiles.email,
+            role: up.role
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        
+        setTeamMembers(members);
+      } catch (err) {
+        console.error('RaidDetailModal: Failed to fetch team members:', err);
+      }
+    }
+    
+    fetchTeamMembers();
+  }, [projectId]);
 
   const config = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.Risk;
   const editConfig = CATEGORY_CONFIG[editData.category] || CATEGORY_CONFIG.Risk;
