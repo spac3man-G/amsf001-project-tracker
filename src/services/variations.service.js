@@ -431,6 +431,7 @@ export class VariationsService extends BaseService {
 
   /**
    * Sign variation as supplier or customer PM
+   * Auto-applies the variation when both signatures are complete
    */
   async signVariation(variationId, signerRole, userId) {
     try {
@@ -439,6 +440,7 @@ export class VariationsService extends BaseService {
 
       const now = new Date().toISOString();
       const updates = {};
+      let bothSigned = false;
 
       if (signerRole === 'supplier') {
         updates.supplier_signed_by = userId;
@@ -447,6 +449,7 @@ export class VariationsService extends BaseService {
         // Determine new status
         if (variation.customer_signed_at) {
           updates.status = VARIATION_STATUS.APPROVED;
+          bothSigned = true;
         } else {
           updates.status = VARIATION_STATUS.AWAITING_CUSTOMER;
         }
@@ -457,6 +460,7 @@ export class VariationsService extends BaseService {
         // Determine new status
         if (variation.supplier_signed_at) {
           updates.status = VARIATION_STATUS.APPROVED;
+          bothSigned = true;
         } else {
           updates.status = VARIATION_STATUS.AWAITING_SUPPLIER;
         }
@@ -464,7 +468,22 @@ export class VariationsService extends BaseService {
         throw new Error('Invalid signer role');
       }
 
-      return await this.update(variationId, updates);
+      // Update the variation with signature
+      const updatedVariation = await this.update(variationId, updates);
+
+      // Auto-apply if both signatures are now complete
+      if (bothSigned) {
+        try {
+          await this.applyVariation(variationId);
+        } catch (applyError) {
+          console.error('VariationsService auto-apply error:', applyError);
+          // Don't throw - signature was successful, apply can be retried
+          // The variation remains in 'approved' status
+        }
+      }
+
+      // Return fresh data
+      return await this.getById(variationId);
     } catch (error) {
       console.error('VariationsService signVariation error:', error);
       throw error;

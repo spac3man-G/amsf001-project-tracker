@@ -128,13 +128,11 @@ export default function VariationDetail() {
   async function handleSign(role) {
     setSigning(true);
     try {
-      await variationsService.signVariation(id, role, currentUserId);
+      const updated = await variationsService.signVariation(id, role, currentUserId);
       showSuccess(`Signed as ${role === 'supplier' ? 'Supplier PM' : 'Customer PM'}`);
       
-      // Check if we need to apply the variation
-      const updated = await variationsService.getWithDetails(id);
-      if (updated.status === VARIATION_STATUS.APPROVED) {
-        await variationsService.applyVariation(id);
+      // Check if auto-apply happened (service now handles this automatically)
+      if (updated.status === VARIATION_STATUS.APPLIED) {
         showSuccess('Variation applied to baselines');
       }
       
@@ -176,6 +174,20 @@ export default function VariationDetail() {
     }
   }
 
+  async function handleApply() {
+    setSigning(true);
+    try {
+      await variationsService.applyVariation(id);
+      showSuccess('Variation applied to baselines');
+      fetchVariation();
+    } catch (error) {
+      console.error('Error applying variation:', error);
+      showError(error.message || 'Failed to apply variation');
+    } finally {
+      setSigning(false);
+    }
+  }
+
   function getStatusBadgeClass(status) {
     const classMap = {
       [VARIATION_STATUS.DRAFT]: 'draft',
@@ -197,6 +209,7 @@ export default function VariationDetail() {
     const isSubmitted = variation.status === VARIATION_STATUS.SUBMITTED;
     const isAwaitingCustomer = variation.status === VARIATION_STATUS.AWAITING_CUSTOMER;
     const isAwaitingSupplier = variation.status === VARIATION_STATUS.AWAITING_SUPPLIER;
+    const isApproved = variation.status === VARIATION_STATUS.APPROVED;
     const isApplied = variation.status === VARIATION_STATUS.APPLIED;
 
     const canEdit = isDraft && canCreateVariation;
@@ -215,9 +228,13 @@ export default function VariationDetail() {
     const canReject = (canSignAsSupplier || canSignAsCustomer) && 
       (isSubmitted || isAwaitingCustomer || isAwaitingSupplier);
 
+    // Fallback apply button for variations stuck in 'approved' status
+    // (should auto-apply now, but this handles legacy cases)
+    const canApply = isApproved && (canSignAsSupplier || canSignAsCustomer);
+
     const canViewCertificate = isApplied && variation.certificate_number;
 
-    return { canEdit, canEditAndResubmit, canSubmit, canDelete, canSupplierSign, canCustomerSign, canReject, canViewCertificate };
+    return { canEdit, canEditAndResubmit, canSubmit, canDelete, canSupplierSign, canCustomerSign, canReject, canApply, canViewCertificate };
   }
 
   if (loading) {
@@ -271,6 +288,17 @@ export default function VariationDetail() {
               <button className="vd-btn vd-btn-primary" onClick={handleSubmit} data-testid="variation-submit-button">
                 <Send size={18} />
                 Submit for Approval
+              </button>
+            )}
+            {actions.canApply && (
+              <button 
+                className="vd-btn vd-btn-primary" 
+                onClick={handleApply} 
+                disabled={signing}
+                data-testid="variation-apply-button"
+              >
+                {signing ? <RefreshCw size={18} className="spinning" /> : <CheckCircle2 size={18} />}
+                Apply to Baselines
               </button>
             )}
             {/* Generate CR Document - available for non-draft variations */}
