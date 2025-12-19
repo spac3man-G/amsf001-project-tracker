@@ -60,9 +60,13 @@ function getStatusClass(status) {
 
 /**
  * Get public URL for a receipt file from Supabase storage
+ * Supports both 'receipts' bucket (manual uploads) and 'receipt-scans' bucket (scanner uploads)
  */
-function getReceiptUrl(filePath) {
-  const { data } = supabase.storage.from('receipts').getPublicUrl(filePath);
+function getReceiptUrl(file) {
+  const filePath = file.file_path;
+  const bucket = file.bucket || 'receipts';
+  
+  const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
   return data?.publicUrl || null;
 }
 
@@ -87,7 +91,7 @@ function ReceiptGallery({ files, onDownload }) {
     const urls = {};
     files.forEach(file => {
       if (isImageFile(file.file_name)) {
-        urls[file.id || file.file_path] = getReceiptUrl(file.file_path);
+        urls[file.id || file.file_path] = getReceiptUrl(file);
       }
     });
     setImageUrls(urls);

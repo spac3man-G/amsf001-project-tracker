@@ -168,11 +168,52 @@ export default function Expenses() {
 
   async function handleScannedExpense(expenseData) {
     try {
-      await expensesService.create({
-        project_id: projectId, category: expenseData.category, resource_id: expenseData.resource_id, resource_name: expenseData.resource_name,
-        expense_date: expenseData.expense_date, reason: expenseData.reason, amount: expenseData.amount, notes: expenseData.notes,
-        created_by: currentUserId, chargeable_to_customer: expenseData.chargeable_to_customer, procurement_method: expenseData.procurement_method
+      // Create the expense
+      const newExpense = await expensesService.create({
+        project_id: projectId, 
+        category: expenseData.category, 
+        resource_id: expenseData.resource_id, 
+        resource_name: expenseData.resource_name,
+        expense_date: expenseData.expense_date, 
+        reason: expenseData.reason, 
+        amount: expenseData.amount, 
+        notes: expenseData.notes,
+        created_by: currentUserId, 
+        chargeable_to_customer: expenseData.chargeable_to_customer, 
+        procurement_method: expenseData.procurement_method
       });
+
+      // Link the scanned receipt image to the expense
+      if (newExpense && expenseData.receipt_image_url && expenseData.receipt_scan_id) {
+        // Extract the file path from the full URL
+        // URL format: https://xxx.supabase.co/storage/v1/object/public/receipt-scans/user-id/timestamp.jpg
+        const urlParts = expenseData.receipt_image_url.split('/receipt-scans/');
+        const filePath = urlParts.length > 1 ? urlParts[1] : expenseData.receipt_image_url;
+        
+        // Create an expense_files record linking to the receipt image
+        const { error: fileError } = await supabase
+          .from('expense_files')
+          .insert({
+            expense_id: newExpense.id,
+            file_path: filePath,
+            file_name: `scanned_receipt_${Date.now()}.jpg`,
+            file_type: 'image/jpeg',
+            file_size: 0, // Size not tracked for scanned receipts
+            uploaded_by: currentUserId,
+            bucket: 'receipt-scans' // Track which bucket the file is in
+          });
+
+        if (fileError) {
+          console.error('Error linking receipt to expense:', fileError);
+        }
+
+        // Also update the receipt_scans record with the expense_id
+        await supabase
+          .from('receipt_scans')
+          .update({ expense_id: newExpense.id, status: 'linked' })
+          .eq('id', expenseData.receipt_scan_id);
+      }
+
       await fetchData();
     } catch (error) {
       console.error('Error creating scanned expense:', error);
