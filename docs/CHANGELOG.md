@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.6] - 2025-12-18
+
+### Added
+
+#### Customer PM Assessment During Deliverable Sign-off
+- Customer PM now sees KPI/QS assessment UI when signing off deliverables
+- Assessment section appears regardless of whether Supplier PM has signed first
+- Customer PM can add or remove KPIs and Quality Standards during sign-off
+- Each linked KPI/QS must be marked Yes (met) or No (not met) before signing
+- Assessments are saved to `deliverable_kpi_assessments` and `deliverable_qs_assessments` tables
+- Removed redundant "Assess & Sign Off" button from deliverable modal footer
+
+### Fixed
+
+#### Missing Database Columns
+- Added missing `submitted_date`, `submitted_by`, `delivered_date`, `delivered_by` columns to `deliverables` table
+- Fixed "Could not find the 'delivered_by' column of 'deliverables' in the schema cache" error
+
+### Database Migrations Required
+
+**Deliverables Workflow Columns:** `20251218_add_delivered_by_column.sql`
+```sql
+ALTER TABLE deliverables 
+ADD COLUMN IF NOT EXISTS submitted_date TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS submitted_by UUID REFERENCES profiles(id),
+ADD COLUMN IF NOT EXISTS delivered_date TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS delivered_by UUID REFERENCES profiles(id);
+```
+
+---
+
 ## [0.9.5] - 2025-12-19
 
 ### Added
