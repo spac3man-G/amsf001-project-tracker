@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.5] - 2025-12-19
+
+### Added
+
+#### Variation Auto-Apply on Dual Signature
+- Variations now **automatically apply to baselines** when both parties sign
+- Auto-apply logic moved from UI to service layer for reliability
+- Fallback "Apply to Baselines" button added for variations stuck in 'approved' status
+- Fixes edge cases where variations got stuck between 'approved' and 'applied' states
+
+#### Receipt Scanner - Image Linking
+- Scanned receipt images now properly linked to expense records
+- Receipt thumbnails display in expense detail modal
+- Images stored in `receipt-scans` bucket with proper RLS policies
+
+### Fixed
+
+#### Receipt Scanner RLS Policies
+- Fixed "new row violates row-level security policy for table receipt_scans" error
+- Added proper RLS policies for `receipt_scans` table
+- Added storage policies for `receipt-scans` bucket
+
+### Database Migrations Required
+
+**Receipt Scans RLS:** `20251219_receipt_scans_rls.sql`
+```sql
+-- Run the full migration file or these key policies:
+ALTER TABLE receipt_scans ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "receipt_scans_insert_policy" ON receipt_scans 
+  FOR INSERT TO authenticated 
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_projects up
+      WHERE up.project_id = receipt_scans.project_id
+      AND up.user_id = auth.uid()
+      AND up.role IN ('admin', 'supplier_pm', 'customer_pm', 'contributor')
+    )
+  );
+```
+
+**Expense Files Bucket Column:** `20251219_expense_files_bucket.sql`
+```sql
+ALTER TABLE expense_files 
+ADD COLUMN IF NOT EXISTS bucket TEXT DEFAULT 'receipts';
+```
+
+**Storage Policies:**
+```sql
+UPDATE storage.buckets SET public = true WHERE id = 'receipt-scans';
+
+CREATE POLICY "Authenticated users can view receipt scans"
+ON storage.objects FOR SELECT TO authenticated
+USING (bucket_id = 'receipt-scans');
+```
+
+### Files Changed
+- `src/services/variations.service.js` - Auto-apply in signVariation()
+- `src/pages/VariationDetail.jsx` - Fallback Apply button, simplified handleSign()
+- `src/pages/Expenses.jsx` - Link scanned receipts to expense_files
+- `src/components/expenses/ExpenseDetailModal.jsx` - Support multiple storage buckets
+- `src/services/receiptScanner.service.js` - Receipt scanning service
+
+---
+
 ## [0.9.4] - 2025-12-18
 
 ### Added

@@ -1207,18 +1207,170 @@ WHERE project_id = ? AND status IN ('Sent', 'Paid')
 
 ---
 
-## 10. Session Completion
+## 10. Receipt Scanning System
 
-### 10.1 Checklist Status
+The receipt scanning system enables AI-powered expense creation from receipt photos.
+
+### 10.1 Receipt Scans Table
+
+Stores scanned receipt data and AI extraction results.
+
+```sql
+CREATE TABLE receipt_scans (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  
+  -- Upload info
+  uploaded_by UUID NOT NULL REFERENCES auth.users(id),
+  image_url TEXT,
+  image_path TEXT,
+  
+  -- Extracted data
+  raw_ocr_text TEXT,
+  extracted_merchant TEXT,
+  extracted_amount DECIMAL(12,2),
+  extracted_date DATE,
+  extracted_currency TEXT DEFAULT 'GBP',
+  extracted_items JSONB,
+  
+  -- AI classification
+  ai_suggested_category TEXT,
+  ai_confidence DECIMAL(3,2),
+  final_category TEXT,
+  user_corrected BOOLEAN DEFAULT FALSE,
+  
+  -- Status tracking
+  status TEXT DEFAULT 'pending' CHECK (status IN (
+    'pending', 'processing', 'completed', 'failed', 'linked'
+  )),
+  processing_time_ms INTEGER,
+  error_message TEXT,
+  
+  -- Link to expense when created
+  expense_id UUID REFERENCES expenses(id) ON DELETE SET NULL,
+  
+  -- Audit fields
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 10.2 Classification Rules Table
+
+Learning system that improves category suggestions based on user corrections.
+
+```sql
+CREATE TABLE classification_rules (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  
+  -- Matching criteria
+  merchant_pattern TEXT NOT NULL,
+  
+  -- Classification
+  category TEXT NOT NULL,
+  subcategory TEXT,
+  default_chargeable BOOLEAN,
+  default_procurement TEXT,
+  
+  -- Confidence tracking
+  match_count INTEGER DEFAULT 1,
+  correction_count INTEGER DEFAULT 0,
+  confidence DECIMAL(3,2) DEFAULT 0.70,
+  
+  -- Audit
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  UNIQUE(project_id, merchant_pattern)
+);
+```
+
+### 10.3 Storage Buckets
+
+| Bucket | Purpose | Access |
+|--------|---------|--------|
+| `receipts` | Manual expense file uploads | Authenticated users |
+| `receipt-scans` | AI scanner image uploads | Authenticated users |
+
+### 10.4 Expense Files Integration
+
+The `expense_files` table links receipts to expenses:
+
+```sql
+-- bucket column added to track storage location
+ALTER TABLE expense_files 
+ADD COLUMN bucket TEXT DEFAULT 'receipts';
+
+-- Values: 'receipts' (manual) or 'receipt-scans' (scanner)
+```
+
+### 10.5 Scanning Workflow
+
+```
+1. User uploads receipt image(s)
+   ↓
+2. Image stored in receipt-scans bucket
+   ↓
+3. AI processes image (Claude Vision API)
+   - Extract merchant, amount, date
+   - Suggest category based on merchant
+   ↓
+4. Check classification_rules for learned patterns
+   ↓
+5. Create receipt_scans record
+   ↓
+6. User reviews/edits extracted data
+   ↓
+7. Create expense record
+   ↓
+8. Create expense_files record (links image)
+   ↓
+9. Update receipt_scans.expense_id
+   ↓
+10. If user corrected category → update classification_rules
+```
+
+### 10.6 RLS Policies
+
+```sql
+-- SELECT: Project members can view
+CREATE POLICY "receipt_scans_select_policy" ON receipt_scans 
+  FOR SELECT TO authenticated 
+  USING (EXISTS (
+    SELECT 1 FROM user_projects up
+    WHERE up.project_id = receipt_scans.project_id
+    AND up.user_id = auth.uid()
+  ));
+
+-- INSERT: Non-viewers can create
+CREATE POLICY "receipt_scans_insert_policy" ON receipt_scans 
+  FOR INSERT TO authenticated 
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM user_projects up
+    WHERE up.project_id = receipt_scans.project_id
+    AND up.user_id = auth.uid()
+    AND up.role IN ('admin', 'supplier_pm', 'customer_pm', 'contributor')
+  ));
+```
+
+---
+
+## 11. Session Completion
+
+### 11.1 Checklist Status
 
 - [x] timesheets table
 - [x] expenses table
 - [x] partners table
 - [x] partner_invoices table
 - [x] partner_invoice_lines table
+- [x] receipt_scans table
+- [x] classification_rules table
 - [x] Relationships and foreign keys
 
-### 10.2 Key Takeaways
+### 11.2 Key Takeaways
 
 1. **Workflow Consistency:** All operational tables use consistent Draft → Submitted → Approved/Rejected workflows
 2. **Financial Accuracy:** Denormalization in invoice lines preserves historical accuracy
@@ -1226,7 +1378,7 @@ WHERE project_id = ? AND status IN ('Sent', 'Paid')
 4. **Audit Trail:** Soft delete + timestamps + user tracking on all operations
 5. **Integration:** Tables tightly integrated with resources, milestones, and invoicing
 
-### 10.3 Next Session Preview
+### 11.3 Next Session Preview
 
 **Session 1.4: Database Schema - Supporting Tables** will document:
 - kpis table
