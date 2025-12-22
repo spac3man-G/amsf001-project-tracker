@@ -306,48 +306,40 @@ export class OrganisationService {
    */
   async getMembers(organisationId) {
     try {
-      // First get the user_organisations memberships
-      const { data: memberships, error: memberError } = await supabase
-        .from('user_organisations')
+      // Use the view that joins user_organisations with profiles
+      const { data, error } = await supabase
+        .from('organisation_members_with_profiles')
         .select('*')
         .eq('organisation_id', organisationId)
         .eq('is_active', true)
         .order('org_role', { ascending: true })
         .order('created_at', { ascending: true });
 
-      if (memberError) {
-        console.error('Organisation getMembers error:', memberError);
-        throw memberError;
+      if (error) {
+        console.error('Organisation getMembers error:', error);
+        throw error;
       }
 
-      if (!memberships || memberships.length === 0) {
-        return [];
-      }
-
-      // Use RPC function to get profiles (bypasses RLS issues)
-      // Note: Supabase RPC uses snake_case parameter names
-      const { data: profiles, error: profileError } = await supabase
-        .rpc('get_org_member_profiles', { 
-          p_organisation_id: organisationId 
-        });
-
-      console.log('RPC result:', { profiles: profiles?.length, error: profileError });
-
-      if (profileError) {
-        console.error('Organisation getMembers profiles error:', profileError);
-        // Return memberships without profile data rather than failing completely
-        return memberships.map(m => ({ ...m, user: null }));
-      }
-
-      // Map profiles to memberships
-      const profileMap = (profiles || []).reduce((acc, p) => {
-        acc[p.id] = p;
-        return acc;
-      }, {});
-
-      return memberships.map(m => ({
-        ...m,
-        user: profileMap[m.user_id] || null
+      // Transform to expected format with nested user object
+      return (data || []).map(m => ({
+        id: m.id,
+        user_id: m.user_id,
+        organisation_id: m.organisation_id,
+        org_role: m.org_role,
+        is_active: m.is_active,
+        is_default: m.is_default,
+        invited_by: m.invited_by,
+        invited_at: m.invited_at,
+        accepted_at: m.accepted_at,
+        created_at: m.created_at,
+        updated_at: m.updated_at,
+        user: m.user_email ? {
+          id: m.user_id,
+          email: m.user_email,
+          full_name: m.user_full_name,
+          avatar_url: null,
+          role: m.user_role
+        } : null
       }));
     } catch (error) {
       console.error('Organisation getMembers failed:', error);
