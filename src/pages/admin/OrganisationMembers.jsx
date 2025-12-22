@@ -26,6 +26,7 @@ import { useProjectRole } from '../../hooks/useProjectRole';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import { hasOrgPermission, ORG_ROLES, ORG_ROLE_CONFIG } from '../../lib/permissionMatrix';
+import { organisationService } from '../../services';
 import '../../pages/TeamMembers.css';
 
 export default function OrganisationMembers() {
@@ -56,36 +57,13 @@ export default function OrganisationMembers() {
   const canChangeRole = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'changeRole');
   const canPromoteToOwner = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'promoteToOwner');
 
-  // Fetch members
+  // Fetch members using the organisation service
   const fetchMembers = useCallback(async () => {
     if (!currentOrganisation?.id) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('user_organisations')
-        .select(`
-          id,
-          user_id,
-          org_role,
-          is_active,
-          is_default,
-          invited_at,
-          accepted_at,
-          created_at,
-          user:profiles!user_organisations_user_id_fkey (
-            id,
-            email,
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq('organisation_id', currentOrganisation.id)
-        .eq('is_active', true)
-        .order('org_role', { ascending: true })
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
+      const data = await organisationService.getMembers(currentOrganisation.id);
       setMembers(data || []);
     } catch (error) {
       console.error('Error fetching members:', error);
