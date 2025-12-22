@@ -324,14 +324,9 @@ export class OrganisationService {
         return [];
       }
 
-      // Get user IDs from memberships
-      const userIds = memberships.map(m => m.user_id);
-
-      // Fetch profiles for all users
+      // Use RPC function to get profiles (bypasses RLS issues)
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name, avatar_url, role')
-        .in('id', userIds);
+        .rpc('get_org_member_profiles', { p_organisation_id: organisationId });
 
       if (profileError) {
         console.error('Organisation getMembers profiles error:', profileError);
