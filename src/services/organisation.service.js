@@ -325,8 +325,13 @@ export class OrganisationService {
       }
 
       // Use RPC function to get profiles (bypasses RLS issues)
+      // Note: Supabase RPC uses snake_case parameter names
       const { data: profiles, error: profileError } = await supabase
-        .rpc('get_org_member_profiles', { p_organisation_id: organisationId });
+        .rpc('get_org_member_profiles', { 
+          p_organisation_id: organisationId 
+        });
+
+      console.log('RPC result:', { profiles: profiles?.length, error: profileError });
 
       if (profileError) {
         console.error('Organisation getMembers profiles error:', profileError);
