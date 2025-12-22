@@ -216,33 +216,43 @@ ToastProvider
 
 ---
 
-## Phase 3: Permission System
+## Phase 3: Permission System ✅ COMPLETE
 
 ### 3.1 Add Organisation Roles to Permission Matrix
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Phase 2 complete
+**File:** `src/lib/permissionMatrix.js` (updated to v2.0)
 
-**Tasks:**
-- [ ] Review existing `src/lib/permissionMatrix.js`
-- [ ] Add organisation-level permissions (ORG_PERMISSIONS)
-- [ ] Create `hasOrgPermission()` function
-- [ ] Test permission checks
+**Added:**
+- `ORG_ROLES` constants (org_owner, org_admin, org_member)
+- `ORG_PERMISSION_MATRIX` for organisation-level permissions
+- `hasOrgPermission()` function
+- `isOrgAdminRole()` and `isOrgOwnerRole()` helpers
+- `ORG_ROLE_CONFIG` and `ORG_ROLE_OPTIONS` for UI
 
-**Checkpoint 3.1:** ⬜ Permission matrix includes organisation permissions
+**Organisation Permissions:**
+- organisation: view, edit, delete, manageBilling, viewBilling
+- orgMembers: view, invite, remove, changeRole, promoteToOwner
+- orgProjects: view, create, delete, assignMembers
+- orgSettings: view, edit, manageFeatures, manageBranding
+
+**Checkpoint 3.1:** ✅ Permission matrix includes organisation permissions
 
 ---
 
 ### 3.2 Update useProjectRole Hook
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Tasks:**
-- [ ] Review existing `src/hooks/useProjectRole.js`
-- [ ] Add organisation role to return value
-- [ ] Update any components using this hook
+**File:** `src/hooks/useProjectRole.js` (updated to v2.0)
 
-**Checkpoint 3.2:** ⬜ useProjectRole returns organisation role
+**Added:**
+- `orgRole` - organisation role from OrganisationContext
+- `isOrgAdmin` - true if org_owner or org_admin
+- `isOrgOwner` - true if org_owner
+- Combined loading state includes org loading
+- Combined error state includes org errors
+
+**Checkpoint 3.2:** ✅ useProjectRole returns organisation role
 
 ---
 
@@ -420,10 +430,10 @@ ToastProvider
 |-------|--------|-------------|
 | Phase 1: Database Schema | ✅ Complete | 8/8 |
 | Phase 2: Frontend Context | 🔄 In Progress | 4/5 |
-| Phase 3: Permission System | ⬜ Not Started | 0/2 |
+| Phase 3: Permission System | ✅ Complete | 2/2 |
 | Phase 4: UI Components | ⬜ Not Started | 0/5 |
 | Phase 5: Services & API | ⬜ Not Started | 0/4 |
 | Phase 6: Testing | ⬜ Not Started | 0/2 |
 | Phase 7: Final Verification | ⬜ Not Started | 0/2 |
 
-**Total Progress:** 12/28 checkpoints complete (43%)
+**Total Progress:** 15/28 checkpoints complete (54%)
