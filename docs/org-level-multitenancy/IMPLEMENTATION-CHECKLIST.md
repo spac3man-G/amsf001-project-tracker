@@ -3,8 +3,9 @@
 ## Implementation Guide for Systematic Development
 
 **Document:** IMPLEMENTATION-CHECKLIST.md  
-**Version:** 1.0  
+**Version:** 1.1  
 **Created:** 22 December 2025  
+**Updated:** 22 December 2025  
 **Purpose:** Step-by-step checklist for implementing multi-tenancy with regular checkpoints
 
 ---
@@ -28,295 +29,172 @@ This checklist is designed for **incremental implementation** with regular check
 
 ---
 
-## Phase 1: Database Schema
+## Phase 1: Database Schema ✅ COMPLETE
 
 ### 1.1 Create Organisations Table
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Database backup completed
-- [ ] Access to Supabase dashboard or migration tooling
+**Migration:** `202512221400_create_organisations.sql`
 
-**Tasks:**
-- [ ] Create `organisations` table
-- [ ] Create indexes
-- [ ] Enable RLS (policies added later)
-- [ ] Verify table created
-
-**Verification:**
-```sql
-SELECT column_name, data_type FROM information_schema.columns 
-WHERE table_name = 'organisations';
-```
-
-**Checkpoint 1.1:** ⬜ Organisations table exists with correct schema
+**Checkpoint 1.1:** ✅ Organisations table exists with correct schema
 
 ---
 
 ### 1.2 Create User Organisations Table
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 1.1 complete
+**Migration:** `202512221401_create_user_organisations.sql`
 
-**Tasks:**
-- [ ] Create `user_organisations` junction table
-- [ ] Create indexes
-- [ ] Enable RLS (policies added later)
-- [ ] Verify table created
-
-**Verification:**
-```sql
-SELECT column_name, data_type FROM information_schema.columns 
-WHERE table_name = 'user_organisations';
-```
-
-**Checkpoint 1.2:** ⬜ User organisations table exists with correct schema
+**Checkpoint 1.2:** ✅ User organisations table exists with correct schema
 
 ---
 
 ### 1.3 Add Organisation ID to Projects
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 1.2 complete
+**Migration:** `202512221402_add_org_id_to_projects.sql`
 
-**Tasks:**
-- [ ] Add `organisation_id` column to projects (nullable initially)
-- [ ] Create index on organisation_id
-- [ ] Verify column added
-
-**Verification:**
-```sql
-SELECT column_name, data_type, is_nullable 
-FROM information_schema.columns 
-WHERE table_name = 'projects' AND column_name = 'organisation_id';
-```
-
-**Checkpoint 1.3:** ⬜ Projects table has organisation_id column
+**Checkpoint 1.3:** ✅ Projects table has organisation_id column
 
 ---
 
 ### 1.4 Create RLS Helper Functions
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 1.3 complete
+**Migration:** `202512221403_create_rls_helper_functions.sql`
 
-**Tasks:**
-- [ ] Create `is_system_admin()` function
-- [ ] Create `is_org_member(uuid)` function
-- [ ] Create `get_org_role(uuid)` function
-- [ ] Create `is_org_admin(uuid)` function
-- [ ] Create `is_org_owner(uuid)` function
-- [ ] Create `can_access_project(uuid)` function
-- [ ] Create `get_project_role(uuid)` function
-- [ ] Create `has_project_role(uuid, text[])` function
-- [ ] Verify functions created
+**Functions created:**
+- `is_system_admin()`
+- `is_org_member(uuid)`
+- `get_org_role(uuid)`
+- `is_org_admin(uuid)`
+- `is_org_owner(uuid)`
+- `get_user_organisation_ids()`
+- `can_access_project(uuid)`
+- `get_project_role(uuid)`
+- `has_project_role(uuid, text[])`
+- `get_accessible_project_ids()`
 
-**Verification:**
-```sql
-SELECT routine_name FROM information_schema.routines 
-WHERE routine_schema = 'public' 
-AND routine_name IN ('is_system_admin', 'is_org_member', 'get_org_role', 
-                     'is_org_admin', 'is_org_owner', 'can_access_project',
-                     'get_project_role', 'has_project_role');
-```
-
-**Checkpoint 1.4:** ⬜ All RLS helper functions exist
+**Checkpoint 1.4:** ✅ All helper functions exist and return correct types
 
 ---
 
 ### 1.5 Create RLS Policies for New Tables
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 1.4 complete
+**Migration:** `202512221404_create_org_rls_policies.sql`
 
-**Tasks:**
-- [ ] Create policies for `organisations` table (SELECT, INSERT, UPDATE, DELETE)
-- [ ] Create policies for `user_organisations` table (SELECT, INSERT, UPDATE, DELETE)
-- [ ] Verify policies created
-
-**Verification:**
-```sql
-SELECT tablename, policyname FROM pg_policies 
-WHERE tablename IN ('organisations', 'user_organisations');
-```
-
-**Checkpoint 1.5:** ⬜ RLS policies exist for new tables
+**Checkpoint 1.5:** ✅ RLS policies exist for organisations and user_organisations
 
 ---
 
-### 1.6 Update RLS Policies for Projects
-**Status:** ⬜ Not Started
+### 1.6 Update Projects RLS Policies
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 1.5 complete
+**Migration:** `202512221405_update_projects_rls_policies.sql`
 
-**Tasks:**
-- [ ] Check existing project policies (document current state)
-- [ ] Update SELECT policy to use `can_access_project()`
-- [ ] Update INSERT policy to require org admin
-- [ ] Update UPDATE policy to check org context
-- [ ] Update DELETE policy to check org context
-- [ ] Verify policies updated
-
-**Pre-task Check:**
-```sql
--- Document existing policies before changing
-SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = 'projects';
-```
-
-**Checkpoint 1.6:** ⬜ Projects table RLS policies updated
+**Checkpoint 1.6:** ✅ Projects and user_projects use org-aware policies
 
 ---
 
 ### 1.7 Migrate Existing Data
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 1.6 complete
-- [ ] Identified organisation owner (email: _______________)
+**Migration:** `202512221406_migrate_data_to_default_org.sql`
 
-**Tasks:**
-- [ ] Create default organisation
-- [ ] Assign all projects to default organisation
-- [ ] Create user_organisations entries for all users with project access
-- [ ] Set organisation owner
-- [ ] Verify migration
+**Results:**
+- 1 organisation created (Default Organisation)
+- 4 projects assigned to organisation
+- 24 user_organisations entries created
 
-**Verification:**
-```sql
--- All projects have organisation_id
-SELECT COUNT(*) as orphan_projects FROM projects 
-WHERE organisation_id IS NULL AND is_deleted = FALSE;
-
--- All project users have org membership
-SELECT COUNT(*) as missing_memberships FROM (
-  SELECT DISTINCT user_id FROM user_projects
-  EXCEPT
-  SELECT user_id FROM user_organisations WHERE is_active = TRUE
-) x;
-
--- At least one owner exists
-SELECT COUNT(*) as owners FROM user_organisations 
-WHERE org_role = 'org_owner' AND is_active = TRUE;
-```
-
-**Checkpoint 1.7:** ⬜ All existing data migrated to default organisation
+**Checkpoint 1.7:** ✅ All projects and users assigned to default organisation
 
 ---
 
-### 1.8 Enforce Organisation ID on Projects
-**Status:** ⬜ Not Started
+### 1.8 Enforce NOT NULL Constraint
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 1.7 complete
-- [ ] All verification queries pass
+**Migration:** `202512221407_enforce_org_id_not_null.sql`
 
-**Tasks:**
-- [ ] Add NOT NULL constraint to organisation_id
-- [ ] Add foreign key constraint
-- [ ] Verify constraints
-
-**Verification:**
-```sql
-SELECT column_name, is_nullable 
-FROM information_schema.columns 
-WHERE table_name = 'projects' AND column_name = 'organisation_id';
-```
-
-**Checkpoint 1.8:** ⬜ Organisation ID is required on projects
+**Checkpoint 1.8:** ✅ organisation_id is NOT NULL on projects table
 
 ---
 
-## Phase 2: Frontend Context
+## Phase 2: Frontend Context 🔄 IN PROGRESS
 
 ### 2.1 Review Existing Context Structure
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Phase 1 complete
+**Files reviewed:**
+- `src/contexts/AuthContext.jsx` - provides user, profile, role
+- `src/contexts/ProjectContext.jsx` - provides currentProject, projectRole
+- `src/contexts/ViewAsContext.jsx` - provides effectiveRole, impersonation
+- `src/App.jsx` - provider hierarchy
+- `src/lib/permissionMatrix.js` - role definitions
 
-**Tasks:**
-- [ ] Document current AuthContext exports
-- [ ] Document current ProjectContext exports
-- [ ] Document current ViewAsContext exports
-- [ ] Document App.jsx provider hierarchy
-- [ ] Identify integration points
+**Current Provider Hierarchy:**
+```
+ToastProvider
+  └── AuthProvider
+        └── ProjectProvider
+              └── ViewAsProvider
+                    └── [Other providers...]
+```
 
-**Files to Check:**
-- [ ] `src/contexts/AuthContext.jsx`
-- [ ] `src/contexts/ProjectContext.jsx`
-- [ ] `src/contexts/ViewAsContext.jsx`
-- [ ] `src/App.jsx`
-
-**Checkpoint 2.1:** ⬜ Current context structure documented
+**Checkpoint 2.1:** ✅ Context structure documented and understood
 
 ---
 
 ### 2.2 Create OrganisationContext
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 2.1 complete
+**File:** `src/contexts/OrganisationContext.jsx`
 
-**Tasks:**
-- [ ] Create `src/contexts/OrganisationContext.jsx`
-- [ ] Implement provider with state management
-- [ ] Implement `useOrganisation` hook
-- [ ] Export constants (ORG_ROLES, ORG_ROLE_CONFIG)
-- [ ] Test basic functionality
+**Provides:**
+- `currentOrganisation` - current org object
+- `organisationId`, `organisationName`, `organisationSlug`
+- `orgRole` - user's role in org (org_owner/org_admin/org_member)
+- `isOrgAdmin`, `isOrgOwner`, `isSystemAdmin`
+- `availableOrganisations`, `hasMultipleOrganisations`
+- `switchOrganisation()`, `refreshOrganisation()`
+- `orgSettings` - organisation settings with defaults
 
-**Verification:**
-- [ ] Context file exists
-- [ ] No console errors on import
-- [ ] Hook returns expected shape
-
-**Checkpoint 2.2:** ⬜ OrganisationContext created and exports working
+**Checkpoint 2.2:** ✅ OrganisationContext created with all required functionality
 
 ---
 
-### 2.3 Integrate OrganisationContext into App
-**Status:** ⬜ Not Started
+### 2.3 Integrate OrganisationProvider into App
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 2.2 complete
+**File:** `src/App.jsx` (updated to v17.0)
 
-**Tasks:**
-- [ ] Add OrganisationProvider to App.jsx
-- [ ] Position between AuthProvider and ProjectProvider
-- [ ] Verify app still loads
-- [ ] Verify no console errors
+**New Provider Hierarchy:**
+```
+ToastProvider
+  └── AuthProvider
+        └── OrganisationProvider  ← NEW
+              └── ProjectProvider
+                    └── ViewAsProvider
+                          └── [Other providers...]
+```
 
-**Verification:**
-- [ ] App loads without errors
-- [ ] React DevTools shows OrganisationProvider in tree
-
-**Checkpoint 2.3:** ⬜ OrganisationContext integrated into app
+**Checkpoint 2.3:** ✅ OrganisationProvider integrated into App.jsx
 
 ---
 
 ### 2.4 Update ProjectContext
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Prerequisites:**
-- [ ] Checkpoint 2.3 complete
+**File:** `src/contexts/ProjectContext.jsx` (updated to v6.0)
 
-**Tasks:**
-- [ ] Add dependency on OrganisationContext
-- [ ] Filter projects by current organisation
-- [ ] Add org admin visibility logic
-- [ ] Clear project on org switch
-- [ ] Test project switching
+**Changes:**
+- Now depends on OrganisationContext
+- Filters projects by current organisation_id
+- Re-fetches projects when organisation changes
+- Org admins can see all projects in their org
+- Clears current project if not in new org
 
-**Verification:**
-- [ ] Projects load correctly
-- [ ] Only org projects shown
-- [ ] Project switching works
-
-**Checkpoint 2.4:** ⬜ ProjectContext updated for org awareness
+**Checkpoint 2.4:** ✅ ProjectContext filters projects by organisation
 
 ---
 
@@ -324,389 +202,228 @@ WHERE table_name = 'projects' AND column_name = 'organisation_id';
 **Status:** ⬜ Not Started
 
 **Prerequisites:**
-- [ ] Checkpoint 2.4 complete
+- [x] Checkpoint 2.4 complete
 
 **Tasks:**
-- [ ] Add org role impersonation support
-- [ ] Add effectiveOrgRole
-- [ ] Clear impersonation on org switch
-- [ ] Maintain backward compatibility
+- [ ] Check if ViewAsContext needs organisation awareness
+- [ ] Add org-level impersonation if needed (org_admin viewing as org_member)
+- [ ] Test impersonation still works
 
-**Verification:**
-- [ ] View As still works for project roles
-- [ ] Org role impersonation works (if testing)
+**Files to Check:**
+- `src/contexts/ViewAsContext.jsx`
 
-**Checkpoint 2.5:** ⬜ ViewAsContext updated for org awareness
+**Checkpoint 2.5:** ⬜ ViewAsContext works with new context structure
 
 ---
 
 ## Phase 3: Permission System
 
-### 3.1 Create Organisation Permission Matrix
+### 3.1 Add Organisation Roles to Permission Matrix
 **Status:** ⬜ Not Started
 
 **Prerequisites:**
 - [ ] Phase 2 complete
 
 **Tasks:**
-- [ ] Create `src/lib/orgPermissionMatrix.js`
-- [ ] Define ORG_ROLES constants
-- [ ] Define ORG_ENTITIES constants
-- [ ] Define ORG_ACTIONS constants
-- [ ] Create permission matrix
-- [ ] Create helper functions
+- [ ] Review existing `src/lib/permissionMatrix.js`
+- [ ] Add organisation-level permissions (ORG_PERMISSIONS)
+- [ ] Create `hasOrgPermission()` function
+- [ ] Test permission checks
 
-**Verification:**
-- [ ] File exists
-- [ ] Exports work correctly
-- [ ] hasOrgPermission() returns expected values
-
-**Checkpoint 3.1:** ⬜ Organisation permission matrix created
+**Checkpoint 3.1:** ⬜ Permission matrix includes organisation permissions
 
 ---
 
-### 3.2 Update usePermissions Hook
+### 3.2 Update useProjectRole Hook
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 3.1 complete
-
 **Tasks:**
-- [ ] Check current usePermissions implementation
-- [ ] Add org permission checks
-- [ ] Add system admin bypass
-- [ ] Maintain backward compatibility
-- [ ] Test permission checks
+- [ ] Review existing `src/hooks/useProjectRole.js`
+- [ ] Add organisation role to return value
+- [ ] Update any components using this hook
 
-**Files to Check:**
-- [ ] `src/hooks/usePermissions.js` (or current location)
-
-**Verification:**
-- [ ] Existing permission checks still work
-- [ ] New org permission checks work
-
-**Checkpoint 3.2:** ⬜ usePermissions hook updated
+**Checkpoint 3.2:** ⬜ useProjectRole returns organisation role
 
 ---
 
 ## Phase 4: UI Components
 
-### 4.1 Create OrganisationSwitcher
+### 4.1 Create Organisation Switcher Component
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Phase 3 complete
-
 **Tasks:**
-- [ ] Create `src/components/OrganisationSwitcher.jsx`
-- [ ] Implement dropdown UI
-- [ ] Connect to OrganisationContext
-- [ ] Add data-testid attributes
-- [ ] Test switching
+- [ ] Create `src/components/organisation/OrganisationSwitcher.jsx`
+- [ ] Show current organisation name
+- [ ] Dropdown to switch (if multiple orgs)
+- [ ] Style to match existing UI
 
-**Verification:**
-- [ ] Component renders
-- [ ] Shows current org
-- [ ] Dropdown opens/closes
-- [ ] Switching works
-
-**Checkpoint 4.1:** ⬜ OrganisationSwitcher component created
+**Checkpoint 4.1:** ⬜ Organisation switcher component exists
 
 ---
 
-### 4.2 Integrate OrganisationSwitcher into Header
+### 4.2 Update Header/Layout
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 4.1 complete
-
 **Tasks:**
-- [ ] Check current Header implementation
-- [ ] Add OrganisationSwitcher before ProjectSwitcher
-- [ ] Style appropriately
-- [ ] Test responsive behavior
+- [ ] Review `src/components/Layout.jsx`
+- [ ] Add organisation switcher to header
+- [ ] Show organisation name/logo
+- [ ] Test responsive behaviour
 
-**Files to Check:**
-- [ ] Header component (location: _______________)
-
-**Verification:**
-- [ ] Org switcher visible in header
-- [ ] Layout looks correct
-- [ ] Mobile responsive
-
-**Checkpoint 4.2:** ⬜ OrganisationSwitcher in header
+**Checkpoint 4.2:** ⬜ Header shows organisation and switcher
 
 ---
 
 ### 4.3 Create Organisation Settings Page
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 4.2 complete
-
 **Tasks:**
-- [ ] Create page component
-- [ ] Implement General tab
-- [ ] Implement Branding tab
-- [ ] Implement Features tab
-- [ ] Implement Defaults tab
-- [ ] Add save functionality
-- [ ] Add route
+- [ ] Create `src/pages/admin/OrganisationSettings.jsx`
+- [ ] Add route in App.jsx
+- [ ] Form for editing org settings
+- [ ] Only visible to org admins
 
-**Verification:**
-- [ ] Page loads at /organisation/settings
-- [ ] Can view settings
-- [ ] Can save changes (if admin)
-
-**Checkpoint 4.3:** ⬜ Organisation settings page created
+**Checkpoint 4.3:** ⬜ Organisation settings page works
 
 ---
 
 ### 4.4 Create Organisation Members Page
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 4.3 complete
-
 **Tasks:**
-- [ ] Create page component
-- [ ] List members
-- [ ] Add invite functionality
-- [ ] Add role change functionality
-- [ ] Add remove functionality
-- [ ] Add route
+- [ ] Create `src/pages/admin/OrganisationMembers.jsx`
+- [ ] List members with roles
+- [ ] Invite new members
+- [ ] Change roles
 
-**Verification:**
-- [ ] Page loads at /organisation/members
-- [ ] Members listed correctly
-- [ ] Actions work (for admins)
-
-**Checkpoint 4.4:** ⬜ Organisation members page created
+**Checkpoint 4.4:** ⬜ Organisation members page works
 
 ---
 
 ### 4.5 Update Navigation
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 4.4 complete
-
 **Tasks:**
-- [ ] Check current navigation/sidebar
-- [ ] Add Organisation section for org admins
-- [ ] Add conditional visibility
-- [ ] Test navigation
+- [ ] Add organisation admin links to nav
+- [ ] Only show to org admins
+- [ ] Test nav permissions
 
-**Files to Check:**
-- [ ] Sidebar/Navigation component (location: _______________)
-
-**Verification:**
-- [ ] Org section visible for org admins
-- [ ] Org section hidden for org members
-- [ ] Links work correctly
-
-**Checkpoint 4.5:** ⬜ Navigation updated for organisation
+**Checkpoint 4.5:** ⬜ Navigation includes organisation management
 
 ---
 
 ## Phase 5: Services & API
 
-### 5.1 Create OrganisationsService
+### 5.1 Create Organisation Service
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Phase 4 complete
-
 **Tasks:**
-- [ ] Create service file
-- [ ] Implement CRUD methods
-- [ ] Implement membership methods
-- [ ] Add to service index
-- [ ] Test basic operations
+- [ ] Create `src/services/organisation.service.js`
+- [ ] CRUD operations for organisations
+- [ ] Member management methods
 
-**Verification:**
-- [ ] Service methods work
-- [ ] RLS enforced correctly
-
-**Checkpoint 5.1:** ⬜ OrganisationsService created
+**Checkpoint 5.1:** ⬜ Organisation service exists with tests
 
 ---
 
-### 5.2 Update ProjectsService
+### 5.2 Create User Organisation Service
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 5.1 complete
-
 **Tasks:**
-- [ ] Check current implementation
-- [ ] Update create() to require organisation_id
-- [ ] Add getByOrganisation() method
-- [ ] Test changes
+- [ ] Create methods for inviting users
+- [ ] Methods for changing roles
+- [ ] Methods for removing users
 
-**Files to Check:**
-- [ ] Projects service (location: _______________)
-
-**Verification:**
-- [ ] Project creation requires org
-- [ ] Org-filtered queries work
-
-**Checkpoint 5.2:** ⬜ ProjectsService updated
+**Checkpoint 5.2:** ⬜ User organisation service exists
 
 ---
 
-### 5.3 Update Chat Context API
+### 5.3 Update Existing Services
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 5.2 complete
-
 **Tasks:**
-- [ ] Check current /api/chat-context implementation
-- [ ] Add organisation context to response
-- [ ] Test API response
+- [ ] Review BaseService for org awareness
+- [ ] Update project service
+- [ ] Test data isolation
 
-**Files to Check:**
-- [ ] `/api/chat-context/route.js` (or current location)
-
-**Verification:**
-- [ ] API returns organisation context
-- [ ] Chat still works
-
-**Checkpoint 5.3:** ⬜ Chat context API updated
+**Checkpoint 5.3:** ⬜ All services are organisation-aware
 
 ---
 
-### 5.4 Update Create User API
+### 5.4 Update Project Creation Flow
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 5.3 complete
-
 **Tasks:**
-- [ ] Check current implementation
-- [ ] Require organisation_id
-- [ ] Create org membership before project membership
-- [ ] Test user creation
+- [ ] Projects must have organisation_id
+- [ ] Update ProjectManagement page
+- [ ] Test project creation
 
-**Files to Check:**
-- [ ] `/api/create-user/route.js` (or current location)
-
-**Verification:**
-- [ ] User creation requires org
-- [ ] User gets org membership
-
-**Checkpoint 5.4:** ⬜ Create user API updated
+**Checkpoint 5.4:** ⬜ Project creation includes organisation
 
 ---
 
 ## Phase 6: Testing
 
-### 6.1 Add Unit Tests for Org Permissions
+### 6.1 Write Unit Tests
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Phase 5 complete
-
 **Tasks:**
-- [ ] Create permission matrix tests
-- [ ] Create helper function tests
-- [ ] Run tests
-- [ ] Fix any failures
+- [ ] Test OrganisationContext
+- [ ] Test permission functions
+- [ ] Test service methods
 
-**Verification:**
-- [ ] All tests pass
-
-**Checkpoint 6.1:** ⬜ Unit tests passing
+**Checkpoint 6.1:** ⬜ Unit tests pass
 
 ---
 
-### 6.2 Add E2E Tests for Organisation Features
+### 6.2 Integration Testing
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 6.1 complete
-
 **Tasks:**
-- [ ] Create test users
-- [ ] Add org switcher tests
-- [ ] Add cross-org isolation tests
-- [ ] Add member management tests
-- [ ] Run tests
+- [ ] Test data isolation between orgs
+- [ ] Test role-based access
+- [ ] Test org switching
 
-**Verification:**
-- [ ] All E2E tests pass
-
-**Checkpoint 6.2:** ⬜ E2E tests passing
+**Checkpoint 6.2:** ⬜ Integration tests pass
 
 ---
 
 ## Phase 7: Final Verification
 
-### 7.1 Full System Test
+### 7.1 End-to-End Testing
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Phase 6 complete
-
 **Tasks:**
-- [ ] Test as system admin
-- [ ] Test as org owner
-- [ ] Test as org admin
-- [ ] Test as org member
-- [ ] Test cross-org isolation
-- [ ] Document any issues
+- [ ] Test complete user journey
+- [ ] Test edge cases
+- [ ] Performance testing
 
-**Checkpoint 7.1:** ⬜ All manual tests pass
+**Checkpoint 7.1:** ⬜ E2E tests pass
 
 ---
 
-### 7.2 Production Readiness
+### 7.2 Documentation Update
 **Status:** ⬜ Not Started
 
-**Prerequisites:**
-- [ ] Checkpoint 7.1 complete
-
 **Tasks:**
-- [ ] Review all console warnings
-- [ ] Check for security issues
-- [ ] Performance check
-- [ ] Documentation updated
-- [ ] Stakeholder sign-off
+- [ ] Update API documentation
+- [ ] Update user guide
+- [ ] Update deployment guide
 
-**Checkpoint 7.2:** ⬜ Ready for production
+**Checkpoint 7.2:** ⬜ Documentation complete
 
 ---
 
-## Progress Summary
+## Summary
 
-| Phase | Section | Status |
-|-------|---------|--------|
-| 1 | Database Schema | ⬜ 0/8 |
-| 2 | Frontend Context | ⬜ 0/5 |
-| 3 | Permission System | ⬜ 0/2 |
-| 4 | UI Components | ⬜ 0/5 |
-| 5 | Services & API | ⬜ 0/4 |
-| 6 | Testing | ⬜ 0/2 |
-| 7 | Final Verification | ⬜ 0/2 |
-| **Total** | | **0/28** |
+| Phase | Status | Checkpoints |
+|-------|--------|-------------|
+| Phase 1: Database Schema | ✅ Complete | 8/8 |
+| Phase 2: Frontend Context | 🔄 In Progress | 4/5 |
+| Phase 3: Permission System | ⬜ Not Started | 0/2 |
+| Phase 4: UI Components | ⬜ Not Started | 0/5 |
+| Phase 5: Services & API | ⬜ Not Started | 0/4 |
+| Phase 6: Testing | ⬜ Not Started | 0/2 |
+| Phase 7: Final Verification | ⬜ Not Started | 0/2 |
 
----
-
-## Next Session Prompt
-
-When starting each session, use this prompt:
-
-```
-I'm implementing organisation-level multi-tenancy for AMSF001. 
-We're at Checkpoint [X.X]: [Description]
-
-Last completed: [What was done]
-Next to do: [Next section]
-
-Please check the relevant existing code before we proceed.
-```
-
----
-
-*Implementation checklist for AMSF001 Organisation-Level Multi-Tenancy*
+**Total Progress:** 12/28 checkpoints complete (43%)

@@ -1,10 +1,11 @@
 // src/App.jsx
-// Version 16.0 - Updated ProtectedRoute with project-scoped role checks
+// Version 17.0 - Added OrganisationProvider for multi-tenancy
 //
 // Provider order is critical:
 // 1. AuthProvider - user authentication (no dependencies)
-// 2. ProjectProvider - fetches user's projects and project-scoped role (needs AuthContext)
-// 3. ViewAsProvider - role impersonation (needs AuthContext AND ProjectContext)
+// 2. OrganisationProvider - fetches user's organisations (needs AuthContext)
+// 3. ProjectProvider - fetches user's projects filtered by org (needs AuthContext AND OrganisationContext)
+// 4. ViewAsProvider - role impersonation (needs AuthContext AND ProjectContext)
 
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
@@ -13,6 +14,7 @@ import { Suspense, lazy } from 'react';
 
 // Import context providers
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { OrganisationProvider } from './contexts/OrganisationContext';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ViewAsProvider } from './contexts/ViewAsContext';
 import { TestUserProvider } from './contexts/TestUserContext';
@@ -168,10 +170,11 @@ export default function App() {
       <ErrorBoundary>
         <ToastProvider>
           <AuthProvider>
-            {/* ProjectProvider must come before ViewAsProvider 
-                because ViewAsProvider now uses projectRole from ProjectContext */}
-            <ProjectProvider>
-              <ViewAsProvider>
+            {/* OrganisationProvider must come before ProjectProvider
+                because ProjectProvider filters projects by current organisation */}
+            <OrganisationProvider>
+              <ProjectProvider>
+                <ViewAsProvider>
                 <TestUserProvider>
                   <MetricsProvider>
                     <NotificationProvider>
@@ -352,8 +355,9 @@ export default function App() {
                     </NotificationProvider>
                   </MetricsProvider>
                 </TestUserProvider>
-              </ViewAsProvider>
-            </ProjectProvider>
+                </ViewAsProvider>
+              </ProjectProvider>
+            </OrganisationProvider>
           </AuthProvider>
         </ToastProvider>
       </ErrorBoundary>

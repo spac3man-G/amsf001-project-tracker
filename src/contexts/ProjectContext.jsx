@@ -1,8 +1,14 @@
 // src/contexts/ProjectContext.jsx
 // Provides current project context to the entire application
-// Version 5.0 - Multi-tenancy support with project-scoped roles
+// Version 6.0 - Organisation-aware multi-tenancy support
 //
-// Key changes in v5.0:
+// Key changes in v6.0:
+// - Now depends on OrganisationContext for current organisation
+// - Filters projects by organisation_id
+// - Re-fetches projects when organisation changes
+// - Org admins can see all projects in their organisation (even if not directly assigned)
+//
+// Key features from v5.0 retained:
 // - Fetches user's assigned projects from user_projects table
 // - Includes project-specific role for each assignment
 // - Auto-selects default project or first available
@@ -12,6 +18,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { useOrganisation } from './OrganisationContext';
 
 const ProjectContext = createContext(null);
 
@@ -20,6 +27,12 @@ const PROJECT_STORAGE_KEY = 'amsf_current_project_id';
 
 export function ProjectProvider({ children }) {
   const { user, isLoading: authLoading } = useAuth();
+  const { 
+    organisationId, 
+    isOrgAdmin, 
+    isSystemAdmin,
+    isLoading: orgLoading 
+  } = useOrganisation();
   
   // State
   const [availableProjects, setAvailableProjects] = useState([]);
@@ -36,9 +49,18 @@ export function ProjectProvider({ children }) {
   const currentProject = currentAssignment?.project || null;
   const currentProjectRole = currentAssignment?.role || null;
 
-  // Fetch user's assigned projects
+  // Fetch user's assigned projects (filtered by organisation)
   const fetchUserProjects = useCallback(async () => {
     if (!user?.id) {
+      setAvailableProjects([]);
+      setCurrentProjectId(null);
+      setIsLoading(false);
+      return;
+    }
+
+    // Wait for organisation to be loaded
+    if (!organisationId) {
+      // If there's no organisation, user can't access any projects
       setAvailableProjects([]);
       setCurrentProjectId(null);
       setIsLoading(false);
@@ -49,15 +71,15 @@ export function ProjectProvider({ children }) {
     setError(null);
 
     try {
-      // Fetch all project assignments for this user with project details
-      const { data: assignments, error: fetchError } = await supabase
-        .from('user_projects')
-        .select(`
-          id,
-          project_id,
-          role,
-          is_default,
-          project:projects (
+      let assignments = [];
+
+      // For org admins or system admins: fetch ALL projects in the organisation
+      // They may not be in user_projects but should still see all org projects
+      if (isOrgAdmin || isSystemAdmin) {
+        // First, get all projects in the organisation
+        const { data: orgProjects, error: projectsError } = await supabase
+          .from('projects')
+          .select(`
             id,
             name,
             reference,
@@ -67,35 +89,96 @@ export function ProjectProvider({ children }) {
             allocated_days,
             expenses_budget,
             pmo_threshold,
-            description
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('is_default', { ascending: false });
+            description,
+            organisation_id
+          `)
+          .eq('organisation_id', organisationId)
+          .order('name');
 
-      if (fetchError) {
-        console.error('Error fetching user projects:', fetchError);
-        setError(fetchError);
-        setIsLoading(false);
-        return;
+        if (projectsError) {
+          console.error('Error fetching organisation projects:', projectsError);
+          setError(projectsError);
+          setIsLoading(false);
+          return;
+        }
+
+        // Then get user's actual role assignments
+        const { data: userAssignments, error: assignmentsError } = await supabase
+          .from('user_projects')
+          .select('project_id, role, is_default')
+          .eq('user_id', user.id);
+
+        if (assignmentsError) {
+          console.error('Error fetching user assignments:', assignmentsError);
+        }
+
+        // Create a map of user's roles per project
+        const roleMap = {};
+        (userAssignments || []).forEach(a => {
+          roleMap[a.project_id] = { role: a.role, is_default: a.is_default };
+        });
+
+        // Build assignments array with org admin having 'admin' role for unassigned projects
+        assignments = (orgProjects || []).map(project => ({
+          id: `${user.id}-${project.id}`, // synthetic ID
+          project_id: project.id,
+          role: roleMap[project.id]?.role || 'admin', // Org admins default to admin role
+          is_default: roleMap[project.id]?.is_default || false,
+          project: project
+        }));
+
+      } else {
+        // Regular users: fetch only their assigned projects within the organisation
+        const { data: userAssignments, error: fetchError } = await supabase
+          .from('user_projects')
+          .select(`
+            id,
+            project_id,
+            role,
+            is_default,
+            project:projects (
+              id,
+              name,
+              reference,
+              start_date,
+              end_date,
+              total_budget,
+              allocated_days,
+              expenses_budget,
+              pmo_threshold,
+              description,
+              organisation_id
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('is_default', { ascending: false });
+
+        if (fetchError) {
+          console.error('Error fetching user projects:', fetchError);
+          setError(fetchError);
+          setIsLoading(false);
+          return;
+        }
+
+        // Filter to only projects in the current organisation
+        assignments = (userAssignments || []).filter(
+          a => a.project?.organisation_id === organisationId
+        );
       }
 
       if (!assignments || assignments.length === 0) {
-        console.warn('User has no project assignments');
+        console.warn('User has no project assignments in this organisation');
         setAvailableProjects([]);
         setCurrentProjectId(null);
-        setError({ message: 'No projects assigned. Please contact your administrator.' });
+        // Only show error if user is not an org admin (org admins just have no projects yet)
+        if (!isOrgAdmin && !isSystemAdmin) {
+          setError({ message: 'No projects assigned. Please contact your administrator.' });
+        }
         setIsLoading(false);
         return;
       }
 
-      // Transform assignments to include project at top level for easier access
-      const transformedAssignments = assignments.map(a => ({
-        ...a,
-        project: a.project // Keep nested structure but ensure it's accessible
-      }));
-
-      setAvailableProjects(transformedAssignments);
+      setAvailableProjects(assignments);
 
       // Determine which project to select
       let selectedProjectId = null;
@@ -105,7 +188,7 @@ export function ProjectProvider({ children }) {
         const storedProjectId = localStorage.getItem(PROJECT_STORAGE_KEY);
         if (storedProjectId) {
           // Verify the stored project is still in the user's assignments
-          const storedAssignment = transformedAssignments.find(
+          const storedAssignment = assignments.find(
             a => a.project_id === storedProjectId
           );
           if (storedAssignment) {
@@ -118,15 +201,15 @@ export function ProjectProvider({ children }) {
 
       // 2. Fall back to default project
       if (!selectedProjectId) {
-        const defaultAssignment = transformedAssignments.find(a => a.is_default);
+        const defaultAssignment = assignments.find(a => a.is_default);
         if (defaultAssignment) {
           selectedProjectId = defaultAssignment.project_id;
         }
       }
 
       // 3. Fall back to first available project
-      if (!selectedProjectId && transformedAssignments.length > 0) {
-        selectedProjectId = transformedAssignments[0].project_id;
+      if (!selectedProjectId && assignments.length > 0) {
+        selectedProjectId = assignments[0].project_id;
       }
 
       setCurrentProjectId(selectedProjectId);
@@ -146,14 +229,30 @@ export function ProjectProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, organisationId, isOrgAdmin, isSystemAdmin]);
 
-  // Fetch projects when user changes
+  // Fetch projects when user or organisation changes
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && !orgLoading) {
       fetchUserProjects();
     }
-  }, [authLoading, fetchUserProjects]);
+  }, [authLoading, orgLoading, fetchUserProjects]);
+
+  // Clear current project when organisation changes and current project is not in new org
+  useEffect(() => {
+    if (currentProjectId && availableProjects.length > 0) {
+      const projectInOrg = availableProjects.find(a => a.project_id === currentProjectId);
+      if (!projectInOrg) {
+        // Current project not in this organisation, clear it
+        setCurrentProjectId(null);
+        try {
+          localStorage.removeItem(PROJECT_STORAGE_KEY);
+        } catch (e) {
+          console.warn('Failed to clear project from localStorage:', e);
+        }
+      }
+    }
+  }, [organisationId, currentProjectId, availableProjects]);
 
   // Switch to a different project
   const switchProject = useCallback((projectId) => {
@@ -222,7 +321,7 @@ export function ProjectProvider({ children }) {
     projectRef: currentProject?.reference || null,
     projectName: currentProject?.name || null,
     
-    // Project-scoped role (THIS IS THE KEY ADDITION)
+    // Project-scoped role
     projectRole: currentProjectRole,
     
     // Multi-project support
@@ -231,7 +330,7 @@ export function ProjectProvider({ children }) {
     switchProject,
     
     // State
-    isLoading: isLoading || authLoading,
+    isLoading: isLoading || authLoading || orgLoading,
     error,
     
     // Actions
@@ -245,6 +344,7 @@ export function ProjectProvider({ children }) {
     switchProject,
     isLoading,
     authLoading,
+    orgLoading,
     error,
     refreshProject,
     refreshProjectAssignments,
