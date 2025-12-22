@@ -320,42 +320,30 @@ export class OrganisationService {
         throw memberError;
       }
 
-      console.log('Memberships found:', memberships?.length);
-
       if (!memberships || memberships.length === 0) {
         return [];
       }
 
       // Get user IDs from memberships
       const userIds = memberships.map(m => m.user_id);
-      console.log('User IDs to fetch:', userIds);
 
-      // Fetch profiles one by one to avoid potential .in() issues
-      // This is less efficient but more reliable
-      const profiles = [];
-      for (const userId of userIds) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, email, full_name, avatar_url, role')
-          .eq('id', userId)
-          .single();
-        
-        if (!profileError && profile) {
-          profiles.push(profile);
-        } else {
-          console.log('Failed to fetch profile for user:', userId, profileError?.message);
-        }
+      // Fetch profiles for all users
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, avatar_url, role')
+        .in('id', userIds);
+
+      if (profileError) {
+        console.error('Organisation getMembers profiles error:', profileError);
+        // Return memberships without profile data rather than failing completely
+        return memberships.map(m => ({ ...m, user: null }));
       }
 
-      console.log('Profiles fetched:', profiles.length);
-
       // Map profiles to memberships
-      const profileMap = profiles.reduce((acc, p) => {
+      const profileMap = (profiles || []).reduce((acc, p) => {
         acc[p.id] = p;
         return acc;
       }, {});
-
-      console.log('Profile map keys:', Object.keys(profileMap));
 
       return memberships.map(m => ({
         ...m,
