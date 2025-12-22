@@ -306,37 +306,49 @@ export class OrganisationService {
    */
   async getMembers(organisationId) {
     try {
-      const { data, error } = await supabase
+      // First get the user_organisations memberships
+      const { data: memberships, error: memberError } = await supabase
         .from('user_organisations')
-        .select(`
-          id,
-          user_id,
-          org_role,
-          is_active,
-          is_default,
-          invited_by,
-          invited_at,
-          accepted_at,
-          created_at,
-          user:profiles!user_organisations_user_id_fkey (
-            id,
-            email,
-            full_name,
-            avatar_url,
-            role
-          )
-        `)
+        .select('*')
         .eq('organisation_id', organisationId)
         .eq('is_active', true)
         .order('org_role', { ascending: true })
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Organisation getMembers error:', error);
-        throw error;
+      if (memberError) {
+        console.error('Organisation getMembers error:', memberError);
+        throw memberError;
       }
 
-      return data || [];
+      if (!memberships || memberships.length === 0) {
+        return [];
+      }
+
+      // Get user IDs from memberships
+      const userIds = memberships.map(m => m.user_id);
+
+      // Fetch profiles for all users
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, avatar_url, role')
+        .in('id', userIds);
+
+      if (profileError) {
+        console.error('Organisation getMembers profiles error:', profileError);
+        // Return memberships without profile data rather than failing completely
+        return memberships.map(m => ({ ...m, user: null }));
+      }
+
+      // Map profiles to memberships
+      const profileMap = (profiles || []).reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+      }, {});
+
+      return memberships.map(m => ({
+        ...m,
+        user: profileMap[m.user_id] || null
+      }));
     } catch (error) {
       console.error('Organisation getMembers failed:', error);
       throw error;
