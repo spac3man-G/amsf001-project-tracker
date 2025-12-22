@@ -9,9 +9,9 @@
  *   // Or import the base class for custom services
  *   import { BaseService } from '../services';
  * 
- * @version 2.4
- * @updated 16 December 2025
- * @phase Workflow System Enhancement
+ * @version 2.5
+ * @updated 22 December 2025
+ * @phase Organisation Multi-tenancy
  */
 
 // Base class for extending
@@ -107,3 +107,9 @@ export {
   WORKFLOW_CATEGORIES,
   ROLES as WORKFLOW_ROLES
 } from './workflow.service';
+
+// Organisation (multi-tenancy)
+export {
+  organisationService,
+  OrganisationService
+} from './organisation.service';

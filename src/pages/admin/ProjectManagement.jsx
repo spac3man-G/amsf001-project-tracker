@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useProjectRole } from '../../hooks/useProjectRole';
 import { useProject } from '../../contexts/ProjectContext';
+import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import { ROLE_CONFIG, ROLE_OPTIONS } from '../../lib/permissionMatrix';
@@ -62,6 +63,7 @@ export default function ProjectManagement() {
   const { user } = useAuth();
   const { isSystemAdmin, loading: roleLoading } = useProjectRole();
   const { refreshProjectAssignments } = useProject();
+  const { organisationId, currentOrganisation } = useOrganisation();
   const { showSuccess, showError, showWarning } = useToast();
 
   // Check if user can manage projects (admin or any supplier_pm)
@@ -213,6 +215,7 @@ export default function ProjectManagement() {
         },
         body: JSON.stringify({
           ...newProject,
+          organisation_id: organisationId,
           adminToken: session?.access_token,
         }),
       });

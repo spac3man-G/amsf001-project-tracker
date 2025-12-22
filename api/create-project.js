@@ -1,6 +1,9 @@
 // Vercel Edge Function for Project Creation
 // Allows admins and supplier_pm to create new projects
-// Version 1.0 - 15 December 2025
+// Version 2.0 - Added organisation support for multi-tenancy
+// - Requires organisation_id in request
+// - Validates user has org_admin/org_owner role OR system admin
+// - Projects are now scoped to organisations
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -37,6 +40,7 @@ export default async function handler(req) {
       start_date,
       end_date,
       total_budget,
+      organisation_id,
       adminToken 
     } = body;
 
@@ -86,44 +90,117 @@ export default async function handler(req) {
       });
     }
 
-    // Check user's global role (must be admin) OR project role (supplier_pm)
+    // Check user's global role
     const { data: userProfile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', requestingUser.id)
       .single();
 
-    // For now, only global admins can create projects
-    // In future, could check if user is supplier_pm on any project
-    if (!userProfile || userProfile.role !== 'admin') {
-      // Check if they're a supplier_pm on any existing project
-      const { data: pmAssignments } = await supabase
-        .from('user_projects')
-        .select('role')
+    const isSystemAdmin = userProfile?.role === 'admin';
+
+    // Determine organisation_id
+    let orgId = organisation_id;
+
+    // If no org specified, try to get user's default organisation
+    if (!orgId) {
+      const { data: userOrgs } = await supabase
+        .from('user_organisations')
+        .select('organisation_id, is_default, org_role')
         .eq('user_id', requestingUser.id)
-        .eq('role', 'supplier_pm')
+        .eq('is_active', true)
+        .order('is_default', { ascending: false })
         .limit(1);
-      
-      if (!pmAssignments || pmAssignments.length === 0) {
+
+      if (userOrgs && userOrgs.length > 0) {
+        orgId = userOrgs[0].organisation_id;
+      }
+    }
+
+    // Validate organisation exists if specified
+    if (orgId) {
+      const { data: org, error: orgError } = await supabase
+        .from('organisations')
+        .select('id, name, is_active')
+        .eq('id', orgId)
+        .single();
+
+      if (orgError || !org || !org.is_active) {
         return new Response(JSON.stringify({ 
-          error: 'Insufficient permissions. Only admins and supplier PMs can create projects.' 
+          error: 'Organisation not found or inactive' 
         }), {
-          status: 403,
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Check if user can create projects in this organisation
+      // Must be org_owner, org_admin, or system admin
+      if (!isSystemAdmin) {
+        const { data: membership } = await supabase
+          .from('user_organisations')
+          .select('org_role')
+          .eq('organisation_id', orgId)
+          .eq('user_id', requestingUser.id)
+          .eq('is_active', true)
+          .single();
+
+        const canCreateProjects = membership && 
+          (membership.org_role === 'org_owner' || membership.org_role === 'org_admin');
+
+        if (!canCreateProjects) {
+          // Fallback: check if they're supplier_pm on any project in this org
+          const { data: pmAssignments } = await supabase
+            .from('user_projects')
+            .select(`
+              role,
+              project:projects!inner(organisation_id)
+            `)
+            .eq('user_id', requestingUser.id)
+            .eq('role', 'supplier_pm')
+            .limit(1);
+
+          const hasPmInOrg = pmAssignments?.some(
+            a => a.project?.organisation_id === orgId
+          );
+
+          if (!hasPmInOrg) {
+            return new Response(JSON.stringify({ 
+              error: 'Insufficient permissions. Only organisation admins can create projects.' 
+            }), {
+              status: 403,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+        }
+      }
+    } else {
+      // No organisation - legacy support for system admins only
+      if (!isSystemAdmin) {
+        return new Response(JSON.stringify({ 
+          error: 'Organisation is required to create a project' 
+        }), {
+          status: 400,
           headers: { 'Content-Type': 'application/json' },
         });
       }
     }
 
-    // Check if reference already exists
-    const { data: existingProject } = await supabase
+    // Check if reference already exists (within the organisation if specified)
+    let existingQuery = supabase
       .from('projects')
       .select('id')
-      .eq('reference', reference.toUpperCase())
-      .single();
+      .eq('reference', reference.toUpperCase());
+    
+    if (orgId) {
+      existingQuery = existingQuery.eq('organisation_id', orgId);
+    }
+
+    const { data: existingProject } = await existingQuery.single();
 
     if (existingProject) {
       return new Response(JSON.stringify({ 
-        error: `Project reference "${reference}" already exists` 
+        error: `Project reference "${reference}" already exists${orgId ? ' in this organisation' : ''}` 
       }), {
         status: 409,
         headers: { 'Content-Type': 'application/json' },
@@ -138,6 +215,7 @@ export default async function handler(req) {
       start_date: start_date || null,
       end_date: end_date || null,
       total_budget: total_budget ? parseFloat(total_budget) : 0,
+      organisation_id: orgId || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -158,13 +236,13 @@ export default async function handler(req) {
       });
     }
 
-    // Assign the creating user as supplier_pm on the new project
+    // Assign the creating user as supplier_pm (admin) on the new project
     const { error: assignmentError } = await supabase
       .from('user_projects')
       .insert({
         user_id: requestingUser.id,
         project_id: newProject.id,
-        role: 'supplier_pm',
+        role: 'admin', // Creator gets admin role on the project
         is_default: false, // Don't change their default project
         created_at: new Date().toISOString(),
       });
