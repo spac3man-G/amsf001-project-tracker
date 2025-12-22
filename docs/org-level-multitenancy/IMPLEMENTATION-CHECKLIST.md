@@ -256,69 +256,80 @@ ToastProvider
 
 ---
 
-## Phase 4: UI Components
+## Phase 4: UI Components ✅ COMPLETE
 
 ### 4.1 Create Organisation Switcher Component
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Tasks:**
-- [ ] Create `src/components/organisation/OrganisationSwitcher.jsx`
-- [ ] Show current organisation name
-- [ ] Dropdown to switch (if multiple orgs)
-- [ ] Style to match existing UI
+**File:** `src/components/OrganisationSwitcher.jsx`
 
-**Checkpoint 4.1:** ⬜ Organisation switcher component exists
+**Features:**
+- Only shows when user has multiple organisations
+- Displays current org with role badge (Owner/Admin/Member)
+- Dropdown to switch between organisations
+- Uses purple colour scheme to differentiate from project switcher (green)
+- Role icons (Crown, Shield, User) for visual distinction
+
+**Checkpoint 4.1:** ✅ Organisation switcher component exists
 
 ---
 
 ### 4.2 Update Header/Layout
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Tasks:**
-- [ ] Review `src/components/Layout.jsx`
-- [ ] Add organisation switcher to header
-- [ ] Show organisation name/logo
-- [ ] Test responsive behaviour
+**File:** `src/components/Layout.jsx` (already had OrganisationSwitcher import)
 
-**Checkpoint 4.2:** ⬜ Header shows organisation and switcher
+**Layout already included:**
+- OrganisationSwitcher in header (before ProjectSwitcher)
+- Correct positioning with other header elements
+
+**Checkpoint 4.2:** ✅ Header shows organisation and switcher
 
 ---
 
 ### 4.3 Create Organisation Settings Page
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Tasks:**
-- [ ] Create `src/pages/admin/OrganisationSettings.jsx`
-- [ ] Add route in App.jsx
-- [ ] Form for editing org settings
-- [ ] Only visible to org admins
+**File:** `src/pages/admin/OrganisationSettings.jsx` (v1.1 - fixed styling)
 
-**Checkpoint 4.3:** ⬜ Organisation settings page works
+**Features:**
+- View/edit org name, display name
+- Manage branding (logo URL, primary color)
+- Toggle features (AI chat, receipt scanner, variations, reports)
+- View subscription info (owner only)
+- Permission-based access (org admins only)
+
+**Checkpoint 4.3:** ✅ Organisation settings page works
 
 ---
 
 ### 4.4 Create Organisation Members Page
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Tasks:**
-- [ ] Create `src/pages/admin/OrganisationMembers.jsx`
-- [ ] List members with roles
-- [ ] Invite new members
-- [ ] Change roles
+**File:** `src/pages/admin/OrganisationMembers.jsx`
 
-**Checkpoint 4.4:** ⬜ Organisation members page works
+**Features:**
+- List all members with roles and join dates
+- Add new members by email
+- Change member roles (with restrictions)
+- Remove members (can't remove owner)
+- Role icons and badges
+
+**Checkpoint 4.4:** ✅ Organisation members page works
 
 ---
 
 ### 4.5 Update Navigation
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 
-**Tasks:**
-- [ ] Add organisation admin links to nav
-- [ ] Only show to org admins
-- [ ] Test nav permissions
+**File:** `src/lib/navigation.js`
 
-**Checkpoint 4.5:** ⬜ Navigation includes organisation management
+**Added:**
+- `orgSettings` nav item (/admin/organisation)
+- `orgMembers` nav item (/admin/organisation/members)
+- Added to ROLE_NAV_ORDER for admin and supplier_pm roles
+
+**Checkpoint 4.5:** ✅ Navigation includes organisation management
 
 ---
 
@@ -431,9 +442,9 @@ ToastProvider
 | Phase 1: Database Schema | ✅ Complete | 8/8 |
 | Phase 2: Frontend Context | 🔄 In Progress | 4/5 |
 | Phase 3: Permission System | ✅ Complete | 2/2 |
-| Phase 4: UI Components | ⬜ Not Started | 0/5 |
+| Phase 4: UI Components | ✅ Complete | 5/5 |
 | Phase 5: Services & API | ⬜ Not Started | 0/4 |
 | Phase 6: Testing | ⬜ Not Started | 0/2 |
 | Phase 7: Final Verification | ⬜ Not Started | 0/2 |
 
-**Total Progress:** 15/28 checkpoints complete (54%)
+**Total Progress:** 20/28 checkpoints complete (71%)

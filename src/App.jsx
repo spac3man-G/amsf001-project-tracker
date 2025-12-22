@@ -70,6 +70,8 @@ const VariationDetail = lazy(() => import('./pages/VariationDetail'));
 const VariationForm = lazy(() => import('./pages/VariationForm'));
 const SystemUsers = lazy(() => import('./pages/admin/SystemUsers'));
 const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
+const OrganisationSettings = lazy(() => import('./pages/admin/OrganisationSettings'));
+const OrganisationMembers = lazy(() => import('./pages/admin/OrganisationMembers'));
 
 /**
  * PageLoader - Shows skeleton while lazy components load
@@ -334,6 +336,16 @@ export default function App() {
                             {/* Project Management (admin and supplier_pm) */}
                             <Route path="/admin/projects" element={
                               <ProtectedRoute><ProjectManagement /></ProtectedRoute>
+                            } />
+                            
+                            {/* Organisation Settings (org admins) */}
+                            <Route path="/admin/organisation" element={
+                              <ProtectedRoute><OrganisationSettings /></ProtectedRoute>
+                            } />
+                            
+                            {/* Organisation Members (org admins) */}
+                            <Route path="/admin/organisation/members" element={
+                              <ProtectedRoute><OrganisationMembers /></ProtectedRoute>
                             } />
                             
                             {/* Catch all */}

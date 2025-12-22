@@ -37,7 +37,9 @@ import {
   ShieldAlert,
   CalendarDays,
   GitPullRequestDraft,
-  Shield
+  Shield,
+  Building,
+  UsersRound
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -232,6 +234,23 @@ export const NAV_ITEMS = {
     label: 'Projects',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
+  },
+  // Organisation Admin Items (visible to org admins)
+  orgSettings: {
+    id: 'orgSettings',
+    path: '/admin/organisation',
+    icon: Building,
+    label: 'Organisation',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: []
+  },
+  orgMembers: {
+    id: 'orgMembers',
+    path: '/admin/organisation/members',
+    icon: UsersRound,
+    label: 'Org Members',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: []
   }
 };
 
@@ -281,7 +300,9 @@ export const ROLE_NAV_ORDER = {
     'auditLog',
     'deletedItems',
     'systemUsers',
-    'projectManagement'
+    'projectManagement',
+    'orgSettings',
+    'orgMembers'
   ],
   [ROLES.SUPPLIER_PM]: [
     'workflowSummary',
@@ -303,7 +324,9 @@ export const ROLE_NAV_ORDER = {
     'settings',
     'auditLog',
     'deletedItems',
-    'projectManagement'
+    'projectManagement',
+    'orgSettings',
+    'orgMembers'
   ],
   [ROLES.SUPPLIER_FINANCE]: [
     'workflowSummary',
