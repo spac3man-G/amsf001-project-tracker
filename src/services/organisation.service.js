@@ -320,18 +320,23 @@ export class OrganisationService {
         throw memberError;
       }
 
+      console.log('Memberships found:', memberships?.length);
+
       if (!memberships || memberships.length === 0) {
         return [];
       }
 
       // Get user IDs from memberships
       const userIds = memberships.map(m => m.user_id);
+      console.log('User IDs to fetch:', userIds);
 
       // Fetch profiles for all users
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, email, full_name, avatar_url, role')
         .in('id', userIds);
+
+      console.log('Profiles fetched:', profiles?.length, 'Error:', profileError);
 
       if (profileError) {
         console.error('Organisation getMembers profiles error:', profileError);
@@ -344,6 +349,8 @@ export class OrganisationService {
         acc[p.id] = p;
         return acc;
       }, {});
+
+      console.log('Profile map keys:', Object.keys(profileMap));
 
       return memberships.map(m => ({
         ...m,
