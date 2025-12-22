@@ -463,9 +463,14 @@ Integration testing will be performed manually:
 **Documentation Created/Updated:**
 1. `docs/org-level-multitenancy/ARCHITECTURE.md` - Complete system design
 2. `docs/org-level-multitenancy/IMPLEMENTATION-CHECKLIST.md` - This file
-3. `docs/org-level-multitenancy/migrations/` - All 8 SQL migrations documented
+3. `docs/org-level-multitenancy/migrations/` - All SQL migrations documented
 4. Component JSDoc headers updated for all new files
 5. Service layer documentation in code
+
+**Additional Database Objects Created:**
+- `organisation_members_with_profiles` view - Joins user_organisations with profiles
+- `get_org_member_profiles()` function - RPC function (alternative approach)
+- `profiles_org_members_can_view` policy - RLS policy for profile access
 
 **Checkpoint 7.2:** ✅ Documentation complete
 
