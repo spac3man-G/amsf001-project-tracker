@@ -114,19 +114,21 @@ This plan provides a systematic approach to review and update each document.
 ### TECH-SPEC-02-Database-Core.md
 **Focus:** profiles, projects, user_projects tables
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Add `organisations` table documentation
-- Add `user_organisations` table documentation
-- Update `projects` table (add organisation_id column)
-- Add organisation_members_with_profiles view
-- Update ER diagrams
+**Updates Made (23 Dec 2025):**
+- Added `organisations` table documentation (Section 2)
+- Added `user_organisations` table documentation (Section 3)
+- Added `organisation_members_with_profiles` view (Section 4)
+- Updated `projects` table with `organisation_id` column (Section 5)
+- Updated ER diagram with organisation layer (Section 12)
+- Renumbered all sections (now 14 sections total)
+- Version: 1.0 → 2.0
 
 ---
 
@@ -342,7 +344,7 @@ To prevent context overflow during reviews:
 | Document | Status | Date | Notes |
 |----------|--------|------|-------|
 | TECH-SPEC-01 | ⬜ Pending | | |
-| TECH-SPEC-02 | ⬜ Pending | | |
+| TECH-SPEC-02 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org tables, updated ER diagram |
 | TECH-SPEC-03 | ⬜ Pending | | |
 | TECH-SPEC-04 | ⬜ Pending | | |
 | TECH-SPEC-05 | ⬜ Pending | | |
