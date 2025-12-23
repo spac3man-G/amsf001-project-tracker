@@ -1,10 +1,19 @@
 # AMSF001 Technical Specification - RLS Policies & Security
 
-**Document Version:** 1.1  
+**Document Version:** 2.0  
 **Created:** 11 December 2025  
-**Updated:** 13 December 2025  
+**Updated:** 23 December 2025  
 **Session:** 1.5  
 **Scope:** Row Level Security, Authentication, Authorization
+
+> **Version 2.0 Updates (23 December 2025):**
+> - Added organisation-level RLS helper functions (Section 1.3)
+> - Updated multi-tenancy architecture to three-tier model (Section 2)
+> - Added organisations table policies (Section 4)
+> - Added user_organisations table policies (Section 4)
+> - Updated projects and user_projects policies for org-awareness (Section 4)
+> - Added profiles_org_members_can_view policy (Section 4)
+> - Updated security layers diagram
 
 ---
 
@@ -20,6 +29,7 @@
 8. [API Security](#8-api-security)
 9. [Security Best Practices](#9-security-best-practices)
 10. [Special Cases & Edge Cases](#10-special-cases--edge-cases)
+11. [Document History](#11-document-history)
 
 ---
 
@@ -27,11 +37,12 @@
 
 ### 1.1 RLS Architecture
 
-AMSF001 implements a comprehensive Row Level Security (RLS) model using PostgreSQL's native RLS capabilities through Supabase. The security architecture is built on three foundational principles:
+AMSF001 implements a comprehensive Row Level Security (RLS) model using PostgreSQL's native RLS capabilities through Supabase. The security architecture is built on four foundational principles:
 
-1. **Project Isolation**: Users can only access data within projects they are members of
-2. **Role-Based Permissions**: Different roles have different capabilities within a project
-3. **Ownership Controls**: Certain operations are restricted to record owners
+1. **Organisation Isolation**: Users can only access data within organisations they belong to
+2. **Project Isolation**: Within an organisation, users can only access projects they are members of (unless org admin)
+3. **Role-Based Permissions**: Different roles have different capabilities at both organisation and project levels
+4. **Ownership Controls**: Certain operations are restricted to record owners
 
 ### 1.2 Security Layers
 
@@ -46,8 +57,17 @@ AMSF001 implements a comprehensive Row Level Security (RLS) model using PostgreS
 │                       Supabase Auth                          │
 │              (JWT Tokens, Session Management)                │
 ├─────────────────────────────────────────────────────────────┤
-│                   PostgreSQL RLS Policies                    │
-│            (Row-Level Access Control - FINAL GATE)           │
+│               PostgreSQL RLS Policies                        │
+│      ┌─────────────────────────────────────────────┐        │
+│      │         Organisation Layer (NEW)            │        │
+│      │    (is_org_member, is_org_admin, etc.)      │        │
+│      ├─────────────────────────────────────────────┤        │
+│      │            Project Layer                    │        │
+│      │  (can_access_project, has_project_role)     │        │
+│      ├─────────────────────────────────────────────┤        │
+│      │            Entity Layer                     │        │
+│      │    (Row-level policies on tables)           │        │
+│      └─────────────────────────────────────────────┘        │
 ├─────────────────────────────────────────────────────────────┤
 │                     Database Tables                          │
 │                  (Data Storage Layer)                        │
@@ -56,82 +76,171 @@ AMSF001 implements a comprehensive Row Level Security (RLS) model using PostgreS
 
 ### 1.3 Key Functions Used in Policies
 
+#### Organisation-Level Functions (NEW - December 2025)
+
 | Function | Purpose |
-|----------|---------|
+|----------|--------|
+| `is_system_admin()` | Returns true if current user has admin role in profiles |
+| `is_org_member(uuid)` | Returns true if current user is an active member of the organisation |
+| `is_org_admin(uuid)` | Returns true if current user is org_owner or org_admin |
+| `is_org_owner(uuid)` | Returns true if current user is the org_owner |
+| `get_org_role(uuid)` | Returns the user's org_role (org_owner, org_admin, org_member) |
+| `get_user_organisation_ids()` | Returns all organisation IDs the user belongs to |
+
+#### Project-Level Functions
+
+| Function | Purpose |
+|----------|--------|
 | `auth.uid()` | Returns the authenticated user's UUID |
 | `auth.role()` | Returns the authenticated role ('authenticated' or 'anon') |
-| `get_my_project_ids()` | SECURITY DEFINER function returning project IDs for current user |
-| `can_manage_project(uuid)` | SECURITY DEFINER function checking if user can manage a project |
+| `can_access_project(uuid)` | Checks org membership + project membership (or org admin) |
+| `get_project_role(uuid)` | Returns the user's role in a specific project |
+| `has_project_role(uuid, text[])` | Returns true if user has one of the specified project roles |
+| `get_accessible_project_ids()` | Returns all project IDs the user can access |
+
+#### Legacy Functions (still supported)
+
+| Function | Purpose |
+|----------|--------|
+| `get_my_project_ids()` | Returns project IDs for current user (project-level only) |
+| `can_manage_project(uuid)` | Checks if user can manage a project (admin/supplier_pm) |
 
 ---
 
 ## 2. Multi-Tenancy Architecture
 
-### 2.1 Project-Scoped Multi-Tenancy
+### 2.1 Three-Tier Multi-Tenancy Model (Updated December 2025)
 
-AMSF001 implements project-level multi-tenancy where:
-- A single Supabase instance hosts multiple projects
-- Users can be members of multiple projects with different roles per project
-- Data isolation is enforced at the database level via RLS
+AMSF001 implements a three-tier multi-tenancy model:
 
-### 2.2 The user_projects Junction Table
+```
+┌───────────────────────────────────────────────────────────┐
+│                    ORGANISATION                            │
+│         (Top-level tenant - e.g., "Acme Corp")              │
+│    Roles: org_owner, org_admin, org_member                  │
+├─────────────────────────────┬─────────────────────────────┤
+│          PROJECT A          │          PROJECT B          │
+│   (e.g., "Website Rebuild") │   (e.g., "Mobile App")       │
+│   Roles: admin, supplier_pm,│   Roles: admin, supplier_pm, │
+│   customer_pm, contributor  │   customer_pm, contributor   │
+├─────────────┬───────────────┼──────────────┬──────────────┤
+│ Milestones  │  Resources    │  Milestones  │  Resources   │
+│ Deliverables│  Timesheets   │  Deliverables│  Timesheets  │
+│ Variations  │  Expenses     │  Variations  │  Expenses    │
+└─────────────┴───────────────┴──────────────┴──────────────┘
+```
 
-The `user_projects` table is the cornerstone of multi-tenancy:
+**Key Characteristics:**
+- A single Supabase instance hosts multiple organisations
+- Each organisation contains multiple projects
+- Users can belong to multiple organisations with different org roles
+- Within an organisation, users can belong to multiple projects with different project roles
+- Org admins (org_owner, org_admin) can access all projects in their organisation
+- Regular org members need explicit project membership
+
+### 2.2 The user_organisations Junction Table (NEW)
+
+The `user_organisations` table manages organisation membership:
+
+```sql
+CREATE TABLE user_organisations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  org_role TEXT NOT NULL CHECK (org_role IN ('org_owner', 'org_admin', 'org_member')),
+  is_active BOOLEAN DEFAULT TRUE,
+  invited_by UUID REFERENCES auth.users(id),
+  invited_at TIMESTAMPTZ DEFAULT NOW(),
+  joined_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, organisation_id)
+);
+```
+
+**Organisation Roles:**
+
+| Role | Description | Capabilities |
+|------|-------------|-------------|
+| `org_owner` | Organisation owner | Full control, can delete org, manage all members |
+| `org_admin` | Organisation administrator | Manage members, access all projects, create projects |
+| `org_member` | Regular member | Access only assigned projects |
+
+### 2.3 The user_projects Junction Table
+
+The `user_projects` table manages project-level membership:
 
 ```sql
 CREATE TABLE user_projects (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id),
   project_id UUID REFERENCES projects(id),
-  role TEXT CHECK (role IN ('admin', 'supplier_pm', 'supplier_finance', 'customer_pm', 'customer_finance', 'contributor', 'viewer')),
+  role TEXT CHECK (role IN ('admin', 'supplier_pm', 'supplier_finance', 
+                            'customer_pm', 'customer_finance', 'contributor', 'viewer')),
+  is_default BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ,
   UNIQUE(user_id, project_id)
 );
 ```
 
-> **IMPORTANT: `user_projects` is Authoritative for Project Access**
+> **IMPORTANT: Dual Membership Requirement**
 >
-> As of December 2025, the `user_projects` table is the **single source of truth** for:
-> - Project membership (who can access which project)
-> - Project-scoped roles (what role a user has within a specific project)
+> As of December 2025, users need BOTH:
+> 1. **Organisation membership** via `user_organisations` (with `is_active = TRUE`)
+> 2. **Project membership** via `user_projects` (unless they are org_admin/org_owner)
 >
-> The `profiles.role` column stores the user's **global role** (used for system administration like creating new projects), but **project-scoped permissions** are always derived from `user_projects.role`.
->
-> This design supports:
-> - Users having different roles in different projects
-> - Future multi-organization expansion
-> - Clear separation between system admin (global) and project access (scoped)
+> The `can_access_project()` function enforces this dual requirement.
 
-**Critical Design Decision**: The `user_projects` policies use SECURITY DEFINER helper functions to avoid circular dependencies:
+### 2.4 Access Hierarchy
+
+```
+System Admin (profiles.role = 'admin')
+    └──► Can access ALL organisations and projects
+
+Org Owner/Admin (user_organisations.org_role IN ('org_owner', 'org_admin'))
+    └──► Can access ALL projects within their organisation(s)
+
+Org Member (user_organisations.org_role = 'org_member')
+    └──► Can access ONLY projects they are explicitly added to
+```
+
+### 2.5 The can_access_project() Function
+
+This is the primary access control function used by most RLS policies:
 
 ```sql
--- Helper function bypasses RLS to get user's projects
-CREATE OR REPLACE FUNCTION get_my_project_ids()
-RETURNS SETOF uuid
+CREATE OR REPLACE FUNCTION can_access_project(p_project_id uuid)
+RETURNS boolean
 LANGUAGE sql SECURITY DEFINER STABLE
-AS $ SELECT project_id FROM user_projects WHERE user_id = auth.uid() $;
-
--- SELECT policy uses the helper function
-CREATE POLICY "user_projects_select_policy" 
-ON public.user_projects FOR SELECT TO authenticated 
-USING (project_id IN (SELECT get_my_project_ids()));
+AS $
+  SELECT 
+    -- System admin can access any project
+    is_system_admin()
+    OR
+    -- Org admins can access all projects in their organisation
+    EXISTS (
+      SELECT 1 FROM projects p
+      JOIN user_organisations uo ON uo.organisation_id = p.organisation_id
+      WHERE p.id = p_project_id
+      AND uo.user_id = auth.uid()
+      AND uo.org_role IN ('org_owner', 'org_admin')
+      AND uo.is_active = TRUE
+    )
+    OR
+    -- Regular users need both org membership AND project membership
+    EXISTS (
+      SELECT 1 FROM projects p
+      JOIN user_organisations uo ON uo.organisation_id = p.organisation_id
+      JOIN user_projects up ON up.project_id = p.id
+      WHERE p.id = p_project_id
+      AND uo.user_id = auth.uid()
+      AND uo.is_active = TRUE
+      AND up.user_id = auth.uid()
+    )
+$;
 ```
 
-> **Why SECURITY DEFINER?** The `user_projects` table determines project membership, but RLS policies on `user_projects` need to check `user_projects` - creating infinite recursion. SECURITY DEFINER functions execute with elevated privileges, bypassing RLS and breaking the recursion cycle safely.
-
-### 2.3 Project Access Pattern
-
-All project-scoped tables use a consistent pattern to verify project membership:
-
-```sql
-EXISTS (
-  SELECT 1 FROM user_projects up
-  WHERE up.project_id = [table].project_id
-  AND up.user_id = auth.uid()
-)
-```
-
-This ensures a user can only access rows within projects they belong to.
+> **Why SECURITY DEFINER?** These functions run with elevated privileges, bypassing RLS entirely. This is necessary to avoid infinite recursion when RLS policies need to check tables that themselves have RLS policies.
 
 ---
 
@@ -248,40 +357,99 @@ USING (
 
 ## 4. Core Security Tables
 
-### 4.1 profiles Table
+### 4.1 organisations Table (NEW - December 2025)
+
+The `organisations` table stores organisation information.
+
+**Policies**:
+
+| Operation | Allowed Roles | Condition |
+|-----------|---------------|----------|
+| SELECT | Org members | `is_system_admin() OR id IN (SELECT get_user_organisation_ids())` |
+| INSERT | System admin only | `is_system_admin()` |
+| UPDATE | Org owners/admins | `is_system_admin() OR is_org_admin(id)` |
+| DELETE | Org owners only | `is_system_admin() OR is_org_owner(id)` |
+
+### 4.2 user_organisations Table (NEW - December 2025)
+
+The `user_organisations` table manages organisation membership.
+
+**Policies**:
+
+| Operation | Allowed Roles | Condition |
+|-----------|---------------|----------|
+| SELECT | Org members | Own memberships, or any membership in orgs you belong to |
+| INSERT | Org admins | `is_system_admin() OR is_org_admin(organisation_id)` |
+| UPDATE | Org admins | Can update roles, but cannot promote to org_owner unless already owner |
+| DELETE | Org admins | Can remove members (except org_owner), users can leave (except owners) |
+
+**Special Rules**:
+- Users can always see their own memberships
+- Org members can see other members in their org (for team visibility)
+- Org admins cannot remove the org_owner
+- Org admins cannot promote someone to org_owner (only current owner can)
+- Users can leave an organisation (unless they are the owner)
+
+### 4.3 profiles Table
 
 The `profiles` table stores user profile information and global role.
 
 **Policies**:
-- SELECT: All authenticated users can read all profiles
-- INSERT/UPDATE: System-managed via triggers
-- DELETE: Not permitted
-
-**Note**: The `profiles.role` column represents the user's global role, primarily used for system administration. Project-specific roles are stored in `user_projects.role`.
-
-### 4.2 projects Table
-
-**Policies**:
 
 | Operation | Allowed Roles | Condition |
-|-----------|--------------|-----------|
-| SELECT | All project members | via user_projects |
-| INSERT | Global admins only | profiles.role = 'admin' |
-| UPDATE | Project admins only | user_projects.role = 'admin' |
-| DELETE | Global admins only | profiles.role = 'admin' |
+|-----------|---------------|----------|
+| SELECT | Authenticated users | Own profile, OR system admin, OR same org, OR same project |
+| INSERT | System triggers | Automatic on user creation |
+| UPDATE | System triggers | Automatic |
+| DELETE | Not permitted | - |
 
-### 4.3 user_projects Table
+**New Policy (December 2025)**: `profiles_org_members_can_view`
 
-**Policies** (Updated 13 December 2025 - uses SECURITY DEFINER functions):
+This policy allows users to see profiles of people in their organisations or projects:
+
+```sql
+CREATE POLICY "profiles_org_members_can_view"
+ON public.profiles FOR SELECT TO authenticated
+USING (
+  id = auth.uid()  -- Own profile
+  OR is_system_admin()  -- System admin sees all
+  OR id IN (  -- Users in same organisation
+    SELECT uo2.user_id FROM user_organisations uo1
+    JOIN user_organisations uo2 ON uo1.organisation_id = uo2.organisation_id
+    WHERE uo1.user_id = auth.uid()
+    AND uo1.is_active = TRUE AND uo2.is_active = TRUE
+  )
+  OR id IN (  -- Users on same project
+    SELECT up2.user_id FROM user_projects up1
+    JOIN user_projects up2 ON up1.project_id = up2.project_id
+    WHERE up1.user_id = auth.uid()
+  )
+);
+```
+
+### 4.4 projects Table (Updated December 2025)
+
+**Policies** (now org-aware):
 
 | Operation | Allowed Roles | Condition |
-|-----------|--------------|-----------|
-| SELECT | All project members | `project_id IN (SELECT get_my_project_ids())` |
-| INSERT | Project/global admin | user_projects.role = 'admin' OR profiles.role = 'admin' |
-| UPDATE | admin, supplier_pm | `can_manage_project(project_id)` |
-| DELETE | admin, supplier_pm | `can_manage_project(project_id)` |
+|-----------|---------------|----------|
+| SELECT | Accessible users | `can_access_project(id)` |
+| INSERT | Org admins | `is_system_admin() OR is_org_admin(organisation_id)` |
+| UPDATE | Project managers | System admin, org admin, or project admin/supplier_pm |
+| DELETE | Org admins | `is_system_admin() OR is_org_admin(organisation_id)` |
 
-**Helper Functions** (SECURITY DEFINER to bypass RLS recursion):
+### 4.5 user_projects Table (Updated December 2025)
+
+**Policies** (now org-aware):
+
+| Operation | Allowed Roles | Condition |
+|-----------|---------------|----------|
+| SELECT | Accessible users | `is_system_admin() OR can_access_project(project_id)` |
+| INSERT | Project/org admins | System admin, org admin, or project admin/supplier_pm |
+| UPDATE | Project/org admins | Same as INSERT |
+| DELETE | Project/org admins | Same as INSERT |
+
+**Legacy Helper Functions** (still supported for backward compatibility):
 
 ```sql
 -- Returns project IDs the current user belongs to
@@ -969,12 +1137,13 @@ EXISTS (
 
 ---
 
-## Document History
+## 11. Document History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
 | 1.1 | 13 Dec 2025 | Claude AI | Added SECURITY DEFINER functions for user_projects policies to fix recursion bug; updated Section 1.3, 2.2, and 4.3 |
+| 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added org-level helper functions, organisation/user_organisations table policies, updated projects/user_projects policies for org-awareness, added profiles_org_members_can_view policy, updated multi-tenancy architecture to three-tier model |
 
 ---
 
