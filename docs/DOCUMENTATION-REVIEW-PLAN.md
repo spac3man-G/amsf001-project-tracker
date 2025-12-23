@@ -299,6 +299,35 @@ This plan provides a systematic approach to review and update each document.
 
 ## Session Management
 
+### Critical: Segmented Approach with Check-ins
+
+**IMPORTANT:** This review will be done in segments with regular check-ins.
+
+#### Process for Each Document:
+
+```
+1. Claude announces: "Starting review of [DOCUMENT NAME]"
+2. Claude performs Steps 1-3 (Assessment, Cross-Reference, List Updates)
+3. Claude presents findings to user: "Here's what needs updating..."
+4. User confirms: "Proceed" or provides feedback
+5. Claude performs Steps 4-6 (Make Updates, Verify, Commit)
+6. Claude announces: "[DOCUMENT NAME] complete. Ready for next?"
+7. User confirms: "Continue" or "Stop here"
+```
+
+#### Check-in Points:
+
+- ✅ **Before starting each document** - Confirm which document to review
+- ✅ **After assessment** - Present findings before making changes
+- ✅ **After completion** - Confirm document is done, ask about continuing
+- ✅ **If context gets long** - Suggest compacting/new session
+
+#### Segment Size Guidelines:
+
+- Each document = 1 segment
+- Maximum 2-3 documents per session recommended
+- If a document is very large (>1500 lines), may split into sub-segments
+
 ### Memory/Context Guidelines
 
 To prevent context overflow during reviews:
