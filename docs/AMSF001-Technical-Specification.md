@@ -2,10 +2,17 @@
 
 ## Master Reference Document
 
-**Document Version:** 1.0  
+**Document Version:** 2.0  
 **Created:** December 2025  
+**Updated:** 23 December 2025  
 **Status:** Complete  
 **Total Sessions:** 8  
+
+> **Version 2.0 Updates (23 December 2025):**
+> - Updated to three-tier multi-tenancy model (Organisation → Project → Entity)
+> - Added organisation-level roles (org_owner, org_admin, org_member)
+> - Updated Database Architecture with organisations and user_organisations tables
+> - Updated Document Index with version references
 
 ---
 
@@ -50,16 +57,42 @@ The AMSF001 Project Tracker is a **multi-tenant SaaS application** designed for 
 - **Quality Management** - KPIs, Quality Standards, and RAID log tracking
 - **AI-Powered Features** - Chat assistant and receipt scanning using Claude AI
 
-### 1.2 Multi-Tenancy Model
+### 1.2 Multi-Tenancy Model (Updated December 2025)
 
-The application supports multiple projects (tenants) with:
+The application implements a **three-tier multi-tenancy model**:
 
-- **Project-Scoped Data** - All business data is isolated by `project_id`
-- **Role Per Project** - Users can have different roles on different projects
-- **Project Switching** - Users with multiple assignments can switch between projects
-- **Row Level Security** - Database-enforced isolation via PostgreSQL RLS policies
+```
+Organisation (Tier 1)     →  Top-level tenant (e.g., company)
+    └── Project (Tier 2)  →  Project container with its own team
+        └── Entity (Tier 3)  →  Milestones, deliverables, timesheets, etc.
+```
+
+**Organisation Level:**
+- Users belong to one or more organisations
+- Organisation roles: `org_owner`, `org_admin`, `org_member`
+- Org admins can access all projects within their organisation
+
+**Project Level:**
+- Projects belong to an organisation
+- Users are assigned to specific projects with project-scoped roles
+- All business data is isolated by `project_id`
+
+**Data Isolation:**
+- Row Level Security (RLS) enforces hierarchical access
+- Helper functions (`can_access_project()`) check both org and project membership
+- Organisation selection persists via localStorage
 
 ### 1.3 User Roles
+
+**Organisation Roles (New December 2025):**
+
+| Role | Description | Access Level |
+|------|-------------|--------------|
+| **org_owner** | Organisation owner | Full control including billing, deletion, ownership transfer |
+| **org_admin** | Organisation administrator | Manage members, settings, and access all org projects |
+| **org_member** | Organisation member | Access only assigned projects within the organisation |
+
+**Project Roles:**
 
 | Role | Description | Access Level |
 |------|-------------|--------------|
@@ -192,12 +225,16 @@ User Action → Component → Hook → Service → Supabase → RLS Check → Da
 
 ### 4.1 Table Categories
 
-The database consists of **28 tables** organized into four categories:
+The database consists of **30 tables** organized into five categories:
+
+**Organisation Tables (New December 2025):**
+- `organisations` - Top-level tenant definitions
+- `user_organisations` - Organisation membership and roles
 
 **Core Tables (Session 1.2):**
-- `projects` - Tenant definitions
+- `projects` - Project definitions (now with `organisation_id`)
 - `profiles` - User accounts
-- `user_projects` - Multi-tenancy junction
+- `user_projects` - Project membership junction
 - `milestones` - Project phases and payment milestones
 - `deliverables` - Work products
 - `resources` - Team members
@@ -515,14 +552,14 @@ export const entityService = new EntityService();
 
 | Document | Session | Content |
 |----------|---------|---------|
-| [TECH-SPEC-01-Architecture.md](./TECH-SPEC-01-Architecture.md) | 1.1 | Technology stack, project structure, deployment |
-| [TECH-SPEC-02-Database-Core.md](./TECH-SPEC-02-Database-Core.md) | 1.2 | Projects, profiles, milestones, deliverables, resources |
+| [TECH-SPEC-01-Architecture.md](./TECH-SPEC-01-Architecture.md) | 1.1 (v2.0) | Technology stack, project structure, **multi-tenancy model** |
+| [TECH-SPEC-02-Database-Core.md](./TECH-SPEC-02-Database-Core.md) | 1.2 (v2.0) | **Organisations**, projects, profiles, milestones, deliverables |
 | [TECH-SPEC-03-Database-Operations.md](./TECH-SPEC-03-Database-Operations.md) | 1.3 | Timesheets, expenses, partners, invoices |
 | [TECH-SPEC-04-Database-Supporting.md](./TECH-SPEC-04-Database-Supporting.md) | 1.4 | KPIs, quality standards, RAID, variations, audit |
-| [TECH-SPEC-05-RLS-Security.md](./TECH-SPEC-05-RLS-Security.md) | 1.5 | RLS policies, authentication, role matrix |
+| [TECH-SPEC-05-RLS-Security.md](./TECH-SPEC-05-RLS-Security.md) | 1.5 (v2.0) | RLS policies, **org-aware security**, role matrix |
 | [TECH-SPEC-06-API-AI.md](./TECH-SPEC-06-API-AI.md) | 1.6 | Serverless functions, Claude integration, tools |
-| [TECH-SPEC-07-Frontend-State.md](./TECH-SPEC-07-Frontend-State.md) | 1.7 | Contexts, hooks, state management |
-| [TECH-SPEC-08-Services.md](./TECH-SPEC-08-Services.md) | 1.8 | Service layer, business logic, caching |
+| [TECH-SPEC-07-Frontend-State.md](./TECH-SPEC-07-Frontend-State.md) | 1.7 (v2.0) | Contexts, **OrganisationContext**, state management |
+| [TECH-SPEC-08-Services.md](./TECH-SPEC-08-Services.md) | 1.8 (v2.0) | Service layer, **OrganisationService**, caching |
 
 ### 9.2 Supporting Documentation
 
@@ -761,3 +798,12 @@ Please read the master technical specification first for context.
 *AMSF001 Project Tracker - Technical Specification*  
 *Master Reference Document*  
 *Created: December 2025*
+
+---
+
+## Appendix C: Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | Dec 2025 | Claude AI | Initial creation |
+| 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Updated to three-tier model, added org roles, updated database architecture, updated document index with versions |
