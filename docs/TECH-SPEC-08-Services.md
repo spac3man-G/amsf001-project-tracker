@@ -1,10 +1,16 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 1.1  
+**Document Version:** 2.0  
 **Created:** 11 December 2025  
-**Updated:** 17 December 2025  
+**Updated:** 23 December 2025  
 **Session:** 1.8  
 **Status:** Complete
+
+> **Version 2.0 Updates (23 December 2025):**
+> - Added Section 4: Organisation Services (new for multi-tenancy)
+> - Updated file structure listing
+> - Updated service architecture diagram
+> - Renumbered subsequent sections (Entity Services now Section 5)
 
 ---
 
@@ -13,15 +19,17 @@
 1. [Overview](#1-overview)
 2. [Service Architecture](#2-service-architecture)
 3. [Base Service Class](#3-base-service-class)
-4. [Entity Services](#4-entity-services)
-5. [Supporting Entity Services](#5-supporting-entity-services)
-6. [Aggregation Services](#6-aggregation-services)
-7. [Document Services](#7-document-services)
-8. [Smart Feature Services](#8-smart-feature-services)
-9. [Calculation Libraries](#9-calculation-libraries)
-10. [Caching Strategies](#10-caching-strategies)
-11. [Error Handling Patterns](#11-error-handling-patterns)
-12. [Report Builder Services](#12-report-builder-services)
+4. [Organisation Services](#4-organisation-services) *(NEW)*
+5. [Entity Services](#5-entity-services)
+6. [Supporting Entity Services](#6-supporting-entity-services)
+7. [Aggregation Services](#7-aggregation-services)
+8. [Document Services](#8-document-services)
+9. [Smart Feature Services](#9-smart-feature-services)
+10. [Calculation Libraries](#10-calculation-libraries)
+11. [Caching Strategies](#11-caching-strategies)
+12. [Error Handling Patterns](#12-error-handling-patterns)
+13. [Report Builder Services](#13-report-builder-services)
+14. [Document History](#14-document-history)
 
 ---
 
@@ -47,14 +55,14 @@ The service layer provides a clean abstraction between the React frontend (conte
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Contexts & Custom Hooks                         │
-│  (AuthContext, ProjectContext, usePermissions, etc.)        │
+│  (AuthContext, OrganisationContext, ProjectContext, etc.)   │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Service Layer                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ BaseService │  │  Metrics    │  │  Document   │         │
+│  │ BaseService │  │Organisation │  │  Document   │         │
 │  │   (CRUD)    │  │  Service    │  │  Renderer   │         │
 │  └─────────────┘  └─────────────┘  └─────────────┘         │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
@@ -76,6 +84,9 @@ The service layer provides a clean abstraction between the React frontend (conte
 src/services/
 ├── index.js                    # Barrel exports
 ├── base.service.js             # BaseService class
+│
+├── # Organisation Services (NEW - December 2025)
+├── organisation.service.js     # Multi-tenancy, member management
 │
 ├── # Entity Services
 ├── milestones.service.js
@@ -285,9 +296,155 @@ if (this.supportsSoftDelete && !options.includeDeleted) {
 
 ---
 
-## 4. Entity Services
+## 4. Organisation Services (NEW - December 2025)
 
-### 4.1 Milestones Service
+**File:** `src/services/organisation.service.js`  
+**Version:** 1.0  
+**Created:** 22 December 2025
+
+### 4.1 Purpose
+
+The Organisation Service manages multi-tenancy operations at the organisation level. Unlike project-scoped services that extend BaseService, this service operates independently to handle:
+
+- Organisation CRUD operations
+- Member management (invite, remove, role changes)
+- Settings and feature flag management
+- Organisation-level statistics
+
+### 4.2 Class Structure
+
+```javascript
+import { supabase } from '../lib/supabase';
+import { ORG_ROLES } from '../lib/permissionMatrix';
+
+export class OrganisationService {
+  constructor() {
+    this.tableName = 'organisations';
+  }
+  // Methods...
+}
+
+// Singleton export
+export const organisationService = new OrganisationService();
+```
+
+### 4.3 CRUD Operations
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getById(id)` | Organisation UUID | `Object\|null` | Get organisation by ID |
+| `getBySlug(slug)` | URL slug | `Object\|null` | Get organisation by slug |
+| `create(data, ownerId)` | Org data, owner UUID | `Object` | Create organisation with owner |
+| `update(id, updates)` | UUID, update fields | `Object` | Update organisation |
+| `delete(id)` | UUID | `boolean` | Soft delete (deactivate) |
+
+**Create Example:**
+
+```javascript
+const org = await organisationService.create({
+  name: 'Acme Corporation',
+  slug: 'acme-corp',
+  display_name: 'Acme Corp',
+  settings: {
+    features: { ai_chat_enabled: true },
+    defaults: { currency: 'USD' }
+  }
+}, currentUserId);
+```
+
+### 4.4 Settings Management
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `updateSettings(id, settings)` | UUID, settings object | `Object` | Merge update settings |
+| `toggleFeature(id, feature, enabled)` | UUID, feature key, bool | `Object` | Toggle feature flag |
+
+**Settings Structure:**
+
+```javascript
+{
+  features: {
+    ai_chat_enabled: boolean,
+    receipt_scanner_enabled: boolean,
+    variations_enabled: boolean,
+    report_builder_enabled: boolean
+  },
+  defaults: {
+    currency: 'GBP',
+    hours_per_day: 8,
+    date_format: 'DD/MM/YYYY',
+    timezone: 'Europe/London'
+  },
+  branding: {},
+  limits: {}
+}
+```
+
+### 4.5 Member Management
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getMembers(orgId)` | Organisation UUID | `Array` | Get all org members with profiles |
+| `addMember(orgId, userId, role, invitedBy)` | UUIDs, role | `Object` | Add member to org |
+| `removeMember(orgId, userId)` | UUIDs | `boolean` | Remove member (not owner) |
+| `changeMemberRole(orgId, userId, newRole)` | UUIDs, role | `Object` | Change member's role |
+| `getUserRole(orgId, userId)` | UUIDs | `string\|null` | Get user's org role |
+
+**Organisation Roles:**
+
+```javascript
+ORG_ROLES = {
+  ORG_OWNER: 'org_owner',   // Full control, cannot be removed
+  ORG_ADMIN: 'org_admin',   // Manage members, access all projects
+  ORG_MEMBER: 'org_member'  // Access only assigned projects
+}
+```
+
+**Member Management Example:**
+
+```javascript
+// Add a new admin
+await organisationService.addMember(
+  organisationId,
+  newUserId,
+  ORG_ROLES.ORG_ADMIN,
+  currentUserId // who invited
+);
+
+// Get all members with profile info
+const members = await organisationService.getMembers(organisationId);
+// Returns: [{ id, user_id, org_role, user: { email, full_name } }, ...]
+```
+
+### 4.6 Project & Statistics
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getProjects(orgId)` | Organisation UUID | `Array` | Get all org projects |
+| `getStatistics(orgId)` | Organisation UUID | `Object` | Get member/project counts |
+
+**Statistics Example:**
+
+```javascript
+const stats = await organisationService.getStatistics(organisationId);
+// Returns: { memberCount: 12, projectCount: 5 }
+```
+
+### 4.7 Key Differences from BaseService
+
+| Aspect | BaseService | OrganisationService |
+|--------|-------------|---------------------|
+| Scope | Project-scoped | Organisation-scoped |
+| Extends | BaseService class | Standalone class |
+| Soft Delete | Via `deleted_at` | Via `is_active` flag |
+| Member Mgmt | N/A | Built-in |
+| Settings | N/A | Built-in with merge |
+
+---
+
+## 5. Entity Services
+
+### 5.1 Milestones Service
 
 **File:** `src/services/milestones.service.js`
 
@@ -345,7 +502,7 @@ const billable = await milestonesService.getBillableMilestones(projectId);
 
 ---
 
-### 4.2 Deliverables Service
+### 5.2 Deliverables Service
 
 **File:** `src/services/deliverables.service.js`
 
@@ -390,7 +547,7 @@ Manages deliverables with dual-signature workflow and KPI/QS links.
 
 ---
 
-### 4.3 Resources Service
+### 5.3 Resources Service
 
 **File:** `src/services/resources.service.js`
 
@@ -421,7 +578,7 @@ Manages resources with partner linking, caching, and utilization tracking.
 
 ---
 
-### 4.4 Timesheets Service
+### 5.4 Timesheets Service
 
 **File:** `src/services/timesheets.service.js`
 
@@ -458,7 +615,7 @@ calculateBillable(hours, dailyRate)
 
 ---
 
-### 4.5 Expenses Service
+### 5.5 Expenses Service
 
 **File:** `src/services/expenses.service.js`
 
@@ -494,9 +651,9 @@ Manages expenses with receipt handling and validation workflow.
 
 ---
 
-## 5. Supporting Entity Services
+## 6. Supporting Entity Services
 
-### 5.1 Partners Service
+### 6.1 Partners Service
 
 **File:** `src/services/partners.service.js`
 
@@ -517,7 +674,7 @@ Manages third-party partner companies with caching.
 
 ---
 
-### 5.2 KPIs Service
+### 6.2 KPIs Service
 
 **File:** `src/services/kpis.service.js`
 
@@ -558,7 +715,7 @@ calculateRAG(kpi) {
 
 ---
 
-### 5.3 Quality Standards Service
+### 6.3 Quality Standards Service
 
 **File:** `src/services/qualityStandards.service.js`
 
@@ -577,7 +734,7 @@ Manages quality standards with compliance calculations.
 
 ---
 
-### 5.4 RAID Service
+### 6.4 RAID Service
 
 **File:** `src/services/raid.service.js`
 
@@ -609,7 +766,7 @@ Manages Risks, Assumptions, Issues, and Dependencies.
 
 ---
 
-### 5.5 Variations Service
+### 6.5 Variations Service
 
 **File:** `src/services/variations.service.js`
 
@@ -700,9 +857,9 @@ The method also:
 
 ---
 
-## 6. Aggregation Services
+## 7. Aggregation Services
 
-### 6.1 Metrics Service
+### 7.1 Metrics Service
 
 **File:** `src/services/metrics.service.js`
 
@@ -773,7 +930,7 @@ class MetricsService {
 
 ---
 
-### 6.2 Dashboard Service
+### 7.2 Dashboard Service
 
 **File:** `src/services/dashboard.service.js`
 
@@ -807,7 +964,7 @@ Manages user dashboard layout persistence.
 
 ---
 
-### 6.3 Invoicing Service
+### 7.3 Invoicing Service
 
 **File:** `src/services/invoicing.service.js`
 
@@ -858,9 +1015,9 @@ Line Types:
 
 ---
 
-## 7. Document Services
+## 8. Document Services
 
-### 7.1 Document Templates Service
+### 8.1 Document Templates Service
 
 **File:** `src/services/documentTemplates.service.js`
 
@@ -923,7 +1080,7 @@ export const TEMPLATE_TYPE = {
 
 ---
 
-### 7.2 Document Renderer Service
+### 8.2 Document Renderer Service
 
 **File:** `src/services/documentRenderer.service.js`
 
@@ -967,9 +1124,9 @@ export const SECTION_TYPE = {
 
 ---
 
-## 8. Smart Feature Services
+## 9. Smart Feature Services
 
-### 8.1 Receipt Scanner Service
+### 9.1 Receipt Scanner Service
 
 **File:** `src/services/receiptScanner.service.js`
 
@@ -1017,9 +1174,9 @@ const MERCHANT_HINTS = {
 
 ---
 
-## 9. Calculation Libraries
+## 10. Calculation Libraries
 
-### 9.1 Milestone Calculations
+### 10.1 Milestone Calculations
 
 **File:** `src/lib/milestoneCalculations.js`
 
@@ -1064,7 +1221,7 @@ export const BASELINE_STATUS = {
 
 ---
 
-### 9.2 Deliverable Calculations
+### 10.2 Deliverable Calculations
 
 **File:** `src/lib/deliverableCalculations.js`
 
@@ -1110,7 +1267,7 @@ export const SIGN_OFF_STATUS = {
 
 ---
 
-### 9.3 Timesheet Calculations
+### 10.3 Timesheet Calculations
 
 **File:** `src/lib/timesheetCalculations.js`
 
@@ -1150,9 +1307,9 @@ export const TIMESHEET_STATUS_DISPLAY = {
 
 ---
 
-## 10. Caching Strategies
+## 11. Caching Strategies
 
-### 10.1 Service-Level Caching
+### 11.1 Service-Level Caching
 
 Several services implement local caching for frequently accessed data:
 
@@ -1204,7 +1361,7 @@ async getAll(projectId, bypassCache = false) {
 }
 ```
 
-### 10.2 Metrics Service Caching
+### 11.2 Metrics Service Caching
 
 ```javascript
 class MetricsService {
@@ -1231,7 +1388,7 @@ class MetricsService {
 }
 ```
 
-### 10.3 Cache Invalidation Patterns
+### 11.3 Cache Invalidation Patterns
 
 | Event | Action |
 |-------|--------|
@@ -1243,9 +1400,9 @@ class MetricsService {
 
 ---
 
-## 11. Error Handling Patterns
+## 12. Error Handling Patterns
 
-### 11.1 Standard Error Pattern
+### 12.1 Standard Error Pattern
 
 All services follow consistent error handling:
 
@@ -1270,7 +1427,7 @@ async getAll(projectId, options = {}) {
 }
 ```
 
-### 11.2 Validation Errors
+### 12.2 Validation Errors
 
 ```javascript
 async create(record) {
@@ -1284,7 +1441,7 @@ async create(record) {
 }
 ```
 
-### 11.3 Business Rule Errors
+### 12.3 Business Rule Errors
 
 ```javascript
 async deleteDraftVariation(variationId) {
@@ -1304,7 +1461,7 @@ async deleteDraftVariation(variationId) {
 }
 ```
 
-### 11.4 Graceful Fallbacks
+### 12.4 Graceful Fallbacks
 
 ```javascript
 async getAssessments(projectId) {
@@ -1330,11 +1487,11 @@ async getAssessments(projectId) {
 
 ---
 
-## 12. Report Builder Services
+## 13. Report Builder Services
 
 The Report Builder feature uses three specialised services that work together to provide template management, data fetching, and HTML report generation.
 
-### 12.1 Report Templates Service
+### 13.1 Report Templates Service
 
 **File:** `src/services/reportTemplates.service.js`
 
@@ -1405,7 +1562,7 @@ class ReportTemplatesService {
 export const reportTemplatesService = new ReportTemplatesService();
 ```
 
-### 12.2 Report Data Fetcher Service
+### 13.2 Report Data Fetcher Service
 
 **File:** `src/services/reportDataFetcher.service.js`
 
@@ -1498,7 +1655,7 @@ export const reportDataFetcherService = new ReportDataFetcherService();
 | `lessons_learned` | Completed lessons with categories and outcomes |
 | `forward_look` | Upcoming milestones, scheduled deliverables, planned activities |
 
-### 12.3 Report Renderer Service
+### 13.3 Report Renderer Service
 
 **File:** `src/services/reportRenderer.service.js`
 
@@ -1592,7 +1749,7 @@ class ReportRendererService {
 export const reportRendererService = new ReportRendererService();
 ```
 
-### 12.4 Service Integration Pattern
+### 13.4 Service Integration Pattern
 
 ```javascript
 // Usage in PreviewGenerate component
@@ -1636,7 +1793,7 @@ async function generateReport(template, project, user, dateRange) {
 }
 ```
 
-### 12.5 Database Tables
+### 13.5 Database Tables
 
 **report_templates:**
 ```sql
@@ -1693,3 +1850,13 @@ All services use the singleton pattern and are exported through a barrel file fo
 ---
 
 *Document created for AMSF001 Project Tracker - Session 1.8*
+
+---
+
+## 14. Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
+| 1.1 | 17 Dec 2025 | Claude AI | Added Report Builder Services section |
+| 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added Section 4 (Organisation Services), updated file structure, updated architecture diagram, renumbered sections 5-14 |
