@@ -252,16 +252,19 @@ This plan provides a systematic approach to review and update each document.
 ### TECH-SPEC-09-Testing-Infrastructure.md
 **Focus:** Test setup, E2E tests, unit tests
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Add org permission unit tests
-- Update test user setup (org memberships)
+**Updates Made (23 Dec 2025):**
+- Updated unit test count (515 → 633, +118 org tests)
+- Added org-permissions.test.js to file structure
+- Added Section 14.3: Organisation Permission Test Coverage
+- Added Section 17: Document History
+- Version: 1.0 → 1.1
 
 ---
 
@@ -369,7 +372,7 @@ To prevent context overflow during reviews:
 | TECH-SPEC-06 | ✅ Complete | 23 Dec 2025 | v1.1 - Added create-project API |
 | TECH-SPEC-07 | ✅ Complete | 23 Dec 2025 | v2.0 - Added OrganisationContext, updated provider hierarchy |
 | TECH-SPEC-08 | ✅ Complete | 23 Dec 2025 | v2.0 - Added Organisation Services section |
-| TECH-SPEC-09 | ⬜ Pending | | |
+| TECH-SPEC-09 | ✅ Complete | 23 Dec 2025 | v1.1 - Added org-permissions tests |
 | Master Spec | ✅ Complete | 23 Dec 2025 | v2.0 - Updated multi-tenancy, added org roles |
 | Workflow | ⬜ Pending | | |
 | Tech Debt | ⬜ Pending | | |
