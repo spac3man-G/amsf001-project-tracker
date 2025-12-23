@@ -306,32 +306,41 @@ export default function SystemAdmin() {
   const fetchOrganisations = useCallback(async () => {
     setLoading(true);
     try {
-      // Get organisations with member count
+      // Get organisations first (simple query)
       const { data: orgs, error } = await supabase
         .from('organisations')
-        .select(`
-          *,
-          user_organisations (
-            id,
-            org_role,
-            user:profiles (
-              email,
-              full_name
-            )
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Process to add admin count
-      const processed = orgs.map(org => ({
-        ...org,
-        member_count: org.user_organisations?.length || 0,
-        admin_count: org.user_organisations?.filter(m => m.org_role === ORG_ROLES.ORG_ADMIN).length || 0,
-      }));
+      // Now get member counts separately
+      const orgsWithCounts = await Promise.all(
+        orgs.map(async (org) => {
+          // Get member count
+          const { count: memberCount } = await supabase
+            .from('user_organisations')
+            .select('*', { count: 'exact', head: true })
+            .eq('organisation_id', org.id)
+            .eq('is_active', true);
 
-      setOrganisations(processed);
+          // Get admin count
+          const { count: adminCount } = await supabase
+            .from('user_organisations')
+            .select('*', { count: 'exact', head: true })
+            .eq('organisation_id', org.id)
+            .eq('org_role', ORG_ROLES.ORG_ADMIN)
+            .eq('is_active', true);
+
+          return {
+            ...org,
+            member_count: memberCount || 0,
+            admin_count: adminCount || 0,
+          };
+        })
+      );
+
+      setOrganisations(orgsWithCounts);
     } catch (error) {
       console.error('Error fetching organisations:', error);
       showError('Failed to load organisations');
