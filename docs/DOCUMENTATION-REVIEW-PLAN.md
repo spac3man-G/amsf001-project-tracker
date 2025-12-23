@@ -97,17 +97,20 @@ This plan provides a systematic approach to review and update each document.
 ### TECH-SPEC-01-Architecture.md
 **Focus:** Technology stack, infrastructure, directory structure
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Add organisation layer to architecture diagrams
-- Update directory structure with new files
-- Add OrganisationContext to state management overview
+**Updates Made (23 Dec 2025):**
+- Updated Executive Summary with three-tier multi-tenancy model
+- Added OrganisationContext, OrganisationSwitcher, organisation.service.js to project structure
+- Major rewrite of Section 7 (Multi-Tenancy Architecture)
+- Added context hierarchy diagram
+- Added Document History section
+- Version: 1.0 → 2.0
 
 ---
 
@@ -352,7 +355,7 @@ To prevent context overflow during reviews:
 
 | Document | Status | Date | Notes |
 |----------|--------|------|-------|
-| TECH-SPEC-01 | ⬜ Pending | | |
+| TECH-SPEC-01 | ✅ Complete | 23 Dec 2025 | v2.0 - Updated multi-tenancy architecture |
 | TECH-SPEC-02 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org tables, updated ER diagram |
 | TECH-SPEC-03 | ⬜ Pending | | |
 | TECH-SPEC-04 | ⬜ Pending | | |
