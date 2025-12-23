@@ -1,9 +1,15 @@
 # AMSF001 Technical Specification: Testing Infrastructure
 
 **Document:** TECH-SPEC-09-Testing-Infrastructure.md  
-**Version:** 1.0  
+**Version:** 1.1  
 **Created:** 17 December 2025  
-**Last Updated:** 17 December 2025  
+**Last Updated:** 23 December 2025  
+
+> **Version 1.1 Updates (23 December 2025):**
+> - Added org-permissions.test.js to test structure (118 new tests)
+> - Updated unit test count (515 → 633)
+> - Added Organisation Permission Test Coverage section
+> - Added Document History section
 
 ---
 
@@ -19,10 +25,12 @@ All tests use `data-testid` selectors for stability, enabling UI changes without
 
 | Test Type | Total | Passed | Pass Rate |
 |-----------|-------|--------|-----------|
-| Unit Tests (Vitest) | 515 | 488 | 94.8% |
+| Unit Tests (Vitest) | 633 | 606 | 95.7% |
 | E2E Tests (Playwright) | ~356 unique | ~355 | 99.7% |
 
 Note: E2E tests multiply across 7 roles and 3+ browsers, producing ~4,200 total test executions when run in full matrix mode.
+
+**December 2025 Update:** Added 118 organisation permission tests (org-permissions.test.js) for org_owner, org_admin, org_member roles.
 
 ---
 
@@ -122,7 +130,8 @@ amsf001-project-tracker/
 │   │   └── msw-handlers.js           # Mock Service Worker handlers
 │   ├── unit/
 │   │   ├── permissions.test.js       # Permission functions (~60 tests)
-│   │   └── permissions-matrix.test.js # Full matrix (~450 tests)
+│   │   ├── permissions-matrix.test.js # Full matrix (~450 tests)
+│   │   └── org-permissions.test.js   # Org role permissions (~118 tests) NEW
 │   └── integration/
 │       └── usePermissions.test.jsx   # Hook tests
 │
@@ -519,6 +528,36 @@ ls -la playwright/.auth/
 | Variations | ✅ Full | ✅ Full | ✅ Sign | ❌ View | ❌ View |
 | Settings | ✅ Full | ✅ Edit | ❌ Hidden | ❌ Hidden | ❌ Hidden |
 
+### 14.3 Organisation Permission Test Coverage (New - December 2025)
+
+**File:** `src/__tests__/unit/org-permissions.test.js` (118 tests)
+
+Tests organisation-level permissions for the three-tier multi-tenancy model:
+
+| Entity | Action | org_owner | org_admin | org_member |
+|--------|--------|-----------|-----------|------------|
+| Organisation | view | ✅ | ✅ | ✅ |
+| Organisation | edit | ✅ | ✅ | ❌ |
+| Organisation | delete | ✅ | ❌ | ❌ |
+| Organisation | manage_billing | ✅ | ❌ | ❌ |
+| Organisation | transfer_ownership | ✅ | ❌ | ❌ |
+| Members | view | ✅ | ✅ | ✅ |
+| Members | add | ✅ | ✅ | ❌ |
+| Members | remove | ✅ | ✅ | ❌ |
+| Members | change_role | ✅ | ✅ | ❌ |
+| Projects | view_all | ✅ | ✅ | ❌ |
+| Projects | create | ✅ | ✅ | ❌ |
+| Projects | delete | ✅ | ✅ | ❌ |
+| Settings | view | ✅ | ✅ | ❌ |
+| Settings | edit | ✅ | ✅ | ❌ |
+
+**Test Categories:**
+- `ORG_ROLES` constants validation
+- `ORG_PERMISSION_MATRIX` structure tests
+- `hasOrgPermission()` function tests
+- `isOrgAdminRole()` and `isOrgOwnerRole()` helper tests
+- `ORG_ROLE_CONFIG` and `ORG_ROLE_OPTIONS` configuration tests
+
 ---
 
 ## 15. Production URLs
@@ -536,3 +575,12 @@ ls -la playwright/.auth/
 - Vitest Documentation: https://vitest.dev/guide/
 - Testing Library: https://testing-library.com/docs/
 - Kent C. Dodds - Resilient UI Tests: https://kentcdodds.com/blog/making-your-ui-tests-resilient-to-change
+
+---
+
+## 17. Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | 17 Dec 2025 | Claude AI | Initial creation |
+| 1.1 | 23 Dec 2025 | Claude AI | Added org-permissions.test.js (118 tests), updated test counts, added Section 14.3 for Organisation Permission Test Coverage |
