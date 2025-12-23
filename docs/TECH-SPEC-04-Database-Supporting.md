@@ -1,10 +1,16 @@
 # AMSF001 Technical Specification - Database Supporting Tables
 
 **Document:** TECH-SPEC-04-Database-Supporting.md  
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** 10 December 2025  
+**Updated:** 23 December 2025  
 **Session:** 1.4  
 **Status:** Complete  
+
+> **Version 1.1 Updates (23 December 2025):**
+> - Added note about organisation context inheritance
+> - Added Document History section
+> - No schema changes - supporting tables inherit org context via project_id
 
 ---
 
@@ -37,6 +43,8 @@ This document details the supporting tables that provide essential project manag
 - **Document Generation**: Template-driven document creation
 - **Audit Trail**: Comprehensive change tracking
 - **Data Recovery**: Soft delete with recovery capability
+
+> **Organisation Context (December 2025):** All supporting tables in this document are Tier 3 entities in the three-tier multi-tenancy model. They reference `project_id`, and inherit organisation context through the project's `organisation_id` foreign key. RLS policies use the `can_access_project()` helper function which checks both project membership and organisation admin status. See TECH-SPEC-02-Database-Core.md for the organisation layer.
 
 ### Supporting Tables Architecture
 
@@ -1596,3 +1604,12 @@ All tables follow consistent patterns:
 - ✅ deleted_items infrastructure
 
 **Next Session:** 1.5 - RLS Policies & Security
+
+---
+
+## Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | 10 Dec 2025 | Claude AI | Initial creation |
+| 1.1 | 23 Dec 2025 | Claude AI | Added organisation context note (Tier 3 entities), added Document History section |
