@@ -227,6 +227,14 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN],
     readOnlyRoles: []
   },
+  systemAdmin: {
+    id: 'systemAdmin',
+    path: '/admin/system',
+    icon: Shield,
+    label: 'System Admin',
+    allowedRoles: [ROLES.ADMIN],
+    readOnlyRoles: []
+  },
   projectManagement: {
     id: 'projectManagement',
     path: '/admin/projects',
@@ -300,6 +308,7 @@ export const ROLE_NAV_ORDER = {
     'auditLog',
     'deletedItems',
     'systemUsers',
+    'systemAdmin',
     'projectManagement',
     'orgSettings',
     'orgMembers'

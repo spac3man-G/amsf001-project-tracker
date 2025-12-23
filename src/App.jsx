@@ -69,6 +69,7 @@ const Variations = lazy(() => import('./pages/Variations'));
 const VariationDetail = lazy(() => import('./pages/VariationDetail'));
 const VariationForm = lazy(() => import('./pages/VariationForm'));
 const SystemUsers = lazy(() => import('./pages/admin/SystemUsers'));
+const SystemAdmin = lazy(() => import('./pages/admin/SystemAdmin'));
 const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
 const OrganisationSettings = lazy(() => import('./pages/admin/OrganisationSettings'));
 const OrganisationMembers = lazy(() => import('./pages/admin/OrganisationMembers'));
@@ -331,6 +332,11 @@ export default function App() {
                             {/* System Users (admin only - requires global admin role) */}
                             <Route path="/admin/users" element={
                               <ProtectedRoute adminOnly><SystemUsers /></ProtectedRoute>
+                            } />
+                            
+                            {/* System Admin (system admin only - for creating organisations) */}
+                            <Route path="/admin/system" element={
+                              <ProtectedRoute adminOnly><SystemAdmin /></ProtectedRoute>
                             } />
                             
                             {/* Project Management (admin and supplier_pm) */}

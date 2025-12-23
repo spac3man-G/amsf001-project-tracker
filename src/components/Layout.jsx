@@ -111,26 +111,33 @@ export default function Layout({ children }) {
   }, [effectiveRole, customNavOrder]);
 
   // Get navigation items for current role, with custom ordering if saved
-  // Special handling: System Users is shown based on global admin status, not project role
+  // Special handling: System Users and System Admin are shown based on global admin status, not project role
   const navItems = useMemo(() => {
     let roleNav = getNavigationForRole(effectiveRole);
     if (customNavOrder && customNavOrder.length > 0) {
       roleNav = applyCustomNavOrder(effectiveRole, customNavOrder);
     }
     
-    // Check if System Users is already in the nav items
+    // Check if System Users/Admin are already in the nav items
     const hasSystemUsers = roleNav.some(item => item.id === 'systemUsers');
+    const hasSystemAdmin = roleNav.some(item => item.id === 'systemAdmin');
     
-    // If user is a global admin but System Users isn't in their nav
-    // (because their project role is not admin), add it
+    // If user is a global admin but System Users/Admin aren't in their nav
+    // (because their project role is not admin), add them
     if (isSystemAdmin && !hasSystemUsers) {
-      return [...roleNav, NAV_ITEMS.systemUsers];
+      roleNav = [...roleNav, NAV_ITEMS.systemUsers];
+    }
+    if (isSystemAdmin && !hasSystemAdmin) {
+      roleNav = [...roleNav, NAV_ITEMS.systemAdmin];
     }
     
-    // If user is NOT a global admin but System Users is in their nav
-    // (shouldn't happen with current config, but defensive check), remove it
+    // If user is NOT a global admin but System Users/Admin are in their nav
+    // (shouldn't happen with current config, but defensive check), remove them
     if (!isSystemAdmin && hasSystemUsers) {
-      return roleNav.filter(item => item.id !== 'systemUsers');
+      roleNav = roleNav.filter(item => item.id !== 'systemUsers');
+    }
+    if (!isSystemAdmin && hasSystemAdmin) {
+      roleNav = roleNav.filter(item => item.id !== 'systemAdmin');
     }
     
     return roleNav;
