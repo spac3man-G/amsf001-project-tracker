@@ -1,46 +1,309 @@
 # AMSF001 Technical Specification: Database Schema - Core Tables
 
 **Document:** TECH-SPEC-02-Database-Core.md  
-**Version:** 1.0  
+**Version:** 2.0  
 **Created:** 10 December 2025  
-**Session:** 1.2  
+**Updated:** 23 December 2025  
+**Session:** 1.2 (updated post org-multitenancy)  
+
+---
+
+> **📝 Version 2.0 Updates (23 December 2025)**
+> 
+> This document has been updated to include organisation-level multi-tenancy:
+> - Added `organisations` table (Section 2)
+> - Added `user_organisations` table (Section 3)
+> - Added `organisation_members_with_profiles` view (Section 4)
+> - Updated `projects` table with `organisation_id` column (Section 5)
+> - Renumbered subsequent sections (6-14)
+> - Updated Entity Relationship Diagram (Section 12)
+> 
+> For detailed implementation documentation, see: `docs/org-level-multitenancy/`
 
 ---
 
 ## 1. Overview
 
-This document covers the core entity tables that form the foundation of the AMSF001 Project Tracker. These tables implement the multi-tenant architecture and primary business entities including projects, users, milestones, deliverables, and resources.
+This document covers the core entity tables that form the foundation of the AMSF001 Project Tracker. These tables implement the **three-tier multi-tenant architecture**:
+
+1. **Organisation Layer** - Top-level tenant isolation
+2. **Project Layer** - Project-scoped data and team membership
+3. **Entity Layer** - Business entities (milestones, deliverables, etc.)
 
 ### 1.1 Core Tables Summary
 
-| Table | Purpose | Records Per Project |
-|-------|---------|---------------------|
-| `projects` | Tenant definitions | 1 per tenant |
+| Table | Purpose | Scope |
+|-------|---------|-------|
+| `organisations` | Organisation definitions | System-wide |
+| `user_organisations` | Org membership junction | Per organisation |
+| `projects` | Project definitions | Per organisation |
 | `profiles` | User accounts | System-wide |
-| `user_projects` | Multi-tenancy junction | Many per project |
-| `milestones` | Payment milestones | ~10-50 |
-| `deliverables` | Work products | ~20-100 |
-| `resources` | Team members | ~5-20 |
-| `resource_availability` | Calendar availability | Many |
+| `user_projects` | Project membership junction | Per project |
+| `milestones` | Payment milestones | Per project (~10-50) |
+| `deliverables` | Work products | Per project (~20-100) |
+| `resources` | Team members | Per project (~5-20) |
+| `resource_availability` | Calendar availability | Per project |
 
-### 1.2 Database Technology
+### 1.2 Multi-Tenancy Hierarchy
+
+```
+organisations (top-level tenant)
+    │
+    ├── user_organisations (org membership + org_role)
+    │
+    └── projects (org-scoped)
+            │
+            ├── user_projects (project membership + project role)
+            │
+            └── [all entity tables scoped by project_id]
+```
+
+### 1.3 Database Technology
 
 - **Platform:** PostgreSQL (via Supabase)
-- **UUID Generation:** `uuid-ossp` extension
+- **UUID Generation:** `uuid-ossp` and `gen_random_uuid()`
 - **Security:** Row Level Security (RLS) enabled on all tables
 - **Soft Delete:** Implemented via `is_deleted`, `deleted_at`, `deleted_by` columns
 
 ---
 
-## 2. Projects Table
+## 2. Organisations Table
 
-The `projects` table represents the top-level tenant entity. All other data tables reference a project via `project_id` foreign key.
+The `organisations` table represents the top-level tenant entity. All projects belong to an organisation, and users access the system through organisation membership.
 
 ### 2.1 Schema Definition
 
 ```sql
+CREATE TABLE IF NOT EXISTS public.organisations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  display_name TEXT,
+  logo_url TEXT,
+  primary_color TEXT DEFAULT '#6366f1',
+  settings JSONB DEFAULT '{
+    "features": {
+      "ai_chat_enabled": true,
+      "receipt_scanner_enabled": true,
+      "variations_enabled": true,
+      "report_builder_enabled": true
+    },
+    "defaults": {
+      "currency": "GBP",
+      "hours_per_day": 8,
+      "date_format": "DD/MM/YYYY",
+      "timezone": "Europe/London"
+    },
+    "branding": {},
+    "limits": {}
+  }'::jsonb,
+  is_active BOOLEAN DEFAULT TRUE,
+  subscription_tier TEXT DEFAULT 'standard',
+  subscription_expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_by UUID REFERENCES auth.users(id),
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES auth.users(id)
+);
+```
+
+### 2.2 Column Reference
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | UUID | No | Primary key, auto-generated |
+| `name` | TEXT | No | Organisation name |
+| `slug` | TEXT | No | URL-friendly unique identifier |
+| `display_name` | TEXT | Yes | Optional display name |
+| `logo_url` | TEXT | Yes | Organisation logo URL |
+| `primary_color` | TEXT | Yes | Brand color (hex) |
+| `settings` | JSONB | Yes | Configuration object |
+| `is_active` | BOOLEAN | Yes | Whether org is active |
+| `subscription_tier` | TEXT | Yes | Future: subscription level |
+| `subscription_expires_at` | TIMESTAMPTZ | Yes | Future: subscription expiry |
+| `created_at` | TIMESTAMPTZ | Yes | Creation timestamp |
+| `created_by` | UUID | Yes | User who created the org |
+| `updated_at` | TIMESTAMPTZ | Yes | Last modification timestamp |
+| `updated_by` | UUID | Yes | User who last modified |
+| `is_deleted` | BOOLEAN | Yes | Soft delete flag |
+| `deleted_at` | TIMESTAMPTZ | Yes | Deletion timestamp |
+| `deleted_by` | UUID | Yes | User who deleted |
+
+### 2.3 Settings JSONB Structure
+
+```json
+{
+  "features": {
+    "ai_chat_enabled": true,
+    "receipt_scanner_enabled": true,
+    "variations_enabled": true,
+    "report_builder_enabled": true
+  },
+  "defaults": {
+    "currency": "GBP",
+    "hours_per_day": 8,
+    "date_format": "DD/MM/YYYY",
+    "timezone": "Europe/London"
+  },
+  "branding": {
+    "logo_url": null,
+    "primary_color": "#6366f1"
+  },
+  "limits": {
+    "max_projects": null,
+    "max_users": null
+  }
+}
+```
+
+### 2.4 Indexes
+
+```sql
+CREATE INDEX idx_organisations_slug ON organisations(slug);
+CREATE INDEX idx_organisations_active ON organisations(is_active) 
+  WHERE is_active = TRUE AND is_deleted = FALSE;
+```
+
+### 2.5 Relationships
+
+- **Children:** `projects` via `organisation_id`, `user_organisations` via `organisation_id`
+- **References:** `auth.users` via audit fields
+
+---
+
+## 3. User_Organisations Table
+
+The `user_organisations` junction table defines which users belong to which organisations and with what organisation-level role.
+
+### 3.1 Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS public.user_organisations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  org_role TEXT NOT NULL DEFAULT 'org_member',
+  is_active BOOLEAN DEFAULT TRUE,
+  is_default BOOLEAN DEFAULT FALSE,
+  invited_by UUID REFERENCES auth.users(id),
+  invited_at TIMESTAMPTZ,
+  accepted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT user_organisations_unique UNIQUE (user_id, organisation_id),
+  CONSTRAINT user_organisations_role_check CHECK (
+    org_role IN ('org_owner', 'org_admin', 'org_member')
+  )
+);
+```
+
+### 3.2 Column Reference
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | UUID | No | Primary key |
+| `user_id` | UUID | No | Reference to auth.users |
+| `organisation_id` | UUID | No | Reference to organisations |
+| `org_role` | TEXT | No | User's role in this organisation |
+| `is_active` | BOOLEAN | Yes | Whether membership is active |
+| `is_default` | BOOLEAN | Yes | User's default organisation |
+| `invited_by` | UUID | Yes | User who sent invitation |
+| `invited_at` | TIMESTAMPTZ | Yes | When invitation was sent |
+| `accepted_at` | TIMESTAMPTZ | Yes | When invitation was accepted |
+| `created_at` | TIMESTAMPTZ | Yes | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | Yes | Last modification timestamp |
+
+### 3.3 Organisation Role Values
+
+| Role | Description | Typical Permissions |
+|------|-------------|---------------------|
+| `org_owner` | Organisation owner | Full control, billing, transfer ownership |
+| `org_admin` | Organisation administrator | Manage members, create projects, edit settings |
+| `org_member` | Regular member | Access projects assigned to, view org info |
+
+### 3.4 Comparison: Org Roles vs Project Roles
+
+| Aspect | Organisation Roles | Project Roles |
+|--------|-------------------|---------------|
+| Table | `user_organisations` | `user_projects` |
+| Scope | Organisation-wide | Project-specific |
+| Roles | org_owner, org_admin, org_member | admin, supplier_pm, customer_pm, contributor, viewer |
+| Purpose | Org management, project creation | Project data access, workflows |
+
+### 3.5 Indexes
+
+```sql
+CREATE INDEX idx_user_organisations_user_id ON user_organisations(user_id);
+CREATE INDEX idx_user_organisations_org_id ON user_organisations(organisation_id);
+CREATE INDEX idx_user_organisations_active ON user_organisations(organisation_id, is_active) 
+  WHERE is_active = TRUE;
+CREATE INDEX idx_user_organisations_default ON user_organisations(user_id, is_default) 
+  WHERE is_default = TRUE;
+```
+
+### 3.6 Relationships
+
+- **References:** `auth.users(id)`, `organisations(id)`
+- **Unique Constraint:** One membership per user per organisation
+- **Cascade Delete:** Removing org or user removes membership
+
+---
+
+## 4. Organisation Members View
+
+A database view that joins `user_organisations` with `profiles` for convenient member listing.
+
+### 4.1 View Definition
+
+```sql
+CREATE OR REPLACE VIEW public.organisation_members_with_profiles AS
+SELECT 
+  uo.id,
+  uo.user_id,
+  uo.organisation_id,
+  uo.org_role,
+  uo.is_active,
+  uo.is_default,
+  uo.invited_by,
+  uo.invited_at,
+  uo.accepted_at,
+  uo.created_at,
+  uo.updated_at,
+  p.email as user_email,
+  p.full_name as user_full_name,
+  p.role as user_role
+FROM public.user_organisations uo
+LEFT JOIN public.profiles p ON p.id = uo.user_id;
+```
+
+### 4.2 Purpose
+
+This view exists because:
+1. Direct FK joins from `user_organisations` to `profiles` fail due to RLS policies
+2. The view inherits RLS from underlying tables
+3. Provides convenient access to member details without complex queries
+
+### 4.3 Usage
+
+Used by `organisationService.getMembers()` to fetch organisation members with their profile information.
+
+---
+
+## 5. Projects Table
+
+The `projects` table defines individual projects within an organisation. All other data tables reference a project via `project_id` foreign key.
+
+> **Updated:** Projects now belong to an organisation via `organisation_id`.
+
+### 5.1 Schema Definition
+
+```sql
 CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organisation_id UUID NOT NULL REFERENCES organisations(id),  -- NEW
   name TEXT NOT NULL,
   reference TEXT UNIQUE,
   total_budget DECIMAL(10,2),
@@ -55,11 +318,12 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 ```
 
-### 2.2 Column Reference
+### 5.2 Column Reference
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
 | `id` | UUID | No | Primary key, auto-generated |
+| `organisation_id` | UUID | No | **NEW:** Parent organisation |
 | `name` | TEXT | No | Project display name |
 | `reference` | TEXT | Yes | Unique project reference code (e.g., "AMSF001") |
 | `total_budget` | DECIMAL(10,2) | Yes | Total contracted budget in currency |
@@ -72,7 +336,7 @@ CREATE TABLE IF NOT EXISTS projects (
 | `created_at` | TIMESTAMPTZ | Yes | Creation timestamp |
 | `updated_at` | TIMESTAMPTZ | Yes | Last modification timestamp |
 
-### 2.3 Settings JSONB Structure
+### 5.3 Settings JSONB Structure
 
 The `settings` column stores project-specific configuration:
 
@@ -89,18 +353,19 @@ The `settings` column stores project-specific configuration:
 }
 ```
 
-### 2.4 Relationships
+### 5.4 Relationships
 
+- **Parent:** `organisations(id)` via `organisation_id` (NEW)
 - **Referenced by:** All data tables via `project_id`
 - **References:** `auth.users` via `created_by`
 
 ---
 
-## 3. Profiles Table
+## 6. Profiles Table
 
 The `profiles` table extends Supabase's `auth.users` table with application-specific user data.
 
-### 3.1 Schema Definition
+### 6.1 Schema Definition
 
 ```sql
 CREATE TABLE IF NOT EXISTS profiles (
@@ -113,7 +378,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 ```
 
-### 3.2 Column Reference
+### 6.2 Column Reference
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
@@ -124,7 +389,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 | `created_at` | TIMESTAMPTZ | Yes | Profile creation timestamp |
 | `updated_at` | TIMESTAMPTZ | Yes | Last modification timestamp |
 
-### 3.3 Role Values
+### 6.3 Role Values
 
 | Role | Description |
 |------|-------------|
@@ -134,7 +399,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 **Note:** The `role` column serves as a global fallback. In the multi-tenant model, the user's project-specific role in `user_projects` takes precedence.
 
-### 3.4 Automatic Profile Creation
+### 6.4 Automatic Profile Creation
 
 A database trigger automatically creates a profile when a user registers:
 
@@ -153,18 +418,18 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 ```
 
-### 3.5 Relationships
+### 6.5 Relationships
 
 - **Primary Key references:** `auth.users(id)` with CASCADE delete
 - **Referenced by:** `user_projects`, signature fields across tables
 
 ---
 
-## 4. User_Projects Table (Multi-Tenancy)
+## 7. User_Projects Table (Multi-Tenancy)
 
 The `user_projects` junction table implements multi-tenancy by defining which users have access to which projects and with what role.
 
-### 4.1 Schema Definition
+### 7.1 Schema Definition
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_projects (
@@ -181,7 +446,7 @@ CREATE TABLE IF NOT EXISTS user_projects (
 );
 ```
 
-### 4.2 Column Reference
+### 7.2 Column Reference
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
@@ -193,7 +458,7 @@ CREATE TABLE IF NOT EXISTS user_projects (
 | `created_at` | TIMESTAMPTZ | Yes | Assignment timestamp |
 | `updated_at` | TIMESTAMPTZ | Yes | Last modification timestamp |
 
-### 4.3 Project Role Values
+### 7.3 Project Role Values
 
 | Role | Description | Typical Permissions |
 |------|-------------|---------------------|
@@ -203,7 +468,7 @@ CREATE TABLE IF NOT EXISTS user_projects (
 | `contributor` | Team member | Submit time/expenses, update assigned work |
 | `viewer` | Read-only | View all project data |
 
-### 4.4 Multi-Tenancy Design
+### 7.4 Multi-Tenancy Design
 
 **Key Design Principles:**
 
@@ -225,7 +490,7 @@ USING (
 );
 ```
 
-### 4.5 Relationships
+### 7.5 Relationships
 
 - **References:** `auth.users(id)`, `projects(id)`
 - **Unique Constraint:** One role per user per project
@@ -233,11 +498,11 @@ USING (
 
 ---
 
-## 5. Milestones Table
+## 8. Milestones Table
 
 The `milestones` table stores payment milestones with baseline commitment tracking and acceptance certificate workflows.
 
-### 5.1 Schema Definition
+### 8.1 Schema Definition
 
 ```sql
 CREATE TABLE IF NOT EXISTS milestones (
@@ -302,7 +567,7 @@ CREATE TABLE IF NOT EXISTS milestones (
 );
 ```
 
-### 5.2 Column Reference
+### 8.2 Column Reference
 
 #### Core Fields
 
@@ -355,7 +620,7 @@ CREATE TABLE IF NOT EXISTS milestones (
 | `acceptance_supplier_pm_*` | Various | Supplier signature fields |
 | `acceptance_customer_pm_*` | Various | Customer signature fields |
 
-### 5.3 Status Values
+### 8.3 Status Values
 
 | Status | Description |
 |--------|-------------|
@@ -365,7 +630,7 @@ CREATE TABLE IF NOT EXISTS milestones (
 | `Delayed` | Significantly behind schedule |
 | `Completed` | All deliverables delivered |
 
-### 5.4 Baseline Commitment Workflow
+### 8.4 Baseline Commitment Workflow
 
 ```
                               ┌───────────────────┐
@@ -394,7 +659,7 @@ CREATE TABLE IF NOT EXISTS milestones (
                               └───────────────┘
 ```
 
-### 5.5 Indexes
+### 8.5 Indexes
 
 ```sql
 CREATE INDEX idx_milestones_project_id ON milestones(project_id);
@@ -405,7 +670,7 @@ CREATE INDEX IF NOT EXISTS idx_milestones_active
   WHERE is_deleted = FALSE OR is_deleted IS NULL;
 ```
 
-### 5.6 Relationships
+### 8.6 Relationships
 
 - **Parent:** `projects(id)` via `project_id`
 - **Children:** `deliverables`, `timesheets`, `expenses`
@@ -414,11 +679,11 @@ CREATE INDEX IF NOT EXISTS idx_milestones_active
 
 ---
 
-## 6. Deliverables Table
+## 9. Deliverables Table
 
 The `deliverables` table stores work products with dual-signature sign-off workflow.
 
-### 6.1 Schema Definition
+### 9.1 Schema Definition
 
 ```sql
 CREATE TABLE IF NOT EXISTS deliverables (
@@ -474,7 +739,7 @@ CREATE TABLE IF NOT EXISTS deliverables (
 );
 ```
 
-### 6.2 Column Reference
+### 9.2 Column Reference
 
 #### Core Fields
 
@@ -509,7 +774,7 @@ CREATE TABLE IF NOT EXISTS deliverables (
 | `customer_pm_name` | TEXT | Customer PM name at signing |
 | `customer_pm_signed_at` | TIMESTAMPTZ | Customer signature timestamp |
 
-### 6.3 Status Values
+### 9.3 Status Values
 
 | Status | Description |
 |--------|-------------|
@@ -522,7 +787,7 @@ CREATE TABLE IF NOT EXISTS deliverables (
 | `Delivered` | Both signatures complete |
 | `Cancelled` | No longer required |
 
-### 6.4 Sign-off Status Values
+### 9.4 Sign-off Status Values
 
 | Status | Description |
 |--------|-------------|
@@ -531,7 +796,7 @@ CREATE TABLE IF NOT EXISTS deliverables (
 | `Awaiting Customer` | Supplier signed, awaiting customer |
 | `Signed` | Both signatures complete |
 
-### 6.5 Related Junction Tables
+### 9.5 Related Junction Tables
 
 ```sql
 -- Links deliverables to KPIs
@@ -571,7 +836,7 @@ CREATE TABLE deliverable_qs_assessments (
 );
 ```
 
-### 6.6 Indexes
+### 9.6 Indexes
 
 ```sql
 CREATE INDEX IF NOT EXISTS idx_deliverables_active 
@@ -581,7 +846,7 @@ CREATE INDEX IF NOT EXISTS idx_deliverables_sign_off_status
   ON deliverables(sign_off_status);
 ```
 
-### 6.7 Relationships
+### 9.7 Relationships
 
 - **Parent:** `projects(id)`, `milestones(id)`
 - **Junction:** `deliverable_kpis`, `deliverable_quality_standards`
@@ -590,11 +855,11 @@ CREATE INDEX IF NOT EXISTS idx_deliverables_sign_off_status
 
 ---
 
-## 7. Resources Table
+## 10. Resources Table
 
 The `resources` table stores team member information with rate and allocation details.
 
-### 7.1 Schema Definition
+### 10.1 Schema Definition
 
 ```sql
 CREATE TABLE IF NOT EXISTS resources (
@@ -633,7 +898,7 @@ CREATE TABLE IF NOT EXISTS resources (
 );
 ```
 
-### 7.2 Column Reference
+### 10.2 Column Reference
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
@@ -651,20 +916,20 @@ CREATE TABLE IF NOT EXISTS resources (
 | `user_id` | UUID | Yes | Linked user account |
 | `partner_id` | UUID | Yes | Associated partner company |
 
-### 7.3 Rate Calculation
+### 10.3 Rate Calculation
 
 ```
 discounted_rate = daily_rate × (1 - discount_percent / 100)
 ```
 
-### 7.4 User Linking
+### 10.4 User Linking
 
 Resources can be linked to user accounts via `user_id`, enabling:
 - Automatic timesheet ownership
 - Resource availability calendar
 - Self-service time entry
 
-### 7.5 Indexes
+### 10.5 Indexes
 
 ```sql
 CREATE INDEX idx_resources_project_id ON resources(project_id);
@@ -673,7 +938,7 @@ CREATE INDEX IF NOT EXISTS idx_resources_active
   WHERE is_deleted = FALSE OR is_deleted IS NULL;
 ```
 
-### 7.6 Relationships
+### 10.6 Relationships
 
 - **Parent:** `projects(id)`
 - **Links:** `auth.users(id)` via `user_id`, `partners(id)` via `partner_id`
@@ -682,11 +947,11 @@ CREATE INDEX IF NOT EXISTS idx_resources_active
 
 ---
 
-## 8. Resource_Availability Table
+## 11. Resource_Availability Table
 
 The `resource_availability` table tracks team member availability for calendar display.
 
-### 8.1 Schema Definition
+### 11.1 Schema Definition
 
 ```sql
 CREATE TABLE IF NOT EXISTS resource_availability (
@@ -710,7 +975,7 @@ CREATE TABLE IF NOT EXISTS resource_availability (
 );
 ```
 
-### 8.2 Column Reference
+### 11.2 Column Reference
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
@@ -723,7 +988,7 @@ CREATE TABLE IF NOT EXISTS resource_availability (
 | `notes` | TEXT | Yes | Additional notes |
 | `created_by` | UUID | Yes | User who created the entry |
 
-### 8.3 Status Values
+### 11.3 Status Values
 
 | Status | Description | Calendar Display |
 |--------|-------------|------------------|
@@ -731,7 +996,7 @@ CREATE TABLE IF NOT EXISTS resource_availability (
 | `remote` | Working remotely | Blue |
 | `on_site` | Working on-site | Green |
 
-### 8.4 Period Values
+### 11.4 Period Values
 
 | Period | Description |
 |--------|-------------|
@@ -739,7 +1004,7 @@ CREATE TABLE IF NOT EXISTS resource_availability (
 | `am` | Morning only |
 | `pm` | Afternoon only |
 
-### 8.5 Indexes
+### 11.5 Indexes
 
 ```sql
 CREATE INDEX IF NOT EXISTS idx_resource_availability_project_id 
@@ -752,14 +1017,16 @@ CREATE INDEX IF NOT EXISTS idx_resource_availability_project_date
   ON resource_availability(project_id, date);
 ```
 
-### 8.6 Relationships
+### 11.6 Relationships
 
 - **Parents:** `projects(id)`, `auth.users(id)`
 - **Used by:** Resource calendar view, team availability display
 
 ---
 
-## 9. Entity Relationship Diagram
+## 12. Entity Relationship Diagram
+
+> **Updated:** Diagram now shows the organisation layer as the top-level tenant.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -769,7 +1036,6 @@ CREATE INDEX IF NOT EXISTS idx_resource_availability_project_date
 │  │  ───────────────│                                                        │
 │  │  id (PK)        │                                                        │
 │  │  email          │                                                        │
-│  │  ...            │                                                        │
 │  └────────┬────────┘                                                        │
 │           │ 1:1                                                              │
 └───────────┼─────────────────────────────────────────────────────────────────┘
@@ -777,69 +1043,71 @@ CREATE INDEX IF NOT EXISTS idx_resource_availability_project_date
             ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              USER LAYER                                      │
-│  ┌─────────────────┐                        ┌─────────────────┐             │
-│  │    profiles     │                        │   user_projects │             │
-│  │  ───────────────│◄──────────────────────►│  ───────────────│             │
-│  │  id (PK/FK)     │        M:N             │  id (PK)        │             │
-│  │  full_name      │                        │  user_id (FK)   │             │
-│  │  email          │                        │  project_id (FK)│             │
-│  │  role (global)  │                        │  role (project) │             │
-│  └─────────────────┘                        │  is_default     │             │
-│                                             └────────┬────────┘             │
-└──────────────────────────────────────────────────────┼──────────────────────┘
-                                                       │
-                                                       │ M:1
-                                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              PROJECT LAYER                                   │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                           projects (TENANT)                          │    │
-│  │  ────────────────────────────────────────────────────────────────── │    │
-│  │  id (PK)  │  reference  │  name  │  total_budget  │  settings       │    │
-│  └──────────────────────────────────┬───────────────────────────────────┘    │
-│                                     │                                        │
-│            ┌────────────────────────┼────────────────────────┐              │
-│            │                        │                        │              │
-│            ▼                        ▼                        ▼              │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐         │
-│  │   milestones    │    │   resources     │    │ resource_       │         │
-│  │  ───────────────│    │  ───────────────│    │ availability    │         │
-│  │  id (PK)        │    │  id (PK)        │    │  ───────────────│         │
-│  │  project_id(FK) │    │  project_id(FK) │    │  id (PK)        │         │
-│  │  milestone_ref  │    │  resource_ref   │    │  project_id(FK) │         │
-│  │  name           │    │  name           │    │  user_id (FK)   │         │
-│  │  baseline_*     │    │  daily_rate     │    │  date           │         │
-│  │  acceptance_*   │    │  user_id (FK)   │    │  status         │         │
-│  └────────┬────────┘    │  partner_id(FK) │    │  period         │         │
-│           │             └─────────────────┘    └─────────────────┘         │
+│  ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐      │
+│  │    profiles     │      │ user_organisations│     │   user_projects │      │
+│  │  ───────────────│      │  ───────────────│      │  ───────────────│      │
+│  │  id (PK/FK)     │◄────►│  id (PK)        │      │  id (PK)        │      │
+│  │  full_name      │ M:N  │  user_id (FK)   │      │  user_id (FK)   │      │
+│  │  email          │      │  org_id (FK)    │      │  project_id (FK)│      │
+│  │  role (global)  │      │  org_role       │      │  role (project) │      │
+│  └─────────────────┘      └────────┬────────┘      └────────┬────────┘      │
+│                                    │                        │               │
+└────────────────────────────────────┼────────────────────────┼───────────────┘
+                                     │ M:1                    │ M:1
+                                     ▼                        │
+┌─────────────────────────────────────────────────────────────┼───────────────┐
+│                         ORGANISATION LAYER (NEW)            │               │
+│  ┌─────────────────────────────────────────────────────┐    │               │
+│  │                    organisations                     │    │               │
+│  │  ─────────────────────────────────────────────────  │    │               │
+│  │  id (PK)  │  name  │  slug  │  settings  │ is_active│    │               │
+│  └─────────────────────────────┬───────────────────────┘    │               │
+│                                │ 1:M                        │               │
+└────────────────────────────────┼────────────────────────────┼───────────────┘
+                                 │                            │
+                                 ▼                            │
+┌─────────────────────────────────────────────────────────────┼───────────────┐
+│                              PROJECT LAYER                  │               │
+│  ┌─────────────────────────────────────────────────────┐    │               │
+│  │                       projects                       │◄───┘               │
+│  │  ─────────────────────────────────────────────────  │                    │
+│  │  id (PK)  │  organisation_id (FK)  │  name  │ ...   │                    │
+│  └─────────────────────────────┬───────────────────────┘                    │
+│                                │ 1:M                                        │
+│            ┌───────────────────┼───────────────────┐                        │
+│            ▼                   ▼                   ▼                        │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+│  │   milestones    │ │   resources     │ │resource_avail.  │               │
+│  │  ───────────────│ │  ───────────────│ │  ───────────────│               │
+│  │  project_id(FK) │ │  project_id(FK) │ │  project_id(FK) │               │
+│  │  milestone_ref  │ │  resource_ref   │ │  user_id (FK)   │               │
+│  └────────┬────────┘ └─────────────────┘ └─────────────────┘               │
 │           │ 1:M                                                             │
 │           ▼                                                                 │
 │  ┌─────────────────┐                                                        │
 │  │  deliverables   │                                                        │
 │  │  ───────────────│                                                        │
-│  │  id (PK)        │                                                        │
 │  │  project_id(FK) │                                                        │
 │  │  milestone_id   │                                                        │
-│  │  deliverable_ref│                                                        │
-│  │  name           │                                                        │
-│  │  sign_off_*     │                                                        │
-│  └────────┬────────┘                                                        │
-│           │                                                                 │
-│           ├──────────────────┬──────────────────┐                          │
-│           ▼                  ▼                  ▼                          │
-│  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐           │
-│  │deliverable_kpis │ │deliverable_      │ │deliverable_kpi_  │           │
-│  │ (junction)      │ │quality_standards │ │assessments       │           │
-│  └──────────────────┘ │ (junction)       │ └──────────────────┘           │
-│                       └──────────────────┘                                 │
+│  └─────────────────┘                                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### Key Relationships
+
+| Relationship | Description |
+|--------------|-------------|
+| auth.users → profiles | 1:1 - Each user has one profile |
+| auth.users → user_organisations | M:N - Users belong to multiple orgs |
+| auth.users → user_projects | M:N - Users belong to multiple projects |
+| organisations → projects | 1:M - Orgs contain multiple projects |
+| projects → [entities] | 1:M - Projects contain milestones, resources, etc. |
+
 ---
 
-## 10. Common Patterns
+## 13. Common Patterns
 
-### 10.1 Soft Delete Pattern
+### 13.1 Soft Delete Pattern
 
 All core tables implement soft delete:
 
@@ -853,7 +1121,7 @@ deleted_by UUID REFERENCES auth.users(id)
 .or('is_deleted.is.null,is_deleted.eq.false')
 ```
 
-### 10.2 Audit Fields Pattern
+### 13.2 Audit Fields Pattern
 
 All tables include:
 - `created_at TIMESTAMPTZ DEFAULT NOW()`
@@ -866,7 +1134,7 @@ CREATE TRIGGER update_<table>_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 ```
 
-### 10.3 Reference Field Pattern
+### 13.3 Reference Field Pattern
 
 Business entities use sequential reference codes:
 - `milestone_ref`: "MS-001", "MS-002"
@@ -878,7 +1146,7 @@ Uniqueness enforced per project:
 UNIQUE(project_id, milestone_ref)
 ```
 
-### 10.4 Dual-Signature Pattern
+### 13.4 Dual-Signature Pattern
 
 Both milestones and deliverables support dual-signature workflows:
 
@@ -893,20 +1161,23 @@ Both milestones and deliverables support dual-signature workflows:
 
 ---
 
-## 11. Session Completion
+## 14. Session Completion
 
-### 11.1 Checklist Status
+### 14.1 Checklist Status
 
-- [x] projects table
+- [x] organisations table (NEW)
+- [x] user_organisations table (NEW)
+- [x] organisation_members_with_profiles view (NEW)
+- [x] projects table (updated with organisation_id)
 - [x] profiles table
 - [x] user_projects table (multi-tenancy)
 - [x] milestones table
 - [x] deliverables table
 - [x] resources table
 - [x] resource_availability table
-- [x] Entity relationships diagram
+- [x] Entity relationships diagram (updated)
 
-### 11.2 Next Session Preview
+### 14.2 Next Session Preview
 
 **Session 1.3: Database Schema - Operational Tables** will document:
 - timesheets table
