@@ -13,7 +13,7 @@
  * 2. Run the corresponding SQL migration for RLS policies
  * 
  * Role Hierarchy:
- * - Organisation level: org_owner > org_admin > org_member
+ * - Organisation level: org_admin > org_member
  * - Project level: admin > supplier_pm > customer_pm > contributor > viewer
  */
 
@@ -36,7 +36,6 @@ export const ROLES = {
 // ============================================
 
 export const ORG_ROLES = {
-  ORG_OWNER: 'org_owner',
   ORG_ADMIN: 'org_admin',
   ORG_MEMBER: 'org_member',
 };
@@ -51,9 +50,8 @@ const WORKERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.C
 const ADMIN_ONLY = [ROLES.ADMIN];
 
 // Shorthand for common organisation role groupings
-const ALL_ORG_ROLES = [ORG_ROLES.ORG_OWNER, ORG_ROLES.ORG_ADMIN, ORG_ROLES.ORG_MEMBER];
-const ORG_ADMINS = [ORG_ROLES.ORG_OWNER, ORG_ROLES.ORG_ADMIN];
-const ORG_OWNER_ONLY = [ORG_ROLES.ORG_OWNER];
+const ALL_ORG_ROLES = [ORG_ROLES.ORG_ADMIN, ORG_ROLES.ORG_MEMBER];
+const ORG_ADMINS = [ORG_ROLES.ORG_ADMIN];
 
 // ============================================
 // PROJECT-LEVEL PERMISSION MATRIX
@@ -243,8 +241,8 @@ export const ORG_PERMISSION_MATRIX = {
   organisation: {
     view: ALL_ORG_ROLES,                      // All members can view org details
     edit: ORG_ADMINS,                         // Only admins can edit org settings
-    delete: ORG_OWNER_ONLY,                   // Only owner can delete organisation
-    manageBilling: ORG_OWNER_ONLY,            // Only owner manages billing/subscription
+    delete: ORG_ADMINS,                       // Admins can delete organisation
+    manageBilling: ORG_ADMINS,                // Admins manage billing/subscription
     viewBilling: ORG_ADMINS,                  // Admins can view billing info
   },
 
@@ -254,9 +252,8 @@ export const ORG_PERMISSION_MATRIX = {
   orgMembers: {
     view: ALL_ORG_ROLES,                      // All members can see member list
     invite: ORG_ADMINS,                       // Admins can invite new members
-    remove: ORG_ADMINS,                       // Admins can remove members (except owner)
-    changeRole: ORG_ADMINS,                   // Admins can change roles (except to owner)
-    promoteToOwner: ORG_OWNER_ONLY,           // Only owner can transfer ownership
+    remove: ORG_ADMINS,                       // Admins can remove members
+    changeRole: ORG_ADMINS,                   // Admins can change roles
   },
 
   // ----------------------------------------
@@ -275,7 +272,7 @@ export const ORG_PERMISSION_MATRIX = {
   orgSettings: {
     view: ORG_ADMINS,                         // Admins can view settings
     edit: ORG_ADMINS,                         // Admins can edit settings
-    manageFeatures: ORG_OWNER_ONLY,           // Only owner can enable/disable features
+    manageFeatures: ORG_ADMINS,               // Admins can enable/disable features
     manageBranding: ORG_ADMINS,               // Admins can manage branding
   },
 };
@@ -351,13 +348,15 @@ export function isOrgAdminRole(orgRole) {
 }
 
 /**
- * Check if user is the org owner
+ * Check if user is an org admin
+ * @deprecated Use isOrgAdminRole() instead - org_owner role has been removed
  * 
  * @param {string} orgRole - User's organisation role
- * @returns {boolean} - Whether the user is the org owner
+ * @returns {boolean} - Whether the user is an org admin
  */
 export function isOrgOwnerRole(orgRole) {
-  return orgRole === ORG_ROLES.ORG_OWNER;
+  // Deprecated: org_owner role removed, now just checks for org_admin
+  return orgRole === ORG_ROLES.ORG_ADMIN;
 }
 
 // ============================================
@@ -460,23 +459,17 @@ export const ROLE_OPTIONS = Object.entries(ROLE_CONFIG).map(([value, config]) =>
 // ============================================
 
 export const ORG_ROLE_CONFIG = {
-  [ORG_ROLES.ORG_OWNER]: { 
-    label: 'Owner', 
-    color: '#7c3aed', 
-    bg: '#f3e8ff',
-    description: 'Full control including billing and deletion'
-  },
   [ORG_ROLES.ORG_ADMIN]: { 
     label: 'Admin', 
     color: '#059669', 
     bg: '#d1fae5',
-    description: 'Manage members, settings, and projects'
+    description: 'Full organisation control - manage members, settings, and projects'
   },
   [ORG_ROLES.ORG_MEMBER]: { 
     label: 'Member', 
     color: '#64748b', 
     bg: '#f1f5f9',
-    description: 'Access assigned projects'
+    description: 'Access assigned projects only'
   },
 };
 
