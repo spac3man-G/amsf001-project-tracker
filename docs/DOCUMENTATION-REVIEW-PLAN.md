@@ -138,16 +138,18 @@ This plan provides a systematic approach to review and update each document.
 ### TECH-SPEC-03-Database-Operations.md
 **Focus:** milestones, deliverables, timesheets, expenses, variations
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Probably minimal - operational tables unchanged
-- May need note about org-scoping inheritance via projects
+**Updates Made (23 Dec 2025):**
+- Added organisation context note (Tier 3 entities inherit org via project)
+- Added Document History section
+- No schema changes - operational tables unchanged
+- Version: 1.0 → 1.1
 
 ---
 
@@ -368,7 +370,7 @@ To prevent context overflow during reviews:
 |----------|--------|------|-------|
 | TECH-SPEC-01 | ✅ Complete | 23 Dec 2025 | v2.0 - Updated multi-tenancy architecture |
 | TECH-SPEC-02 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org tables, updated ER diagram |
-| TECH-SPEC-03 | ⬜ Pending | | |
+| TECH-SPEC-03 | ✅ Complete | 23 Dec 2025 | v1.1 - Added org context note |
 | TECH-SPEC-04 | ⬜ Pending | | |
 | TECH-SPEC-05 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org RLS policies, updated multi-tenancy model |
 | TECH-SPEC-06 | ✅ Complete | 23 Dec 2025 | v1.1 - Added create-project API |
