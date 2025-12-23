@@ -134,20 +134,20 @@ export class OrganisationService {
         throw orgError;
       }
 
-      // Add the owner as a member
+      // Add the creator as an admin
       const { error: memberError } = await supabase
         .from('user_organisations')
         .insert({
           organisation_id: org.id,
           user_id: ownerId,
-          org_role: ORG_ROLES.ORG_OWNER,
+          org_role: ORG_ROLES.ORG_ADMIN,
           is_active: true,
           is_default: true,
           accepted_at: new Date().toISOString(),
         });
 
       if (memberError) {
-        console.error('Organisation owner membership error:', memberError);
+        console.error('Organisation admin membership error:', memberError);
         // Try to clean up the org if member creation fails
         await supabase.from(this.tableName).delete().eq('id', org.id);
         throw memberError;
@@ -434,8 +434,17 @@ export class OrganisationService {
         .eq('user_id', userId)
         .limit(1);
 
-      if (membership && membership[0]?.org_role === ORG_ROLES.ORG_OWNER) {
-        throw new Error('Cannot remove the organisation owner');
+      if (membership && membership[0]?.org_role === ORG_ROLES.ORG_ADMIN) {
+        // Check if this is the last admin - don't allow removal
+        const { data: adminCount } = await supabase
+          .from('user_organisations')
+          .select('id', { count: 'exact' })
+          .eq('organisation_id', organisationId)
+          .eq('org_role', ORG_ROLES.ORG_ADMIN);
+        
+        if (adminCount && adminCount.length <= 1) {
+          throw new Error('Cannot remove the last organisation admin');
+        }
       }
 
       // Delete the membership
@@ -486,25 +495,16 @@ export class OrganisationService {
 
       const currentRole = membership[0].org_role;
 
-      // If promoting to owner, demote current owner to admin
-      if (newRole === ORG_ROLES.ORG_OWNER && currentRole !== ORG_ROLES.ORG_OWNER) {
-        // Find current owner
-        const { data: currentOwner } = await supabase
+      // If demoting from admin, check if this is the last admin
+      if (currentRole === ORG_ROLES.ORG_ADMIN && newRole === ORG_ROLES.ORG_MEMBER) {
+        const { data: adminCount } = await supabase
           .from('user_organisations')
-          .select('id')
+          .select('id', { count: 'exact' })
           .eq('organisation_id', organisationId)
-          .eq('org_role', ORG_ROLES.ORG_OWNER)
-          .limit(1);
-
-        if (currentOwner && currentOwner.length > 0) {
-          // Demote current owner to admin
-          await supabase
-            .from('user_organisations')
-            .update({
-              org_role: ORG_ROLES.ORG_ADMIN,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', currentOwner[0].id);
+          .eq('org_role', ORG_ROLES.ORG_ADMIN);
+        
+        if (adminCount && adminCount.length <= 1) {
+          throw new Error('Cannot demote the last organisation admin');
         }
       }
 

@@ -46,8 +46,8 @@ import { isOrgAdminRole, isOrgOwnerRole } from '../lib/permissionMatrix';
  * @property {string|null} orgRole - User's role in the current organisation (from user_organisations)
  * @property {string} globalRole - User's system-wide role (from profiles)
  * @property {boolean} isSystemAdmin - True if globalRole === 'admin' (can access System Users)
- * @property {boolean} isOrgAdmin - True if user is org_owner or org_admin in current organisation
- * @property {boolean} isOrgOwner - True if user is org_owner of current organisation
+ * @property {boolean} isOrgAdmin - True if user is org_admin in current organisation
+ * @property {boolean} isOrgOwner - True if user is org_admin (deprecated - same as isOrgAdmin)
  * @property {string} effectiveRole - Project role if available, otherwise global role
  * @property {boolean} loading - True while fetching role data
  * @property {Object|null} error - Error object if any
@@ -106,10 +106,10 @@ export function useProjectRole() {
     // System admin check (for System Users access)
     isSystemAdmin,
     
-    // Organisation admin check (org_owner or org_admin)
+    // Organisation admin check (org_admin)
     isOrgAdmin,
     
-    // Organisation owner check (org_owner only)
+    // Organisation owner check (deprecated - same as isOrgAdmin)
     isOrgOwner,
     
     // Effective role (project role with global fallback)

@@ -10,13 +10,12 @@
 //   - org-switcher-item-{orgId}
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Building2, ChevronDown, Check, Crown, Shield, User } from 'lucide-react';
+import { Building2, ChevronDown, Check, Shield, User } from 'lucide-react';
 import { useOrganisation } from '../contexts/OrganisationContext';
 import { ORG_ROLE_CONFIG, ORG_ROLES } from '../lib/permissionMatrix';
 
 // Icon mapping for org roles
 const ORG_ROLE_ICONS = {
-  [ORG_ROLES.ORG_OWNER]: Crown,
   [ORG_ROLES.ORG_ADMIN]: Shield,
   [ORG_ROLES.ORG_MEMBER]: User,
 };

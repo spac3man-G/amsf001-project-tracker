@@ -1,11 +1,11 @@
 // src/contexts/OrganisationContext.jsx
 // Provides organisation context to the entire application
-// Version 1.0 - Organisation-level multi-tenancy support
+// Version 2.0 - Simplified to 2-role model (org_admin, org_member)
 //
 // This context manages:
 // - User's available organisations
 // - Current organisation selection
-// - Organisation-level role (org_owner, org_admin, org_member)
+// - Organisation-level role (org_admin, org_member)
 // - Organisation settings and features
 //
 // Provider order: AuthProvider > OrganisationProvider > ProjectProvider
@@ -26,29 +26,22 @@ const ORG_STORAGE_KEY = 'amsf_current_organisation_id';
 // ============================================
 
 export const ORG_ROLES = {
-  ORG_OWNER: 'org_owner',
   ORG_ADMIN: 'org_admin',
   ORG_MEMBER: 'org_member',
 };
 
 export const ORG_ROLE_CONFIG = {
-  [ORG_ROLES.ORG_OWNER]: { 
-    label: 'Owner', 
-    color: '#7c3aed', 
-    bg: '#f3e8ff',
-    description: 'Full control including billing and deletion'
-  },
   [ORG_ROLES.ORG_ADMIN]: { 
     label: 'Admin', 
     color: '#059669', 
     bg: '#d1fae5',
-    description: 'Manage members, settings, and projects'
+    description: 'Full organisation control - manage members, settings, and projects'
   },
   [ORG_ROLES.ORG_MEMBER]: { 
     label: 'Member', 
     color: '#64748b', 
     bg: '#f1f5f9',
-    description: 'Access assigned projects'
+    description: 'Access assigned projects only'
   },
 };
 
@@ -57,17 +50,18 @@ export const ORG_ROLE_CONFIG = {
 // ============================================
 
 /**
- * Check if a role is an admin-level role (owner or admin)
+ * Check if a role is an admin-level role
  */
 export function isOrgAdminRole(role) {
-  return role === ORG_ROLES.ORG_OWNER || role === ORG_ROLES.ORG_ADMIN;
+  return role === ORG_ROLES.ORG_ADMIN;
 }
 
 /**
- * Check if a role is the owner role
+ * Check if a role is an admin role (deprecated - use isOrgAdminRole)
+ * @deprecated org_owner role removed in v2.0, now aliases isOrgAdminRole
  */
 export function isOrgOwnerRole(role) {
-  return role === ORG_ROLES.ORG_OWNER;
+  return role === ORG_ROLES.ORG_ADMIN;
 }
 
 // ============================================
@@ -273,12 +267,13 @@ export function OrganisationProvider({ children }) {
   // Check if user has multiple organisations (for showing org switcher)
   const hasMultipleOrganisations = availableOrganisations.length > 1;
 
-  // Check if user is org admin (owner or admin role)
+  // Check if user is org admin
   const isOrgAdmin = useMemo(() => {
     return isSystemAdmin || isOrgAdminRole(orgRole);
   }, [isSystemAdmin, orgRole]);
 
-  // Check if user is org owner
+  // Check if user is org owner (deprecated - now same as isOrgAdmin)
+  // Kept for backwards compatibility
   const isOrgOwner = useMemo(() => {
     return isOrgOwnerRole(orgRole);
   }, [orgRole]);

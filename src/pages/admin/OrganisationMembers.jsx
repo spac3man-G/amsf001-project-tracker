@@ -1,24 +1,25 @@
 /**
  * Organisation Members Page - Manage Organisation Membership
  * 
- * Allows organisation owners and admins to manage members.
+ * Allows organisation admins to manage members.
  * 
  * Features:
  * - View all organisation members with their roles
  * - Invite new members (by email)
- * - Change member roles (admin can't promote to owner)
- * - Remove members (admin can't remove owner)
+ * - Change member roles
+ * - Remove members
  * 
- * @version 1.0
+ * @version 2.0
  * @created 22 December 2025
+ * @updated 23 December 2025 - Simplified to 2-role model (removed org_owner)
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { 
-  Users, Plus, RefreshCw, Crown, Shield, User, 
-  Trash2, ChevronDown, Mail, AlertCircle, Check, X
+  Users, Plus, RefreshCw, Shield, User, 
+  Trash2, ChevronDown, Mail, Check, X
 } from 'lucide-react';
 import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,7 +38,6 @@ export default function OrganisationMembers() {
     currentOrganisation, 
     orgRole, 
     isOrgAdmin, 
-    isOrgOwner,
     refreshOrganisationMemberships
   } = useOrganisation();
   const { isSystemAdmin, loading: roleLoading } = useProjectRole();
@@ -55,7 +55,6 @@ export default function OrganisationMembers() {
   const canInvite = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'invite');
   const canRemove = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'remove');
   const canChangeRole = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'changeRole');
-  const canPromoteToOwner = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'promoteToOwner');
 
   // Fetch members using the organisation service
   const fetchMembers = useCallback(async () => {
@@ -88,12 +87,10 @@ export default function OrganisationMembers() {
   // Get role icon
   const getRoleIcon = (role) => {
     switch (role) {
-      case ORG_ROLES.ORG_OWNER:
-        return <Crown size={16} style={{ color: ORG_ROLE_CONFIG[role].color }} />;
       case ORG_ROLES.ORG_ADMIN:
-        return <Shield size={16} style={{ color: ORG_ROLE_CONFIG[role].color }} />;
+        return <Shield size={16} style={{ color: ORG_ROLE_CONFIG[role]?.color || '#059669' }} />;
       default:
-        return <User size={16} style={{ color: ORG_ROLE_CONFIG[role].color }} />;
+        return <User size={16} style={{ color: ORG_ROLE_CONFIG[role]?.color || '#64748b' }} />;
     }
   };
 
@@ -103,12 +100,6 @@ export default function OrganisationMembers() {
     
     if (!inviteEmail.trim()) {
       showError('Please enter an email address');
-      return;
-    }
-
-    // Validate role - admins can't invite owners
-    if (inviteRole === ORG_ROLES.ORG_OWNER && !canPromoteToOwner) {
-      showError('Only the organisation owner can invite new owners');
       return;
     }
 
@@ -179,16 +170,9 @@ export default function OrganisationMembers() {
     const member = members.find(m => m.id === memberId);
     if (!member) return;
 
-    // Can't change owner's role unless you're promoting to owner
-    if (member.org_role === ORG_ROLES.ORG_OWNER) {
-      showError('Cannot change the owner\'s role');
-      setRoleDropdown(null);
-      return;
-    }
-
-    // Only owner can promote to owner
-    if (newRole === ORG_ROLES.ORG_OWNER && !canPromoteToOwner) {
-      showError('Only the organisation owner can transfer ownership');
+    // Can't change your own role
+    if (member.user_id === user?.id) {
+      showError('You cannot change your own role');
       setRoleDropdown(null);
       return;
     }
@@ -203,20 +187,6 @@ export default function OrganisationMembers() {
         .eq('id', memberId);
 
       if (error) throw error;
-
-      // If promoting to owner, demote current owner
-      if (newRole === ORG_ROLES.ORG_OWNER) {
-        const currentOwner = members.find(m => m.org_role === ORG_ROLES.ORG_OWNER);
-        if (currentOwner && currentOwner.id !== memberId) {
-          await supabase
-            .from('user_organisations')
-            .update({ 
-              org_role: ORG_ROLES.ORG_ADMIN,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', currentOwner.id);
-        }
-      }
 
       showSuccess('Member role updated');
       setRoleDropdown(null);
@@ -233,9 +203,9 @@ export default function OrganisationMembers() {
     const member = confirmDialog.member;
     if (!member) return;
 
-    // Can't remove owner
-    if (member.org_role === ORG_ROLES.ORG_OWNER) {
-      showError('Cannot remove the organisation owner');
+    // Can't remove yourself
+    if (member.user_id === user?.id) {
+      showError('You cannot remove yourself from the organisation');
       setConfirmDialog({ open: false, member: null });
       return;
     }
@@ -323,9 +293,6 @@ export default function OrganisationMembers() {
                 >
                   <option value={ORG_ROLES.ORG_MEMBER}>Member</option>
                   <option value={ORG_ROLES.ORG_ADMIN}>Admin</option>
-                  {canPromoteToOwner && (
-                    <option value={ORG_ROLES.ORG_OWNER}>Owner</option>
-                  )}
                 </select>
               </div>
               <div className="modal-actions">
@@ -386,18 +353,18 @@ export default function OrganisationMembers() {
                         style={{
                           backgroundColor: ORG_ROLE_CONFIG[member.org_role]?.bg || '#f1f5f9',
                           color: ORG_ROLE_CONFIG[member.org_role]?.color || '#64748b',
-                          cursor: canChangeRole && member.org_role !== ORG_ROLES.ORG_OWNER ? 'pointer' : 'default'
+                          cursor: canChangeRole && member.user_id !== user?.id ? 'pointer' : 'default'
                         }}
                         onClick={() => {
-                          if (canChangeRole && member.org_role !== ORG_ROLES.ORG_OWNER) {
+                          if (canChangeRole && member.user_id !== user?.id) {
                             setRoleDropdown(roleDropdown === member.id ? null : member.id);
                           }
                         }}
-                        disabled={!canChangeRole || member.org_role === ORG_ROLES.ORG_OWNER}
+                        disabled={!canChangeRole || member.user_id === user?.id}
                       >
                         {getRoleIcon(member.org_role)}
                         {ORG_ROLE_CONFIG[member.org_role]?.label || member.org_role}
-                        {canChangeRole && member.org_role !== ORG_ROLES.ORG_OWNER && (
+                        {canChangeRole && member.user_id !== user?.id && (
                           <ChevronDown size={14} />
                         )}
                       </button>
@@ -405,22 +372,17 @@ export default function OrganisationMembers() {
                       {/* Role Dropdown */}
                       {roleDropdown === member.id && (
                         <div className="role-dropdown">
-                          {Object.entries(ORG_ROLE_CONFIG).map(([role, config]) => {
-                            // Skip owner unless user can promote to owner
-                            if (role === ORG_ROLES.ORG_OWNER && !canPromoteToOwner) return null;
-                            
-                            return (
-                              <button
-                                key={role}
-                                onClick={() => handleRoleChange(member.id, role)}
-                                className={member.org_role === role ? 'active' : ''}
-                              >
-                                {getRoleIcon(role)}
-                                {config.label}
-                                {member.org_role === role && <Check size={14} />}
-                              </button>
-                            );
-                          })}
+                          {Object.entries(ORG_ROLE_CONFIG).map(([role, config]) => (
+                            <button
+                              key={role}
+                              onClick={() => handleRoleChange(member.id, role)}
+                              className={member.org_role === role ? 'active' : ''}
+                            >
+                              {getRoleIcon(role)}
+                              {config.label}
+                              {member.org_role === role && <Check size={14} />}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -434,7 +396,7 @@ export default function OrganisationMembers() {
                     }
                   </td>
                   <td className="actions-cell">
-                    {canRemove && member.org_role !== ORG_ROLES.ORG_OWNER && member.user_id !== user?.id && (
+                    {canRemove && member.user_id !== user?.id && (
                       <button
                         onClick={() => setConfirmDialog({ open: true, member })}
                         className="btn-icon danger"
