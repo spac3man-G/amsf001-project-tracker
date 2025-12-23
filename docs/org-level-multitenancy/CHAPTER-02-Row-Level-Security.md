@@ -3,9 +3,20 @@
 ## Chapter 2: Row-Level Security Policies
 
 **Document:** CHAPTER-02-Row-Level-Security.md  
-**Version:** 1.0  
+**Version:** 1.1  
 **Created:** 22 December 2025  
-**Status:** Draft  
+**Updated:** 22 December 2025  
+**Status:** Complete (Implementation Reference)  
+
+---
+
+> **📝 Implementation Notes**
+> 
+> This chapter was written as a planning document. Additional RLS objects were created during implementation:
+> 
+> 1. **`profiles_org_members_can_view`** - Policy allowing org members to view co-member profiles
+> 2. **`organisation_members_with_profiles`** - View (not RLS) used to join memberships with profiles
+> 3. **See IMPLEMENTATION-SUMMARY.md** for the definitive list of database objects
 
 ---
 

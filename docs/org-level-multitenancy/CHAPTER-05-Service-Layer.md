@@ -3,9 +3,20 @@
 ## Chapter 5: Service Layer Updates
 
 **Document:** CHAPTER-05-Service-Layer.md  
-**Version:** 1.0  
+**Version:** 1.1  
 **Created:** 22 December 2025  
-**Status:** Draft  
+**Updated:** 22 December 2025  
+**Status:** Complete (Implementation Reference)  
+
+---
+
+> **📝 Implementation Notes**
+> 
+> This chapter was written as a planning document. The actual implementation differs in some details:
+> 
+> 1. **getMembers()** uses `organisation_members_with_profiles` database view instead of direct FK join
+> 2. **File location:** `src/services/organisation.service.js` (singular, not plural)
+> 3. **See IMPLEMENTATION-SUMMARY.md** for the definitive list of what was actually built
 
 ---
 

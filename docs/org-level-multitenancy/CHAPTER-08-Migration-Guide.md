@@ -3,9 +3,26 @@
 ## Chapter 8: Migration Guide
 
 **Document:** CHAPTER-08-Migration-Guide.md  
-**Version:** 1.0  
+**Version:** 1.1  
 **Created:** 22 December 2025  
-**Status:** Draft  
+**Updated:** 22 December 2025  
+**Status:** Complete (Implementation Reference)  
+
+---
+
+> **📝 Implementation Notes**
+> 
+> This chapter documents 8 core migrations. The actual implementation has **12 migrations** total:
+> 
+> **Core migrations (8):** `202512221400` through `202512221407`
+> 
+> **Additional migrations (4):** Created to resolve RLS issues:
+> - `202512221500` - profiles_org_members_can_view policy
+> - `202512221510` - get_org_member_profiles function
+> - `202512221520` - fix for function schema paths
+> - `202512221530` - organisation_members_with_profiles view (THE WORKING SOLUTION)
+> 
+> **See IMPLEMENTATION-SUMMARY.md** for complete details.
 
 ---
 
