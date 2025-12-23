@@ -205,18 +205,21 @@ This plan provides a systematic approach to review and update each document.
 ### TECH-SPEC-07-Frontend-State.md
 **Focus:** React contexts, state management
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Add OrganisationContext documentation
-- Update ProjectContext documentation (org filtering)
-- Update context hierarchy diagram
-- Add OrganisationSwitcher component
+**Updates Made (23 Dec 2025):**
+- Fixed section numbering (duplicate Section 10 issue)
+- Updated Table of Contents with all sections and appendices
+- Added ORG_ROLE_CONFIG to Appendix A
+- Added useOrganisation import to Appendix B
+- Added Document History section
+- Pre-existing updates: OrganisationContext (Section 4), Provider Hierarchy, ProjectContext
+- Version: 1.1 → 2.0
 
 ---
 
@@ -352,7 +355,7 @@ To prevent context overflow during reviews:
 | TECH-SPEC-04 | ⬜ Pending | | |
 | TECH-SPEC-05 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org RLS policies, updated multi-tenancy model |
 | TECH-SPEC-06 | ⬜ Pending | | |
-| TECH-SPEC-07 | ⬜ Pending | | |
+| TECH-SPEC-07 | ✅ Complete | 23 Dec 2025 | v2.0 - Added OrganisationContext, updated provider hierarchy |
 | TECH-SPEC-08 | ⬜ Pending | | |
 | TECH-SPEC-09 | ⬜ Pending | | |
 | Master Spec | ⬜ Pending | | |
