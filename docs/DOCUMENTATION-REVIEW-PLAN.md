@@ -167,19 +167,22 @@ This plan provides a systematic approach to review and update each document.
 ### TECH-SPEC-05-RLS-Security.md
 **Focus:** RLS policies, authentication, authorization
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Add new helper functions (is_org_member, is_org_admin, etc.)
-- Add organisation RLS policies
-- Add user_organisations RLS policies
-- Add profiles_org_members_can_view policy
-- Update security model diagram
+**Updates Made (23 Dec 2025):**
+- Added `organisations` table policies (Section 4.1)
+- Added `user_organisations` table policies (Section 4.2)
+- Updated `profiles` with `profiles_org_members_can_view` policy (Section 4.3)
+- Updated `projects` and `user_projects` policies for org-awareness (Section 4.4-4.5)
+- Updated multi-tenancy architecture to three-tier model (Section 2)
+- Added org-level helper functions documentation (Section 1.3)
+- Updated security layers diagram
+- Version: 1.1 → 2.0
 
 ---
 
@@ -347,7 +350,7 @@ To prevent context overflow during reviews:
 | TECH-SPEC-02 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org tables, updated ER diagram |
 | TECH-SPEC-03 | ⬜ Pending | | |
 | TECH-SPEC-04 | ⬜ Pending | | |
-| TECH-SPEC-05 | ⬜ Pending | | |
+| TECH-SPEC-05 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org RLS policies, updated multi-tenancy model |
 | TECH-SPEC-06 | ⬜ Pending | | |
 | TECH-SPEC-07 | ⬜ Pending | | |
 | TECH-SPEC-08 | ⬜ Pending | | |
