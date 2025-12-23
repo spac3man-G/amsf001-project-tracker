@@ -1,9 +1,14 @@
 # AMSF001 Technical Specification - API Layer & AI Integration
 
-**Version:** 1.0  
-**Last Updated:** 11 December 2025  
+**Version:** 1.1  
+**Last Updated:** 23 December 2025  
 **Session:** 1.6  
 **Status:** Complete  
+
+> **Version 1.1 Updates (23 December 2025):**
+> - Added `/api/create-project` endpoint (org-aware project creation)
+> - Added Section 6.5: Project Creation API
+> - Added Document History section
 
 ---
 
@@ -94,6 +99,7 @@ The AMSF001 Project Tracker uses **Vercel Edge Functions** for its serverless AP
 | `/api/chat-stream` | POST | Streaming chat (Haiku) | Yes (JWT) |
 | `/api/chat-context` | POST | Pre-fetch project context | Yes (JWT) |
 | `/api/create-user` | POST | Create new user accounts | Admin JWT |
+| `/api/create-project` | POST | Create project (org-aware) | Admin/Org Admin JWT |
 | `/api/scan-receipt` | POST | AI receipt scanning | Yes (JWT) |
 
 ### 2.2 Vercel Routing Configuration
@@ -630,6 +636,65 @@ Note: Initial passwords created by admin only require 8 characters minimum, but 
 
 ---
 
+### 6.5 Project Creation API (New - December 2025)
+
+**File:** `api/create-project.js`
+
+Creates new projects within an organisation. Requires organisation admin permissions or system admin role.
+
+**Endpoint:** `POST /api/create-project`
+
+**Request Body:**
+
+```json
+{
+  "name": "New Project Name",
+  "reference": "PROJ-001",
+  "description": "Optional description",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "total_budget": 100000,
+  "organisation_id": "uuid-of-organisation",
+  "adminToken": "jwt-token"
+}
+```
+
+**Permissions:**
+- System admins can create projects in any organisation (or without org)
+- Organisation owners/admins can create projects in their organisation
+- Supplier PMs with org_admin role can create projects
+
+**Validation:**
+- Reference must be alphanumeric with hyphens only
+- Reference must be unique within the organisation
+- Organisation must exist and be active
+- User must have appropriate permissions
+
+**Response (Success):**
+
+```json
+{
+  "success": true,
+  "project": {
+    "id": "uuid",
+    "reference": "PROJ-001",
+    "name": "New Project Name",
+    "organisation_id": "uuid"
+  },
+  "message": "Project created successfully"
+}
+```
+
+**Response (Error):**
+
+```json
+{
+  "error": "Insufficient permissions. Only organisation admins can create projects."
+}
+```
+
+---
+
 ## 7. Receipt Scanner API
 
 ### 7.1 Endpoint: `/api/scan-receipt`
@@ -959,5 +1024,14 @@ console.log(`[Tool] ${toolName} completed in ${Date.now() - startTime}ms`);
 
 ---
 
-*Document generated for AMSF001 Project Tracker - Session 1.6*
-*Last updated: 11 December 2025*
+*Document generated for AMSF001 Project Tracker - Session 1.6*  
+*Last updated: 23 December 2025*
+
+---
+
+## Appendix C: Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
+| 1.1 | 23 Dec 2025 | Claude AI | Added `/api/create-project` endpoint, Project Creation API section (6.5) for org-aware project creation |
