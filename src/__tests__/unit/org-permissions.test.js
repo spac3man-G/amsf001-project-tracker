@@ -3,10 +3,11 @@
  * Location: src/__tests__/unit/org-permissions.test.js
  * 
  * Tests organisation-level permissions for multi-tenancy.
- * Tests ORG_ROLES (org_owner, org_admin, org_member) and their permissions.
+ * Tests ORG_ROLES (org_admin, org_member) and their permissions.
  * 
- * @version 1.0
+ * @version 2.0
  * @created 22 December 2025
+ * @updated 23 December 2025 - Simplified to 2-role model (removed org_owner)
  */
 
 import { describe, it, expect } from 'vitest';
@@ -27,13 +28,11 @@ import {
 // ============================================
 
 const ALL_ORG_ROLES = [
-  ORG_ROLES.ORG_OWNER,
   ORG_ROLES.ORG_ADMIN,
   ORG_ROLES.ORG_MEMBER,
 ];
 
-const ORG_ADMINS = [ORG_ROLES.ORG_OWNER, ORG_ROLES.ORG_ADMIN];
-const ORG_OWNER_ONLY = [ORG_ROLES.ORG_OWNER];
+const ORG_ADMINS = [ORG_ROLES.ORG_ADMIN];
 
 // ============================================
 // HELPER FUNCTIONS
@@ -56,13 +55,16 @@ function testOrgPermissionForAllRoles(entity, action, expectedAllowedRoles, desc
 
 describe('ORG_ROLES Constants', () => {
   it('should have all required org roles defined', () => {
-    expect(ORG_ROLES.ORG_OWNER).toBe('org_owner');
     expect(ORG_ROLES.ORG_ADMIN).toBe('org_admin');
     expect(ORG_ROLES.ORG_MEMBER).toBe('org_member');
   });
 
-  it('should have exactly 3 org roles', () => {
-    expect(Object.keys(ORG_ROLES).length).toBe(3);
+  it('should have exactly 2 org roles', () => {
+    expect(Object.keys(ORG_ROLES).length).toBe(2);
+  });
+
+  it('should NOT have org_owner role (removed in v2.0)', () => {
+    expect(ORG_ROLES.ORG_OWNER).toBeUndefined();
   });
 });
 
@@ -85,14 +87,14 @@ describe('Organisation Entity Permissions', () => {
 
   testOrgPermissionForAllRoles(
     'organisation', 'delete',
-    ORG_OWNER_ONLY,
-    'organisation.delete - owner only'
+    ORG_ADMINS,
+    'organisation.delete - admins can delete'
   );
 
   testOrgPermissionForAllRoles(
     'organisation', 'manageBilling',
-    ORG_OWNER_ONLY,
-    'organisation.manageBilling - owner only'
+    ORG_ADMINS,
+    'organisation.manageBilling - admins can manage'
   );
 
   testOrgPermissionForAllRoles(
@@ -131,11 +133,7 @@ describe('Org Members Permissions', () => {
     'orgMembers.changeRole - admins only'
   );
 
-  testOrgPermissionForAllRoles(
-    'orgMembers', 'promoteToOwner',
-    ORG_OWNER_ONLY,
-    'orgMembers.promoteToOwner - owner only'
-  );
+  // Note: promoteToOwner was removed in v2.0 (no owner role)
 });
 
 // ============================================
@@ -187,8 +185,8 @@ describe('Org Settings Permissions', () => {
 
   testOrgPermissionForAllRoles(
     'orgSettings', 'manageFeatures',
-    ORG_OWNER_ONLY,
-    'orgSettings.manageFeatures - owner only'
+    ORG_ADMINS,
+    'orgSettings.manageFeatures - admins can manage'
   );
 
   testOrgPermissionForAllRoles(
@@ -204,10 +202,6 @@ describe('Org Settings Permissions', () => {
 
 describe('Role Helper Functions', () => {
   describe('isOrgAdminRole', () => {
-    it('should return true for org_owner', () => {
-      expect(isOrgAdminRole(ORG_ROLES.ORG_OWNER)).toBe(true);
-    });
-
     it('should return true for org_admin', () => {
       expect(isOrgAdminRole(ORG_ROLES.ORG_ADMIN)).toBe(true);
     });
@@ -224,15 +218,17 @@ describe('Role Helper Functions', () => {
     it('should return false for invalid role', () => {
       expect(isOrgAdminRole('invalid_role')).toBe(false);
     });
+
+    it('should return false for legacy org_owner string', () => {
+      expect(isOrgAdminRole('org_owner')).toBe(false);
+    });
   });
 
-  describe('isOrgOwnerRole', () => {
-    it('should return true only for org_owner', () => {
-      expect(isOrgOwnerRole(ORG_ROLES.ORG_OWNER)).toBe(true);
-    });
-
-    it('should return false for org_admin', () => {
-      expect(isOrgOwnerRole(ORG_ROLES.ORG_ADMIN)).toBe(false);
+  describe('isOrgOwnerRole (deprecated)', () => {
+    // isOrgOwnerRole is deprecated but kept for backwards compatibility
+    // It now returns true for org_admin (since admin has full control)
+    it('should return true for org_admin (backwards compatible)', () => {
+      expect(isOrgOwnerRole(ORG_ROLES.ORG_ADMIN)).toBe(true);
     });
 
     it('should return false for org_member', () => {
@@ -252,26 +248,17 @@ describe('Role Helper Functions', () => {
 
 describe('Permission Utility Functions', () => {
   describe('getOrgPermissionsForRole', () => {
-    it('should return all permissions for org_owner', () => {
-      const perms = getOrgPermissionsForRole(ORG_ROLES.ORG_OWNER);
+    it('should return all permissions for org_admin', () => {
+      const perms = getOrgPermissionsForRole(ORG_ROLES.ORG_ADMIN);
       
       expect(perms.organisation.view).toBe(true);
       expect(perms.organisation.edit).toBe(true);
       expect(perms.organisation.delete).toBe(true);
       expect(perms.organisation.manageBilling).toBe(true);
-      expect(perms.orgMembers.promoteToOwner).toBe(true);
-      expect(perms.orgSettings.manageFeatures).toBe(true);
-    });
-
-    it('should return admin permissions for org_admin', () => {
-      const perms = getOrgPermissionsForRole(ORG_ROLES.ORG_ADMIN);
-      
-      expect(perms.organisation.view).toBe(true);
-      expect(perms.organisation.edit).toBe(true);
-      expect(perms.organisation.delete).toBe(false);
-      expect(perms.organisation.manageBilling).toBe(false);
       expect(perms.orgMembers.invite).toBe(true);
-      expect(perms.orgMembers.promoteToOwner).toBe(false);
+      expect(perms.orgMembers.changeRole).toBe(true);
+      expect(perms.orgSettings.manageFeatures).toBe(true);
+      expect(perms.orgProjects.create).toBe(true);
     });
 
     it('should return limited permissions for org_member', () => {
@@ -284,11 +271,11 @@ describe('Permission Utility Functions', () => {
       expect(perms.orgMembers.invite).toBe(false);
       expect(perms.orgProjects.view).toBe(true);
       expect(perms.orgProjects.create).toBe(false);
+      expect(perms.orgSettings.view).toBe(false);
     });
 
     it('should return object with false values for invalid role', () => {
       const perms = getOrgPermissionsForRole('invalid_role');
-      // The function returns an object with entities but all values false
       expect(perms.organisation.view).toBe(false);
     });
   });
@@ -296,22 +283,19 @@ describe('Permission Utility Functions', () => {
   describe('getOrgRolesForPermission', () => {
     it('should return all roles for view permissions', () => {
       const roles = getOrgRolesForPermission('organisation', 'view');
-      expect(roles).toContain(ORG_ROLES.ORG_OWNER);
       expect(roles).toContain(ORG_ROLES.ORG_ADMIN);
       expect(roles).toContain(ORG_ROLES.ORG_MEMBER);
     });
 
-    it('should return admins for edit permissions', () => {
+    it('should return only admin for edit permissions', () => {
       const roles = getOrgRolesForPermission('organisation', 'edit');
-      expect(roles).toContain(ORG_ROLES.ORG_OWNER);
       expect(roles).toContain(ORG_ROLES.ORG_ADMIN);
       expect(roles).not.toContain(ORG_ROLES.ORG_MEMBER);
     });
 
-    it('should return only owner for delete permissions', () => {
+    it('should return only admin for delete permissions', () => {
       const roles = getOrgRolesForPermission('organisation', 'delete');
-      expect(roles).toContain(ORG_ROLES.ORG_OWNER);
-      expect(roles).not.toContain(ORG_ROLES.ORG_ADMIN);
+      expect(roles).toContain(ORG_ROLES.ORG_ADMIN);
       expect(roles).not.toContain(ORG_ROLES.ORG_MEMBER);
     });
 
@@ -341,15 +325,19 @@ describe('hasOrgPermission Edge Cases', () => {
   });
 
   it('should return false for invalid entity', () => {
-    expect(hasOrgPermission(ORG_ROLES.ORG_OWNER, 'invalid_entity', 'view')).toBe(false);
+    expect(hasOrgPermission(ORG_ROLES.ORG_ADMIN, 'invalid_entity', 'view')).toBe(false);
   });
 
   it('should return false for invalid action', () => {
-    expect(hasOrgPermission(ORG_ROLES.ORG_OWNER, 'organisation', 'invalid_action')).toBe(false);
+    expect(hasOrgPermission(ORG_ROLES.ORG_ADMIN, 'organisation', 'invalid_action')).toBe(false);
   });
 
   it('should return false for empty string role', () => {
     expect(hasOrgPermission('', 'organisation', 'view')).toBe(false);
+  });
+
+  it('should return false for legacy org_owner string', () => {
+    expect(hasOrgPermission('org_owner', 'organisation', 'view')).toBe(false);
   });
 });
 
@@ -368,9 +356,12 @@ describe('ORG_ROLE_CONFIG UI Configuration', () => {
   });
 
   it('should have descriptive labels', () => {
-    expect(ORG_ROLE_CONFIG[ORG_ROLES.ORG_OWNER].label).toBe('Owner');
     expect(ORG_ROLE_CONFIG[ORG_ROLES.ORG_ADMIN].label).toBe('Admin');
     expect(ORG_ROLE_CONFIG[ORG_ROLES.ORG_MEMBER].label).toBe('Member');
+  });
+
+  it('should NOT have config for org_owner (removed)', () => {
+    expect(ORG_ROLE_CONFIG['org_owner']).toBeUndefined();
   });
 
   it('should have valid color codes', () => {
@@ -397,8 +388,8 @@ describe('ORG_ROLE_OPTIONS for Dropdowns', () => {
     expect(Array.isArray(ORG_ROLE_OPTIONS)).toBe(true);
   });
 
-  it('should have options for all org roles', () => {
-    expect(ORG_ROLE_OPTIONS.length).toBe(3);
+  it('should have options for all org roles (2 roles)', () => {
+    expect(ORG_ROLE_OPTIONS.length).toBe(2);
   });
 
   it('should have value and label for each option', () => {
@@ -409,10 +400,9 @@ describe('ORG_ROLE_OPTIONS for Dropdowns', () => {
     });
   });
 
-  it('should be ordered by privilege (owner first)', () => {
-    expect(ORG_ROLE_OPTIONS[0].value).toBe(ORG_ROLES.ORG_OWNER);
-    expect(ORG_ROLE_OPTIONS[1].value).toBe(ORG_ROLES.ORG_ADMIN);
-    expect(ORG_ROLE_OPTIONS[2].value).toBe(ORG_ROLES.ORG_MEMBER);
+  it('should be ordered by privilege (admin first)', () => {
+    expect(ORG_ROLE_OPTIONS[0].value).toBe(ORG_ROLES.ORG_ADMIN);
+    expect(ORG_ROLE_OPTIONS[1].value).toBe(ORG_ROLES.ORG_MEMBER);
   });
 });
 
@@ -437,10 +427,15 @@ describe('ORG_PERMISSION_MATRIX Completeness', () => {
   });
 
   it('orgMembers should have all required actions', () => {
-    const expectedActions = ['view', 'invite', 'remove', 'changeRole', 'promoteToOwner'];
+    // Note: promoteToOwner was removed in v2.0
+    const expectedActions = ['view', 'invite', 'remove', 'changeRole'];
     expectedActions.forEach(action => {
       expect(ORG_PERMISSION_MATRIX.orgMembers[action]).toBeDefined();
     });
+  });
+
+  it('orgMembers should NOT have promoteToOwner (removed in v2.0)', () => {
+    expect(ORG_PERMISSION_MATRIX.orgMembers.promoteToOwner).toBeUndefined();
   });
 
   it('orgProjects should have all required actions', () => {
@@ -477,12 +472,15 @@ describe('Organisation Security Boundaries', () => {
     const adminActions = [
       ['organisation', 'edit'],
       ['organisation', 'delete'],
+      ['organisation', 'manageBilling'],
       ['orgMembers', 'invite'],
       ['orgMembers', 'remove'],
       ['orgMembers', 'changeRole'],
       ['orgProjects', 'create'],
       ['orgProjects', 'delete'],
+      ['orgSettings', 'view'],
       ['orgSettings', 'edit'],
+      ['orgSettings', 'manageFeatures'],
     ];
 
     adminActions.forEach(([entity, action]) => {
@@ -492,47 +490,30 @@ describe('Organisation Security Boundaries', () => {
     });
   });
 
-  describe('Admin cannot perform owner-only actions', () => {
-    const ownerOnlyActions = [
-      ['organisation', 'delete'],
-      ['organisation', 'manageBilling'],
-      ['orgMembers', 'promoteToOwner'],
-      ['orgSettings', 'manageFeatures'],
-    ];
-
-    ownerOnlyActions.forEach(([entity, action]) => {
-      it(`org_admin cannot ${action} ${entity}`, () => {
-        expect(hasOrgPermission(ORG_ROLES.ORG_ADMIN, entity, action)).toBe(false);
-      });
-    });
-  });
-
-  describe('Owner has full access', () => {
-    it('owner can perform all actions', () => {
+  describe('Admin has full access', () => {
+    it('admin can perform all actions', () => {
       Object.entries(ORG_PERMISSION_MATRIX).forEach(([entity, actions]) => {
         Object.keys(actions).forEach(action => {
-          expect(hasOrgPermission(ORG_ROLES.ORG_OWNER, entity, action)).toBe(true);
+          expect(hasOrgPermission(ORG_ROLES.ORG_ADMIN, entity, action)).toBe(true);
         });
       });
     });
   });
 
-  describe('Admins can view settings', () => {
+  describe('Members can view allowed entities', () => {
     const viewableEntities = ['organisation', 'orgMembers', 'orgProjects'];
     
     viewableEntities.forEach(entity => {
-      ALL_ORG_ROLES.forEach(role => {
-        it(`${role} can view ${entity}`, () => {
-          expect(hasOrgPermission(role, entity, 'view')).toBe(true);
-        });
+      it(`org_member can view ${entity}`, () => {
+        expect(hasOrgPermission(ORG_ROLES.ORG_MEMBER, entity, 'view')).toBe(true);
+      });
+      
+      it(`org_admin can view ${entity}`, () => {
+        expect(hasOrgPermission(ORG_ROLES.ORG_ADMIN, entity, 'view')).toBe(true);
       });
     });
 
     // orgSettings.view is admin-only
-    it('org_owner can view orgSettings', () => {
-      expect(hasOrgPermission(ORG_ROLES.ORG_OWNER, 'orgSettings', 'view')).toBe(true);
-    });
-
     it('org_admin can view orgSettings', () => {
       expect(hasOrgPermission(ORG_ROLES.ORG_ADMIN, 'orgSettings', 'view')).toBe(true);
     });
