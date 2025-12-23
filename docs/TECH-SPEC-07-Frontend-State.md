@@ -1,10 +1,18 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 1.1  
+**Document Version:** 2.0  
 **Created:** 11 December 2025  
-**Last Updated:** 12 December 2025  
-**Session:** 1.7 (updated in Session 6)  
+**Last Updated:** 23 December 2025  
+**Session:** 1.7 (updated for org multi-tenancy)  
 **Author:** Claude AI (Anthropic)  
+
+> **Version 2.0 Updates (23 December 2025):**
+> - Added Section 4: OrganisationContext (new context for multi-tenancy)
+> - Added OrganisationSwitcher component documentation
+> - Updated Provider Hierarchy (OrganisationProvider between Auth and Project)
+> - Updated ProjectContext documentation (now depends on OrganisationContext)
+> - Updated data flow diagrams
+> - Renumbered subsequent sections  
 
 ---
 
@@ -13,13 +21,18 @@
 1. [Overview](#1-overview)
 2. [Context Provider Hierarchy](#2-context-provider-hierarchy)
 3. [AuthContext](#3-authcontext)
-4. [ProjectContext](#4-projectcontext)
-5. [ViewAsContext](#5-viewascontext)
-6. [ChatContext](#6-chatcontext)
-7. [Supporting Contexts](#7-supporting-contexts)
-8. [Permission System](#8-permission-system)
-9. [Custom Hooks](#9-custom-hooks)
-10. [State Management Patterns](#10-state-management-patterns)
+4. [OrganisationContext](#4-organisationcontext) *(NEW)*
+5. [ProjectContext](#5-projectcontext)
+6. [ViewAsContext](#6-viewascontext)
+7. [ChatContext](#7-chatcontext)
+8. [Supporting Contexts](#8-supporting-contexts)
+9. [Permission System](#9-permission-system)
+10. [Custom Hooks](#10-custom-hooks)
+11. [State Management Patterns](#11-state-management-patterns)
+12. [Page-Specific State Management](#12-page-specific-state-management)
+- [Appendix A: Role Display Configuration](#appendix-a-role-display-configuration)
+- [Appendix B: Context Import Patterns](#appendix-b-context-import-patterns)
+- [Document History](#document-history)
 
 ---
 
@@ -53,26 +66,28 @@ The AMSF001 Project Tracker uses React Context API for global state management. 
 The order is critical - each provider depends on those above it:
 
 ```jsx
-// src/App.jsx
+// src/App.jsx (Updated December 2025)
 <BrowserRouter>
   <ErrorBoundary>
     <ToastProvider>                    {/* Level 1: No dependencies */}
       <AuthProvider>                   {/* Level 2: Authentication */}
-        <ProjectProvider>              {/* Level 3: Needs AuthContext */}
-          <ViewAsProvider>             {/* Level 4: Needs Auth + Project */}
-            <TestUserProvider>         {/* Level 5: Needs AuthContext */}
-              <MetricsProvider>        {/* Level 6: Needs ProjectContext */}
-                <NotificationProvider> {/* Level 7: Needs AuthContext */}
-                  <ChatProvider>       {/* Level 8: Needs Auth + Project */}
-                    <HelpProvider>     {/* Level 9: No dependencies */}
-                      <Routes />
-                    </HelpProvider>
-                  </ChatProvider>
-                </NotificationProvider>
-              </MetricsProvider>
-            </TestUserProvider>
-          </ViewAsProvider>
-        </ProjectProvider>
+        <OrganisationProvider>         {/* Level 3: Needs AuthContext (NEW) */}
+          <ProjectProvider>            {/* Level 4: Needs Auth + Organisation */}
+            <ViewAsProvider>           {/* Level 5: Needs Auth + Project */}
+              <TestUserProvider>       {/* Level 6: Needs AuthContext */}
+                <MetricsProvider>      {/* Level 7: Needs ProjectContext */}
+                  <NotificationProvider> {/* Level 8: Needs AuthContext */}
+                    <ChatProvider>     {/* Level 9: Needs Auth + Project */}
+                      <HelpProvider>   {/* Level 10: No dependencies */}
+                        <Routes />
+                      </HelpProvider>
+                    </ChatProvider>
+                  </NotificationProvider>
+                </MetricsProvider>
+              </TestUserProvider>
+            </ViewAsProvider>
+          </ProjectProvider>
+        </OrganisationProvider>
       </AuthProvider>
     </ToastProvider>
   </ErrorBoundary>
@@ -87,20 +102,23 @@ The order is critical - each provider depends on those above it:
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │                      AuthProvider                         │  │
 │  │  ┌─────────────────────────────────────────────────────┐  │  │
-│  │  │                  ProjectProvider                    │  │  │
+│  │  │              OrganisationProvider (NEW)              │  │  │
 │  │  │  ┌───────────────────────────────────────────────┐  │  │  │
-│  │  │  │               ViewAsProvider                  │  │  │  │
+│  │  │  │                  ProjectProvider                  │  │  │  │
 │  │  │  │  ┌─────────────────────────────────────────┐  │  │  │  │
-│  │  │  │  │          TestUserProvider               │  │  │  │  │
+│  │  │  │  │               ViewAsProvider                  │  │  │  │  │
 │  │  │  │  │  ┌───────────────────────────────────┐  │  │  │  │  │
-│  │  │  │  │  │        MetricsProvider            │  │  │  │  │  │
+│  │  │  │  │  │          TestUserProvider               │  │  │  │  │  │
 │  │  │  │  │  │  ┌─────────────────────────────┐  │  │  │  │  │  │
-│  │  │  │  │  │  │   NotificationProvider      │  │  │  │  │  │  │
+│  │  │  │  │  │  │        MetricsProvider            │  │  │  │  │  │  │
 │  │  │  │  │  │  │  ┌───────────────────────┐  │  │  │  │  │  │  │
-│  │  │  │  │  │  │  │    ChatProvider       │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │ NotificationProvider  │  │  │  │  │  │  │  │
 │  │  │  │  │  │  │  │  ┌─────────────────┐  │  │  │  │  │  │  │  │
-│  │  │  │  │  │  │  │  │  HelpProvider   │  │  │  │  │  │  │  │  │
-│  │  │  │  │  │  │  │  │    <Routes/>    │  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  │   ChatProvider   │  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  │  ┌───────────┐  │  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  │  │HelpProvider│  │  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  │  │  <Routes/> │  │  │  │  │  │  │  │  │  │
+│  │  │  │  │  │  │  │  │  └───────────┘  │  │  │  │  │  │  │  │  │
 │  │  │  │  │  │  │  │  └─────────────────┘  │  │  │  │  │  │  │  │
 │  │  │  │  │  │  │  └───────────────────────┘  │  │  │  │  │  │  │
 │  │  │  │  │  │  └─────────────────────────────┘  │  │  │  │  │  │
@@ -112,14 +130,16 @@ The order is critical - each provider depends on those above it:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Data Flow
+### Data Flow (Updated December 2025)
 
 ```
 User Login
     ↓
 AuthProvider (user, profile, linkedResource)
     ↓
-ProjectProvider (fetches user's projects from user_projects)
+OrganisationProvider (fetches user's orgs, current org, orgRole)  ← NEW
+    ↓
+ProjectProvider (fetches projects filtered by organisation_id)
     ↓
 ViewAsProvider (derives effectiveRole from projectRole)
     ↓
@@ -237,12 +257,151 @@ function MyComponent() {
 
 ---
 
-## 4. ProjectContext
+## 4. OrganisationContext (NEW - December 2025)
 
-**File:** `src/contexts/ProjectContext.jsx`  
-**Version:** 5.0  
+**File:** `src/contexts/OrganisationContext.jsx`  
+**Version:** 1.0  
 
 ### Purpose
+
+Manages organisation-level state for multi-tenancy support. Fetches user's organisation memberships, tracks current organisation selection, and provides organisation-scoped role information.
+
+### State Structure
+
+```javascript
+{
+  // Current organisation
+  currentOrganisation: Object | null,  // Full organisation object
+  organisationId: UUID | null,         // Current org ID shortcut
+  organisationName: string | null,     // Current org name shortcut
+  organisationSlug: string | null,     // URL-friendly identifier
+  
+  // Organisation-scoped role
+  orgRole: 'org_owner' | 'org_admin' | 'org_member' | null,
+  isOrgAdmin: boolean,                 // org_owner OR org_admin
+  isOrgOwner: boolean,                 // org_owner only
+  isSystemAdmin: boolean,              // profiles.role === 'admin'
+  
+  // Multi-org support
+  availableOrganisations: Array,       // All orgs user belongs to
+  hasMultipleOrganisations: boolean,   // Show org switcher?
+  
+  // Organisation settings (with defaults)
+  orgSettings: {
+    features: { ai_chat_enabled, receipt_scanner_enabled, ... },
+    defaults: { currency, hours_per_day, date_format, timezone },
+    branding: {},
+    limits: {}
+  },
+  
+  // Loading state
+  isLoading: boolean,
+  error: Error | null
+}
+```
+
+### Organisation Roles
+
+| Role | Constant | Description |
+|------|----------|-------------|
+| `org_owner` | `ORG_ROLES.ORG_OWNER` | Full control including billing and deletion |
+| `org_admin` | `ORG_ROLES.ORG_ADMIN` | Manage members, settings, and all projects |
+| `org_member` | `ORG_ROLES.ORG_MEMBER` | Access only assigned projects |
+
+### Actions
+
+```javascript
+// Switch to a different organisation
+switchOrganisation(organisationId: UUID): boolean
+
+// Refresh current organisation data (e.g., after settings update)
+refreshOrganisation(): Promise<void>
+
+// Refresh all organisation memberships
+refreshOrganisationMemberships(): Promise<void>
+```
+
+### Hook Usage
+
+```javascript
+import { useOrganisation } from '../contexts/OrganisationContext';
+
+function MyComponent() {
+  const {
+    currentOrganisation,
+    organisationId,
+    orgRole,
+    isOrgAdmin,
+    availableOrganisations,
+    hasMultipleOrganisations,
+    switchOrganisation,
+    orgSettings
+  } = useOrganisation();
+  
+  // Check organisation-level permissions
+  if (isOrgAdmin) {
+    // Can access all projects in this org
+  }
+  
+  // Access org settings
+  const currency = orgSettings.defaults.currency; // 'GBP'
+}
+```
+
+### Helper Functions
+
+```javascript
+import { isOrgAdminRole, isOrgOwnerRole, ORG_ROLES, ORG_ROLE_CONFIG } from '../contexts/OrganisationContext';
+
+// Check if a role is admin-level
+isOrgAdminRole('org_admin')  // true
+isOrgAdminRole('org_member') // false
+
+// Check if a role is owner
+isOrgOwnerRole('org_owner')  // true
+
+// Get role display config
+ORG_ROLE_CONFIG[ORG_ROLES.ORG_ADMIN]
+// { label: 'Admin', color: '#059669', bg: '#d1fae5', description: '...' }
+```
+
+### Persistence
+
+Organisation selection is persisted in localStorage:
+- **Key:** `amsf_current_organisation_id`
+- **Restore:** On login, restores previous selection if still valid
+- **Fallback:** Default org → First available org
+
+### OrganisationSwitcher Component
+
+**File:** `src/components/OrganisationSwitcher.jsx`
+
+Dropdown component for switching between organisations. Only renders when `hasMultipleOrganisations` is true.
+
+```jsx
+import OrganisationSwitcher from '../components/OrganisationSwitcher';
+
+// In header/navigation
+<OrganisationSwitcher />
+```
+
+**Test IDs:**
+- `org-switcher-button`
+- `org-switcher-dropdown`
+- `org-switcher-item-{orgId}`
+
+---
+
+## 5. ProjectContext
+
+**File:** `src/contexts/ProjectContext.jsx`  
+**Version:** 6.0 (Updated December 2025)  
+
+### Purpose
+
+Manages project selection and project-scoped roles. **Now depends on OrganisationContext** - projects are filtered by the current organisation.
+
+> **December 2025 Update:** ProjectContext now imports `useOrganisation()` and filters available projects by `organisation_id`. Org admins (org_owner, org_admin) can see all projects in their organisation without explicit project membership.
 
 Manages multi-tenancy by tracking the user's assigned projects and current project selection. Provides project-scoped role information.
 
@@ -350,7 +509,7 @@ function ProjectSwitcher() {
 
 ---
 
-## 5. ViewAsContext
+## 6. ViewAsContext
 
 **File:** `src/contexts/ViewAsContext.jsx`  
 **Version:** 2.0  
@@ -482,7 +641,7 @@ function ViewAsBar() {
 
 ---
 
-## 6. ChatContext
+## 7. ChatContext
 
 **File:** `src/contexts/ChatContext.jsx`  
 **Version:** 3.5  
@@ -610,9 +769,9 @@ const RETRY_CONFIG = {
 
 ---
 
-## 7. Supporting Contexts
+## 8. Supporting Contexts
 
-### 7.1 MetricsContext
+### 8.1 MetricsContext
 
 **File:** `src/contexts/MetricsContext.jsx`  
 **Version:** 1.0  
@@ -641,7 +800,7 @@ refreshCategory(name) // Partial refresh
 clearCache()          // Clear service cache
 ```
 
-### 7.2 NotificationContext
+### 8.2 NotificationContext
 
 **File:** `src/contexts/NotificationContext.jsx`  
 
@@ -664,7 +823,7 @@ markAllAsRead()
 dismissNotification(id)
 ```
 
-### 7.3 ToastContext
+### 8.3 ToastContext
 
 **File:** `src/contexts/ToastContext.jsx`  
 **Version:** 1.1  
@@ -681,7 +840,7 @@ showInfo(message)
 removeToast(id)
 ```
 
-### 7.4 HelpContext
+### 8.4 HelpContext
 
 **File:** `src/contexts/HelpContext.jsx`  
 **Version:** 1.0  
@@ -704,7 +863,7 @@ navigateToTopic(topic)
 
 Keyboard shortcuts: `?` or `F1` to toggle, `Escape` to close.
 
-### 7.5 TestUserContext
+### 8.5 TestUserContext
 
 **File:** `src/contexts/TestUserContext.jsx`  
 
@@ -730,9 +889,9 @@ canToggleTestUsers: boolean  // Only admin/supplier_pm
 
 ---
 
-## 8. Permission System
+## 9. Permission System
 
-### 8.1 Permission Matrix
+### 9.1 Permission Matrix
 
 **File:** `src/lib/permissionMatrix.js`  
 
@@ -839,7 +998,7 @@ export function hasPermission(role, entity, action) {
 }
 ```
 
-### 8.2 Permission Helpers
+### 9.2 Permission Helpers
 
 **File:** `src/lib/permissions.js`  
 
@@ -892,7 +1051,7 @@ getDefaultResourceForEntry(role, resources, userId)
 getDefaultResourceId(role, resources, userId)
 ```
 
-### 8.3 usePermissions Hook
+### 9.3 usePermissions Hook
 
 **File:** `src/hooks/usePermissions.js`  
 **Version:** 4.0  
@@ -947,7 +1106,7 @@ function MyComponent({ expense }) {
 }
 ```
 
-### 8.4 Entity-Specific Permission Hooks
+### 9.4 Entity-Specific Permission Hooks
 
 #### useMilestonePermissions
 
@@ -1028,7 +1187,7 @@ const {
 
 ---
 
-## 9. Custom Hooks
+## 10. Custom Hooks
 
 ### 9.1 Form Hooks
 
@@ -1168,9 +1327,9 @@ if (isReadOnly) {
 
 ---
 
-## 10. State Management Patterns
+## 11. State Management Patterns
 
-### 10.1 Context vs Local State
+### 11.1 Context vs Local State
 
 | Use Context When | Use Local State When |
 |------------------|---------------------|
@@ -1179,7 +1338,7 @@ if (isReadOnly) {
 | Data requires authentication | Data is UI-only (modals, forms) |
 | Data is project-scoped | Data is component-specific |
 
-### 10.2 Caching Strategy
+### 11.2 Caching Strategy
 
 **Service-Level Caching:**
 - Metrics service caches computed results
@@ -1191,7 +1350,7 @@ if (isReadOnly) {
 - Updated on relevant events
 - Polling for certain data (notifications)
 
-### 10.3 Error Handling
+### 11.3 Error Handling
 
 ```javascript
 // Context pattern
@@ -1207,7 +1366,7 @@ try {
 }
 ```
 
-### 10.4 Re-render Optimization
+### 11.4 Re-render Optimization
 
 1. **useMemo for derived state:**
 ```javascript
@@ -1234,7 +1393,7 @@ const value = useMemo(() => ({
 }), [currentProject, projectId, switchProject, /* ... */]);
 ```
 
-### 10.5 Persistence Patterns
+### 11.5 Persistence Patterns
 
 | Data | Storage | Behavior |
 |------|---------|----------|
@@ -1244,7 +1403,7 @@ const value = useMemo(() => ({
 | Dashboard layout | Supabase | Synced to database |
 | Form state | Local state | Not persisted |
 
-### 10.6 Role Resolution Flow
+### 11.6 Role Resolution Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1274,9 +1433,9 @@ const value = useMemo(() => ({
 
 ---
 
-## 11. Page-Specific State Management
+## 12. Page-Specific State Management
 
-### 11.1 Team Members Page
+### 12.1 Team Members Page
 
 **File:** `src/pages/TeamMembers.jsx`  
 **Version:** 3.0 (Refactored from Users.jsx)  
@@ -1360,7 +1519,7 @@ setUsers(teamMembers)
 
 ---
 
-### 11.2 System Users Page
+### 12.2 System Users Page
 
 **File:** `src/pages/admin/SystemUsers.jsx`  
 **Version:** 1.0  
@@ -1433,7 +1592,7 @@ setUsers(systemUsers)
 
 ---
 
-### 11.3 User Management Architecture Summary
+### 12.3 User Management Architecture Summary
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1474,6 +1633,7 @@ setUsers(systemUsers)
 ## Appendix A: Role Display Configuration
 
 ```javascript
+// Project Roles
 export const ROLE_CONFIG = {
   admin: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
   supplier_pm: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
@@ -1482,6 +1642,13 @@ export const ROLE_CONFIG = {
   customer_finance: { label: 'Customer Finance', color: '#ea580c', bg: '#ffedd5' },
   contributor: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
   viewer: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' },
+};
+
+// Organisation Roles (NEW - December 2025)
+export const ORG_ROLE_CONFIG = {
+  org_owner: { label: 'Owner', color: '#7c3aed', bg: '#f3e8ff' },
+  org_admin: { label: 'Admin', color: '#059669', bg: '#d1fae5' },
+  org_member: { label: 'Member', color: '#64748b', bg: '#f1f5f9' },
 };
 ```
 
@@ -1492,6 +1659,7 @@ export const ROLE_CONFIG = {
 ```javascript
 // Contexts
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganisation } from '../contexts/OrganisationContext';  // NEW
 import { useProject } from '../contexts/ProjectContext';
 import { useViewAs } from '../contexts/ViewAsContext';
 import { useChat } from '../contexts/ChatContext';
@@ -1529,3 +1697,13 @@ import {
 ---
 
 *Document generated as part of AMSF001 Technical Specification - Session 1.7*
+
+---
+
+## Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
+| 1.1 | 12 Dec 2025 | Claude AI | Added TestUserContext, ViewAs updates |
+| 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added OrganisationContext (Section 4), OrganisationSwitcher component, updated Provider Hierarchy, updated ProjectContext to depend on OrganisationContext, added ORG_ROLE_CONFIG |
