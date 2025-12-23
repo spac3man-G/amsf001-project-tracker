@@ -265,17 +265,20 @@ This plan provides a systematic approach to review and update each document.
 ### AMSF001-Technical-Specification.md
 **Focus:** Master reference document
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Add organisation layer to overview
-- Update architecture summary
-- Add reference to org-level-multitenancy docs
+**Updates Made (23 Dec 2025):**
+- Updated Multi-Tenancy Model to three-tier architecture
+- Added Organisation Roles table (org_owner, org_admin, org_member)
+- Updated Database Architecture (30 tables, added org tables)
+- Updated Document Index with version numbers
+- Added Appendix C: Document History
+- Version: 1.0 → 2.0
 
 ---
 
@@ -364,7 +367,7 @@ To prevent context overflow during reviews:
 | TECH-SPEC-07 | ✅ Complete | 23 Dec 2025 | v2.0 - Added OrganisationContext, updated provider hierarchy |
 | TECH-SPEC-08 | ✅ Complete | 23 Dec 2025 | v2.0 - Added Organisation Services section |
 | TECH-SPEC-09 | ⬜ Pending | | |
-| Master Spec | ⬜ Pending | | |
+| Master Spec | ✅ Complete | 23 Dec 2025 | v2.0 - Updated multi-tenancy, added org roles |
 | Workflow | ⬜ Pending | | |
 | Tech Debt | ⬜ Pending | | |
 
