@@ -295,15 +295,17 @@ This plan provides a systematic approach to review and update each document.
 ### WORKFLOW-SYSTEM-DOCUMENTATION.md
 **Focus:** Workflow states, transitions
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Probably minimal - workflows unchanged
+**Updates Made (23 Dec 2025):**
+- Added organisation context note (org admins see workflows across all org projects)
+- Added Document History section
+- Version: 1.0 → 1.1
 
 ---
 
@@ -380,7 +382,7 @@ To prevent context overflow during reviews:
 | TECH-SPEC-08 | ✅ Complete | 23 Dec 2025 | v2.0 - Added Organisation Services section |
 | TECH-SPEC-09 | ✅ Complete | 23 Dec 2025 | v1.1 - Added org-permissions tests |
 | Master Spec | ✅ Complete | 23 Dec 2025 | v2.0 - Updated multi-tenancy, added org roles |
-| Workflow | ⬜ Pending | | |
+| Workflow | ✅ Complete | 23 Dec 2025 | v1.1 - Added org context note |
 | Tech Debt | ✅ Complete | 23 Dec 2025 | v1.1 - Added org multi-tenancy completion |
 
 ---
