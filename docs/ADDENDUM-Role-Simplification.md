@@ -199,10 +199,30 @@ Once implementation is stable and tested, these changes should be merged into th
 - [ ] All tests pass
 - [ ] Manual testing in browser
 - [ ] Existing org_owner records migrated correctly
+- [ ] System Admin page accessible to system admins only
+- [ ] Create Organisation functionality works
 
 ### Future Considerations
-- [ ] System Admin UI for creating organisations (not yet built)
 - [ ] Consider if `isOrgOwner` context value should be removed entirely in future version
+- [ ] Add edit/delete organisation functionality to System Admin page
+- [ ] Add system-wide user management to System Admin page
+
+---
+
+## System Admin Page (NEW)
+
+### Files Created
+- `src/pages/admin/SystemAdmin.jsx` - Main system admin page
+
+### Files Modified
+- `src/App.jsx` - Added route `/admin/system`
+- `src/lib/navigation.js` - Added `systemAdmin` nav item
+- `src/components/Layout.jsx` - Show System Admin link for system admins
+
+### Features
+- List all organisations with member/admin counts
+- Create new organisation with admin assignment
+- Only accessible to users with `is_system_admin = true`
 
 ---
 
@@ -214,6 +234,8 @@ Once implementation is stable and tested, these changes should be merged into th
 | `6cb8a86e` | refactor: Simplify org roles in permission matrix |
 | `5165cbe9` | test: Update org-permissions tests for 2-role model |
 | `1227aad2` | refactor: Update frontend components for 2-role model |
+| `3ea355e9` | docs: Create addendum for role simplification changes |
+| `4940531e` | feat: Add System Admin page for organisation management |
 
 ---
 
