@@ -192,16 +192,19 @@ This plan provides a systematic approach to review and update each document.
 ### TECH-SPEC-06-API-AI.md
 **Focus:** API routes, AI integration
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Update create-project.js documentation (org_id parameter)
-- Note any new API endpoints needed for orgs
+**Updates Made (23 Dec 2025):**
+- Added `/api/create-project` endpoint to summary table
+- Added Section 6.5: Project Creation API (org-aware)
+- Documents organisation permissions for project creation
+- Added Appendix C: Document History
+- Version: 1.0 → 1.1
 
 ---
 
@@ -363,7 +366,7 @@ To prevent context overflow during reviews:
 | TECH-SPEC-03 | ⬜ Pending | | |
 | TECH-SPEC-04 | ⬜ Pending | | |
 | TECH-SPEC-05 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org RLS policies, updated multi-tenancy model |
-| TECH-SPEC-06 | ⬜ Pending | | |
+| TECH-SPEC-06 | ✅ Complete | 23 Dec 2025 | v1.1 - Added create-project API |
 | TECH-SPEC-07 | ✅ Complete | 23 Dec 2025 | v2.0 - Added OrganisationContext, updated provider hierarchy |
 | TECH-SPEC-08 | ✅ Complete | 23 Dec 2025 | v2.0 - Added Organisation Services section |
 | TECH-SPEC-09 | ⬜ Pending | | |
