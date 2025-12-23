@@ -226,17 +226,20 @@ This plan provides a systematic approach to review and update each document.
 ### TECH-SPEC-08-Services.md
 **Focus:** Service layer classes and methods
 
-- [ ] Initial Assessment
-- [ ] Cross-Reference
-- [ ] List Updates Required
-- [ ] Make Updates
-- [ ] Verification
-- [ ] Commit
+- [x] Initial Assessment
+- [x] Cross-Reference
+- [x] List Updates Required
+- [x] Make Updates
+- [x] Verification
+- [x] Commit
 
-**Likely Updates:**
-- Add organisation.service.js documentation
-- Update services index
-- Note org-aware patterns
+**Updates Made (23 Dec 2025):**
+- Added Section 4: Organisation Services (CRUD, settings, member management)
+- Updated file structure listing with organisation.service.js
+- Updated service architecture diagram
+- Renumbered sections 5-14 (was 4-12)
+- Added Document History section
+- Version: 1.1 → 2.0
 
 ---
 
@@ -356,7 +359,7 @@ To prevent context overflow during reviews:
 | TECH-SPEC-05 | ✅ Complete | 23 Dec 2025 | v2.0 - Added org RLS policies, updated multi-tenancy model |
 | TECH-SPEC-06 | ⬜ Pending | | |
 | TECH-SPEC-07 | ✅ Complete | 23 Dec 2025 | v2.0 - Added OrganisationContext, updated provider hierarchy |
-| TECH-SPEC-08 | ⬜ Pending | | |
+| TECH-SPEC-08 | ✅ Complete | 23 Dec 2025 | v2.0 - Added Organisation Services section |
 | TECH-SPEC-09 | ⬜ Pending | | |
 | Master Spec | ⬜ Pending | | |
 | Workflow | ⬜ Pending | | |
