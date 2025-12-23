@@ -1,9 +1,17 @@
 # AMSF001 Technical Specification: Architecture & Infrastructure
 
 **Document:** TECH-SPEC-01-Architecture.md  
-**Version:** 1.0  
+**Version:** 2.0  
 **Created:** 10 December 2025  
+**Updated:** 23 December 2025  
 **Session:** 1.1  
+
+> **Version 2.0 Updates (23 December 2025):**
+> - Updated to three-tier multi-tenancy model (Organisation → Project → Entity)
+> - Added OrganisationContext, OrganisationSwitcher to project structure
+> - Added organisation.service.js to services listing
+> - Updated Multi-Tenancy Architecture section (Section 7)
+> - Added Document History section
 
 ---
 
@@ -12,6 +20,13 @@
 The AMSF001 Project Tracker is a multi-tenant SaaS application designed to manage complex project portfolios for enterprise clients. Built with a modern React frontend and Supabase backend, it provides comprehensive project management capabilities including milestone tracking, deliverable management, time and expense tracking, variation control, and partner invoicing.
 
 The architecture follows a serverless approach, leveraging Vercel for hosting and edge functions, with Supabase providing the PostgreSQL database, authentication, and Row Level Security (RLS) for multi-tenant data isolation.
+
+**Multi-Tenancy Model (Updated December 2025):** The application implements a three-tier multi-tenancy model:
+- **Organisations**: Top-level tenants (e.g., companies)
+- **Projects**: Belong to organisations, contain project data
+- **Entities**: Project-scoped data (milestones, deliverables, timesheets, etc.)
+
+Users can belong to multiple organisations with different roles (org_owner, org_admin, org_member), and within each organisation, can be assigned to multiple projects with project-specific roles.
 
 ---
 
@@ -76,6 +91,7 @@ amsf001-project-tracker/
 │   ├── components/               # Reusable UI Components
 │   │   ├── Layout.jsx            # Main layout with navigation
 │   │   ├── ProjectSwitcher.jsx   # Multi-tenant project selection
+│   │   ├── OrganisationSwitcher.jsx # Organisation selection (NEW)
 │   │   ├── ViewAsBar.jsx         # Role impersonation UI
 │   │   ├── NotificationBell.jsx  # Notification system
 │   │   ├── chat/                 # AI Chat components
@@ -92,7 +108,8 @@ amsf001-project-tracker/
 │   │
 │   ├── contexts/                 # React Context Providers
 │   │   ├── AuthContext.jsx       # Authentication state
-│   │   ├── ProjectContext.jsx    # Current project (multi-tenancy)
+│   │   ├── OrganisationContext.jsx # Current organisation (NEW)
+│   │   ├── ProjectContext.jsx    # Current project (depends on org)
 │   │   ├── ViewAsContext.jsx     # Role impersonation
 │   │   ├── ChatContext.jsx       # AI chat state
 │   │   ├── MetricsContext.jsx    # Dashboard metrics cache
@@ -116,6 +133,7 @@ amsf001-project-tracker/
 │   │
 │   ├── services/                 # Data Services Layer
 │   │   ├── base.service.js       # Base service with common methods
+│   │   ├── organisation.service.js # Organisation management (NEW)
 │   │   ├── milestones.service.js # Milestone CRUD operations
 │   │   ├── deliverables.service.js
 │   │   ├── resources.service.js
@@ -384,35 +402,84 @@ dist/
 
 ## 7. Multi-Tenancy Architecture
 
-### 7.1 Overview
+### 7.1 Overview (Updated December 2025)
 
-The application supports multiple isolated projects (tenants) within a single database instance. Each user can be assigned to multiple projects with different roles per project.
+The application implements a **three-tier multi-tenancy model**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│              ORGANISATION (Tier 1)                │
+│         Top-level tenant (e.g., company)          │
+│    Roles: org_owner, org_admin, org_member        │
+├─────────────────────────┬───────────────────────────┤
+│       PROJECT A (Tier 2)    │       PROJECT B (Tier 2)    │
+│   Roles: admin, supplier_pm,│   Roles: admin, supplier_pm,│
+│   customer_pm, contributor  │   customer_pm, contributor  │
+├─────────────┬─────────────┼─────────────┬─────────────┤
+│ Milestones  │ Resources   │ Milestones  │ Resources   │
+│ Deliverables│ Timesheets  │ Deliverables│ Timesheets  │
+│ (Tier 3)    │ (Tier 3)    │ (Tier 3)    │ (Tier 3)    │
+└─────────────┴─────────────┴─────────────┴─────────────┘
+```
 
 ### 7.2 Key Tables
 
-- **projects**: Tenant definitions
+**Organisation Level:**
+- **organisations**: Top-level tenant definitions (name, slug, settings)
+- **user_organisations**: Junction table for org membership and roles
+
+**Project Level:**
+- **projects**: Project definitions with `organisation_id` foreign key
+- **user_projects**: Junction table for project membership and roles
 - **profiles**: User accounts (linked to Supabase Auth)
-- **user_projects**: Junction table defining user-project-role relationships
 
 ### 7.3 Data Isolation
 
-All data tables include a `project_id` column, and RLS policies ensure users can only access data for projects they are members of:
+RLS policies enforce a hierarchical access model using SECURITY DEFINER helper functions:
 
 ```sql
--- Example RLS policy pattern
+-- Helper function to check project access (org-aware)
+CREATE FUNCTION can_access_project(p_project_id uuid) 
+RETURNS boolean AS $
+  SELECT 
+    is_system_admin()  -- System admins access all
+    OR EXISTS (  -- Org admins access all org projects
+      SELECT 1 FROM projects p
+      JOIN user_organisations uo ON uo.organisation_id = p.organisation_id
+      WHERE p.id = p_project_id
+      AND uo.user_id = auth.uid()
+      AND uo.org_role IN ('org_owner', 'org_admin')
+    )
+    OR EXISTS (  -- Regular users need explicit project membership
+      SELECT 1 FROM user_projects up
+      WHERE up.project_id = p_project_id
+      AND up.user_id = auth.uid()
+    )
+$ LANGUAGE sql SECURITY DEFINER;
+
+-- Example RLS policy using helper
 CREATE POLICY "Users can view project data"
-ON table_name FOR SELECT
-USING (
-  project_id IN (
-    SELECT project_id FROM user_projects 
-    WHERE user_id = auth.uid()
-  )
-);
+ON milestones FOR SELECT
+USING (can_access_project(project_id));
 ```
 
-### 7.4 Project Context
+### 7.4 Context Hierarchy
 
-The `ProjectContext` React context maintains the currently selected project, and all service calls include the project_id filter.
+React contexts are nested in dependency order:
+
+```jsx
+<AuthProvider>              {/* User authentication */}
+  <OrganisationProvider>    {/* Current organisation (NEW) */}
+    <ProjectProvider>       {/* Current project (filtered by org) */}
+      <ViewAsProvider>      {/* Role impersonation */}
+        {/* ... other providers ... */}
+      </ViewAsProvider>
+    </ProjectProvider>
+  </OrganisationProvider>
+</AuthProvider>
+```
+
+The `OrganisationContext` manages the current organisation selection, and `ProjectContext` filters available projects by the current organisation.
 
 ---
 
@@ -493,3 +560,12 @@ Viewer → Read-only access
 ---
 
 *Document generated as part of AMSF001 Documentation Project*
+
+---
+
+## 11. Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | 10 Dec 2025 | Claude AI | Initial creation |
+| 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Updated to three-tier model, added OrganisationContext/OrganisationSwitcher, updated Multi-Tenancy Architecture section |
