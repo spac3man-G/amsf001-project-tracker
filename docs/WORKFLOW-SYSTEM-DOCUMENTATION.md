@@ -2,15 +2,22 @@
 
 **Document:** WORKFLOW-SYSTEM-DOCUMENTATION.md  
 **Type:** Feature Documentation  
-**Version:** 1.0  
+**Version:** 1.1  
 **Created:** 16 December 2025  
+**Updated:** 23 December 2025  
 **Status:** Active
+
+> **Version 1.1 Updates (23 December 2025):**
+> - Added note about organisation context for workflow access
+> - Added Document History section
 
 ---
 
 ## Overview
 
 The Workflow System provides a centralised mechanism for tracking and managing pending actions across all entity types in the AMSF001 Project Tracker. It enables role-based filtering, accurate timestamp tracking, and deep linking to specific items.
+
+> **Organisation Context (December 2025):** Workflow items are project-scoped. Users see workflows only for projects they have access to. Organisation admins (`org_owner`, `org_admin`) can view workflows across all projects within their organisation due to the three-tier multi-tenancy model. See TECH-SPEC-02-Database-Core.md for details.
 
 ---
 
@@ -495,3 +502,12 @@ function NotificationItem({ notification }) {
 ---
 
 *Part of AMSF001 Technical Documentation — see [AMSF001-Technical-Specification.md](./AMSF001-Technical-Specification.md) for master reference*
+
+---
+
+## Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | 16 Dec 2025 | Claude AI | Initial creation |
+| 1.1 | 23 Dec 2025 | Claude AI | Added organisation context note for workflow access, added Document History section |
