@@ -1,8 +1,13 @@
 # Technical Debt and Future Features
 
+**Version:** 1.1  
 **Created:** 2025-12-16  
-**Last Updated:** 2025-12-17  
+**Last Updated:** 2025-12-23  
 **Purpose:** Track technical debt items and planned future features for prioritisation
+
+> **Version 1.1 Updates (23 December 2025):**
+> - Added completed item: Organisation-level multi-tenancy implementation
+> - Added Document History section
 
 > **Note:** Items TD-004 through TD-008 were added during E2E testing documentation consolidation.  
 > See `TECH-SPEC-09-Testing-Infrastructure.md` for the consolidated testing reference.
@@ -527,7 +532,50 @@ Low (1-2 hours)
 
 Items that have been resolved and can be archived for reference.
 
-*No items yet.*
+### COMPLETE-001: Organisation-Level Multi-Tenancy
+
+**Completed:** 22-23 December 2025  
+**Original Priority:** High  
+**Effort:** 2 days
+
+#### Summary
+
+Implemented three-tier multi-tenancy model:
+- **Tier 1:** Organisations (top-level tenants)
+- **Tier 2:** Projects (belong to organisations)
+- **Tier 3:** Entities (project-scoped data)
+
+#### Implementation Details
+
+**Database (12 migrations):**
+- `organisations` table with settings JSONB
+- `user_organisations` junction table with org_role
+- `organisation_members_with_profiles` view
+- Updated `projects` table with `organisation_id` FK
+- RLS helper functions: `is_org_admin()`, `is_org_owner()`, `can_access_project()`
+- Organisation-aware RLS policies on all tables
+
+**Frontend:**
+- `OrganisationContext.jsx` - State management for current org
+- `OrganisationSwitcher.jsx` - UI component for org selection
+- `organisation.service.js` - CRUD, member mgmt, settings, statistics
+- Updated `ProjectContext` to filter by current organisation
+- Added org roles: `org_owner`, `org_admin`, `org_member`
+
+**Testing:**
+- `org-permissions.test.js` - 118 unit tests for org permission matrix
+- All 28 implementation checkpoints verified
+
+#### Related Documentation Updates
+
+- TECH-SPEC-01-Architecture.md (v2.0)
+- TECH-SPEC-02-Database-Core.md (v2.0)
+- TECH-SPEC-05-RLS-Security.md (v2.0)
+- TECH-SPEC-06-API-AI.md (v1.1)
+- TECH-SPEC-07-Frontend-State.md (v2.0)
+- TECH-SPEC-08-Services.md (v2.0)
+- TECH-SPEC-09-Testing-Infrastructure.md (v1.1)
+- AMSF001-Technical-Specification.md (v2.0)
 
 ---
 
@@ -593,3 +641,12 @@ Use the format:
 When an item is resolved:
 1. Move it to the "Completed Items" section
 2. Add **Completed:** date and **Resolution:** notes
+
+---
+
+## Document History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|--------|
+| 1.0 | 16 Dec 2025 | Claude AI | Initial creation |
+| 1.1 | 23 Dec 2025 | Claude AI | Added COMPLETE-001 (Organisation Multi-Tenancy), added Document History section |
