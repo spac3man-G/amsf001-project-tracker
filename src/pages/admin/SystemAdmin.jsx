@@ -27,6 +27,7 @@ import { useProjectRole } from '../../hooks/useProjectRole';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner } from '../../components/common';
 import { ORG_ROLES } from '../../lib/permissionMatrix';
+import { invitationService, emailService } from '../../services';
 
 // Styles
 const styles = {
@@ -401,18 +402,14 @@ export default function SystemAdmin() {
 
     setCreating(true);
     try {
+      const adminEmail = newOrg.admin_email.toLowerCase().trim();
+      
       // Check if admin user exists
-      const { data: adminProfile, error: profileError } = await supabase
+      const { data: adminProfile } = await supabase
         .from('profiles')
         .select('id, email, full_name')
-        .eq('email', newOrg.admin_email.toLowerCase().trim())
+        .eq('email', adminEmail)
         .single();
-
-      if (profileError || !adminProfile) {
-        showError('Admin user not found. They must create an account first.');
-        setCreating(false);
-        return;
-      }
 
       // Check slug uniqueness
       const { data: existingOrg } = await supabase
@@ -448,25 +445,73 @@ export default function SystemAdmin() {
 
       if (orgError) throw orgError;
 
-      // Add admin as member
-      const { error: memberError } = await supabase
-        .from('user_organisations')
-        .insert({
-          organisation_id: org.id,
-          user_id: adminProfile.id,
-          org_role: ORG_ROLES.ORG_ADMIN,
-          is_active: true,
-          is_default: true,
-          accepted_at: new Date().toISOString(),
+      // If admin user exists, add them directly
+      if (adminProfile) {
+        const { error: memberError } = await supabase
+          .from('user_organisations')
+          .insert({
+            organisation_id: org.id,
+            user_id: adminProfile.id,
+            org_role: ORG_ROLES.ORG_ADMIN,
+            is_active: true,
+            is_default: true,
+            accepted_at: new Date().toISOString(),
+          });
+
+        if (memberError) {
+          // Try to clean up
+          await supabase.from('organisations').delete().eq('id', org.id);
+          throw memberError;
+        }
+
+        showSuccess(`Organisation "${org.name}" created. ${adminProfile.full_name || adminProfile.email} added as admin.`);
+      } else {
+        // User doesn't exist - create invitation and send email
+        const inviteResult = await invitationService.createInvitation({
+          organisationId: org.id,
+          email: adminEmail,
+          orgRole: ORG_ROLES.ORG_ADMIN,
+          invitedBy: user.id,
         });
 
-      if (memberError) {
-        // Try to clean up
-        await supabase.from('organisations').delete().eq('id', org.id);
-        throw memberError;
+        if (!inviteResult.success) {
+          // Clean up org if invitation fails
+          await supabase.from('organisations').delete().eq('id', org.id);
+          showError(inviteResult.message || 'Failed to create invitation');
+          setCreating(false);
+          return;
+        }
+
+        // Send invitation email
+        const acceptUrl = invitationService.getAcceptUrl(inviteResult.invitation.token);
+        
+        // Get current user's name for the email
+        const { data: currentUserProfile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', user.id)
+          .single();
+        
+        const inviterName = currentUserProfile?.full_name || currentUserProfile?.email || 'System Admin';
+
+        const emailResult = await emailService.sendInvitationEmail({
+          email: adminEmail,
+          orgName: org.name,
+          orgDisplayName: org.display_name,
+          inviterName: inviterName,
+          role: ORG_ROLES.ORG_ADMIN,
+          acceptUrl: acceptUrl,
+        });
+
+        if (!emailResult.success) {
+          console.error('Failed to send invitation email:', emailResult.error);
+          // Don't fail the whole operation - invitation is created, email just didn't send
+          showSuccess(`Organisation "${org.name}" created. Invitation created but email failed to send. Share this link manually: ${acceptUrl}`);
+        } else {
+          showSuccess(`Organisation "${org.name}" created. Invitation email sent to ${adminEmail}.`);
+        }
       }
 
-      showSuccess(`Organisation "${org.name}" created successfully`);
       setShowCreateModal(false);
       setNewOrg({ name: '', display_name: '', slug: '', admin_email: '' });
       fetchOrganisations();
