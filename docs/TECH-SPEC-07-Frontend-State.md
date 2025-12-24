@@ -1,11 +1,17 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 2.0  
+**Document Version:** 3.0  
 **Created:** 11 December 2025  
-**Last Updated:** 23 December 2025  
-**Session:** 1.7 (updated for org multi-tenancy)  
+**Last Updated:** 24 December 2025  
+**Session:** 1.7 (updated for permission hierarchy fix)  
 **Author:** Claude AI (Anthropic)  
 
+> **Version 3.0 Updates (24 December 2025):**
+> - Updated Section 6: ViewAsContext v3.0 (org admin hierarchy in actualRole)
+> - Updated Section 9: Permission System (isOrgLevelAdmin)
+> - Updated Section 10: Custom Hooks (usePermissions v5.0)
+> - Added org admin → admin effectiveRole mapping
+>
 > **Version 2.0 Updates (23 December 2025):**
 > - Added Section 4: OrganisationContext (new context for multi-tenancy)
 > - Added OrganisationSwitcher component documentation
@@ -512,11 +518,11 @@ function ProjectSwitcher() {
 ## 6. ViewAsContext
 
 **File:** `src/contexts/ViewAsContext.jsx`  
-**Version:** 2.0  
+**Version:** 3.0 (Updated December 2025 for org admin hierarchy)  
 
 ### Purpose
 
-Enables role impersonation for admin and supplier_pm users. Allows previewing the application as different roles without logging out.
+Enables role impersonation for admin and supplier_pm users. Allows previewing the application as different roles without logging out. **Version 3.0** also respects the organisation admin hierarchy - org admins automatically get `admin` effective role within their organisation.
 
 ### State Structure
 
@@ -527,20 +533,30 @@ Enables role impersonation for admin and supplier_pm users. Allows previewing th
 }
 ```
 
-### Role Resolution Chain
+### Role Resolution Chain (Updated v3.0)
 
 ```
-1. ProjectContext.projectRole (from user_projects table)
-        ↓ (if null)
-2. AuthContext.role (from profiles table - legacy fallback)
+1. Is user a System Admin? (profiles.role === 'admin')
+   YES → actualRole = 'admin'
         ↓
-3. actualRole = resolved role
+2. Is user an Org Admin? (user_organisations.org_role === 'org_admin')
+   YES → actualRole = 'admin'
         ↓
-4. If viewAsRole is set AND canUseViewAs:
+3. Has project role? (user_projects.role)
+   YES → actualRole = projectRole
+        ↓
+4. Fallback to viewer
+   actualRole = 'viewer'
+        ↓
+5. If viewAsRole is set AND canUseViewAs:
    effectiveRole = viewAsRole
    Else:
    effectiveRole = actualRole
 ```
+
+> **Key Change in v3.0:** Org admins now automatically get `effectiveRole = 'admin'` 
+> even without explicit project membership. This enables them to see the full
+> admin sidebar and access admin features within their organisation.
 
 ### Permission to Use View As
 
@@ -574,6 +590,8 @@ const IMPERSONATION_ROLES = [
 | `globalRole` | string | Role from profiles (fallback) |
 | `projectRole` | string | Role from user_projects |
 | `isImpersonating` | boolean | Whether actively impersonating |
+| `isSystemAdmin` | boolean | True if profiles.role = 'admin' (NEW v3.0) |
+| `isOrgAdmin` | boolean | True if org_role = 'org_admin' (NEW v3.0) |
 | `effectiveRoleConfig` | Object | Display config for effective role |
 | `actualRoleConfig` | Object | Display config for actual role |
 | `availableRoles` | Array | Roles available for impersonation |
@@ -1054,7 +1072,7 @@ getDefaultResourceId(role, resources, userId)
 ### 9.3 usePermissions Hook
 
 **File:** `src/hooks/usePermissions.js`  
-**Version:** 4.0  
+**Version:** 5.0 (Updated December 2025)  
 
 The primary interface for permission checks in components.
 
@@ -1063,6 +1081,15 @@ The primary interface for permission checks in components.
 1. Uses `effectiveRole` from ViewAsContext (supports impersonation)
 2. Pre-binds user context to permission functions
 3. Provides both simple and object-based permission checks
+4. **v5.0:** Exports organisation-level admin flags
+
+#### New Exports (v5.0)
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `isSystemAdmin` | boolean | True if profiles.role = 'admin' |
+| `isOrgAdmin` | boolean | True if user is org admin for current org |
+| `isOrgLevelAdmin` | boolean | Computed: `isSystemAdmin \|\| isOrgAdmin` |
 
 #### Usage
 
@@ -1075,6 +1102,11 @@ function MyComponent({ expense }) {
     userRole,
     actualRole,
     isImpersonating,
+    
+    // Organisation-level admin flags (NEW v5.0)
+    isSystemAdmin,
+    isOrgAdmin,
+    isOrgLevelAdmin,
     
     // Simple permissions (boolean)
     canAddTimesheet,
@@ -1094,6 +1126,11 @@ function MyComponent({ expense }) {
     getAvailableResources,
     getDefaultResourceId,
   } = usePermissions();
+  
+  // Check organisation-level admin (NEW)
+  if (isOrgLevelAdmin) {
+    // Show admin UI for system admins and org admins
+  }
   
   // Simple check
   if (canAddTimesheet) { /* show add button */ }
@@ -1403,23 +1440,25 @@ const value = useMemo(() => ({
 | Dashboard layout | Supabase | Synced to database |
 | Form state | Local state | Not persisted |
 
-### 11.6 Role Resolution Flow
+### 11.6 Role Resolution Flow (Updated v3.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Permission Check Flow                     │
+│                    Permission Check Flow (v3.0)              │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  Component calls usePermissions()                           │
 │           ↓                                                 │
 │  usePermissions() calls useViewAs()                         │
 │           ↓                                                 │
-│  useViewAs() returns effectiveRole                          │
-│  (viewAsRole if impersonating, else actualRole)             │
+│  useViewAs() computes actualRole:                           │
+│           │                                                 │
+│           ├── isSystemAdmin? → 'admin'                      │
+│           ├── isOrgAdmin? → 'admin'                         │
+│           ├── has projectRole? → projectRole                │
+│           └── fallback → 'viewer'                           │
 │           ↓                                                 │
-│  actualRole = projectRole || globalRole                     │
-│  (project-scoped role from user_projects,                   │
-│   or fallback to profiles.role)                             │
+│  effectiveRole = viewAsRole || actualRole                   │
 │           ↓                                                 │
 │  usePermissions() uses effectiveRole for all checks         │
 │           ↓                                                 │
@@ -1430,6 +1469,10 @@ const value = useMemo(() => ({
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+> **Key Change:** The `isSystemAdmin` and `isOrgAdmin` checks happen BEFORE
+> the project role check. This ensures org admins get admin permissions
+> even if they have no explicit project assignment.
 
 ---
 
@@ -1707,3 +1750,4 @@ import {
 | 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
 | 1.1 | 12 Dec 2025 | Claude AI | Added TestUserContext, ViewAs updates |
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added OrganisationContext (Section 4), OrganisationSwitcher component, updated Provider Hierarchy, updated ProjectContext to depend on OrganisationContext, added ORG_ROLE_CONFIG |
+| 3.0 | 24 Dec 2025 | Claude AI | **Permission Hierarchy Fix**: Updated ViewAsContext v3.0 (org admin hierarchy), usePermissions v5.0 (isOrgLevelAdmin), updated Role Resolution Flow |

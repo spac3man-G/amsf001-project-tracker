@@ -1,13 +1,21 @@
 # AMSF001 Technical Specification: Database Schema - Core Tables
 
 **Document:** TECH-SPEC-02-Database-Core.md  
-**Version:** 2.0  
+**Version:** 3.0  
 **Created:** 10 December 2025  
-**Updated:** 23 December 2025  
-**Session:** 1.2 (updated post org-multitenancy)  
+**Updated:** 24 December 2025  
+**Session:** 1.2 (updated post permission hierarchy fix)  
 
 ---
 
+> **📝 Version 3.0 Updates (24 December 2025)**
+> 
+> This document has been updated to reflect the permission hierarchy implementation:
+> - Simplified organisation roles from 3 to 2 (org_admin, org_member)
+> - Removed org_owner role references
+> - Updated user_organisations constraint
+> - Updated Section 3.3 Organisation Role Values
+> 
 > **📝 Version 2.0 Updates (23 December 2025)**
 > 
 > This document has been updated to include organisation-level multi-tenancy:
@@ -195,7 +203,7 @@ CREATE TABLE IF NOT EXISTS public.user_organisations (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT user_organisations_unique UNIQUE (user_id, organisation_id),
   CONSTRAINT user_organisations_role_check CHECK (
-    org_role IN ('org_owner', 'org_admin', 'org_member')
+    org_role IN ('org_admin', 'org_member')
   )
 );
 ```
@@ -220,9 +228,12 @@ CREATE TABLE IF NOT EXISTS public.user_organisations (
 
 | Role | Description | Typical Permissions |
 |------|-------------|---------------------|
-| `org_owner` | Organisation owner | Full control, billing, transfer ownership |
-| `org_admin` | Organisation administrator | Manage members, create projects, edit settings |
-| `org_member` | Regular member | Access projects assigned to, view org info |
+| `org_admin` | Organisation administrator | Full control, manage members, create projects, edit settings, access all projects |
+| `org_member` | Regular member | Access only assigned projects, view org info |
+
+> **Note:** The `org_owner` role was removed in December 2025 simplification.
+> Multiple org_admins can now share administrative responsibilities.
+> System admins (profiles.role = 'admin') can create organisations.
 
 ### 3.4 Comparison: Org Roles vs Project Roles
 

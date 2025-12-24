@@ -1,11 +1,18 @@
 # AMSF001 Technical Specification - RLS Policies & Security
 
-**Document Version:** 2.0  
+**Document Version:** 3.0  
 **Created:** 11 December 2025  
-**Updated:** 23 December 2025  
+**Updated:** 24 December 2025  
 **Session:** 1.5  
 **Scope:** Row Level Security, Authentication, Authorization
 
+> **Version 3.0 Updates (24 December 2025):**
+> - Updated all SELECT policies to use `can_access_project()` helper (33 policies)
+> - Simplified organisation roles from 3 to 2 (org_admin, org_member)
+> - Removed `is_org_owner()` function references
+> - Updated access hierarchy diagram
+> - Added policy migration notes
+>
 > **Version 2.0 Updates (23 December 2025):**
 > - Added organisation-level RLS helper functions (Section 1.3)
 > - Updated multi-tenancy architecture to three-tier model (Section 2)
@@ -76,16 +83,17 @@ AMSF001 implements a comprehensive Row Level Security (RLS) model using PostgreS
 
 ### 1.3 Key Functions Used in Policies
 
-#### Organisation-Level Functions (NEW - December 2025)
+#### Organisation-Level Functions
 
 | Function | Purpose |
 |----------|--------|
 | `is_system_admin()` | Returns true if current user has admin role in profiles |
 | `is_org_member(uuid)` | Returns true if current user is an active member of the organisation |
-| `is_org_admin(uuid)` | Returns true if current user is org_owner or org_admin |
-| `is_org_owner(uuid)` | Returns true if current user is the org_owner |
-| `get_org_role(uuid)` | Returns the user's org_role (org_owner, org_admin, org_member) |
+| `is_org_admin(uuid)` | Returns true if current user is org_admin |
+| `get_org_role(uuid)` | Returns the user's org_role (org_admin, org_member) |
 | `get_user_organisation_ids()` | Returns all organisation IDs the user belongs to |
+
+> **Note:** `is_org_owner()` was removed in December 2025 role simplification.
 
 #### Project-Level Functions
 
@@ -93,17 +101,45 @@ AMSF001 implements a comprehensive Row Level Security (RLS) model using PostgreS
 |----------|--------|
 | `auth.uid()` | Returns the authenticated user's UUID |
 | `auth.role()` | Returns the authenticated role ('authenticated' or 'anon') |
-| `can_access_project(uuid)` | Checks org membership + project membership (or org admin) |
+| `can_access_project(uuid)` | **PRIMARY HELPER** - Checks system admin, org admin, or project membership |
 | `get_project_role(uuid)` | Returns the user's role in a specific project |
 | `has_project_role(uuid, text[])` | Returns true if user has one of the specified project roles |
 | `get_accessible_project_ids()` | Returns all project IDs the user can access |
 
-#### Legacy Functions (still supported)
+#### can_access_project() Function (Key)
 
-| Function | Purpose |
-|----------|--------|
-| `get_my_project_ids()` | Returns project IDs for current user (project-level only) |
-| `can_manage_project(uuid)` | Checks if user can manage a project (admin/supplier_pm) |
+This is the primary helper used in 33 SELECT policies:
+
+```sql
+CREATE OR REPLACE FUNCTION can_access_project(p_project_id UUID)
+RETURNS BOOLEAN AS $
+BEGIN
+  -- 1. System admin can access all
+  IF is_system_admin() THEN
+    RETURN TRUE;
+  END IF;
+  
+  -- 2. Org admin can access all projects in their org
+  IF EXISTS (
+    SELECT 1 FROM projects p
+    JOIN user_organisations uo ON uo.organisation_id = p.organisation_id
+    WHERE p.id = p_project_id
+    AND uo.user_id = auth.uid()
+    AND uo.org_role = 'org_admin'
+    AND uo.is_active = TRUE
+  ) THEN
+    RETURN TRUE;
+  END IF;
+  
+  -- 3. Check project membership
+  RETURN EXISTS (
+    SELECT 1 FROM user_projects up
+    WHERE up.project_id = p_project_id
+    AND up.user_id = auth.uid()
+  );
+END;
+$ LANGUAGE plpgsql SECURITY DEFINER;
+```
 
 ---
 
@@ -158,12 +194,11 @@ CREATE TABLE user_organisations (
 );
 ```
 
-**Organisation Roles:**
+**Organisation Roles (Simplified December 2025):**
 
 | Role | Description | Capabilities |
 |------|-------------|-------------|
-| `org_owner` | Organisation owner | Full control, can delete org, manage all members |
-| `org_admin` | Organisation administrator | Manage members, access all projects, create projects |
+| `org_admin` | Organisation administrator | Full control, manage members, access all projects, create projects |
 | `org_member` | Regular member | Access only assigned projects |
 
 ### 2.3 The user_projects Junction Table
@@ -196,13 +231,20 @@ CREATE TABLE user_projects (
 ```
 System Admin (profiles.role = 'admin')
     └──► Can access ALL organisations and projects
+    └──► Can see System Users and System Admin pages
 
-Org Owner/Admin (user_organisations.org_role IN ('org_owner', 'org_admin'))
-    └──► Can access ALL projects within their organisation(s)
+Org Admin (user_organisations.org_role = 'org_admin')
+    └──► Can access ALL projects in their organisation
+    └──► Has 'admin' effective role for permissions
+    └──► CANNOT see System Users or System Admin pages
 
 Org Member (user_organisations.org_role = 'org_member')
-    └──► Can access ONLY projects they are explicitly added to
+    └──► Can access ONLY projects they are assigned to (user_projects)
+    └──► Effective role is their project role from user_projects
 ```
+
+> **Key Point:** Org admins get `effectiveRole = 'admin'` in the frontend,
+> giving them full admin UI capabilities within their organisation.
 
 ### 2.5 The can_access_project() Function
 
@@ -1144,6 +1186,7 @@ EXISTS (
 | 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
 | 1.1 | 13 Dec 2025 | Claude AI | Added SECURITY DEFINER functions for user_projects policies to fix recursion bug; updated Section 1.3, 2.2, and 4.3 |
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added org-level helper functions, organisation/user_organisations table policies, updated projects/user_projects policies for org-awareness, added profiles_org_members_can_view policy, updated multi-tenancy architecture to three-tier model |
+| 3.0 | 24 Dec 2025 | Claude AI | **Permission Hierarchy Fix**: Updated all SELECT policies to use can_access_project() helper (33 policies); Simplified organisation roles from 3 to 2 (org_admin, org_member); Removed is_org_owner() function; Updated access hierarchy |
 
 ---
 

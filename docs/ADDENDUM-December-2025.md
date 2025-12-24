@@ -186,27 +186,26 @@ HTML-formatted invitation email with:
 
 ## 5. Documents Requiring Updates
 
-### TECH-SPEC-01-Architecture.md
-- [ ] Update organisation role hierarchy (2 roles)
-- [ ] Add System Admin page to admin pages list
-- [ ] Add invitation system to user flow
-- [ ] Document email service integration
-
 ### TECH-SPEC-02-Database-Core.md
-- [ ] Update `user_organisations.org_role` constraint
+- [x] Update `user_organisations.org_role` constraint (3→2 roles)
+- [x] Update Section 3.3 Organisation Role Values
+- [x] Remove `org_owner` role references
 - [ ] Add `org_invitations` table documentation
 - [ ] Document `get_invitation_by_token()` function
 - [ ] Document `accept_invitation()` function
-- [ ] Remove `is_org_owner()` function reference
 
 ### TECH-SPEC-05-RLS-Security.md
-- [ ] Update RLS policies for 2-role model
+- [x] Update RLS policies for 2-role model
+- [x] Update access hierarchy diagram
+- [x] Remove `is_org_owner()` documentation
+- [x] Document can_access_project() as primary helper (33 policies)
 - [ ] Add `org_invitations` RLS policies
-- [ ] Remove `is_org_owner()` documentation
 - [ ] Add public token validation policy
 
 ### TECH-SPEC-07-Frontend-State.md
-- [ ] Update OrganisationContext (2 roles)
+- [x] Update ViewAsContext v3.0 (org admin hierarchy)
+- [x] Update usePermissions v5.0 (isOrgLevelAdmin export)
+- [x] Update Role Resolution Flow diagram
 - [ ] Add invitation service documentation
 - [ ] Add email service documentation
 

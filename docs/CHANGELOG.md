@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.8] - 2025-12-24
+
+### Added
+
+#### Organisation Admin Permission Hierarchy
+- Org admins now automatically get `effectiveRole = 'admin'` within their organisation
+- Org admins see full admin sidebar (Settings, Resources, Team Members, etc.)
+- System admins still see System Users and System Admin pages (org admins do not)
+- New `isOrgLevelAdmin` flag in usePermissions hook for UI decisions
+
+#### RLS Policy Updates
+- Updated 33 SELECT policies to use `can_access_project()` helper function
+- Org admins can now query all project data within their organisation
+- System admins can access all data everywhere
+- Cross-organisation isolation maintained
+
+### Changed
+
+#### Frontend Permission System
+- `ViewAsContext.jsx` v3.0: Now respects System Admin > Org Admin > Project Role hierarchy
+- `usePermissions.js` v5.0: Exports `isSystemAdmin`, `isOrgAdmin`, `isOrgLevelAdmin`
+- `navigation.js` v3.0: Added `getNavigationForUser()` function
+- `Layout.jsx` v13.0: Uses new navigation function for sidebar
+
+### Database Migrations Required
+
+**Fix RLS Policies:** `202512241500_fix_rls_policies_use_can_access_project.sql`
+```sql
+-- Updates 27 SELECT policies to use can_access_project() helper
+-- Example:
+CREATE POLICY "timesheets_select_policy" ON timesheets
+  FOR SELECT TO authenticated
+  USING (can_access_project(project_id));
+```
+
+**Fix Remaining Policies:** `202512241502_fix_remaining_rls_policies.sql`
+```sql
+-- Updates 8 more SELECT policies for:
+-- deliverable_kpis, deliverable_quality_standards, milestone_certificates,
+-- network_standards, quality_checks, report_generations, report_templates,
+-- resource_availability
+```
+
+### Documentation Updated
+- `TECH-SPEC-02-Database-Core.md` v3.0: Updated org roles (3→2)
+- `TECH-SPEC-05-RLS-Security.md` v3.0: Updated access hierarchy, can_access_project()
+- `TECH-SPEC-07-Frontend-State.md` v3.0: Updated ViewAsContext, usePermissions
+- `ADDENDUM-Permission-Hierarchy.md`: New - detailed implementation notes
+
+---
+
+## [0.9.7] - 2025-12-24
+
+### Added
+
+#### Organisation Invitation System
+- Invite users by email to join organisations
+- Email invitations sent via Resend API
+- Accept invitation page for new user signup
+- Pending invitations management in System Admin and Org Members pages
+- Resend and revoke invitation capabilities
+
+#### System Admin Page
+- New `/admin/system` page for system administrators
+- Create new organisations with initial admin assignment
+- View all organisations with member/admin counts
+- Manage pending invitations across all organisations
+
+### Changed
+
+#### Organisation Role Simplification
+- Simplified from 3 roles to 2: `org_admin` and `org_member`
+- Removed `org_owner` role (replaced by `org_admin` with equal privileges)
+- Multiple org admins can now share administrative responsibilities
+
+### Database Migrations Required
+
+**Role Simplification:** `202512231600_simplify_org_roles.sql`
+**Invitations Table:** `202512241000_create_org_invitations.sql`
+
+---
+
 ## [0.9.6] - 2025-12-18
 
 ### Added
