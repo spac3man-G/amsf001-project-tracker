@@ -7,6 +7,63 @@
 
 ---
 
+## Critical Instructions for AI Assistant
+
+### ⚠️ VERIFY EVERYTHING - DO NOT ASSUME
+
+**This is the most important instruction in this document.**
+
+Documentation may be outdated. Code comments may be wrong. Your training data may not reflect the current state. **Always verify assumptions by reading the actual code and querying the actual database.**
+
+#### Before Making Any Claim:
+1. **Read the actual source file** - not just docs that describe it
+2. **Check the actual database schema** - run SQL queries to verify table structures
+3. **Check actual RLS policies** - query `pg_policies` to see what's really enforced
+4. **Test your understanding** - if you think X works a certain way, find the code that proves it
+
+#### Verification Queries to Use:
+```sql
+-- Check actual table columns
+SELECT column_name, data_type, is_nullable 
+FROM information_schema.columns 
+WHERE table_name = 'TABLE_NAME';
+
+-- Check actual RLS policies
+SELECT tablename, policyname, cmd, 
+       pg_get_expr(polqual, polrelid) as using_expr,
+       pg_get_expr(polwithcheck, polrelid) as with_check_expr
+FROM pg_policies 
+WHERE tablename = 'TABLE_NAME';
+
+-- Check actual foreign keys
+SELECT tc.constraint_name, tc.table_name, kcu.column_name, 
+       ccu.table_name AS foreign_table_name
+FROM information_schema.table_constraints AS tc 
+JOIN information_schema.key_column_usage AS kcu ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = 'TABLE_NAME';
+```
+
+#### When Documenting:
+- State what you **verified** vs what you **inferred**
+- If docs say X but code says Y, **code is the truth**
+- Flag any inconsistencies between docs and implementation
+- Ask the user to run verification queries if you can't access the database directly
+
+#### Example of Good vs Bad Analysis:
+
+❌ **Bad:** "Based on the documentation, the profiles table stores the user's global role."
+
+✅ **Good:** "I read `src/hooks/usePermissions.js` lines 45-60 and verified that `userRole` comes from `profile.role`. I also checked `TECH-SPEC-02` which confirms this. However, I notice the code also checks `user_organisations.org_role` in `ViewAsContext.jsx` line 78, which suggests the permission hierarchy is more complex than the docs indicate."
+
+#### Red Flags to Watch For:
+- Policy names in docs that don't match actual policy names in database
+- Field names in docs that don't exist in actual tables
+- Permission checks in frontend that don't have corresponding RLS policies
+- "Should work" statements without code evidence
+
+---
+
 ## Context for AI Assistant
 
 You are helping review and plan the evolution of a **B2B SaaS Project Tracker** application's user management system. The application is built with:
@@ -126,20 +183,41 @@ I'm reviewing my SaaS application's user management system. This is Session 1 of
 
 Project: /Users/glennnickols/Projects/amsf001-project-tracker/
 
+⚠️ CRITICAL: Do not assume - verify everything by reading actual code and asking me to run database queries.
+
 Please help me document the current authentication and user database architecture:
 
-1. Read and analyse these files:
+1. Read and analyse these files (actually read them, don't assume their contents):
    - src/contexts/AuthContext.jsx
    - src/lib/supabase.js
    - docs/TECH-SPEC-02-Database-Core.md (sections on profiles, user_organisations, user_projects)
 
-2. Create a document that covers:
-   - How authentication works (Supabase Auth flow)
-   - The relationship between auth.users and profiles
-   - All user-related tables and their relationships
-   - Current user data model diagram
+2. VERIFY the database schema by asking me to run:
+   ```sql
+   -- Get actual profiles table structure
+   SELECT column_name, data_type, is_nullable 
+   FROM information_schema.columns WHERE table_name = 'profiles';
+   
+   -- Get actual user_organisations structure
+   SELECT column_name, data_type, is_nullable 
+   FROM information_schema.columns WHERE table_name = 'user_organisations';
+   
+   -- Get actual user_projects structure  
+   SELECT column_name, data_type, is_nullable 
+   FROM information_schema.columns WHERE table_name = 'user_projects';
+   ```
 
-3. Identify any immediate concerns or inconsistencies.
+3. Create a document that covers:
+   - How authentication works (Supabase Auth flow) - cite specific code lines
+   - The relationship between auth.users and profiles - verified from actual schema
+   - All user-related tables and their relationships - verified from actual schema
+   - Current user data model diagram
+   - Any discrepancies between docs and actual implementation
+
+4. For each claim, state whether it's:
+   - VERIFIED (you read the code/saw the query result)
+   - INFERRED (logical conclusion from verified facts)
+   - ASSUMED (needs verification)
 
 Output a markdown document to: docs/user-system-review/01-current-auth-database.md
 ```
@@ -158,31 +236,49 @@ Continuing user system review - Session 2.
 
 Project: /Users/glennnickols/Projects/amsf001-project-tracker/
 
+⚠️ CRITICAL: Do not assume - verify everything by reading actual code and asking me to run database queries.
+
 Reference the previous session output: docs/user-system-review/01-current-auth-database.md
 
 Please analyse the permission system and user lifecycle:
 
-1. Read and analyse:
+1. Read and analyse these files (actually read them, cite line numbers):
    - src/lib/permissions.js
    - src/hooks/usePermissions.js
    - src/contexts/ViewAsContext.jsx
    - src/hooks/useMilestonePermissions.js
-   - docs/ADDENDUM-Permission-Hierarchy.md
-   - docs/TECH-SPEC-05-RLS-Security.md
 
-2. Document:
+2. VERIFY actual RLS policies by asking me to run:
+   ```sql
+   -- Get all RLS policies for user-related tables
+   SELECT tablename, policyname, cmd,
+          pg_get_expr(polqual, polrelid) as using_expr,
+          pg_get_expr(polwithcheck, polrelid) as with_check_expr
+   FROM pg_policies 
+   WHERE tablename IN ('profiles', 'user_organisations', 'user_projects');
+   ```
+
+3. Compare docs vs reality:
+   - Read docs/ADDENDUM-Permission-Hierarchy.md
+   - Read docs/TECH-SPEC-05-RLS-Security.md
+   - Flag any differences between what docs say and what code/policies actually do
+
+4. Document (with verification status for each claim):
    - The three-tier permission model (System Admin → Org Admin → Project Role)
-   - How permissions are checked in frontend
-   - How RLS policies enforce permissions in backend
+   - How permissions are checked in frontend (cite specific functions and lines)
+   - How RLS policies enforce permissions in backend (from actual policy query)
    - User lifecycle: registration, invitation, role assignment, deactivation
    - Current bugs or gaps in permission enforcement
 
-3. Read the admin UI files:
+5. Read the admin UI files and test what operations actually work:
    - src/pages/admin/SystemUsers.jsx
-   - src/pages/admin/OrganisationMembers.jsx
+   - src/pages/admin/OrganisationMembers.jsx  
    - src/pages/admin/ProjectManagement.jsx
 
-4. Document what admin operations are available and what's missing.
+6. For each admin operation, document:
+   - What the UI allows
+   - What RLS policy enforces it
+   - Whether it actually works (ask me to test if unsure)
 
 Output to: docs/user-system-review/02-current-permissions-lifecycle.md
 ```
