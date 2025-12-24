@@ -295,18 +295,24 @@ export function OrganisationProvider({ children }) {
       },
       branding: {},
       limits: {},
+      // Onboarding flags
+      onboarding_completed: false,
+      onboarding_completed_at: null,
     };
 
     if (!currentOrganisation?.settings) {
       return defaultSettings;
     }
 
-    // Merge with defaults
+    // Merge with defaults, preserving top-level onboarding flags
     return {
       features: { ...defaultSettings.features, ...currentOrganisation.settings.features },
       defaults: { ...defaultSettings.defaults, ...currentOrganisation.settings.defaults },
       branding: { ...defaultSettings.branding, ...currentOrganisation.settings.branding },
       limits: { ...defaultSettings.limits, ...currentOrganisation.settings.limits },
+      // Onboarding flags (top-level)
+      onboarding_completed: currentOrganisation.settings.onboarding_completed ?? false,
+      onboarding_completed_at: currentOrganisation.settings.onboarding_completed_at ?? null,
     };
   }, [currentOrganisation?.settings]);
 

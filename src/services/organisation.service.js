@@ -353,9 +353,10 @@ export class OrganisationService {
    * @param {string} userId - User UUID
    * @param {string} role - Organisation role (org_admin, org_member)
    * @param {string} invitedBy - UUID of user who invited
-   * @returns {Promise<Object>} Created membership
+   * @param {boolean} skipLimitCheck - Skip limit check (for system admins)
+   * @returns {Promise<Object>} Created membership or error object
    */
-  async addMember(organisationId, userId, role = ORG_ROLES.ORG_MEMBER, invitedBy = null) {
+  async addMember(organisationId, userId, role = ORG_ROLES.ORG_MEMBER, invitedBy = null, skipLimitCheck = false) {
     try {
       // Validate role
       if (!Object.values(ORG_ROLES).includes(role)) {
@@ -374,7 +375,81 @@ export class OrganisationService {
         if (existing[0].is_active) {
           throw new Error('User is already a member of this organisation');
         }
-        // Reactivate existing membership
+        // Reactivating - still counts toward limit, check it
+      }
+
+      // ========================================================================
+      // CHECK MEMBER LIMIT
+      // ========================================================================
+      if (!skipLimitCheck && !(existing && existing.length > 0 && !existing[0].is_active)) {
+        // Get organisation's subscription tier
+        const { data: org } = await supabase
+          .from('organisations')
+          .select('subscription_tier')
+          .eq('id', organisationId)
+          .single();
+
+        const tier = org?.subscription_tier || 'free';
+
+        // Define tier limits (Infinity = unlimited)
+        const tierLimits = {
+          free: Infinity,       // Unlimited for free tier
+          starter: Infinity,
+          professional: Infinity,
+          enterprise: Infinity,
+        };
+
+        const memberLimit = tierLimits[tier] ?? Infinity;
+
+        if (memberLimit !== Infinity) {
+          // Count active members
+          const { count: memberCount } = await supabase
+            .from('user_organisations')
+            .select('*', { count: 'exact', head: true })
+            .eq('organisation_id', organisationId)
+            .eq('is_active', true);
+
+          // Count pending invitations
+          const { count: pendingCount } = await supabase
+            .from('org_invitations')
+            .select('*', { count: 'exact', head: true })
+            .eq('organisation_id', organisationId)
+            .eq('status', 'pending')
+            .gt('expires_at', new Date().toISOString());
+
+          const totalMembers = (memberCount || 0) + (pendingCount || 0);
+
+          if (totalMembers >= memberLimit) {
+            const tierNames = {
+              free: 'Free',
+              starter: 'Starter',
+              professional: 'Professional',
+              enterprise: 'Enterprise',
+            };
+
+            return {
+              success: false,
+              error: 'LIMIT_EXCEEDED',
+              code: 'MEMBER_LIMIT_EXCEEDED',
+              message: `You've reached the member limit (${memberLimit}) for your ${tierNames[tier]} plan.`,
+              details: {
+                current: totalMembers,
+                limit: memberLimit,
+                tier: tier,
+              },
+              upgrade: tier !== 'enterprise' ? {
+                available: true,
+                message: 'Upgrade your plan to add more members.',
+              } : {
+                available: false,
+              },
+            };
+          }
+        }
+      }
+
+      // Reactivate existing membership if applicable
+      if (existing && existing.length > 0) {
         const { data, error } = await supabase
           .from('user_organisations')
           .update({
@@ -387,7 +462,7 @@ export class OrganisationService {
           .single();
 
         if (error) throw error;
-        return data;
+        return { success: true, data };
       }
 
       // Create new membership
@@ -401,7 +476,7 @@ export class OrganisationService {
           is_default: false,
           invited_by: invitedBy,
           invited_at: new Date().toISOString(),
-          accepted_at: new Date().toISOString(), // Auto-accept for now
+          accepted_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -411,7 +486,7 @@ export class OrganisationService {
         throw error;
       }
 
-      return data;
+      return { success: true, data };
     } catch (error) {
       console.error('Organisation addMember failed:', error);
       throw error;

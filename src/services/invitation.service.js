@@ -46,9 +46,79 @@ class InvitationService {
    * @param {number} params.expiryDays - Days until expiry (default 7)
    * @returns {Promise<Object>} Created invitation with token
    */
-  async createInvitation({ organisationId, email, orgRole = 'org_member', invitedBy, expiryDays = 7 }) {
+  async createInvitation({ organisationId, email, orgRole = 'org_member', invitedBy, expiryDays = 7, skipLimitCheck = false }) {
     try {
       const normalizedEmail = email.toLowerCase().trim();
+
+      // ========================================================================
+      // CHECK MEMBER LIMIT (unless explicitly skipped, e.g., for system admins)
+      // ========================================================================
+      if (!skipLimitCheck) {
+        // Get organisation's subscription tier
+        const { data: org } = await supabase
+          .from('organisations')
+          .select('subscription_tier')
+          .eq('id', organisationId)
+          .single();
+
+        const tier = org?.subscription_tier || 'free';
+
+        // Define tier limits (Infinity = unlimited)
+        const tierLimits = {
+          free: Infinity,       // Unlimited for free tier
+          starter: Infinity,
+          professional: Infinity,
+          enterprise: Infinity,
+        };
+
+        const memberLimit = tierLimits[tier] ?? Infinity;
+
+        if (memberLimit !== Infinity) {
+          // Count active members
+          const { count: memberCount } = await supabase
+            .from('user_organisations')
+            .select('*', { count: 'exact', head: true })
+            .eq('organisation_id', organisationId)
+            .eq('is_active', true);
+
+          // Count pending invitations
+          const { count: pendingCount } = await supabase
+            .from(this.tableName)
+            .select('*', { count: 'exact', head: true })
+            .eq('organisation_id', organisationId)
+            .eq('status', 'pending')
+            .gt('expires_at', new Date().toISOString());
+
+          const totalMembers = (memberCount || 0) + (pendingCount || 0);
+
+          if (totalMembers >= memberLimit) {
+            const tierNames = {
+              free: 'Free',
+              starter: 'Starter',
+              professional: 'Professional',
+              enterprise: 'Enterprise',
+            };
+
+            return {
+              success: false,
+              error: 'LIMIT_EXCEEDED',
+              code: 'MEMBER_LIMIT_EXCEEDED',
+              message: `You've reached the member limit (${memberLimit}) for your ${tierNames[tier]} plan.`,
+              details: {
+                current: totalMembers,
+                limit: memberLimit,
+                tier: tier,
+              },
+              upgrade: tier !== 'enterprise' ? {
+                available: true,
+                message: 'Upgrade your plan to invite more members.',
+              } : {
+                available: false,
+              },
+            };
+          }
+        }
+      }
       
       // Check if user already exists
       const { data: existingUser } = await supabase

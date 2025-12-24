@@ -186,6 +186,67 @@ export default async function handler(req) {
       }
     }
 
+    // ========================================================================
+    // CHECK SUBSCRIPTION LIMITS
+    // ========================================================================
+    if (orgId) {
+      // Get organisation's subscription tier
+      const { data: org } = await supabase
+        .from('organisations')
+        .select('subscription_tier')
+        .eq('id', orgId)
+        .single();
+
+      const tier = org?.subscription_tier || 'free';
+
+      // Define tier limits (Infinity = unlimited)
+      const tierLimits = {
+        free: Infinity,       // Unlimited for free tier
+        starter: Infinity,
+        professional: Infinity,
+        enterprise: Infinity,
+      };
+
+      const projectLimit = tierLimits[tier] ?? Infinity;
+
+      // Skip limit check if unlimited
+      if (projectLimit !== Infinity) {
+        // Count existing projects (exclude deleted)
+        const { count: projectCount } = await supabase
+          .from('projects')
+          .select('*', { count: 'exact', head: true })
+          .eq('organisation_id', orgId)
+          .neq('status', 'deleted');
+
+        if (projectCount >= projectLimit) {
+          const tierNames = {
+            free: 'Free',
+            starter: 'Starter',
+            professional: 'Professional',
+            enterprise: 'Enterprise',
+          };
+
+          return new Response(JSON.stringify({ 
+            error: 'LIMIT_EXCEEDED',
+            code: 'PROJECT_LIMIT_EXCEEDED',
+            message: `You've reached the project limit (${projectLimit}) for your ${tierNames[tier]} plan.`,
+            details: {
+              current: projectCount,
+              limit: projectLimit,
+              tier: tier,
+            },
+            upgrade: {
+              available: false,
+              message: 'Contact support for assistance.',
+            },
+          }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+
     // Check if reference already exists (within the organisation if specified)
     let existingQuery = supabase
       .from('projects')

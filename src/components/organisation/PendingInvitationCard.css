@@ -1,0 +1,171 @@
+/**
+ * Pending Invitation Card Styles
+ */
+
+.pending-invitation-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pending-invitation-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.pending-invitation-card.expired {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+/* Main Content */
+.invitation-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.invitation-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 8px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.pending-invitation-card.expired .invitation-icon {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.invitation-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.invitation-email {
+  font-weight: 500;
+  color: #1e293b;
+  font-size: 0.9375rem;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.invitation-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.invitation-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.invitation-expiry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.invitation-expiry.warning {
+  color: #d97706;
+}
+
+.invitation-expiry.expired {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.invitation-inviter {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* Actions */
+.invitation-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.invitation-action-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.invitation-action-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.invitation-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.invitation-action-btn.danger:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.invitation-action-btn.success {
+  background: #d1fae5;
+  color: #059669;
+}
+
+/* Spinning Animation */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .pending-invitation-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .invitation-actions {
+    justify-content: flex-end;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 12px;
+  }
+}

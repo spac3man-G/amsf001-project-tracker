@@ -6,12 +6,13 @@
  * Features:
  * - View all organisation members with their roles
  * - Invite new members (by email)
+ * - View and manage pending invitations
  * - Change member roles
  * - Remove members
  * 
- * @version 2.0
+ * @version 3.0
  * @created 22 December 2025
- * @updated 23 December 2025 - Simplified to 2-role model (removed org_owner)
+ * @updated 24 December 2025 - Added pending invitations section
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -19,13 +20,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { 
   Users, Plus, RefreshCw, Shield, User, 
-  Trash2, ChevronDown, Mail, Check, X
+  Trash2, ChevronDown, Mail, Check, X, Clock, Copy
 } from 'lucide-react';
 import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProjectRole } from '../../hooks/useProjectRole';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
+import { PendingInvitationCard } from '../../components/organisation';
 import { hasOrgPermission, ORG_ROLES, ORG_ROLE_CONFIG } from '../../lib/permissionMatrix';
 import { organisationService, invitationService, emailService } from '../../services';
 import '../../pages/TeamMembers.css';
@@ -43,7 +45,9 @@ export default function OrganisationMembers() {
   const { isSystemAdmin, loading: roleLoading } = useProjectRole();
 
   const [members, setMembers] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState(ORG_ROLES.ORG_MEMBER);
@@ -72,6 +76,22 @@ export default function OrganisationMembers() {
     }
   }, [currentOrganisation?.id, showError]);
 
+  // Fetch pending invitations
+  const fetchPendingInvitations = useCallback(async () => {
+    if (!currentOrganisation?.id) return;
+
+    setLoadingInvitations(true);
+    try {
+      const data = await invitationService.listPendingInvitations(currentOrganisation.id);
+      setPendingInvitations(data || []);
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+      // Don't show error toast - invitations are secondary
+    } finally {
+      setLoadingInvitations(false);
+    }
+  }, [currentOrganisation?.id]);
+
   // Load data
   useEffect(() => {
     if (roleLoading) return;
@@ -82,7 +102,8 @@ export default function OrganisationMembers() {
     }
 
     fetchMembers();
-  }, [roleLoading, isOrgAdmin, isSystemAdmin, navigate, fetchMembers]);
+    fetchPendingInvitations();
+  }, [roleLoading, isOrgAdmin, isSystemAdmin, navigate, fetchMembers, fetchPendingInvitations]);
 
   // Get role icon
   const getRoleIcon = (role) => {
@@ -210,6 +231,7 @@ export default function OrganisationMembers() {
       setInviteRole(ORG_ROLES.ORG_MEMBER);
       setShowInviteForm(false);
       fetchMembers();
+      fetchPendingInvitations();
     } catch (error) {
       console.error('Error inviting member:', error);
       showError('Failed to invite member');
@@ -280,6 +302,81 @@ export default function OrganisationMembers() {
     }
   };
 
+  // Handle copy invitation link
+  const handleCopyInviteLink = async (invitation) => {
+    try {
+      const url = invitationService.getAcceptUrl(invitation.token);
+      await navigator.clipboard.writeText(url);
+      showSuccess('Invitation link copied to clipboard');
+      return true;
+    } catch (error) {
+      console.error('Error copying link:', error);
+      showError('Failed to copy link');
+      return false;
+    }
+  };
+
+  // Handle resend invitation
+  const handleResendInvitation = async (invitation) => {
+    try {
+      const updated = await invitationService.resendInvitation(invitation.id);
+      
+      if (!updated) {
+        showError('Failed to resend invitation');
+        return;
+      }
+
+      // Send email with new token
+      const acceptUrl = invitationService.getAcceptUrl(updated.token);
+      
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+      
+      const inviterName = currentUserProfile?.full_name || currentUserProfile?.email || 'Organisation Admin';
+
+      const emailResult = await emailService.sendInvitationEmail({
+        email: invitation.email,
+        orgName: currentOrganisation.name,
+        orgDisplayName: currentOrganisation.display_name,
+        inviterName: inviterName,
+        role: invitation.org_role,
+        acceptUrl: acceptUrl,
+      });
+
+      if (!emailResult.success) {
+        showSuccess(`Invitation renewed but email failed. Share link manually.`);
+      } else {
+        showSuccess(`Invitation resent to ${invitation.email}`);
+      }
+
+      fetchPendingInvitations();
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      showError('Failed to resend invitation');
+    }
+  };
+
+  // Handle revoke invitation
+  const handleRevokeInvitation = async (invitation) => {
+    try {
+      const success = await invitationService.revokeInvitation(invitation.id);
+      
+      if (!success) {
+        showError('Failed to revoke invitation');
+        return;
+      }
+
+      showSuccess(`Invitation to ${invitation.email} has been revoked`);
+      fetchPendingInvitations();
+    } catch (error) {
+      console.error('Error revoking invitation:', error);
+      showError('Failed to revoke invitation');
+    }
+  };
+
   if (loading || roleLoading) {
     return <LoadingSpinner message="Loading organisation members..." fullPage />;
   }
@@ -298,7 +395,7 @@ export default function OrganisationMembers() {
           </div>
         </div>
         <div className="header-actions">
-          <button onClick={fetchMembers} className="btn-secondary">
+          <button onClick={() => { fetchMembers(); fetchPendingInvitations(); }} className="btn-secondary">
             <RefreshCw size={16} />
             Refresh
           </button>
@@ -465,6 +562,67 @@ export default function OrganisationMembers() {
           </table>
         )}
       </div>
+
+      {/* Pending Invitations Section */}
+      {canInvite && (
+        <div className="pending-invitations-section" style={{ marginTop: '32px' }}>
+          <div className="section-header" style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '10px',
+            marginBottom: '16px'
+          }}>
+            <Clock size={20} style={{ color: '#8b5cf6' }} />
+            <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>
+              Pending Invitations
+              {pendingInvitations.length > 0 && (
+                <span style={{ 
+                  marginLeft: '8px',
+                  padding: '2px 8px',
+                  background: '#f1f5f9',
+                  borderRadius: '10px',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: '#64748b'
+                }}>
+                  {pendingInvitations.length}
+                </span>
+              )}
+            </h2>
+          </div>
+
+          {loadingInvitations ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+              <RefreshCw size={20} className="spinning" style={{ marginBottom: '8px' }} />
+              <p style={{ margin: 0 }}>Loading invitations...</p>
+            </div>
+          ) : pendingInvitations.length === 0 ? (
+            <div style={{ 
+              padding: '32px', 
+              textAlign: 'center', 
+              color: '#94a3b8',
+              background: '#f8fafc',
+              borderRadius: '10px',
+              border: '1px dashed #e2e8f0'
+            }}>
+              <Mail size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+              <p style={{ margin: 0 }}>No pending invitations</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {pendingInvitations.map(invitation => (
+                <PendingInvitationCard
+                  key={invitation.id}
+                  invitation={invitation}
+                  onCopyLink={handleCopyInviteLink}
+                  onResend={handleResendInvitation}
+                  onRevoke={handleRevokeInvitation}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Confirm Dialog */}
       <ConfirmDialog

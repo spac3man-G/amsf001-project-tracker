@@ -27,3 +27,7 @@ export { default as FilterBar, FilterSelect, FilterToggle } from './FilterBar';
 export { Toast, ToastContainer } from './Toast';
 export { SignatureBox, SignatureGrid, DualSignature, SignatureComplete } from './SignatureBox';
 export { default as MultiSelectList } from './MultiSelectList';
+
+// Subscription & Limits
+export { default as UpgradePrompt } from './UpgradePrompt';
+export { default as UsageMeter, UsageInline, UsageSummaryCard } from './UsageMeter';

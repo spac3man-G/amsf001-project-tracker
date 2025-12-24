@@ -1,6 +1,6 @@
 // Vercel Edge Function for Managing User-Project Assignments
-// Allows admins and supplier_pm to add/remove users from projects
-// Version 1.0 - 15 December 2025
+// Allows admins, org_admins, and supplier_pm (on target project) to add/remove users
+// Version 2.0 - 24 December 2025 - Fixed authorization to check target project
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -10,6 +10,104 @@ export const config = {
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+/**
+ * Check if a user is an org_admin for the organisation that owns a project
+ * @param {Object} supabase - Supabase client
+ * @param {string} userId - User ID to check
+ * @param {string} projectId - Project ID to check against
+ * @returns {Promise<boolean>}
+ */
+async function isOrgAdminForProject(supabase, userId, projectId) {
+  // Get the project's organisation
+  const { data: project } = await supabase
+    .from('projects')
+    .select('organisation_id')
+    .eq('id', projectId)
+    .single();
+  
+  if (!project?.organisation_id) return false;
+  
+  // Check if user is org_admin of that organisation
+  const { data: membership } = await supabase
+    .from('user_organisations')
+    .select('org_role')
+    .eq('user_id', userId)
+    .eq('organisation_id', project.organisation_id)
+    .eq('is_active', true)
+    .single();
+  
+  return membership?.org_role === 'org_admin';
+}
+
+/**
+ * Check if a user is a PM (admin or supplier_pm) on a specific project
+ * @param {Object} supabase - Supabase client
+ * @param {string} userId - User ID to check
+ * @param {string} projectId - Target project ID
+ * @returns {Promise<boolean>}
+ */
+async function isPMOnProject(supabase, userId, projectId) {
+  const { data: assignment } = await supabase
+    .from('user_projects')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('project_id', projectId)
+    .in('role', ['admin', 'supplier_pm'])
+    .single();
+  
+  return !!assignment;
+}
+
+/**
+ * Check if a user is an active member of a project's organisation
+ * @param {Object} supabase - Supabase client
+ * @param {string} userId - User ID to check
+ * @param {string} projectId - Project ID to get organisation from
+ * @returns {Promise<{isMember: boolean, organisationId: string|null}>}
+ */
+async function checkOrgMembership(supabase, userId, projectId) {
+  // Get the project's organisation
+  const { data: project } = await supabase
+    .from('projects')
+    .select('organisation_id')
+    .eq('id', projectId)
+    .single();
+  
+  if (!project?.organisation_id) {
+    return { isMember: true, organisationId: null }; // Legacy project without org
+  }
+  
+  // Check if user is an active org member
+  const { data: membership } = await supabase
+    .from('user_organisations')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('organisation_id', project.organisation_id)
+    .eq('is_active', true)
+    .single();
+  
+  return { 
+    isMember: !!membership, 
+    organisationId: project.organisation_id 
+  };
+}
+
+/**
+ * Get the project ID from an assignment ID
+ * @param {Object} supabase - Supabase client
+ * @param {string} assignmentId - Assignment ID
+ * @returns {Promise<string|null>}
+ */
+async function getProjectIdFromAssignment(supabase, assignmentId) {
+  const { data } = await supabase
+    .from('user_projects')
+    .select('project_id')
+    .eq('id', assignmentId)
+    .single();
+  
+  return data?.project_id || null;
+}
 
 export default async function handler(req) {
   // Only allow POST and DELETE requests
@@ -64,32 +162,17 @@ export default async function handler(req) {
       });
     }
 
-    // Check user's permissions (must be admin or supplier_pm)
+    // Check user's permissions (must be system admin, org_admin, or PM on target project)
     const { data: userProfile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', requestingUser.id)
       .single();
 
-    const isGlobalAdmin = userProfile?.role === 'admin';
+    const isSystemAdmin = userProfile?.role === 'admin';
 
-    // Check if they're a supplier_pm on any project
-    const { data: pmAssignments } = await supabase
-      .from('user_projects')
-      .select('role, project_id')
-      .eq('user_id', requestingUser.id)
-      .in('role', ['admin', 'supplier_pm']);
-
-    const hasProjectAccess = pmAssignments && pmAssignments.length > 0;
-    
-    if (!isGlobalAdmin && !hasProjectAccess) {
-      return new Response(JSON.stringify({ 
-        error: 'Insufficient permissions. Only admins and supplier PMs can manage project assignments.' 
-      }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+    // For actions that require a target project, we'll check authorization per-action below
+    // This is because different actions get project context differently
 
     // Handle ADD action
     if (action === 'add') {
@@ -102,11 +185,36 @@ export default async function handler(req) {
         });
       }
 
+      // Authorization check for ADD action
+      const canManageProject = isSystemAdmin || 
+        await isOrgAdminForProject(supabase, requestingUser.id, projectId) ||
+        await isPMOnProject(supabase, requestingUser.id, projectId);
+      
+      if (!canManageProject) {
+        return new Response(JSON.stringify({ 
+          error: 'Insufficient permissions. You must be a system admin, organisation admin, or project PM to add users.' 
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
       // Validate role
       const validRoles = ['admin', 'supplier_pm', 'supplier_finance', 'customer_pm', 'customer_finance', 'contributor', 'viewer'];
       if (!validRoles.includes(role)) {
         return new Response(JSON.stringify({ 
           error: 'Invalid role. Must be one of: ' + validRoles.join(', ')
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // SECURITY: Verify user is an organisation member before adding to project
+      const { isMember, organisationId } = await checkOrgMembership(supabase, userId, projectId);
+      if (!isMember) {
+        return new Response(JSON.stringify({ 
+          error: 'User must be an organisation member before being assigned to a project. Please invite them to the organisation first.'
         }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
@@ -174,10 +282,10 @@ export default async function handler(req) {
         });
       }
 
-      // Get the assignment to check it exists and get user_id
+      // Get the assignment to check it exists and get project context
       const { data: assignment } = await supabase
         .from('user_projects')
-        .select('user_id')
+        .select('user_id, project_id')
         .eq('id', assignmentId)
         .single();
 
@@ -186,6 +294,20 @@ export default async function handler(req) {
           error: 'Assignment not found'
         }), {
           status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Authorization check for REMOVE action - must have access to THIS project
+      const canManageProject = isSystemAdmin || 
+        await isOrgAdminForProject(supabase, requestingUser.id, assignment.project_id) ||
+        await isPMOnProject(supabase, requestingUser.id, assignment.project_id);
+      
+      if (!canManageProject) {
+        return new Response(JSON.stringify({ 
+          error: 'Insufficient permissions. You must be a system admin, organisation admin, or project PM to remove users.' 
+        }), {
+          status: 403,
           headers: { 'Content-Type': 'application/json' },
         });
       }
@@ -232,6 +354,31 @@ export default async function handler(req) {
           error: 'assignmentId and role are required for update_role action' 
         }), {
           status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Get the project ID from the assignment for authorization
+      const targetProjectId = await getProjectIdFromAssignment(supabase, assignmentId);
+      if (!targetProjectId) {
+        return new Response(JSON.stringify({ 
+          error: 'Assignment not found'
+        }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Authorization check for UPDATE_ROLE action
+      const canManageProject = isSystemAdmin || 
+        await isOrgAdminForProject(supabase, requestingUser.id, targetProjectId) ||
+        await isPMOnProject(supabase, requestingUser.id, targetProjectId);
+      
+      if (!canManageProject) {
+        return new Response(JSON.stringify({ 
+          error: 'Insufficient permissions. You must be a system admin, organisation admin, or project PM to update roles.' 
+        }), {
+          status: 403,
           headers: { 'Content-Type': 'application/json' },
         });
       }

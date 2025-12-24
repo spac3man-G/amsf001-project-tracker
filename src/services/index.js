@@ -123,3 +123,9 @@ export {
 export {
   emailService
 } from './email.service';
+
+// Subscription & Limits
+export {
+  subscriptionService,
+  LIMIT_TYPES
+} from './subscription.service';

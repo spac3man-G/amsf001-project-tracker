@@ -1,0 +1,423 @@
+/**
+ * Upgrade Prompt Styles
+ */
+
+/* ============================================
+   INLINE VARIANT
+   ============================================ */
+.upgrade-prompt-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #fef3c7;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: #92400e;
+}
+
+.upgrade-prompt-inline.at-limit {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.upgrade-prompt-inline .upgrade-link {
+  background: none;
+  border: none;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.upgrade-prompt-inline .upgrade-link:hover {
+  opacity: 0.8;
+}
+
+/* ============================================
+   BANNER VARIANT
+   ============================================ */
+.upgrade-prompt-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.upgrade-prompt-banner.warning {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fcd34d;
+}
+
+.upgrade-prompt-banner.at-limit {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 1px solid #fca5a5;
+}
+
+.banner-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.upgrade-prompt-banner.warning .banner-icon {
+  color: #d97706;
+}
+
+.upgrade-prompt-banner.at-limit .banner-icon {
+  color: #dc2626;
+}
+
+.banner-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.banner-content strong {
+  font-size: 0.9375rem;
+  color: #1e293b;
+}
+
+.banner-content span {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.btn-upgrade-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+  white-space: nowrap;
+}
+
+.btn-upgrade-banner:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.banner-dismiss {
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.banner-dismiss:hover {
+  color: #64748b;
+}
+
+/* ============================================
+   CARD VARIANT
+   ============================================ */
+.upgrade-prompt-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.upgrade-prompt-card.at-limit {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.card-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 12px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.upgrade-prompt-card.at-limit .card-icon {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.card-content {
+  flex: 1;
+}
+
+.card-content h4 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.card-content p {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.btn-upgrade-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-upgrade-card:hover {
+  opacity: 0.9;
+}
+
+.card-dismiss {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.card-dismiss:hover {
+  color: #64748b;
+}
+
+/* ============================================
+   MODAL VARIANT
+   ============================================ */
+.upgrade-prompt-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.upgrade-prompt-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  border-radius: 50%;
+  color: #dc2626;
+}
+
+.upgrade-prompt-modal h2 {
+  margin: 0 0 12px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.modal-description {
+  margin: 0 0 24px;
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.modal-upgrade-info {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.upgrade-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.current-plan,
+.next-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plan-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.plan-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.plan-limit {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.next-plan .plan-name {
+  color: #7c3aed;
+}
+
+.next-plan .plan-limit {
+  color: #7c3aed;
+  font-weight: 500;
+}
+
+.upgrade-comparison svg {
+  color: #94a3b8;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-actions .btn-secondary {
+  padding: 12px 24px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #64748b;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-actions .btn-secondary:hover {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.modal-actions .btn-upgrade {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.modal-actions .btn-upgrade:hover {
+  opacity: 0.9;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 640px) {
+  .upgrade-prompt-banner {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .banner-icon {
+    margin: 0 auto;
+  }
+
+  .btn-upgrade-banner {
+    justify-content: center;
+  }
+
+  .upgrade-prompt-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .card-icon {
+    margin: 0 auto;
+  }
+
+  .btn-upgrade-card {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .upgrade-prompt-modal {
+    padding: 24px;
+  }
+
+  .upgrade-comparison {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .upgrade-comparison svg {
+    transform: rotate(90deg);
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}

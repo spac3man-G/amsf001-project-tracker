@@ -1,0 +1,208 @@
+/**
+ * Usage Meter Styles
+ */
+
+/* ============================================
+   USAGE METER
+   ============================================ */
+.usage-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Sizes */
+.usage-meter-small {
+  gap: 4px;
+}
+
+.usage-meter-large {
+  gap: 8px;
+}
+
+/* Header */
+.meter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meter-icon {
+  color: #64748b;
+}
+
+.meter-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.usage-meter-small .meter-label {
+  font-size: 0.75rem;
+}
+
+.usage-meter-large .meter-label {
+  font-size: 0.875rem;
+}
+
+/* Bar */
+.meter-bar-container {
+  width: 100%;
+}
+
+.meter-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.usage-meter-small .meter-bar {
+  height: 6px;
+}
+
+.usage-meter-large .meter-bar {
+  height: 10px;
+}
+
+.meter-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Status colors */
+.usage-meter-normal .meter-bar-fill {
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+}
+
+.usage-meter-warning .meter-bar-fill {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.usage-meter-critical .meter-bar-fill {
+  background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+}
+
+.usage-meter-exceeded .meter-bar-fill {
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+}
+
+/* Values */
+.meter-values {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+}
+
+.usage-meter-small .meter-values {
+  font-size: 0.75rem;
+}
+
+.usage-meter-large .meter-values {
+  font-size: 0.875rem;
+}
+
+.meter-current {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.meter-separator {
+  color: #94a3b8;
+}
+
+.meter-limit {
+  color: #64748b;
+  display: flex;
+  align-items: center;
+}
+
+/* Status text colors */
+.usage-meter-warning .meter-current {
+  color: #d97706;
+}
+
+.usage-meter-critical .meter-current,
+.usage-meter-exceeded .meter-current {
+  color: #dc2626;
+}
+
+/* ============================================
+   USAGE INLINE
+   ============================================ */
+.usage-inline {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.usage-inline-normal {
+  color: #64748b;
+}
+
+.usage-inline-warning {
+  color: #d97706;
+}
+
+.usage-inline-critical {
+  color: #dc2626;
+}
+
+/* ============================================
+   USAGE SUMMARY CARD
+   ============================================ */
+.usage-summary-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.summary-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.tier-badge {
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: white;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.summary-meters {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.summary-upgrade-btn {
+  width: 100%;
+  padding: 10px 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #7c3aed;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.summary-upgrade-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}

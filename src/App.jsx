@@ -14,7 +14,7 @@ import { Suspense, lazy } from 'react';
 
 // Import context providers
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { OrganisationProvider } from './contexts/OrganisationContext';
+import { OrganisationProvider, useOrganisation } from './contexts/OrganisationContext';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ViewAsProvider } from './contexts/ViewAsContext';
 import { TestUserProvider } from './contexts/TestUserContext';
@@ -75,6 +75,10 @@ const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
 const OrganisationSettings = lazy(() => import('./pages/admin/OrganisationSettings'));
 const OrganisationMembers = lazy(() => import('./pages/admin/OrganisationMembers'));
 
+// Onboarding pages
+const CreateOrganisation = lazy(() => import('./pages/onboarding/CreateOrganisation'));
+const OnboardingWizardPage = lazy(() => import('./pages/onboarding/OnboardingWizardPage'));
+
 /**
  * PageLoader - Shows skeleton while lazy components load
  */
@@ -89,24 +93,26 @@ function PageLoader() {
 /**
  * ProtectedRoute - Wraps routes that require authentication
  * Uses AuthContext for single source of truth.
- * Also handles forced password change flow.
+ * Also handles forced password change flow and organisation requirements.
  * 
  * @param {ReactNode} children - Child components to render
  * @param {boolean} adminOnly - If true, requires global admin role (isSystemAdmin)
  * @param {string[]} requiredRoles - Array of roles that can access this route (uses effectiveRole)
+ * @param {boolean} requiresOrganisation - If true, redirects to create-org if no orgs (default: true)
  * 
  * Role checking logic:
  * - adminOnly: Checks isSystemAdmin (global role === 'admin')
  * - requiredRoles: Checks effectiveRole (project role with global fallback)
  * 
- * @version 2.0 - Added project-scoped role checks
+ * @version 3.0 - Added organisation requirement check
  */
-function ProtectedRoute({ children, adminOnly = false, requiredRoles = null }) {
+function ProtectedRoute({ children, adminOnly = false, requiredRoles = null, requiresOrganisation = true }) {
   const { user, isLoading, mustChangePassword, clearMustChangePassword, profile } = useAuth();
   const { effectiveRole, isSystemAdmin, loading: roleLoading } = useProjectRole();
+  const { availableOrganisations, isLoading: orgLoading } = useOrganisation();
 
-  // Show loading spinner while auth or role is loading
-  if (isLoading || roleLoading) {
+  // Show loading spinner while auth, role, or org is loading
+  if (isLoading || roleLoading || orgLoading) {
     return <LoadingSpinner message="Loading..." size="large" fullPage />;
   }
 
@@ -123,6 +129,11 @@ function ProtectedRoute({ children, adminOnly = false, requiredRoles = null }) {
         onSuccess={clearMustChangePassword}
       />
     );
+  }
+
+  // Check if user needs to create an organisation (skip for system admins who can access everything)
+  if (requiresOrganisation && !isSystemAdmin && (!availableOrganisations || availableOrganisations.length === 0)) {
+    return <Navigate to="/onboarding/create-organisation" replace />;
   }
 
   // Admin-only routes (like System Users) - requires global admin role
@@ -168,6 +179,28 @@ function MobileChatRoute() {
   );
 }
 
+/**
+ * OnboardingRoute - Protected route without Layout wrapper
+ * Used for onboarding flows that need authentication but not the full app layout
+ */
+function OnboardingRoute({ children }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingSpinner message="Loading..." size="large" fullPage />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <Suspense fallback={<LoadingSpinner message="Loading..." size="large" fullPage />}>
+      {children}
+    </Suspense>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -206,6 +239,26 @@ export default function App() {
                             
                             {/* Mobile Chat - Full screen, no layout wrapper */}
                             <Route path="/chat" element={<MobileChatRoute />} />
+                            
+                            {/* Onboarding - Create Organisation (authenticated but no layout) */}
+                            <Route 
+                              path="/onboarding/create-organisation" 
+                              element={
+                                <OnboardingRoute>
+                                  <CreateOrganisation />
+                                </OnboardingRoute>
+                              } 
+                            />
+                            
+                            {/* Onboarding - Setup Wizard (authenticated but no layout) */}
+                            <Route 
+                              path="/onboarding/wizard" 
+                              element={
+                                <OnboardingRoute>
+                                  <OnboardingWizardPage />
+                                </OnboardingRoute>
+                              } 
+                            />
                             
                             {/* Protected routes */}
                             <Route path="/" element={<Navigate to="/dashboard" replace />} />

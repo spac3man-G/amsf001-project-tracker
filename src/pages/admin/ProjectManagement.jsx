@@ -28,6 +28,7 @@ import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import { ROLE_CONFIG, ROLE_OPTIONS } from '../../lib/permissionMatrix';
+import { getOrgMembers } from '../../lib/queries';
 import '../TeamMembers.css';
 
 export default function ProjectManagement() {
@@ -136,13 +137,8 @@ export default function ProjectManagement() {
       
       setProjects(projectsWithCounts);
       
-      // Fetch all users for assignment
-      const { data: usersData, error: usersError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name, is_test_user')
-        .order('full_name', { ascending: true });
-      
-      if (usersError) throw usersError;
+      // Fetch organisation members for assignment (org-scoped - prevents cross-org exposure)
+      const usersData = await getOrgMembers(organisationId);
       setAllUsers(usersData || []);
       
     } catch (error) {

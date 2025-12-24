@@ -1,0 +1,539 @@
+/**
+ * Onboarding Wizard Styles
+ * Clean, focused design to guide users through setup
+ */
+
+.onboarding-wizard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+/* Header */
+.wizard-header {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 24px;
+}
+
+.wizard-header-content {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wizard-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #7c3aed;
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+
+.btn-skip {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-skip:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Progress */
+.wizard-progress {
+  background: white;
+  padding: 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.progress-bar {
+  max-width: 600px;
+  margin: 0 auto 20px;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7c3aed 0%, #6366f1 100%);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progress-steps {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.step-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #94a3b8;
+  transition: all 0.2s;
+}
+
+.progress-step.active .step-icon {
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.progress-step.complete .step-icon {
+  background: #10b981;
+  color: white;
+}
+
+.step-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.progress-step.active .step-title {
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.progress-step.complete .step-title {
+  color: #10b981;
+}
+
+/* Content */
+.wizard-content {
+  flex: 1;
+  padding: 40px 24px;
+  overflow-y: auto;
+}
+
+.wizard-content-inner {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Step Container (used by individual steps) */
+.wizard-step {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.step-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.step-header h2 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.step-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9375rem;
+}
+
+.step-body {
+  padding: 32px;
+}
+
+.step-footer {
+  padding: 20px 32px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Form Fields (used across steps) */
+.wizard-form-field {
+  margin-bottom: 20px;
+}
+
+.wizard-form-field:last-child {
+  margin-bottom: 0;
+}
+
+.wizard-form-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.wizard-form-field .label-optional {
+  font-weight: 400;
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+.wizard-form-field input,
+.wizard-form-field textarea,
+.wizard-form-field select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #1e293b;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.wizard-form-field input:focus,
+.wizard-form-field textarea:focus,
+.wizard-form-field select:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.wizard-form-field input::placeholder,
+.wizard-form-field textarea::placeholder {
+  color: #94a3b8;
+}
+
+.wizard-form-field textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.wizard-form-field .field-hint {
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
+/* Buttons */
+.btn-wizard-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.btn-wizard-primary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-wizard-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-wizard-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-wizard-secondary:hover {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.btn-wizard-text {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-wizard-text:hover {
+  color: #7c3aed;
+}
+
+/* Invitation List (Step 2) */
+.invitation-list {
+  margin-top: 24px;
+}
+
+.invitation-list h4 {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.invitation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.invitation-item:last-child {
+  margin-bottom: 0;
+}
+
+.invitation-email {
+  font-size: 0.9375rem;
+  color: #1e293b;
+}
+
+.invitation-role {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invitation-role-badge {
+  padding: 4px 10px;
+  background: #dbeafe;
+  color: #2563eb;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.invitation-remove {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.invitation-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Add Invitation Form */
+.add-invitation-form {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.add-invitation-form input {
+  flex: 1;
+}
+
+.add-invitation-form select {
+  width: 140px;
+}
+
+.add-invitation-form button {
+  padding: 12px 20px;
+}
+
+/* Empty State */
+.empty-invitations {
+  text-align: center;
+  padding: 32px 20px;
+  color: #94a3b8;
+}
+
+.empty-invitations svg {
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.empty-invitations p {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+/* Success/Complete Screen (Step 4) */
+.complete-step {
+  text-align: center;
+  padding: 48px 32px;
+}
+
+.complete-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.complete-step h2 {
+  margin: 0 0 12px;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.complete-step p {
+  margin: 0 0 32px;
+  color: #64748b;
+  font-size: 1rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.complete-summary {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  text-align: left;
+}
+
+.complete-summary h4 {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.summary-item svg {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.summary-item span {
+  color: #1e293b;
+  font-size: 0.9375rem;
+}
+
+/* Spinner */
+.wizard-spinner {
+  animation: wizard-spin 1s linear infinite;
+}
+
+@keyframes wizard-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .wizard-header {
+    padding: 12px 16px;
+  }
+
+  .wizard-progress {
+    padding: 16px;
+  }
+
+  .progress-steps {
+    gap: 8px;
+  }
+
+  .step-title {
+    font-size: 0.6875rem;
+  }
+
+  .step-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .step-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .wizard-content {
+    padding: 24px 16px;
+  }
+
+  .step-header,
+  .step-body,
+  .step-footer {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .add-invitation-form {
+    flex-direction: column;
+  }
+
+  .add-invitation-form select {
+    width: 100%;
+  }
+
+  .step-footer {
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+
+  .step-footer button {
+    width: 100%;
+    justify-content: center;
+  }
+}

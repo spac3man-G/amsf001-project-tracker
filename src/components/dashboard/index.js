@@ -12,3 +12,4 @@ export { default as BillingWidget } from './BillingWidget';
 export { default as FinanceWidget } from './FinanceWidget';
 export { default as KPICardsRow } from './KPICardsRow';
 export { default as QSCardsRow } from './QSCardsRow';
+export { default as OrganisationUsageWidget } from './OrganisationUsageWidget';

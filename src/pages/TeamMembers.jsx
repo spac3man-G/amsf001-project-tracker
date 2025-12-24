@@ -25,8 +25,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTestUsers } from '../contexts/TestUserContext';
 import { useToast } from '../contexts/ToastContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useOrganisation } from '../contexts/OrganisationContext';
 import { useProjectRole } from '../hooks/useProjectRole';
 import { LoadingSpinner, ConfirmDialog } from '../components/common';
+import { getOrgMembers } from '../lib/queries';
 
 export default function TeamMembers() {
   const [users, setUsers] = useState([]);
@@ -61,6 +63,7 @@ export default function TeamMembers() {
   const { showTestUsers, toggleTestUsers, canToggleTestUsers } = useTestUsers();
   const { showSuccess, showError, showWarning } = useToast();
   const { currentProject } = useProject();
+  const { organisationId } = useOrganisation();
 
   // Commented out - user creation moved to System Users page (Session 5)
   // const [newUser, setNewUser] = useState({
@@ -291,16 +294,15 @@ export default function TeamMembers() {
     }
   }
 
-  // Session 4: Fetch users not in current project
+  // Session 4: Fetch users not in current project (org-scoped)
   async function fetchAvailableUsers() {
-    if (!currentProject?.id) return;
+    if (!currentProject?.id || !organisationId) return;
     
     try {
-      // Get all profiles
-      const { data: allUsers } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, is_test_user')
-        .order('full_name');
+      // Get org members only (prevents cross-org exposure)
+      const orgMembers = await getOrgMembers(organisationId, {
+        includeTestUsers: showTestUsers
+      });
       
       // Get users already in project
       const { data: projectUsers } = await supabase
@@ -308,15 +310,10 @@ export default function TeamMembers() {
         .select('user_id')
         .eq('project_id', currentProject.id);
       
-      const projectUserIds = (projectUsers || []).map(u => u.user_id);
+      const projectUserIds = new Set((projectUsers || []).map(u => u.user_id));
       
-      // Filter to users not in project
-      let available = (allUsers || []).filter(u => !projectUserIds.includes(u.id));
-      
-      // Filter test users if toggle is off
-      if (!showTestUsers) {
-        available = available.filter(u => !u.is_test_user);
-      }
+      // Filter to org members not already in project
+      const available = orgMembers.filter(u => !projectUserIds.has(u.id));
       
       setAvailableUsers(available);
     } catch (error) {

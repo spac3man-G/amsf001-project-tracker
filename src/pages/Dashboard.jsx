@@ -3,9 +3,10 @@
  * 
  * Dashboard with milestone, deliverables, KPI/QS metrics, billing and finance widgets.
  * Includes refresh button to reload all widget data.
+ * Organisation usage widget for admins.
  * 
- * @version 7.6
- * @updated 14 December 2025 - Added data-testid attributes for E2E testing
+ * @version 7.7
+ * @updated 24 December 2025 - Added Organisation Usage Widget for admins
  */
 
 import React, { useState, useCallback } from 'react';
@@ -13,6 +14,7 @@ import { RefreshCw } from 'lucide-react';
 import './Dashboard.css';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrganisation } from '../contexts/OrganisationContext';
 import { 
   MilestonesWidget, 
   DeliverablesWidget, 
@@ -21,12 +23,14 @@ import {
   BillingWidget,
   FinanceWidget,
   KPICardsRow,
-  QSCardsRow
+  QSCardsRow,
+  OrganisationUsageWidget
 } from '../components/dashboard';
 
 export default function Dashboard() {
   const { projectName, projectRef } = useProject();
   const { user } = useAuth();
+  const { isOrgAdmin } = useOrganisation();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -91,6 +95,13 @@ export default function Dashboard() {
           <BillingWidget editable={false} refreshTrigger={refreshTrigger} />
           <FinanceWidget refreshTrigger={refreshTrigger} />
         </div>
+
+        {/* Organisation Usage (for org admins only) */}
+        {isOrgAdmin && (
+          <div className="dashboard-org-usage" data-testid="dashboard-org-usage">
+            <OrganisationUsageWidget onRefresh={refreshTrigger} />
+          </div>
+        )}
       </div>
     </div>
   );

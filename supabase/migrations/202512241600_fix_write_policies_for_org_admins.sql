@@ -48,10 +48,13 @@ GRANT EXECUTE ON FUNCTION can_write_project(UUID, TEXT[]) TO authenticated;
 -- MILESTONES - Fix INSERT/UPDATE/DELETE
 -- ============================================================================
 
--- Drop existing policies
+-- Drop existing policies (both old and new names for idempotency)
 DROP POLICY IF EXISTS "Admin and Supplier PM can insert milestones" ON milestones;
 DROP POLICY IF EXISTS "Admin, Supplier PM and Customer PM can update milestones" ON milestones;
 DROP POLICY IF EXISTS "Admin and Supplier PM can delete milestones" ON milestones;
+DROP POLICY IF EXISTS "milestones_insert_policy" ON milestones;
+DROP POLICY IF EXISTS "milestones_update_policy" ON milestones;
+DROP POLICY IF EXISTS "milestones_delete_policy" ON milestones;
 
 -- INSERT: Admin, Supplier PM (or org admin)
 CREATE POLICY "milestones_insert_policy" ON milestones
@@ -76,6 +79,9 @@ USING (can_write_project(project_id, ARRAY['admin', 'supplier_pm']));
 DROP POLICY IF EXISTS "Admin and Supplier PM can insert deliverables" ON deliverables;
 DROP POLICY IF EXISTS "Admin, Supplier PM, Customer PM and Contributor can update deliverables" ON deliverables;
 DROP POLICY IF EXISTS "Admin and Supplier PM can delete deliverables" ON deliverables;
+DROP POLICY IF EXISTS "deliverables_insert_policy" ON deliverables;
+DROP POLICY IF EXISTS "deliverables_update_policy" ON deliverables;
+DROP POLICY IF EXISTS "deliverables_delete_policy" ON deliverables;
 
 CREATE POLICY "deliverables_insert_policy" ON deliverables
 FOR INSERT TO authenticated
@@ -97,6 +103,9 @@ USING (can_write_project(project_id, ARRAY['admin', 'supplier_pm']));
 DROP POLICY IF EXISTS "Admin and Supplier PM can insert resources" ON resources;
 DROP POLICY IF EXISTS "Admin and Supplier PM can update resources" ON resources;
 DROP POLICY IF EXISTS "Admin and Supplier PM can delete resources" ON resources;
+DROP POLICY IF EXISTS "resources_insert_policy" ON resources;
+DROP POLICY IF EXISTS "resources_update_policy" ON resources;
+DROP POLICY IF EXISTS "resources_delete_policy" ON resources;
 
 CREATE POLICY "resources_insert_policy" ON resources
 FOR INSERT TO authenticated
@@ -118,6 +127,9 @@ USING (can_write_project(project_id, ARRAY['admin', 'supplier_pm']));
 DROP POLICY IF EXISTS "Admin, Supplier PM, or own resource can insert timesheets" ON timesheets;
 DROP POLICY IF EXISTS "Admin, Supplier PM, Customer PM, or own resource can update timesheets" ON timesheets;
 DROP POLICY IF EXISTS "Admin or own draft can delete timesheets" ON timesheets;
+DROP POLICY IF EXISTS "timesheets_insert_policy" ON timesheets;
+DROP POLICY IF EXISTS "timesheets_update_policy" ON timesheets;
+DROP POLICY IF EXISTS "timesheets_delete_policy" ON timesheets;
 
 -- INSERT: Admin/Supplier PM can insert any, contributor can insert own
 CREATE POLICY "timesheets_insert_policy" ON timesheets
@@ -174,6 +186,9 @@ USING (
 DROP POLICY IF EXISTS "Admin, Supplier PM, Contributor can insert expenses" ON expenses;
 DROP POLICY IF EXISTS "Admin, Supplier PM, Customer PM, or owner can update expenses" ON expenses;
 DROP POLICY IF EXISTS "Admin or own draft can delete expenses" ON expenses;
+DROP POLICY IF EXISTS "expenses_insert_policy" ON expenses;
+DROP POLICY IF EXISTS "expenses_update_policy" ON expenses;
+DROP POLICY IF EXISTS "expenses_delete_policy" ON expenses;
 
 CREATE POLICY "expenses_insert_policy" ON expenses
 FOR INSERT TO authenticated
@@ -204,6 +219,9 @@ USING (
 DROP POLICY IF EXISTS "Admin and Supplier PM can insert variations" ON variations;
 DROP POLICY IF EXISTS "Admin, Supplier PM, Customer PM can update variations" ON variations;
 DROP POLICY IF EXISTS "Admin and Supplier PM can delete variations" ON variations;
+DROP POLICY IF EXISTS "variations_insert_policy" ON variations;
+DROP POLICY IF EXISTS "variations_update_policy" ON variations;
+DROP POLICY IF EXISTS "variations_delete_policy" ON variations;
 
 CREATE POLICY "variations_insert_policy" ON variations
 FOR INSERT TO authenticated
@@ -225,6 +243,9 @@ USING (can_write_project(project_id, ARRAY['admin', 'supplier_pm']));
 DROP POLICY IF EXISTS "Admin and Supplier PM can insert kpis" ON kpis;
 DROP POLICY IF EXISTS "Admin and Supplier PM can update kpis" ON kpis;
 DROP POLICY IF EXISTS "Admin and Supplier PM can delete kpis" ON kpis;
+DROP POLICY IF EXISTS "kpis_insert_policy" ON kpis;
+DROP POLICY IF EXISTS "kpis_update_policy" ON kpis;
+DROP POLICY IF EXISTS "kpis_delete_policy" ON kpis;
 
 CREATE POLICY "kpis_insert_policy" ON kpis
 FOR INSERT TO authenticated
@@ -246,6 +267,9 @@ USING (can_write_project(project_id, ARRAY['admin', 'supplier_pm']));
 DROP POLICY IF EXISTS "Admin and Supplier PM can insert quality_standards" ON quality_standards;
 DROP POLICY IF EXISTS "Admin and Supplier PM can update quality_standards" ON quality_standards;
 DROP POLICY IF EXISTS "Admin and Supplier PM can delete quality_standards" ON quality_standards;
+DROP POLICY IF EXISTS "quality_standards_insert_policy" ON quality_standards;
+DROP POLICY IF EXISTS "quality_standards_update_policy" ON quality_standards;
+DROP POLICY IF EXISTS "quality_standards_delete_policy" ON quality_standards;
 
 CREATE POLICY "quality_standards_insert_policy" ON quality_standards
 FOR INSERT TO authenticated
@@ -267,6 +291,9 @@ USING (can_write_project(project_id, ARRAY['admin', 'supplier_pm']));
 DROP POLICY IF EXISTS "Admin, Supplier PM, Customer PM, Contributor can insert raid_items" ON raid_items;
 DROP POLICY IF EXISTS "Admin, Supplier PM, or owner can update raid_items" ON raid_items;
 DROP POLICY IF EXISTS "Admin can delete raid_items" ON raid_items;
+DROP POLICY IF EXISTS "raid_items_insert_policy" ON raid_items;
+DROP POLICY IF EXISTS "raid_items_update_policy" ON raid_items;
+DROP POLICY IF EXISTS "raid_items_delete_policy" ON raid_items;
 
 CREATE POLICY "raid_items_insert_policy" ON raid_items
 FOR INSERT TO authenticated
@@ -294,6 +321,9 @@ USING (can_write_project(project_id, ARRAY['admin']));
 DROP POLICY IF EXISTS "Admin and Supplier PM can insert partners" ON partners;
 DROP POLICY IF EXISTS "Admin and Supplier PM can update partners" ON partners;
 DROP POLICY IF EXISTS "Admin can delete partners" ON partners;
+DROP POLICY IF EXISTS "partners_insert_policy" ON partners;
+DROP POLICY IF EXISTS "partners_update_policy" ON partners;
+DROP POLICY IF EXISTS "partners_delete_policy" ON partners;
 
 CREATE POLICY "partners_insert_policy" ON partners
 FOR INSERT TO authenticated
