@@ -94,19 +94,26 @@ export default function ProjectManagement() {
   }, [isSystemAdmin, user, roleLoading]);
 
   useEffect(() => {
-    if (!roleLoading && canManageProjects) {
+    if (!roleLoading && canManageProjects && organisationId) {
       fetchData();
     }
-  }, [canManageProjects, roleLoading]);
+  }, [canManageProjects, roleLoading, organisationId]);
 
   async function fetchData() {
+    if (!organisationId) {
+      console.warn('No organisation selected - cannot fetch projects');
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       
-      // Fetch all projects
+      // Fetch projects for current organisation only
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('id, name, reference, description, start_date, end_date, total_budget, created_at')
+        .select('id, name, reference, description, start_date, end_date, total_budget, created_at, organisation_id')
+        .eq('organisation_id', organisationId)
         .order('created_at', { ascending: false });
       
       if (projectsError) throw projectsError;
@@ -413,7 +420,9 @@ export default function ProjectManagement() {
             <FolderKanban size={28} strokeWidth={1.5} />
             <div>
               <h1>Project Management</h1>
-              <p>{projects.length} project{projects.length !== 1 ? 's' : ''} in the system</p>
+              <p>
+                {projects.length} project{projects.length !== 1 ? 's' : ''} in {currentOrganisation?.name || 'organisation'}
+              </p>
             </div>
           </div>
           <div className="header-actions">
