@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-// Version 12.0 - Added Organisation Switcher for multi-tenancy support
+// Version 13.0 - Uses getNavigationForUser for org admin support
 // - User name/role only shown in header (top right)
 // - Clicking user info in header navigates to My Account
 // - Drag and drop navigation reordering for non-viewers
@@ -31,21 +31,19 @@ import { useToast } from '../contexts/ToastContext';
 
 // Import from centralized navigation config
 import { 
-  getNavigationForRole, 
+  getNavigationForUser,
   applyCustomNavOrder, 
   canReorderNavigation,
   getRoleDisplay,
   isReadOnlyForRole,
   getNavItemIdByPath,
-  getDefaultNavOrder,
-  isDefaultOrder,
-  NAV_ITEMS
+  isDefaultOrder
 } from '../lib/navigation';
 
 // Import AuthContext for user data
 import { useAuth } from '../contexts/AuthContext';
 import { useViewAs } from '../contexts/ViewAsContext';
-import { useProjectRole } from '../hooks/useProjectRole';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -58,8 +56,8 @@ export default function Layout({ children }) {
   // Use ViewAsContext for effective role (supports impersonation)
   const { effectiveRole, isImpersonating, effectiveRoleConfig } = useViewAs();
   
-  // Use useProjectRole to check global admin status for System Users access
-  const { isSystemAdmin } = useProjectRole();
+  // Use usePermissions to get org-level admin flags
+  const { isSystemAdmin, isOrgAdmin } = usePermissions();
   
   // Local state for UI
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -111,37 +109,33 @@ export default function Layout({ children }) {
   }, [effectiveRole, customNavOrder]);
 
   // Get navigation items for current role, with custom ordering if saved
-  // Special handling: System Users and System Admin are shown based on global admin status, not project role
+  // getNavigationForUser handles:
+  // - System Admin: full admin nav + system-level items
+  // - Org Admin: full admin nav (effectiveRole is 'admin') but NO system-level items
+  // - Regular users: nav based on their project role
   const navItems = useMemo(() => {
-    let roleNav = getNavigationForRole(effectiveRole);
+    // Get base navigation using the new function that respects org hierarchy
+    let roleNav = getNavigationForUser({ 
+      isSystemAdmin, 
+      isOrgAdmin, 
+      effectiveRole 
+    });
+    
+    // Apply custom ordering if user has saved a custom order
     if (customNavOrder && customNavOrder.length > 0) {
       roleNav = applyCustomNavOrder(effectiveRole, customNavOrder);
-    }
-    
-    // Check if System Users/Admin are already in the nav items
-    const hasSystemUsers = roleNav.some(item => item.id === 'systemUsers');
-    const hasSystemAdmin = roleNav.some(item => item.id === 'systemAdmin');
-    
-    // If user is a global admin but System Users/Admin aren't in their nav
-    // (because their project role is not admin), add them
-    if (isSystemAdmin && !hasSystemUsers) {
-      roleNav = [...roleNav, NAV_ITEMS.systemUsers];
-    }
-    if (isSystemAdmin && !hasSystemAdmin) {
-      roleNav = [...roleNav, NAV_ITEMS.systemAdmin];
-    }
-    
-    // If user is NOT a global admin but System Users/Admin are in their nav
-    // (shouldn't happen with current config, but defensive check), remove them
-    if (!isSystemAdmin && hasSystemUsers) {
-      roleNav = roleNav.filter(item => item.id !== 'systemUsers');
-    }
-    if (!isSystemAdmin && hasSystemAdmin) {
-      roleNav = roleNav.filter(item => item.id !== 'systemAdmin');
+      
+      // Re-apply system-level item filtering after custom order
+      // (in case custom order includes items user shouldn't see)
+      if (!isSystemAdmin) {
+        roleNav = roleNav.filter(item => 
+          item.id !== 'systemUsers' && item.id !== 'systemAdmin'
+        );
+      }
     }
     
     return roleNav;
-  }, [effectiveRole, customNavOrder, isSystemAdmin]);
+  }, [effectiveRole, customNavOrder, isSystemAdmin, isOrgAdmin]);
 
   // Check if current page is read-only for this role
   const isCurrentPageReadOnly = useMemo(() => {

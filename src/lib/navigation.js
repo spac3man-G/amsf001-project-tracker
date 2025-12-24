@@ -1,7 +1,7 @@
 /**
  * AMSF001 Project Tracker - Centralized Navigation Configuration
  * Location: src/lib/navigation.js
- * Version 2.0 - Updated default order, added reset functionality
+ * Version 3.0 - Added getNavigationForUser for org admin support
  * 
  * This file is the SINGLE SOURCE OF TRUTH for navigation items and role-based access.
  * It follows industry best practices for:
@@ -525,6 +525,60 @@ export function isDefaultOrder(role, currentOrder) {
   return currentOrder.every((path, index) => path === defaultOrder[index]);
 }
 
+/**
+ * Get navigation items considering org-level admin status
+ * 
+ * This is the recommended function to use for getting navigation items
+ * as it correctly handles the permission hierarchy:
+ * - System Admin → admin navigation + system-level items
+ * - Org Admin → admin navigation (within their org)
+ * - Project Role → navigation based on project role
+ * 
+ * @param {Object} options
+ * @param {boolean} options.isSystemAdmin - Is user a system admin (profiles.role = 'admin')
+ * @param {boolean} options.isOrgAdmin - Is user an org admin for current organisation
+ * @param {string} options.projectRole - User's role in current project (from user_projects)
+ * @param {string} options.effectiveRole - The resolved effective role (from ViewAsContext)
+ * @returns {array} Navigation items
+ * 
+ * @example
+ * const { isSystemAdmin, isOrgAdmin, userRole } = usePermissions();
+ * const navItems = getNavigationForUser({ isSystemAdmin, isOrgAdmin, effectiveRole: userRole });
+ */
+export function getNavigationForUser({ isSystemAdmin = false, isOrgAdmin = false, projectRole = null, effectiveRole = null }) {
+  // Determine which role to use for base navigation
+  // effectiveRole should already be computed by ViewAsContext respecting the hierarchy
+  const role = effectiveRole || projectRole || ROLES.VIEWER;
+  
+  // Get base navigation for the role
+  let navItems = getNavigationForRole(role);
+  
+  // Special handling for system-level items
+  // These should ONLY be visible to system admins, not org admins
+  const hasSystemUsers = navItems.some(item => item.id === 'systemUsers');
+  const hasSystemAdmin = navItems.some(item => item.id === 'systemAdmin');
+  
+  // Add system-level items for system admins
+  if (isSystemAdmin && !hasSystemUsers) {
+    navItems = [...navItems, NAV_ITEMS.systemUsers];
+  }
+  if (isSystemAdmin && !hasSystemAdmin) {
+    navItems = [...navItems, NAV_ITEMS.systemAdmin];
+  }
+  
+  // Remove system-level items if user is not a system admin
+  // (This handles the case where effectiveRole is 'admin' due to org admin,
+  //  but they shouldn't see system-level items)
+  if (!isSystemAdmin && hasSystemUsers) {
+    navItems = navItems.filter(item => item.id !== 'systemUsers');
+  }
+  if (!isSystemAdmin && hasSystemAdmin) {
+    navItems = navItems.filter(item => item.id !== 'systemAdmin');
+  }
+  
+  return navItems;
+}
+
 // ============================================
 // ROLE DISPLAY CONFIGURATION
 // ============================================
@@ -609,6 +663,7 @@ export default {
   ROLE_NAV_ORDER,
   ROLE_DISPLAY,
   getNavigationForRole,
+  getNavigationForUser,
   getDefaultNavOrder,
   canSeeNavItem,
   isReadOnlyForRole,

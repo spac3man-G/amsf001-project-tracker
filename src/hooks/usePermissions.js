@@ -1,16 +1,25 @@
 /**
  * AMSF001 Project Tracker - usePermissions Hook
  * Location: src/hooks/usePermissions.js
- * Version 4.0 - Multi-tenancy Support
+ * Version 5.0 - Organisation Admin Hierarchy Support
  * 
  * This hook provides pre-bound permission functions that automatically
  * inject the current user's EFFECTIVE role (which may be impersonated via View As).
  * 
- * Role Resolution Chain:
- * 1. ProjectContext fetches user's role from user_projects for current project
- * 2. ViewAsContext uses project role as actualRole (falls back to profiles.role)
+ * Role Resolution Chain (v5.0):
+ * 1. OrganisationContext provides isSystemAdmin, isOrgAdmin
+ * 2. ViewAsContext computes actualRole respecting hierarchy:
+ *    - System Admin → 'admin'
+ *    - Org Admin → 'admin' (within their org)
+ *    - Project Role → from user_projects
+ *    - Fallback → 'viewer'
  * 3. ViewAsContext provides effectiveRole (impersonated or actual)
  * 4. This hook uses effectiveRole for all permission checks
+ * 
+ * Changes in v5.0:
+ * - Added isSystemAdmin, isOrgAdmin, isOrgLevelAdmin from ViewAsContext
+ * - These allow components to check org-level permissions directly
+ * - effectiveRole now correctly reflects org admin hierarchy
  * 
  * Changes in v4.0:
  * - Role now comes from project-scoped user_projects table
@@ -26,10 +35,18 @@
  *   import { usePermissions } from '../hooks/usePermissions';
  *   
  *   function MyComponent() {
- *     const { canEditExpense, canDeleteExpense, canAddTimesheet, can } = usePermissions();
+ *     const { 
+ *       canEditExpense, 
+ *       canAddTimesheet, 
+ *       isOrgLevelAdmin,  // NEW: true if system admin OR org admin
+ *       isSystemAdmin,    // NEW: true if system admin
+ *       isOrgAdmin,       // NEW: true if org admin
+ *       can 
+ *     } = usePermissions();
  *     
  *     return (
  *       <>
+ *         {isOrgLevelAdmin && <AdminPanel />}
  *         {canAddTimesheet && <button>Add Timesheet</button>}
  *         {canEditExpense(expense) && <button>Edit</button>}
  *         {can('deliverables', 'edit') && <button>Edit Deliverable</button>}
@@ -45,23 +62,34 @@ import * as perms from '../lib/permissions';
 export function usePermissions() {
   const { user } = useAuth();
   
-  // Get effectiveRole from ViewAsContext (supports impersonation)
+  // Get role information from ViewAsContext (supports impersonation and org hierarchy)
   // Falls back to 'viewer' if context not available
   let effectiveRole = 'viewer';
   let actualRole = 'viewer';
   let isImpersonating = false;
+  let isSystemAdmin = false;
+  let isOrgAdmin = false;
   
   try {
     const viewAs = useViewAs();
     effectiveRole = viewAs.effectiveRole || 'viewer';
     actualRole = viewAs.actualRole || 'viewer';
     isImpersonating = viewAs.isImpersonating || false;
+    // These are now provided by ViewAsContext (from OrganisationContext)
+    isSystemAdmin = viewAs.isSystemAdmin || false;
+    isOrgAdmin = viewAs.isOrgAdmin || false;
   } catch (e) {
     // ViewAsContext not available, fall back to AuthContext role
     const auth = useAuth();
     effectiveRole = auth.role || 'viewer';
     actualRole = auth.role || 'viewer';
+    // Check system admin from profile
+    isSystemAdmin = auth.profile?.role === 'admin';
   }
+  
+  // Computed: Is user an org-level admin (either system admin or org admin)
+  // This is useful for showing/hiding admin UI elements
+  const isOrgLevelAdmin = isSystemAdmin || isOrgAdmin;
   
   // User ID is always the actual user (not impersonated)
   const currentUserId = user?.id || null;
@@ -94,9 +122,35 @@ export function usePermissions() {
   const permissions = {
     // Role info
     userRole,           // Effective role (may be impersonated)
-    actualRole,         // Actual role (never changes)
+    actualRole,         // Actual role (never changes, respects org hierarchy)
     isImpersonating,    // Whether View As is active
     currentUserId,
+    
+    // ============================================
+    // ORGANISATION-LEVEL ADMIN FLAGS (NEW in v5.0)
+    // Use these to check org-level permissions
+    // ============================================
+    
+    /**
+     * True if user is a system admin (profiles.role = 'admin')
+     * System admins have full access to ALL organisations and projects
+     */
+    isSystemAdmin,
+    
+    /**
+     * True if user is an org admin for the current organisation
+     * Org admins have full access to all projects within their org
+     */
+    isOrgAdmin,
+    
+    /**
+     * True if user is either a system admin OR org admin
+     * Use this for showing/hiding admin UI elements
+     * 
+     * @example
+     * {isOrgLevelAdmin && <AdminSidebar />}
+     */
+    isOrgLevelAdmin,
     
     // Direct matrix access
     can,
