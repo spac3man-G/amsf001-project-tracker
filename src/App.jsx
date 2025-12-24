@@ -40,6 +40,7 @@ import Dashboard from './pages/Dashboard';
 
 // Lazy-loaded pages - split into separate chunks
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const AcceptInvitation = lazy(() => import('./pages/AcceptInvitation'));
 const MobileChat = lazy(() => import('./pages/MobileChat'));
 const Milestones = lazy(() => import('./pages/Milestones'));
 const MilestoneDetail = lazy(() => import('./pages/MilestoneDetail'));
@@ -186,6 +187,14 @@ export default function App() {
                           <Routes>
                             {/* Public routes */}
                             <Route path="/login" element={<Login />} />
+                            <Route 
+                              path="/accept-invite" 
+                              element={
+                                <Suspense fallback={<LoadingSpinner fullPage />}>
+                                  <AcceptInvitation />
+                                </Suspense>
+                              } 
+                            />
                             <Route 
                               path="/reset-password" 
                               element={
