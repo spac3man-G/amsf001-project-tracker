@@ -51,14 +51,17 @@ const styles = {
     borderBottom: '1px solid #f1f5f9',
   },
   logo: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '12px',
-    backgroundColor: '#8b5cf6',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: 'inline-block',
+    padding: '8px 16px',
+    backgroundColor: '#87CEEB',
+    borderRadius: '6px',
     margin: '0 auto 1rem',
+  },
+  logoText: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: '0.5px',
   },
   title: {
     margin: '0 0 0.5rem',
@@ -190,11 +193,11 @@ const styles = {
     transition: 'background-color 0.15s',
   },
   btnPrimary: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#87CEEB',
     color: 'white',
   },
   btnPrimaryHover: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#5BA3C6',
   },
   btnDisabled: {
     backgroundColor: '#d1d5db',
@@ -297,7 +300,7 @@ const styles = {
     color: '#94a3b8',
   },
   footerLink: {
-    color: '#8b5cf6',
+    color: '#5BA3C6',
     textDecoration: 'none',
   },
 };
@@ -437,7 +440,7 @@ export default function AcceptInvitation() {
       <div style={styles.container}>
         <div style={styles.card}>
           <div style={styles.loadingContainer}>
-            <Loader2 size={40} style={{ color: '#8b5cf6', animation: 'spin 1s linear infinite' }} />
+            <Loader2 size={40} style={{ color: '#87CEEB', animation: 'spin 1s linear infinite' }} />
             <p style={styles.loadingText}>Validating invitation...</p>
           </div>
         </div>
@@ -494,7 +497,7 @@ export default function AcceptInvitation() {
               <br />
               Redirecting to dashboard...
             </p>
-            <Loader2 size={24} style={{ color: '#8b5cf6', animation: 'spin 1s linear infinite' }} />
+            <Loader2 size={24} style={{ color: '#87CEEB', animation: 'spin 1s linear infinite' }} />
           </div>
         </div>
         <style>{`
@@ -514,7 +517,7 @@ export default function AcceptInvitation() {
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.logo}>
-            <UserPlus size={24} style={{ color: 'white' }} />
+            <span style={styles.logoText}>progressive</span>
           </div>
           <h1 style={styles.title}>You're Invited!</h1>
           <p style={styles.subtitle}>Create your account to get started</p>
@@ -526,7 +529,7 @@ export default function AcceptInvitation() {
           <div style={styles.inviteDetails}>
             <div style={styles.detailRow}>
               <div style={styles.detailIcon}>
-                <Building2 size={18} style={{ color: '#8b5cf6' }} />
+                <Building2 size={18} style={{ color: '#87CEEB' }} />
               </div>
               <div style={styles.detailText}>
                 <div style={styles.detailLabel}>Organisation</div>

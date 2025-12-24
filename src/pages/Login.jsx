@@ -333,8 +333,22 @@ export default function Login() {
     <div className="auth-container">
       <div className="auth-box">
         <div className="auth-logo">
-          <h1 className="auth-title">AMSF001 Tracker</h1>
-          <p className="auth-subtitle">Network Architecture Services Project</p>
+          <div style={{ 
+            display: 'inline-block', 
+            padding: '8px 16px', 
+            backgroundColor: '#87CEEB', 
+            borderRadius: '6px', 
+            marginBottom: '12px' 
+          }}>
+            <span style={{ 
+              fontSize: '20px', 
+              fontWeight: '700', 
+              color: '#ffffff', 
+              letterSpacing: '0.5px' 
+            }}>progressive</span>
+          </div>
+          <h1 className="auth-title">Tracker</h1>
+          <p className="auth-subtitle">Projects and Programmes</p>
         </div>
 
         {/* Session Expired Warning */}

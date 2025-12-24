@@ -18,7 +18,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FROM_EMAIL = "noreply@progressive.gg";
-const FROM_NAME = "AMSF Project Tracker";
+const FROM_NAME = "Tracker by Progressive";
+
+// Brand colors
+const BRAND_COLOR = "#87CEEB"; // Light blue from logo
+const BRAND_COLOR_DARK = "#5BA3C6"; // Darker blue for hover/accents
 
 // CORS headers
 const corsHeaders = {
@@ -53,11 +57,12 @@ function getEmailHtml(params: {
           <!-- Header -->
           <tr>
             <td style="padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid #f1f5f9;">
-              <div style="width: 48px; height: 48px; background-color: #8b5cf6; border-radius: 12px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-size: 24px;">✉</span>
+              <!-- Logo/Brand -->
+              <div style="margin-bottom: 20px;">
+                <span style="display: inline-block; padding: 8px 16px; background-color: ${BRAND_COLOR}; border: 3px solid ${BRAND_COLOR}; border-radius: 6px; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">progressive</span>
               </div>
               <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #1e293b;">You're Invited!</h1>
-              <p style="margin: 0; font-size: 14px; color: #64748b;">Join your team on AMSF Project Tracker</p>
+              <p style="margin: 0; font-size: 14px; color: #64748b;">Join your team on Tracker</p>
             </td>
           </tr>
           
@@ -80,7 +85,7 @@ function getEmailHtml(params: {
                   <tr>
                     <td style="padding: 12px 0 4px;">
                       <span style="font-size: 12px; color: #64748b;">Your Role</span><br>
-                      <span style="display: inline-block; margin-top: 4px; padding: 4px 10px; background-color: #d1fae5; color: #059669; border-radius: 4px; font-size: 13px; font-weight: 600;">${roleDisplay}</span>
+                      <span style="display: inline-block; margin-top: 4px; padding: 4px 10px; background-color: #dbeafe; color: #1d4ed8; border-radius: 4px; font-size: 13px; font-weight: 600;">${roleDisplay}</span>
                     </td>
                   </tr>
                 </table>
@@ -88,7 +93,7 @@ function getEmailHtml(params: {
               
               <!-- CTA Button -->
               <div style="text-align: center; margin-bottom: 24px;">
-                <a href="${params.acceptUrl}" style="display: inline-block; padding: 14px 32px; background-color: #8b5cf6; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 8px;">
+                <a href="${params.acceptUrl}" style="display: inline-block; padding: 14px 32px; background-color: ${BRAND_COLOR}; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 8px;">
                   Accept Invitation
                 </a>
               </div>
@@ -100,7 +105,7 @@ function getEmailHtml(params: {
               <!-- Link fallback -->
               <p style="margin: 0; font-size: 12px; color: #94a3b8;">
                 If the button doesn't work, copy and paste this link into your browser:<br>
-                <a href="${params.acceptUrl}" style="color: #8b5cf6; word-break: break-all;">${params.acceptUrl}</a>
+                <a href="${params.acceptUrl}" style="color: ${BRAND_COLOR_DARK}; word-break: break-all;">${params.acceptUrl}</a>
               </p>
             </td>
           </tr>
@@ -109,8 +114,8 @@ function getEmailHtml(params: {
           <tr>
             <td style="padding: 24px 32px; background-color: #f8fafc; border-top: 1px solid #f1f5f9; border-radius: 0 0 12px 12px;">
               <p style="margin: 0; font-size: 12px; color: #94a3b8; text-align: center;">
-                AMSF Project Tracker<br>
-                <a href="https://amsf001-project-tracker.vercel.app" style="color: #8b5cf6; text-decoration: none;">amsf001-project-tracker.vercel.app</a>
+                Tracker by Progressive<br>
+                <a href="https://tracker.progressive.gg" style="color: ${BRAND_COLOR_DARK}; text-decoration: none;">tracker.progressive.gg</a>
               </p>
             </td>
           </tr>
@@ -150,8 +155,8 @@ This invitation will expire in 7 days.
 If you didn't expect this invitation, you can safely ignore this email.
 
 ---
-AMSF Project Tracker
-https://amsf001-project-tracker.vercel.app
+Tracker by Progressive
+https://tracker.progressive.gg
   `.trim();
 }
 
