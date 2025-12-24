@@ -27,7 +27,7 @@ import { useProjectRole } from '../../hooks/useProjectRole';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import { hasOrgPermission, ORG_ROLES, ORG_ROLE_CONFIG } from '../../lib/permissionMatrix';
-import { organisationService } from '../../services';
+import { organisationService, invitationService, emailService } from '../../services';
 import '../../pages/TeamMembers.css';
 
 export default function OrganisationMembers() {
@@ -104,55 +104,108 @@ export default function OrganisationMembers() {
     }
 
     setInviting(true);
+    const normalizedEmail = inviteEmail.toLowerCase().trim();
+    
     try {
       // Check if user exists
       const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email')
-        .eq('email', inviteEmail.toLowerCase().trim())
+        .select('id, email, full_name')
+        .eq('email', normalizedEmail)
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') {
         throw profileError;
       }
 
-      if (!existingProfile) {
-        showError('User not found. They must create an account first.');
-        setInviting(false);
-        return;
-      }
-
       // Check if already a member
-      const { data: existingMember } = await supabase
-        .from('user_organisations')
-        .select('id')
-        .eq('organisation_id', currentOrganisation.id)
-        .eq('user_id', existingProfile.id)
-        .single();
+      if (existingProfile) {
+        const { data: existingMember } = await supabase
+          .from('user_organisations')
+          .select('id')
+          .eq('organisation_id', currentOrganisation.id)
+          .eq('user_id', existingProfile.id)
+          .single();
 
-      if (existingMember) {
-        showWarning('This user is already a member of the organisation');
-        setInviting(false);
-        return;
-      }
+        if (existingMember) {
+          showWarning('This user is already a member of the organisation');
+          setInviting(false);
+          return;
+        }
 
-      // Add member
-      const { error: insertError } = await supabase
-        .from('user_organisations')
-        .insert({
-          organisation_id: currentOrganisation.id,
-          user_id: existingProfile.id,
-          org_role: inviteRole,
-          is_active: true,
-          is_default: false,
-          invited_by: user.id,
-          invited_at: new Date().toISOString(),
-          accepted_at: new Date().toISOString(), // Auto-accept for now
+        // User exists - add directly
+        const { error: insertError } = await supabase
+          .from('user_organisations')
+          .insert({
+            organisation_id: currentOrganisation.id,
+            user_id: existingProfile.id,
+            org_role: inviteRole,
+            is_active: true,
+            is_default: false,
+            invited_by: user.id,
+            invited_at: new Date().toISOString(),
+            accepted_at: new Date().toISOString(),
+          });
+
+        if (insertError) throw insertError;
+
+        showSuccess(`${existingProfile.full_name || normalizedEmail} has been added to the organisation`);
+      } else {
+        // User doesn't exist - check for existing invitation
+        const existingInvite = await invitationService.checkExistingInvitation(
+          currentOrganisation.id,
+          normalizedEmail
+        );
+
+        if (existingInvite) {
+          showWarning('A pending invitation already exists for this email');
+          setInviting(false);
+          return;
+        }
+
+        // Create invitation
+        const inviteResult = await invitationService.createInvitation({
+          organisationId: currentOrganisation.id,
+          email: normalizedEmail,
+          orgRole: inviteRole,
+          invitedBy: user.id,
         });
 
-      if (insertError) throw insertError;
+        if (!inviteResult.success) {
+          showError(inviteResult.message || 'Failed to create invitation');
+          setInviting(false);
+          return;
+        }
 
-      showSuccess(`${inviteEmail} has been added to the organisation`);
+        // Send invitation email
+        const acceptUrl = invitationService.getAcceptUrl(inviteResult.invitation.token);
+        
+        // Get current user's name for the email
+        const { data: currentUserProfile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', user.id)
+          .single();
+        
+        const inviterName = currentUserProfile?.full_name || currentUserProfile?.email || 'Organisation Admin';
+
+        const emailResult = await emailService.sendInvitationEmail({
+          email: normalizedEmail,
+          orgName: currentOrganisation.name,
+          orgDisplayName: currentOrganisation.display_name,
+          inviterName: inviterName,
+          role: inviteRole,
+          acceptUrl: acceptUrl,
+        });
+
+        if (!emailResult.success) {
+          console.error('Failed to send invitation email:', emailResult.error);
+          showSuccess(`Invitation created but email failed. Share link manually: ${acceptUrl}`);
+        } else {
+          showSuccess(`Invitation sent to ${normalizedEmail}`);
+        }
+      }
+
       setInviteEmail('');
       setInviteRole(ORG_ROLES.ORG_MEMBER);
       setShowInviteForm(false);
