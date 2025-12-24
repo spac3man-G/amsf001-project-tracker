@@ -1,8 +1,9 @@
 # Implementation Plan: Organisation Invitation System
 
 **Created:** 24 December 2025
-**Status:** Planning
-**Estimated Total Time:** 2-3 hours
+**Completed:** 24 December 2025
+**Status:** ✅ Complete
+**Actual Time:** ~2.5 hours
 
 ---
 
@@ -305,14 +306,14 @@ Recommended order for incremental progress:
 
 ## Checklist Summary
 
-- [ ] Segment 1: Database Setup
-- [ ] Segment 2: Invitation Service
-- [ ] Segment 3: Email Service Setup
-- [ ] Segment 4: Accept Invitation Page
-- [ ] Segment 5: Update Create Organisation Flow
-- [ ] Segment 6: Pending Invitations UI
-- [ ] Segment 7: Org Members Invitation
-- [ ] Segment 8: Testing & Polish
+- [x] Segment 1: Database Setup
+- [x] Segment 2: Invitation Service
+- [x] Segment 3: Email Service Setup
+- [x] Segment 4: Accept Invitation Page
+- [x] Segment 5: Update Create Organisation Flow
+- [x] Segment 6: Pending Invitations UI
+- [x] Segment 7: Org Members Invitation
+- [x] Segment 8: Testing & Polish
 
 ---
 
@@ -321,4 +322,53 @@ Recommended order for incremental progress:
 - MVP can skip Segment 6 & 7 initially (add pending invitations UI later)
 - Email service is the main external dependency - Resend is recommended for simplicity
 - Consider Supabase Edge Functions if you want to keep email API key server-side
+
+---
+
+## Implementation Summary
+
+### Git Commits
+
+| Commit | Description |
+|--------|-------------|
+| `27633b58` | db: Create org_invitations table for invitation system |
+| `fdab49bf` | feat: Add invitation service for org invitations |
+| `c3337783` | feat: Add Accept Invitation page |
+| `ec066e58` | feat: Add email service with Supabase Edge Function + Resend |
+| `85f1d6f6` | feat: Update Create Organisation to support invitations |
+| `fbe85cda` | feat: Add Pending Invitations UI to System Admin |
+| `22177e58` | feat: Add invitation support to Org Members page |
+
+### Files Created
+
+**Database:**
+- `supabase/migrations/202512241000_create_org_invitations.sql`
+
+**Backend Services:**
+- `src/services/invitation.service.js`
+- `src/services/email.service.js`
+- `supabase/functions/send-invitation/index.ts`
+
+**Frontend Pages:**
+- `src/pages/AcceptInvitation.jsx`
+
+### Files Modified
+
+- `src/App.jsx` - Added `/accept-invite` route
+- `src/services/index.js` - Export invitation and email services
+- `src/pages/admin/SystemAdmin.jsx` - Invitation flow + pending invitations UI
+- `src/pages/admin/OrganisationMembers.jsx` - Invitation flow for members
+
+### External Services Configured
+
+- **Resend:** Email delivery (noreply@progressive.gg)
+- **Supabase Edge Function:** `send-invitation` with RESEND_API_KEY secret
+
+### Key Features Delivered
+
+1. **Invitation Creation** - System admin or org admin can invite users by email
+2. **Email Delivery** - HTML-formatted invitation emails via Resend
+3. **Accept Invitation Page** - Users create account and auto-join org
+4. **Pending Invitations Management** - View, resend, revoke invitations
+5. **Graceful Fallbacks** - Shows link if email fails to send
 
