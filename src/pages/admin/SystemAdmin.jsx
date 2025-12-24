@@ -20,7 +20,7 @@ import { supabase } from '../../lib/supabase';
 import { 
   Shield, Building2, Plus, RefreshCw, Users, 
   Calendar, Settings, X, Search, AlertCircle,
-  CheckCircle, Mail
+  CheckCircle, Mail, Clock, Send, Trash2, Loader2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProjectRole } from '../../hooks/useProjectRole';
@@ -281,6 +281,44 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
   },
+  btnSmall: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    padding: '0.375rem 0.625rem',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    border: 'none',
+  },
+  btnResend: {
+    backgroundColor: '#dbeafe',
+    color: '#1d4ed8',
+  },
+  btnRevoke: {
+    backgroundColor: '#fee2e2',
+    color: '#dc2626',
+  },
+  pendingBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    padding: '0.25rem 0.5rem',
+    backgroundColor: '#fef3c7',
+    color: '#b45309',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+  },
+  expiryText: {
+    fontSize: '0.75rem',
+    color: '#64748b',
+  },
+  actionButtons: {
+    display: 'flex',
+    gap: '0.5rem',
+  },
 };
 
 export default function SystemAdmin() {
@@ -290,10 +328,13 @@ export default function SystemAdmin() {
   const { showSuccess, showError } = useToast();
 
   const [organisations, setOrganisations] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [resendingId, setResendingId] = useState(null);
+  const [revokingId, setRevokingId] = useState(null);
 
   // Form state for new organisation
   const [newOrg, setNewOrg] = useState({
@@ -350,6 +391,95 @@ export default function SystemAdmin() {
     }
   }, [showError]);
 
+  // Fetch all pending invitations
+  const fetchInvitations = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('org_invitations')
+        .select(`
+          *,
+          organisation:organisations (name, display_name),
+          inviter:profiles!invited_by (full_name, email)
+        `)
+        .eq('status', 'pending')
+        .order('invited_at', { ascending: false });
+
+      if (error) throw error;
+      setPendingInvitations(data || []);
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+    }
+  }, []);
+
+  // Resend invitation
+  const handleResendInvitation = async (invitation) => {
+    setResendingId(invitation.id);
+    try {
+      const updatedInvite = await invitationService.resendInvitation(invitation.id);
+      
+      if (!updatedInvite) {
+        showError('Failed to resend invitation');
+        return;
+      }
+
+      // Send email
+      const acceptUrl = invitationService.getAcceptUrl(updatedInvite.token);
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+      
+      const inviterName = currentUserProfile?.full_name || currentUserProfile?.email || 'System Admin';
+      const orgName = invitation.organisation?.name || 'Organisation';
+      const orgDisplayName = invitation.organisation?.display_name;
+
+      const emailResult = await emailService.sendInvitationEmail({
+        email: invitation.email,
+        orgName,
+        orgDisplayName,
+        inviterName,
+        role: invitation.org_role,
+        acceptUrl,
+      });
+
+      if (emailResult.success) {
+        showSuccess(`Invitation resent to ${invitation.email}`);
+      } else {
+        showSuccess(`Invitation renewed. Email failed - share link manually: ${acceptUrl}`);
+      }
+
+      fetchInvitations();
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      showError('Failed to resend invitation');
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  // Revoke invitation
+  const handleRevokeInvitation = async (invitation) => {
+    if (!window.confirm(`Revoke invitation for ${invitation.email}?`)) return;
+    
+    setRevokingId(invitation.id);
+    try {
+      const success = await invitationService.revokeInvitation(invitation.id);
+      
+      if (success) {
+        showSuccess(`Invitation for ${invitation.email} revoked`);
+        fetchInvitations();
+      } else {
+        showError('Failed to revoke invitation');
+      }
+    } catch (error) {
+      console.error('Error revoking invitation:', error);
+      showError('Failed to revoke invitation');
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
   // Check access and load data
   useEffect(() => {
     if (roleLoading) return;
@@ -360,7 +490,8 @@ export default function SystemAdmin() {
     }
 
     fetchOrganisations();
-  }, [roleLoading, isSystemAdmin, navigate, fetchOrganisations]);
+    fetchInvitations();
+  }, [roleLoading, isSystemAdmin, navigate, fetchOrganisations, fetchInvitations]);
 
   // Generate slug from name
   const generateSlug = (name) => {
@@ -556,7 +687,7 @@ export default function SystemAdmin() {
         <div style={styles.headerActions}>
           <button 
             style={styles.btnSecondary}
-            onClick={fetchOrganisations}
+            onClick={() => { fetchOrganisations(); fetchInvitations(); }}
           >
             <RefreshCw size={16} />
             Refresh
@@ -665,6 +796,98 @@ export default function SystemAdmin() {
           </table>
         )}
       </div>
+
+      {/* Pending Invitations Section */}
+      {pendingInvitations.length > 0 && (
+        <div style={{ ...styles.section, marginTop: '1.5rem' }}>
+          <div style={styles.sectionHeader}>
+            <h2 style={styles.sectionTitle}>
+              <Mail size={18} />
+              Pending Invitations ({pendingInvitations.length})
+            </h2>
+          </div>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Email</th>
+                <th style={styles.th}>Organisation</th>
+                <th style={styles.th}>Role</th>
+                <th style={styles.th}>Invited</th>
+                <th style={styles.th}>Expires</th>
+                <th style={styles.th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingInvitations.map(invitation => {
+                const isExpiringSoon = new Date(invitation.expires_at) < new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+                return (
+                  <tr key={invitation.id}>
+                    <td style={styles.td}>
+                      <div style={styles.orgName}>{invitation.email}</div>
+                    </td>
+                    <td style={styles.td}>
+                      {invitation.organisation?.display_name || invitation.organisation?.name || 'Unknown'}
+                    </td>
+                    <td style={styles.td}>
+                      <span style={{
+                        ...styles.badge,
+                        backgroundColor: invitation.org_role === 'org_admin' ? '#dbeafe' : '#f1f5f9',
+                        color: invitation.org_role === 'org_admin' ? '#1d4ed8' : '#64748b'
+                      }}>
+                        <Shield size={12} />
+                        {invitation.org_role === 'org_admin' ? 'Admin' : 'Member'}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      {new Date(invitation.invited_at).toLocaleDateString()}
+                    </td>
+                    <td style={styles.td}>
+                      <span style={{
+                        ...styles.expiryText,
+                        color: isExpiringSoon ? '#dc2626' : '#64748b'
+                      }}>
+                        <Clock size={12} style={{ display: 'inline', marginRight: '0.25rem' }} />
+                        {new Date(invitation.expires_at).toLocaleDateString()}
+                        {isExpiringSoon && ' (soon)'}
+                      </span>
+                    </td>
+                    <td style={styles.td}>
+                      <div style={styles.actionButtons}>
+                        <button
+                          style={{ ...styles.btnSmall, ...styles.btnResend }}
+                          onClick={() => handleResendInvitation(invitation)}
+                          disabled={resendingId === invitation.id}
+                          title="Resend invitation email"
+                        >
+                          {resendingId === invitation.id ? (
+                            <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                          ) : (
+                            <Send size={12} />
+                          )}
+                          Resend
+                        </button>
+                        <button
+                          style={{ ...styles.btnSmall, ...styles.btnRevoke }}
+                          onClick={() => handleRevokeInvitation(invitation)}
+                          disabled={revokingId === invitation.id}
+                          title="Revoke invitation"
+                        >
+                          {revokingId === invitation.id ? (
+                            <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                          ) : (
+                            <Trash2 size={12} />
+                          )}
+                          Revoke
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Create Organisation Modal */}
       {showCreateModal && (
