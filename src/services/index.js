@@ -118,3 +118,8 @@ export {
 export {
   invitationService
 } from './invitation.service';
+
+// Email Service
+export {
+  emailService
+} from './email.service';
