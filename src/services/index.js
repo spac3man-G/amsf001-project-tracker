@@ -113,3 +113,8 @@ export {
   organisationService,
   OrganisationService
 } from './organisation.service';
+
+// Invitation System
+export {
+  invitationService
+} from './invitation.service';
