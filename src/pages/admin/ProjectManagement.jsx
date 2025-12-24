@@ -18,8 +18,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { 
-  FolderKanban, Plus, RefreshCw, X, Users, Calendar, DollarSign,
-  ChevronRight, UserPlus, UserMinus, Check, AlertCircle
+  FolderKanban, Plus, RefreshCw, X, Users,
+  ChevronRight, UserPlus, UserMinus, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProjectRole } from '../../hooks/useProjectRole';
@@ -44,10 +44,7 @@ export default function ProjectManagement() {
   const [newProject, setNewProject] = useState({
     name: '',
     reference: '',
-    description: '',
-    start_date: '',
-    end_date: '',
-    total_budget: ''
+    description: ''
   });
   
   // Add user to project modal state
@@ -239,10 +236,7 @@ export default function ProjectManagement() {
       setNewProject({
         name: '',
         reference: '',
-        description: '',
-        start_date: '',
-        end_date: '',
-        total_budget: ''
+        description: ''
       });
       showSuccess(`Project "${result.project.name}" created successfully!`);
       
@@ -840,65 +834,6 @@ export default function ProjectManagement() {
                       borderRadius: '8px',
                       fontSize: '0.875rem',
                       resize: 'vertical'
-                    }}
-                  />
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '0.875rem' }}>
-                      <Calendar size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newProject.start_date}
-                      onChange={(e) => setNewProject({ ...newProject, start_date: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: '0.875rem'
-                      }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '0.875rem' }}>
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newProject.end_date}
-                      onChange={(e) => setNewProject({ ...newProject, end_date: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: '0.875rem'
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '0.875rem' }}>
-                    <DollarSign size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                    Total Budget
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    value={newProject.total_budget}
-                    onChange={(e) => setNewProject({ ...newProject, total_budget: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '0.875rem'
                     }}
                   />
                 </div>
