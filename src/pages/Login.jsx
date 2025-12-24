@@ -41,6 +41,13 @@ export default function Login() {
       window.history.replaceState({}, document.title, '/login');
     }
 
+    // Check for signup mode parameter
+    if (searchParams.get('mode') === 'signup') {
+      setIsSignUp(true);
+      // Clear the URL parameter
+      window.history.replaceState({}, document.title, '/login');
+    }
+
     // Check if already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {

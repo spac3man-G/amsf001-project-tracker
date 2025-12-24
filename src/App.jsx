@@ -79,6 +79,9 @@ const OrganisationMembers = lazy(() => import('./pages/admin/OrganisationMembers
 const CreateOrganisation = lazy(() => import('./pages/onboarding/CreateOrganisation'));
 const OnboardingWizardPage = lazy(() => import('./pages/onboarding/OnboardingWizardPage'));
 
+// Public pages
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+
 /**
  * PageLoader - Shows skeleton while lazy components load
  */
@@ -201,6 +204,30 @@ function OnboardingRoute({ children }) {
   );
 }
 
+/**
+ * PublicHomeRoute - Shows landing page for unauthenticated users
+ * Redirects to dashboard if already logged in
+ */
+function PublicHomeRoute({ children }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingSpinner message="Loading..." size="large" fullPage />;
+  }
+
+  // If logged in, go to dashboard
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Show landing page for non-authenticated users
+  return (
+    <Suspense fallback={<LoadingSpinner message="Loading..." size="large" fullPage />}>
+      {children}
+    </Suspense>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -261,7 +288,9 @@ export default function App() {
                             />
                             
                             {/* Protected routes */}
-                            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                            <Route path="/" element={
+                              <PublicHomeRoute><LandingPage /></PublicHomeRoute>
+                            } />
                             
                             {/* Dashboard - not lazy loaded for fast initial render */}
                             <Route path="/dashboard" element={
