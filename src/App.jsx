@@ -48,7 +48,7 @@ const Gantt = lazy(() => import('./pages/Gantt'));
 const Deliverables = lazy(() => import('./pages/Deliverables'));
 const Resources = lazy(() => import('./pages/Resources'));
 const ResourceDetail = lazy(() => import('./pages/ResourceDetail'));
-const Partners = lazy(() => import('./pages/Partners'));
+// Partners page removed - now in Organisation Admin tab
 const PartnerDetail = lazy(() => import('./pages/PartnerDetail'));
 const Timesheets = lazy(() => import('./pages/Timesheets'));
 const Expenses = lazy(() => import('./pages/Expenses'));
