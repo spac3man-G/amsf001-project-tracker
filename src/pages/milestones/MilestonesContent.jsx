@@ -1,5 +1,5 @@
 /**
- * Milestones Page - Apple Design System (Clean)
+ * Milestones Content - Tab content for MilestonesHub
  * 
  * Track project milestones and deliverables with:
  * - Milestone CRUD operations
@@ -10,13 +10,13 @@
  * 
  * @version 4.5 - Added soft delete with undo toast
  * @refactored 5 December 2025
- * @updated 18 December 2025
+ * @updated 25 December 2025 - Converted to tab content
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { milestonesService, deliverablesService } from '../services';
-import { supabase } from '../lib/supabase';
+import { milestonesService, deliverablesService } from '../../services';
+import { supabase } from '../../lib/supabase';
 import { 
   Milestone as MilestoneIcon, 
   Plus, 
@@ -27,25 +27,25 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useProject } from '../contexts/ProjectContext';
-import { useToast } from '../contexts/ToastContext';
-import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, ConfirmDialog } from '../components/common';
+import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
+import { useToast } from '../../contexts/ToastContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import {
   CertificateModal,
   MilestoneAddForm,
   MilestoneEditModal
-} from '../components/milestones';
+} from '../../components/milestones';
 import { 
   calculateMilestoneStatus, 
   calculateMilestoneProgress,
   getCertificateStatusInfo,
   getStatusCssClass,
   getBaselineAgreedDisplay
-} from '../lib/milestoneCalculations';
-import { formatDate, formatCurrency } from '../lib/formatters';
-import './Milestones.css';
+} from '../../lib/milestoneCalculations';
+import { formatDate, formatCurrency } from '../../lib/formatters';
+import '../Milestones.css';
 
 // Sort indicator component - defined outside main component to avoid re-render issues
 function SortIndicator({ column, sortColumn, sortDirection }) {
@@ -59,7 +59,7 @@ function SortIndicator({ column, sortColumn, sortDirection }) {
   );
 }
 
-export default function Milestones() {
+export default function MilestonesContent() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { projectId } = useProject();

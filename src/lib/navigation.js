@@ -83,14 +83,7 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
     readOnlyRoles: []
   },
-  gantt: {
-    id: 'gantt',
-    path: '/gantt',
-    icon: GanttChart,
-    label: 'Gantt Chart',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
-  },
+  // gantt is now a tab within Milestones
   milestones: {
     id: 'milestones',
     path: '/milestones',
@@ -107,22 +100,9 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
-  kpis: {
-    id: 'kpis',
-    path: '/kpis',
-    icon: TrendingUp,
-    label: 'KPIs',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
-  },
-  qualityStandards: {
-    id: 'qualityStandards',
-    path: '/quality-standards',
-    icon: Award,
-    label: 'Quality Standards',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER, ROLES.CUSTOMER_PM]
-  },
+  // kpis is now a tab within Deliverables
+  // qualityStandards is now a tab within Deliverables
+  // variations is now a tab within Milestones
   raid: {
     id: 'raid',
     path: '/raid',
@@ -182,14 +162,7 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
-  variations: {
-    id: 'variations',
-    path: '/variations',
-    icon: GitPullRequestDraft,
-    label: 'Variations',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
-    readOnlyRoles: [ROLES.CUSTOMER_PM]
-  },
+  // variations is now a tab within Milestones page
   systemUsers: {
     id: 'systemUsers',
     path: '/admin/users',
@@ -255,12 +228,8 @@ export const ROLE_NAV_ORDER = {
     'workflowSummary',
     'dashboard',
     'reports',
-    'gantt',
     'milestones',
     'deliverables',
-    'variations',
-    'kpis',
-    'qualityStandards',
     'raid',
     'calendar',
     'timesheets',
@@ -273,12 +242,8 @@ export const ROLE_NAV_ORDER = {
     'workflowSummary',
     'dashboard',
     'reports',
-    'gantt',
     'milestones',
     'deliverables',
-    'variations',
-    'kpis',
-    'qualityStandards',
     'raid',
     'calendar',
     'timesheets',
@@ -299,12 +264,8 @@ export const ROLE_NAV_ORDER = {
     'workflowSummary',
     'dashboard',
     'reports',
-    'gantt',
     'milestones',
     'deliverables',
-    'variations',
-    'kpis',
-    'qualityStandards',
     'raid',
     'calendar',
     'timesheets',
@@ -328,11 +289,8 @@ export const ROLE_NAV_ORDER = {
   ],
   [ROLES.VIEWER]: [
     'dashboard',
-    'gantt',
     'milestones',
     'deliverables',
-    'kpis',
-    'qualityStandards',
     'raid',
     'calendar'
   ]

@@ -42,19 +42,18 @@ import Dashboard from './pages/Dashboard';
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AcceptInvitation = lazy(() => import('./pages/AcceptInvitation'));
 const MobileChat = lazy(() => import('./pages/MobileChat'));
-const Milestones = lazy(() => import('./pages/Milestones'));
+// Milestones Hub includes: Milestones, Gantt, Variations
+const MilestonesHub = lazy(() => import('./pages/MilestonesHub'));
 const MilestoneDetail = lazy(() => import('./pages/MilestoneDetail'));
-const Gantt = lazy(() => import('./pages/Gantt'));
-const Deliverables = lazy(() => import('./pages/Deliverables'));
+// DeliverablesHub includes: Deliverables, KPIs, Quality Standards
+const DeliverablesHub = lazy(() => import('./pages/DeliverablesHub'));
 const Resources = lazy(() => import('./pages/Resources'));
 const ResourceDetail = lazy(() => import('./pages/ResourceDetail'));
 // Partners page removed - now in Organisation Admin tab
 const PartnerDetail = lazy(() => import('./pages/PartnerDetail'));
 const Timesheets = lazy(() => import('./pages/Timesheets'));
 const Expenses = lazy(() => import('./pages/Expenses'));
-const KPIs = lazy(() => import('./pages/KPIs'));
 const KPIDetail = lazy(() => import('./pages/KPIDetail'));
-const QualityStandards = lazy(() => import('./pages/QualityStandards'));
 const QualityStandardDetail = lazy(() => import('./pages/QualityStandardDetail'));
 const RaidLog = lazy(() => import('./pages/RaidLog'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -64,7 +63,6 @@ const ProjectSettings = lazy(() => import('./pages/ProjectSettings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
 const Calendar = lazy(() => import('./pages/Calendar'));
-const Variations = lazy(() => import('./pages/Variations'));
 const VariationDetail = lazy(() => import('./pages/VariationDetail'));
 const VariationForm = lazy(() => import('./pages/VariationForm'));
 const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
@@ -294,22 +292,22 @@ export default function App() {
                               <ProtectedRoute><Dashboard /></ProtectedRoute>
                             } />
                             
-                            {/* Milestones */}
+                            {/* Milestones Hub - includes Milestones, Gantt, Variations */}
                             <Route path="/milestones" element={
-                              <ProtectedRoute><Milestones /></ProtectedRoute>
+                              <ProtectedRoute><MilestonesHub /></ProtectedRoute>
                             } />
                             <Route path="/milestones/:id" element={
                               <ProtectedRoute><MilestoneDetail /></ProtectedRoute>
                             } />
                             
-                            {/* Gantt */}
+                            {/* Gantt - redirect to Milestones tab */}
                             <Route path="/gantt" element={
-                              <ProtectedRoute><Gantt /></ProtectedRoute>
+                              <Navigate to="/milestones?tab=gantt" replace />
                             } />
                             
-                            {/* Deliverables */}
+                            {/* Deliverables Hub - includes Deliverables, KPIs, Quality Standards */}
                             <Route path="/deliverables" element={
-                              <ProtectedRoute><Deliverables /></ProtectedRoute>
+                              <ProtectedRoute><DeliverablesHub /></ProtectedRoute>
                             } />
                             
                             {/* Resources - redirect to Project Settings tab */}
@@ -338,17 +336,17 @@ export default function App() {
                               <ProtectedRoute><Expenses /></ProtectedRoute>
                             } />
                             
-                            {/* KPIs */}
+                            {/* KPIs - redirect to Deliverables tab */}
                             <Route path="/kpis" element={
-                              <ProtectedRoute><KPIs /></ProtectedRoute>
+                              <Navigate to="/deliverables?tab=kpis" replace />
                             } />
                             <Route path="/kpis/:id" element={
                               <ProtectedRoute><KPIDetail /></ProtectedRoute>
                             } />
                             
-                            {/* Quality Standards */}
+                            {/* Quality Standards - redirect to Deliverables tab */}
                             <Route path="/quality-standards" element={
-                              <ProtectedRoute><QualityStandards /></ProtectedRoute>
+                              <Navigate to="/deliverables?tab=quality" replace />
                             } />
                             <Route path="/quality-standards/:id" element={
                               <ProtectedRoute><QualityStandardDetail /></ProtectedRoute>
@@ -364,9 +362,9 @@ export default function App() {
                               <ProtectedRoute><Calendar /></ProtectedRoute>
                             } />
                             
-                            {/* Variations (Change Control) */}
+                            {/* Variations - redirect to Milestones tab */}
                             <Route path="/variations" element={
-                              <ProtectedRoute><Variations /></ProtectedRoute>
+                              <Navigate to="/milestones?tab=variations" replace />
                             } />
                             <Route path="/variations/new" element={
                               <ProtectedRoute><VariationForm /></ProtectedRoute>

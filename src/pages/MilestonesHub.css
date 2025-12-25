@@ -1,0 +1,81 @@
+/**
+ * Milestones Hub CSS - Tabbed container for Milestones, Gantt, and Variations
+ */
+
+.milestones-hub {
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+/* Tab Navigation */
+.hub-tabs {
+  display: flex;
+  gap: 0;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.hub-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.2s;
+}
+
+.hub-tab:hover {
+  color: #1e293b;
+  background: #f8fafc;
+}
+
+.hub-tab.active {
+  color: #10b981;
+  border-bottom-color: #10b981;
+}
+
+.hub-tab svg {
+  opacity: 0.7;
+}
+
+.hub-tab.active svg {
+  opacity: 1;
+}
+
+/* Content Area */
+.hub-content {
+  padding: 0;
+}
+
+/* Remove page header from child components since they're now tabs */
+.hub-content .page-header-wrapper {
+  display: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hub-tabs {
+    padding: 0 16px;
+    overflow-x: auto;
+  }
+  
+  .hub-tab {
+    padding: 12px 16px;
+    white-space: nowrap;
+  }
+  
+  .hub-tab span {
+    display: none;
+  }
+}

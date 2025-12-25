@@ -1,5 +1,5 @@
 /**
- * Variations Page - Apple Design System
+ * Variations Content - Tab content for MilestonesHub
  * 
  * Project Variations management with:
  * - Variation list with status filtering
@@ -9,7 +9,7 @@
  * - Delete draft variations
  * 
  * @version 1.2 - Added data-testid attributes for E2E testing
- * @updated 8 December 2025
+ * @updated 25 December 2025 - Converted to tab content
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,7 +20,7 @@ import {
   VARIATION_TYPE,
   STATUS_CONFIG,
   TYPE_CONFIG
-} from '../services/variations.service';
+} from '../../services/variations.service';
 import {
   FileText,
   Plus,
@@ -39,13 +39,13 @@ import {
   Info,
   Trash2
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useProject } from '../contexts/ProjectContext';
-import { useToast } from '../contexts/ToastContext';
-import { usePermissions } from '../hooks/usePermissions';
-import { LoadingSpinner, ConfirmDialog } from '../components/common';
-import { formatDate, formatCurrency } from '../lib/formatters';
-import './Variations.css';
+import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
+import { useToast } from '../../contexts/ToastContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { LoadingSpinner, ConfirmDialog } from '../../components/common';
+import { formatDate, formatCurrency } from '../../lib/formatters';
+import '../Variations.css';
 
 // Status filter options
 const STATUS_FILTERS = [
@@ -57,7 +57,7 @@ const STATUS_FILTERS = [
   { value: 'rejected', label: 'Rejected' }
 ];
 
-export default function Variations() {
+export default function VariationsContent() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { projectId } = useProject();

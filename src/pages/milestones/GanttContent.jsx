@@ -1,18 +1,27 @@
+/**
+ * Gantt Chart Content - Tab content for MilestonesHub
+ * 
+ * Visual timeline of milestones with drag-and-drop editing.
+ * 
+ * @updated 25 December 2025 - Converted to tab content
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { LoadingSpinner, PageHeader, StatusBadge } from '../components/common';
+import { supabase } from '../../lib/supabase';
+import { LoadingSpinner, PageHeader, StatusBadge } from '../../components/common';
 import { 
   Calendar, ChevronLeft, ChevronRight, Info, GripHorizontal,
   Lock, Move, ZoomIn, ZoomOut, Eye
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { usePermissions } from '../hooks/usePermissions';
+import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
+import { usePermissions } from '../../hooks/usePermissions';
 
-export default function Gantt() {
+export default function GanttContent() {
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [projectId, setProjectId] = useState(null);
+  const { projectId } = useProject();
   const [viewStart, setViewStart] = useState(null);
   const [viewEnd, setViewEnd] = useState(null);
   const [daysPerPixel, setDaysPerPixel] = useState(0.1); // Zoom level
@@ -29,33 +38,16 @@ export default function Gantt() {
   const canEdit = canUseGantt;
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    if (projectId) {
+      fetchMilestones(projectId);
+    }
+  }, [projectId]);
 
   useEffect(() => {
     if (milestones.length > 0) {
       calculateViewRange();
     }
   }, [milestones]);
-
-  async function fetchInitialData() {
-    try {
-      const { data: project } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('reference', 'AMSF001')
-        .single();
-
-      if (project) {
-        setProjectId(project.id);
-        await fetchMilestones(project.id);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function fetchMilestones(projId) {
     const pid = projId || projectId;
