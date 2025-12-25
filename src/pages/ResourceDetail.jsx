@@ -84,13 +84,10 @@ export default function ResourceDetail() {
   useEffect(() => {
     async function fetchPartners() {
       // Only fetch partners if user can link to partners (admin/supplier_pm)
+      // Partners are now at organisation level - getActive looks up org from project
       if (resource?.project_id && canLinkToPartner) {
         try {
-          const partnersData = await partnersService.getAll(resource.project_id, {
-            filters: [{ column: 'is_active', operator: 'eq', value: true }],
-            select: 'id, name, is_active',
-            orderBy: { column: 'name', ascending: true }
-          });
+          const partnersData = await partnersService.getActive(resource.project_id);
           setPartners(partnersData || []);
         } catch (error) {
           console.error('Error fetching partners:', error);
