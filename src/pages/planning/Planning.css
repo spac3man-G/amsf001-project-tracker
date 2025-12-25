@@ -1,0 +1,398 @@
+/**
+ * Planning Page - MS Project-like Task Grid
+ */
+
+.planning-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+}
+
+/* Header */
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.plan-header-left h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.plan-header-left p {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 4px 0 0;
+}
+
+.plan-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.plan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.plan-btn-primary {
+  background: var(--org-brand-color, #10b981);
+  color: white;
+}
+
+.plan-btn-primary:hover {
+  filter: brightness(0.9);
+  transform: translateY(-1px);
+}
+
+.plan-btn-secondary {
+  background: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.plan-btn-secondary:hover {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: var(--org-brand-color, #10b981);
+}
+
+/* Content */
+.plan-content {
+  padding: 24px 32px;
+}
+
+/* Table Container */
+.plan-table-container {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Table */
+.plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.plan-table thead {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.plan-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #64748b;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* Column widths */
+.plan-col-grip { width: 30px; }
+.plan-col-wbs { width: 60px; }
+.plan-col-name { min-width: 250px; }
+.plan-col-type { width: 120px; }
+.plan-col-start,
+.plan-col-end { width: 110px; }
+.plan-col-progress { width: 140px; }
+.plan-col-status { width: 120px; }
+.plan-col-actions { width: 100px; }
+
+/* Rows */
+.plan-row {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
+}
+
+.plan-row:hover {
+  background: #f8fafc;
+}
+
+.plan-row.selected {
+  background: color-mix(in srgb, var(--org-brand-color, #10b981) 5%, white);
+}
+
+.plan-row.milestone {
+  background: rgba(139, 92, 246, 0.03);
+}
+
+.plan-row.deliverable {
+  background: rgba(59, 130, 246, 0.03);
+}
+
+/* Cells */
+.plan-cell {
+  padding: 10px 16px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.plan-cell-grip {
+  cursor: grab;
+  color: #cbd5e1;
+  padding: 10px 8px;
+}
+
+.plan-cell-grip:hover {
+  color: #94a3b8;
+}
+
+.grip-icon {
+  opacity: 0.5;
+}
+
+.plan-row:hover .grip-icon {
+  opacity: 1;
+}
+
+.plan-cell-wbs {
+  font-family: 'SF Mono', monospace;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+/* Name cell */
+.plan-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.indent-icon,
+.expand-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.plan-cell-text {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+/* Type badges */
+.plan-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.plan-type-badge.task {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.plan-type-badge.milestone {
+  background: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+}
+
+.plan-type-badge.deliverable {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+/* Date cells */
+.plan-cell-date {
+  font-family: 'SF Mono', monospace;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Progress */
+.plan-progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.plan-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.plan-progress-fill {
+  height: 100%;
+  background: var(--org-brand-color, #10b981);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.plan-progress-text {
+  font-family: 'SF Mono', monospace;
+  font-size: 12px;
+  color: #64748b;
+  min-width: 35px;
+}
+
+/* Status badges */
+.plan-status-badge {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.plan-status-badge.not_started {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.plan-status-badge.in_progress {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.plan-status-badge.completed {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.plan-status-badge.on_hold {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.plan-status-badge.cancelled {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* Actions */
+.plan-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.plan-row:hover .plan-actions {
+  opacity: 1;
+}
+
+.plan-action-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.plan-action-btn:hover {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.plan-action-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* Input styles */
+.plan-cell-input,
+.plan-cell-select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--org-brand-color, #10b981);
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--org-brand-color, #10b981) 15%, transparent);
+}
+
+.plan-cell-progress-input {
+  width: 60px;
+}
+
+/* Quick add row */
+.plan-quick-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  margin-top: 12px;
+  background: white;
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.plan-quick-add:hover {
+  border-color: var(--org-brand-color, #10b981);
+  color: var(--org-brand-color, #10b981);
+  background: color-mix(in srgb, var(--org-brand-color, #10b981) 5%, white);
+}
+
+/* Empty & Loading states */
+.plan-loading,
+.plan-empty-row {
+  text-align: center;
+  padding: 48px 24px;
+  color: #94a3b8;
+}
+
+.plan-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #64748b;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .plan-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .plan-content {
+    padding: 16px;
+  }
+  
+  .plan-table-container {
+    overflow-x: auto;
+  }
+  
+  .plan-table {
+    min-width: 900px;
+  }
+}

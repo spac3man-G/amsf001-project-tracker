@@ -149,6 +149,14 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
+  planning: {
+    id: 'planning',
+    path: '/planning',
+    icon: ClipboardList,
+    label: 'Planning',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
+    readOnlyRoles: []
+  },
   // variations is now a tab within Milestones page
   systemUsers: {
     id: 'systemUsers',
@@ -213,6 +221,7 @@ export const NAV_ITEMS = {
 export const ROLE_NAV_ORDER = {
   [ROLES.ADMIN]: [
     'dashboard',
+    'planning',
     'milestones',
     'deliverables',
     'raid',
@@ -225,6 +234,7 @@ export const ROLE_NAV_ORDER = {
   ],
   [ROLES.SUPPLIER_PM]: [
     'dashboard',
+    'planning',
     'milestones',
     'deliverables',
     'raid',
@@ -245,6 +255,7 @@ export const ROLE_NAV_ORDER = {
   ],
   [ROLES.CUSTOMER_PM]: [
     'dashboard',
+    'planning',
     'milestones',
     'deliverables',
     'raid',

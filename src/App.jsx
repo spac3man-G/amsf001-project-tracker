@@ -65,6 +65,7 @@ const ProjectSettings = lazy(() => import('./pages/ProjectSettings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
 const Calendar = lazy(() => import('./pages/Calendar'));
+const Planning = lazy(() => import('./pages/planning/Planning'));
 const VariationDetail = lazy(() => import('./pages/VariationDetail'));
 const VariationForm = lazy(() => import('./pages/VariationForm'));
 const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
@@ -367,6 +368,11 @@ export default function App() {
                             {/* Project Calendar */}
                             <Route path="/calendar" element={
                               <ProtectedRoute><Calendar /></ProtectedRoute>
+                            } />
+                            
+                            {/* Project Planning */}
+                            <Route path="/planning" element={
+                              <ProtectedRoute><Planning /></ProtectedRoute>
                             } />
                             
                             {/* Variations - redirect to Milestones tab */}
