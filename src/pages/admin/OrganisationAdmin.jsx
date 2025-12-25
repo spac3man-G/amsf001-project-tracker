@@ -629,10 +629,13 @@ function ProjectsTab({
   const [newProject, setNewProject] = useState({ name: '', reference: '', description: '' });
 
   const fetchProjects = useCallback(async () => {
-    if (!organisation?.id) return;
+    if (!organisation?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      // First get projects
+      // Simple query - just get projects for this org
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('id, name, reference, description, status, created_at')
@@ -640,20 +643,13 @@ function ProjectsTab({
         .is('deleted_at', null)
         .order('name');
 
-      if (projectsError) throw projectsError;
+      if (projectsError) {
+        console.error('Projects query error:', projectsError);
+        throw projectsError;
+      }
 
-      // Then get member counts for each project
-      const projectsWithCounts = await Promise.all(
-        (projectsData || []).map(async (project) => {
-          const { count } = await supabase
-            .from('user_projects')
-            .select('*', { count: 'exact', head: true })
-            .eq('project_id', project.id);
-          return { ...project, memberCount: count || 0 };
-        })
-      );
-
-      setProjects(projectsWithCounts);
+      // For now, just set projects without member counts to avoid additional queries
+      setProjects((projectsData || []).map(p => ({ ...p, memberCount: 0 })));
     } catch (error) {
       console.error('Error fetching projects:', error);
       showError('Failed to load projects');
