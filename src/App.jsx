@@ -74,6 +74,7 @@ const SystemAdmin = lazy(() => import('./pages/admin/SystemAdmin'));
 const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
 const OrganisationSettings = lazy(() => import('./pages/admin/OrganisationSettings'));
 const OrganisationMembers = lazy(() => import('./pages/admin/OrganisationMembers'));
+const OrganisationAdmin = lazy(() => import('./pages/admin/OrganisationAdmin'));
 
 // Onboarding pages
 const CreateOrganisation = lazy(() => import('./pages/onboarding/CreateOrganisation'));
@@ -435,14 +436,14 @@ export default function App() {
                               <ProtectedRoute><ProjectManagement /></ProtectedRoute>
                             } />
                             
-                            {/* Organisation Settings (org admins) */}
+                            {/* Organisation Admin - Unified tab interface (org admins) */}
                             <Route path="/admin/organisation" element={
-                              <ProtectedRoute><OrganisationSettings /></ProtectedRoute>
+                              <ProtectedRoute><OrganisationAdmin /></ProtectedRoute>
                             } />
                             
-                            {/* Organisation Members (org admins) */}
+                            {/* Legacy routes - redirect to new tabbed interface */}
                             <Route path="/admin/organisation/members" element={
-                              <ProtectedRoute><OrganisationMembers /></ProtectedRoute>
+                              <Navigate to="/admin/organisation?tab=members" replace />
                             } />
                             
                             {/* Catch all */}

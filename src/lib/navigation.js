@@ -244,19 +244,12 @@ export const NAV_ITEMS = {
     readOnlyRoles: []
   },
   // Organisation Admin Items (visible to org admins)
+  // Combined tab interface for Organisation, Members, and Projects
   orgSettings: {
     id: 'orgSettings',
     path: '/admin/organisation',
     icon: Building,
     label: 'Organisation',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: []
-  },
-  orgMembers: {
-    id: 'orgMembers',
-    path: '/admin/organisation/members',
-    icon: UsersRound,
-    label: 'Org Members',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   }
@@ -309,9 +302,7 @@ export const ROLE_NAV_ORDER = {
     'deletedItems',
     'systemUsers',
     'systemAdmin',
-    'projectManagement',
-    'orgSettings',
-    'orgMembers'
+    'orgSettings'
   ],
   [ROLES.SUPPLIER_PM]: [
     'workflowSummary',
@@ -333,9 +324,7 @@ export const ROLE_NAV_ORDER = {
     'settings',
     'auditLog',
     'deletedItems',
-    'projectManagement',
-    'orgSettings',
-    'orgMembers'
+    'orgSettings'
   ],
   [ROLES.SUPPLIER_FINANCE]: [
     'workflowSummary',
