@@ -7,6 +7,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.9] - 2025-12-24
+
+### Added
+
+#### Public Landing Page
+- New marketing landing page at `/` for unauthenticated visitors
+- Hero section with key messaging and CTAs
+- Features grid showcasing platform capabilities
+- Responsive design with mobile support
+- `PublicHomeRoute` component - shows landing page or redirects to dashboard
+
+#### Self-Service Organisation Creation (Phase 2)
+- `/api/create-organisation.js` - API endpoint for org creation
+- `/onboarding/create-organisation` - Page for users without orgs
+- Automatic org admin assignment on creation
+- Slug validation and duplicate checking
+
+#### Onboarding Wizard (Phase 2)
+- 4-step wizard for new organisation setup
+- Step 1: Organisation details (name, display name)
+- Step 2: Invite team members (optional, up to 5)
+- Step 3: Create first project (optional)
+- Step 4: Completion with next steps
+- Progress indicator and navigation
+- Skippable steps with "Skip for now" option
+
+#### Invitation UI Enhancements (Phase 2)
+- `PendingInvitationCard` component with expiry countdown
+- Copy invitation link to clipboard
+- Resend invitation (generates new token)
+- Revoke invitation functionality
+- Pending invitations section in OrganisationMembers page
+
+#### Subscription & Limits System (Phase 3)
+- `src/lib/subscriptionTiers.js` - Tier definitions (free/starter/professional/enterprise)
+- `src/services/subscription.service.js` - Limit checking and usage tracking
+- `UpgradePrompt` component (banner/modal/card/inline variants)
+- `UsageMeter` component for visual usage display
+- `OrganisationUsageWidget` dashboard widget for org admins
+- Limit enforcement in create-project API, invitation service, organisation service
+- **Note:** Free tier currently set to unlimited (no paid tiers active)
+
+#### Security Hardening (Phase 1)
+- User queries now filtered by organisation membership
+- API authorization checks validate org membership
+- Database trigger prevents cross-org project assignments
+- `src/lib/queries.js` - Centralised org-filtered user queries
+
+### Changed
+
+#### Login Page
+- Now supports `?mode=signup` parameter to pre-select signup form
+- Redirects authenticated users to dashboard
+
+#### Dashboard
+- Added `OrganisationUsageWidget` for org admins (shows member/project counts)
+
+#### Routes
+- `/` now shows landing page for unauthenticated users
+- `/` redirects to `/dashboard` for authenticated users
+
+### New Files
+
+```
+src/pages/LandingPage.jsx
+src/pages/LandingPage.css
+src/pages/onboarding/CreateOrganisation.jsx
+src/pages/onboarding/CreateOrganisation.css
+src/pages/onboarding/OnboardingWizardPage.jsx
+src/pages/onboarding/index.js
+src/components/onboarding/OnboardingWizard.jsx
+src/components/onboarding/OnboardingWizard.css
+src/components/onboarding/Step1OrgDetails.jsx
+src/components/onboarding/Step2InviteTeam.jsx
+src/components/onboarding/Step3FirstProject.jsx
+src/components/onboarding/Step4Complete.jsx
+src/components/onboarding/index.js
+src/components/organisation/PendingInvitationCard.jsx
+src/components/organisation/PendingInvitationCard.css
+src/components/organisation/index.js
+src/components/common/UpgradePrompt.jsx
+src/components/common/UpgradePrompt.css
+src/components/common/UsageMeter.jsx
+src/components/common/UsageMeter.css
+src/components/dashboard/OrganisationUsageWidget.jsx
+src/components/dashboard/OrganisationUsageWidget.css
+src/lib/subscriptionTiers.js
+src/lib/queries.js
+src/services/subscription.service.js
+api/create-organisation.js
+docs/MULTI-TENANCY-IMPLEMENTATION-GUIDE.md
+```
+
+### Database Migrations
+
+**Enforce Org Membership:** `202512241700_enforce_org_membership_on_project_assignment.sql`
+- Trigger function to validate user is org member before project assignment
+- Prevents cross-organisation data leakage
+
+---
+
 ## [0.9.8] - 2025-12-24
 
 ### Added
