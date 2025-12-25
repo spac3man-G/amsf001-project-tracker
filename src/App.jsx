@@ -312,9 +312,9 @@ export default function App() {
                               <ProtectedRoute><Deliverables /></ProtectedRoute>
                             } />
                             
-                            {/* Resources */}
+                            {/* Resources - redirect to Project Settings tab */}
                             <Route path="/resources" element={
-                              <ProtectedRoute><Resources /></ProtectedRoute>
+                              <Navigate to="/settings?tab=resources" replace />
                             } />
                             <Route path="/resources/:id" element={
                               <ProtectedRoute><ResourceDetail /></ProtectedRoute>

@@ -37,13 +37,29 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useResourcePermissions } from '../hooks/useResourcePermissions';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingSpinner, PageHeader, ConfirmDialog } from '../components/common';
+import { resourcesService, timesheetsService, partnersService } from '../services';
+import { timesheetContributesToSpend, hoursToDays } from '../config/metricsConfig';
+import {
+  RESOURCE_TYPE,
+  sfiaToDisplay,
+  sfiaToDatabase,
+  getSfiaCssClass,
+  getSfiaOptions,
+  getRoleOptions,
+  getResourceTypeConfig,
+  calculateMargin,
+  getMarginConfig,
+  calculateSellValue
+} from '../lib/resourceCalculations';
 import './ProjectSettings.css';
 
 // Tab configuration
 const TABS = [
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
+  { id: 'resources', label: 'Resources', icon: User },
   { id: 'audit', label: 'Audit Log', icon: FileText },
   { id: 'deleted', label: 'Deleted Items', icon: Trash2 }
 ];
@@ -124,6 +140,13 @@ export default function ProjectSettings() {
           <SettingsTab 
             projectId={projectId}
             refreshProject={refreshProject}
+          />
+        )}
+        {activeTab === 'resources' && (
+          <ResourcesTab 
+            projectId={projectId}
+            showSuccess={showSuccess}
+            showError={showError}
           />
         )}
         {activeTab === 'audit' && (
@@ -1062,6 +1085,468 @@ function DeletedItemsTab({ projectId, profile, showSuccess, showError }) {
           variant="danger"
           onConfirm={() => handlePurge(confirmPurge.table, confirmPurge.item)}
           onCancel={() => setConfirmPurge(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+
+// ============================================================================
+// RESOURCES TAB
+// ============================================================================
+
+function ResourcesTab({ projectId, showSuccess, showError }) {
+  const { user } = useAuth();
+  const currentUserId = user?.id || null;
+  
+  const { 
+    canCreate, 
+    canSeeResourceType, 
+    canSeeCostPrice,
+    canSeeMargins,
+    isAdmin 
+  } = useResourcePermissions();
+
+  const [resources, setResources] = useState([]);
+  const [timesheetHours, setTimesheetHours] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [filterType, setFilterType] = useState('all');
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, resource: null });
+  const [saving, setSaving] = useState(false);
+  const [eligibleUsers, setEligibleUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [partners, setPartners] = useState([]);
+  const [newResource, setNewResource] = useState({
+    resource_ref: '', 
+    name: '', 
+    email: '', 
+    role: '', 
+    sfia_level: 'L4',
+    sell_price: '', 
+    cost_price: '', 
+    resource_type: RESOURCE_TYPE.INTERNAL,
+    user_id: null,
+    partner_id: null
+  });
+
+  const fetchData = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    try {
+      const data = await resourcesService.getAll(projectId, { includePartner: true });
+      setResources(data);
+
+      const timesheets = await timesheetsService.getAllFiltered(projectId, true);
+      const hoursByResource = {};
+      timesheets.forEach(ts => {
+        const countsTowardsCost = timesheetContributesToSpend(ts.status) && !ts.was_rejected;
+        if (!countsTowardsCost) return;
+        const hours = parseFloat(ts.hours_worked || ts.hours || 0);
+        hoursByResource[ts.resource_id] = (hoursByResource[ts.resource_id] || 0) + hours;
+      });
+      setTimesheetHours(hoursByResource);
+    } catch (error) {
+      console.error('Error fetching resources:', error);
+      showError?.('Failed to load resources');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, showError]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function handleOpenAddForm() {
+    setShowAddForm(true);
+    setSelectedUserId('');
+    setNewResource({
+      resource_ref: '', name: '', email: '', role: '', sfia_level: 'L4',
+      sell_price: '', cost_price: '', resource_type: RESOURCE_TYPE.INTERNAL,
+      user_id: null, partner_id: null
+    });
+    try {
+      const [users, partnerList] = await Promise.all([
+        resourcesService.getProjectUsersWithoutResources(projectId),
+        partnersService.getActive(projectId)
+      ]);
+      setEligibleUsers(users);
+      setPartners(partnerList || []);
+    } catch (error) {
+      console.error('Error fetching form data:', error);
+      setEligibleUsers([]);
+      setPartners([]);
+    }
+  }
+
+  function handleUserSelect(userId) {
+    setSelectedUserId(userId);
+    if (userId) {
+      const user = eligibleUsers.find(u => u.user_id === userId);
+      if (user) {
+        setNewResource(prev => ({
+          ...prev,
+          name: user.full_name || '',
+          email: user.email || '',
+          user_id: userId
+        }));
+      }
+    } else {
+      setNewResource(prev => ({ ...prev, name: '', email: '', user_id: null }));
+    }
+  }
+
+  async function handleAdd() {
+    try {
+      if (newResource.resource_type === RESOURCE_TYPE.THIRD_PARTY && !newResource.partner_id) {
+        showError?.('Third-party resources must be associated with a partner.');
+        return;
+      }
+
+      let userId = newResource.user_id;
+      if (!userId && newResource.email) {
+        const existingProfile = await resourcesService.getProfileByEmail(newResource.email);
+        if (!existingProfile) {
+          showError?.('This email is not registered. They need to sign up first.');
+          return;
+        }
+        userId = existingProfile.id;
+      }
+
+      let resourceRef = newResource.resource_ref?.trim();
+      if (!resourceRef) {
+        const nextNum = resources.length + 1;
+        resourceRef = `R${String(nextNum).padStart(3, '0')}`;
+      }
+
+      await resourcesService.create({
+        resource_ref: resourceRef,
+        name: newResource.name,
+        email: newResource.email,
+        role: newResource.role,
+        project_id: projectId,
+        user_id: userId,
+        partner_id: newResource.resource_type === RESOURCE_TYPE.THIRD_PARTY ? newResource.partner_id : null,
+        resource_type: newResource.resource_type,
+        sfia_level: sfiaToDatabase(newResource.sfia_level),
+        sell_price: parseFloat(newResource.sell_price) || 0,
+        cost_price: newResource.cost_price ? parseFloat(newResource.cost_price) : null,
+        created_by: currentUserId
+      });
+
+      await fetchData();
+      setShowAddForm(false);
+      setNewResource({ 
+        resource_ref: '', name: '', email: '', role: '', sfia_level: 'L4', 
+        sell_price: '', cost_price: '', resource_type: RESOURCE_TYPE.INTERNAL,
+        user_id: null, partner_id: null
+      });
+      setSelectedUserId('');
+      showSuccess?.('Resource added!');
+    } catch (error) {
+      console.error('Error adding resource:', error);
+      showError?.('Failed to add: ' + error.message);
+    }
+  }
+
+  async function handleDelete(resource) {
+    setDeleteDialog({ isOpen: true, resource });
+  }
+
+  async function handleConfirmDelete() {
+    const resource = deleteDialog.resource;
+    if (!resource) return;
+    
+    setSaving(true);
+    try {
+      await resourcesService.delete(resource.id, currentUserId);
+      await fetchData();
+      setDeleteDialog({ isOpen: false, resource: null });
+      showSuccess?.('Resource deleted');
+    } catch (error) {
+      showError?.('Failed to delete');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const filteredResources = resources.filter(r => 
+    filterType === 'all' || (r.resource_type || RESOURCE_TYPE.INTERNAL) === filterType
+  );
+
+  if (loading) {
+    return <LoadingSpinner message="Loading resources..." />;
+  }
+
+  return (
+    <div className="resources-tab">
+      {/* Header Actions */}
+      <div className="resources-header">
+        <div className="resources-stats">
+          <span className="stat-badge">
+            <User size={16} />
+            {resources.length} resources
+          </span>
+          {canSeeResourceType && (
+            <select 
+              value={filterType} 
+              onChange={(e) => setFilterType(e.target.value)} 
+              className="filter-select"
+            >
+              <option value="all">All Types</option>
+              <option value={RESOURCE_TYPE.INTERNAL}>Internal</option>
+              <option value={RESOURCE_TYPE.THIRD_PARTY}>Third-Party</option>
+            </select>
+          )}
+        </div>
+        <div className="resources-actions">
+          <button className="btn btn-secondary" onClick={fetchData}>
+            <RefreshCw size={18} /> Refresh
+          </button>
+          {canCreate && (
+            <button className="btn btn-primary" onClick={handleOpenAddForm}>
+              <Plus size={18} /> Add Resource
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Add Form */}
+      {showAddForm && (
+        <div className="add-resource-form section-card">
+          <h3>Add New Resource</h3>
+          
+          {eligibleUsers.length > 0 && (
+            <div className="user-picker">
+              <label>Quick Add: Select from project users</label>
+              <select
+                value={selectedUserId}
+                onChange={(e) => handleUserSelect(e.target.value)}
+              >
+                <option value="">-- Select a user to auto-fill --</option>
+                {eligibleUsers.map(user => (
+                  <option key={user.user_id} value={user.user_id}>
+                    {user.full_name} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Reference</label>
+              <input 
+                className="form-input" 
+                placeholder="Auto-generated if empty" 
+                value={newResource.resource_ref} 
+                onChange={(e) => setNewResource({...newResource, resource_ref: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>Name</label>
+              <input 
+                className="form-input" 
+                placeholder="Full name" 
+                value={newResource.name} 
+                onChange={(e) => setNewResource({...newResource, name: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input 
+                className="form-input" 
+                placeholder="Email" 
+                type="email" 
+                value={newResource.email} 
+                onChange={(e) => setNewResource({...newResource, email: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>Role</label>
+              <select 
+                className="form-input" 
+                value={newResource.role} 
+                onChange={(e) => setNewResource({...newResource, role: e.target.value})}
+              >
+                <option value="">Select Role...</option>
+                {getRoleOptions().map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>SFIA Level</label>
+              <select 
+                className="form-input" 
+                value={newResource.sfia_level} 
+                onChange={(e) => setNewResource({...newResource, sfia_level: e.target.value})}
+              >
+                {getSfiaOptions().map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Sell Price (£/day)</label>
+              <input 
+                className="form-input" 
+                type="number" 
+                value={newResource.sell_price} 
+                onChange={(e) => setNewResource({...newResource, sell_price: e.target.value})}
+              />
+            </div>
+            {canSeeCostPrice && (
+              <div className="form-group">
+                <label>Cost Price (£/day)</label>
+                <input 
+                  className="form-input" 
+                  type="number" 
+                  value={newResource.cost_price} 
+                  onChange={(e) => setNewResource({...newResource, cost_price: e.target.value})}
+                />
+              </div>
+            )}
+            {canSeeResourceType && (
+              <div className="form-group">
+                <label>Type</label>
+                <select 
+                  className="form-input" 
+                  value={newResource.resource_type} 
+                  onChange={(e) => setNewResource({...newResource, resource_type: e.target.value, partner_id: null})}
+                >
+                  <option value={RESOURCE_TYPE.INTERNAL}>Internal</option>
+                  <option value={RESOURCE_TYPE.THIRD_PARTY}>Third-Party</option>
+                </select>
+              </div>
+            )}
+          </div>
+          
+          {newResource.resource_type === RESOURCE_TYPE.THIRD_PARTY && (
+            <div className="partner-select">
+              <label>Partner (Required)</label>
+              {partners.length > 0 ? (
+                <select
+                  className="form-input"
+                  value={newResource.partner_id || ''}
+                  onChange={(e) => setNewResource({...newResource, partner_id: e.target.value || null})}
+                >
+                  <option value="">-- Select a Partner --</option>
+                  {partners.map(partner => (
+                    <option key={partner.id} value={partner.id}>{partner.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="warning-text">No partners found. Create a partner first.</p>
+              )}
+            </div>
+          )}
+          
+          <div className="form-actions">
+            <button className="btn btn-primary" onClick={handleAdd}>
+              <Save size={16} /> Save
+            </button>
+            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
+              <X size={16} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Resources Table */}
+      {filteredResources.length === 0 ? (
+        <div className="empty-state">
+          <User size={48} />
+          <h3>No Resources</h3>
+          <p>Add team members to this project to track time and costs.</p>
+        </div>
+      ) : (
+        <div className="section-card">
+          <table className="resources-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                {canSeeResourceType && <th>Type</th>}
+                <th>Role</th>
+                <th>SFIA</th>
+                <th>Sell Rate</th>
+                {canSeeCostPrice && <th>Cost Rate</th>}
+                {canSeeMargins && <th>Margin</th>}
+                <th>Days Used</th>
+                <th>Value</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredResources.map(resource => {
+                const hours = timesheetHours[resource.id] || 0;
+                const days = hoursToDays(hours);
+                const sellRate = parseFloat(resource.sell_price) || 0;
+                const costRate = parseFloat(resource.cost_price) || 0;
+                const value = calculateSellValue(days, sellRate);
+                const margin = calculateMargin(sellRate, costRate);
+                const marginConfig = getMarginConfig(margin);
+                const typeConfig = getResourceTypeConfig(resource.resource_type);
+                
+                return (
+                  <tr key={resource.id}>
+                    <td>
+                      <div className="resource-name">
+                        <strong>{resource.name}</strong>
+                        <span className="resource-email">{resource.email}</span>
+                      </div>
+                    </td>
+                    {canSeeResourceType && (
+                      <td>
+                        <span className={`type-badge ${typeConfig.className}`}>
+                          {typeConfig.label}
+                        </span>
+                      </td>
+                    )}
+                    <td>{resource.role || '-'}</td>
+                    <td>
+                      <span className={`sfia-badge ${getSfiaCssClass(resource.sfia_level)}`}>
+                        {sfiaToDisplay(resource.sfia_level)}
+                      </span>
+                    </td>
+                    <td>£{sellRate.toFixed(0)}</td>
+                    {canSeeCostPrice && <td>£{costRate.toFixed(0)}</td>}
+                    {canSeeMargins && (
+                      <td>
+                        <span className={`margin-badge ${marginConfig.className}`}>
+                          {margin.toFixed(0)}%
+                        </span>
+                      </td>
+                    )}
+                    <td>{days.toFixed(1)}</td>
+                    <td>£{value.toLocaleString()}</td>
+                    <td>
+                      {isAdmin && (
+                        <button 
+                          className="btn btn-sm btn-danger"
+                          onClick={() => handleDelete(resource)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteDialog.isOpen && (
+        <ConfirmDialog
+          title="Delete Resource"
+          message={`Are you sure you want to delete ${deleteDialog.resource?.name}?`}
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteDialog({ isOpen: false, resource: null })}
         />
       )}
     </div>

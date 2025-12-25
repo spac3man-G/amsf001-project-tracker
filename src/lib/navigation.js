@@ -131,14 +131,7 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
-  resources: {
-    id: 'resources',
-    path: '/resources',
-    icon: Users,
-    label: 'Resources',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: []
-  },
+  // resources is now a tab within Project Settings
   timesheets: {
     id: 'timesheets',
     path: '/timesheets',
@@ -276,7 +269,6 @@ export const ROLE_NAV_ORDER = {
     'kpis',
     'qualityStandards',
     'raid',
-    'resources',
     'calendar',
     'timesheets',
     'expenses',
@@ -296,7 +288,6 @@ export const ROLE_NAV_ORDER = {
     'kpis',
     'qualityStandards',
     'raid',
-    'resources',
     'calendar',
     'timesheets',
     'expenses',

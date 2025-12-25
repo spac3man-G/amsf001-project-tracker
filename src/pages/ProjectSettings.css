@@ -712,3 +712,204 @@
     gap: 1rem;
   }
 }
+
+
+/* ============================================================================
+   RESOURCES TAB
+   ============================================================================ */
+
+.resources-tab .resources-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.resources-tab .resources-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.resources-tab .resources-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.resources-tab .filter-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.resources-tab .add-resource-form {
+  margin-bottom: 1.5rem;
+}
+
+.resources-tab .add-resource-form h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+}
+
+.resources-tab .user-picker {
+  padding: 1rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.resources-tab .user-picker label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #166534;
+  font-size: 0.9rem;
+}
+
+.resources-tab .user-picker select {
+  width: 100%;
+}
+
+.resources-tab .partner-select {
+  padding: 1rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.resources-tab .partner-select label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
+.resources-tab .partner-select select {
+  width: 100%;
+}
+
+.resources-tab .warning-text {
+  color: #c2410c;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.resources-tab .form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Resources Table */
+.resources-tab .resources-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.resources-tab .resources-table th,
+.resources-tab .resources-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.resources-tab .resources-table th {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.resources-tab .resource-name {
+  display: flex;
+  flex-direction: column;
+}
+
+.resources-tab .resource-name strong {
+  color: #1e293b;
+}
+
+.resources-tab .resource-email {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.resources-tab .type-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.resources-tab .type-badge.internal {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.resources-tab .type-badge.third-party {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.resources-tab .sfia-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.resources-tab .sfia-badge.sfia-l1,
+.resources-tab .sfia-badge.sfia-l2 {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.resources-tab .sfia-badge.sfia-l3,
+.resources-tab .sfia-badge.sfia-l4 {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.resources-tab .sfia-badge.sfia-l5,
+.resources-tab .sfia-badge.sfia-l6 {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.resources-tab .sfia-badge.sfia-l7 {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.resources-tab .margin-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.resources-tab .margin-badge.margin-low {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.resources-tab .margin-badge.margin-medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.resources-tab .margin-badge.margin-good {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.resources-tab .margin-badge.margin-excellent {
+  background: #dbeafe;
+  color: #1e40af;
+}
