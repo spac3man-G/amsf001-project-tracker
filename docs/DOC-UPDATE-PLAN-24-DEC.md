@@ -6,39 +6,39 @@ Update documentation for Phase 1-3 multi-tenancy implementation and landing page
 ## Checklist
 
 ### Segment 1: CHANGELOG.md
-- [ ] Add 24 Dec 2025 entry
-- [ ] Document all new files and changes
-- [ ] Commit
+- [x] Add 24 Dec 2025 entry
+- [x] Document all new files and changes
+- [x] Commit
 
 ### Segment 2: MULTI-TENANCY-IMPLEMENTATION-GUIDE.md
-- [ ] Mark Phase 3 complete
-- [ ] Add landing page section
-- [ ] Update status summary
-- [ ] Commit
+- [x] Mark Phase 3 complete
+- [x] Add landing page section
+- [x] Update status summary
+- [x] Commit
 
 ### Segment 3: TECH-SPEC-06-API-AI.md
-- [ ] Add `/api/create-organisation.js` endpoint documentation
-- [ ] Update version and date
-- [ ] Commit
+- [x] Add `/api/create-organisation.js` endpoint documentation
+- [x] Update version and date
+- [x] Commit
 
 ### Segment 4: TECH-SPEC-07-Frontend-State.md
-- [ ] Add onboarding components section
-- [ ] Add landing page
-- [ ] Add subscription/upgrade components
-- [ ] Update version and date
-- [ ] Commit
+- [x] Add onboarding components section
+- [x] Add landing page
+- [x] Add subscription/upgrade components
+- [x] Update version and date
+- [x] Commit
 
 ### Segment 5: TECH-SPEC-08-Services.md
-- [ ] Add `subscription.service.js` documentation
-- [ ] Update `invitation.service.js` with limit checking
-- [ ] Update `organisation.service.js` with limit checking
-- [ ] Update version and date
-- [ ] Commit
+- [x] Add `subscription.service.js` documentation
+- [x] Update `invitation.service.js` with limit checking
+- [x] Update `organisation.service.js` with limit checking
+- [x] Update version and date
+- [x] Commit
 
 ### Segment 6: New User Flows Documentation
-- [ ] Create or update user guide for signup/onboarding
-- [ ] Document the new user journey
-- [ ] Commit
+- [x] Create USER-GUIDE-Signup-Onboarding.md
+- [x] Document the new user journey
+- [x] Commit
 
 ### Segment 7: Final Review
 - [ ] Verify all changes committed
@@ -51,11 +51,11 @@ Update documentation for Phase 1-3 multi-tenancy implementation and landing page
 
 | Segment | Status | Time | Notes |
 |---------|--------|------|-------|
-| 1. CHANGELOG | ⏳ Pending | - | - |
-| 2. Implementation Guide | ⏳ Pending | - | - |
-| 3. API Spec | ⏳ Pending | - | - |
-| 4. Frontend State | ⏳ Pending | - | - |
-| 5. Services | ⏳ Pending | - | - |
-| 6. User Flows | ⏳ Pending | - | - |
+| 1. CHANGELOG | ✅ Complete | - | Added v0.9.9 entry |
+| 2. Implementation Guide | ✅ Complete | - | Phase 1-3 marked complete |
+| 3. API Spec | ✅ Complete | - | Added create-organisation API |
+| 4. Frontend State | ✅ Complete | - | Added Section 13 (330+ lines) |
+| 5. Services | ✅ Complete | - | Added subscription & invitation services |
+| 6. User Flows | ✅ Complete | - | Created new user guide |
 | 7. Final Review | ⏳ Pending | - | - |
 
