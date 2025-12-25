@@ -630,47 +630,31 @@ function ProjectsTab({
 
   const fetchProjects = useCallback(async () => {
     if (!organisation?.id) {
-      console.warn('[OrganisationAdmin] No organisation id, skipping fetch');
       setLoading(false);
       return;
     }
     
-    // Debug alert - remove after debugging
-    const debugInfo = `Fetching projects for: ${organisation.name} (${organisation.id})`;
-    console.log('[OrganisationAdmin]', debugInfo);
-    
     setLoading(true);
     try {
-      // Simple query - only select columns we know exist
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('id, name, reference, description, organisation_id, start_date, created_at')
         .eq('organisation_id', organisation.id)
         .order('name');
 
-      // Debug log results
-      console.log('[OrganisationAdmin] Query complete:', { 
-        orgId: organisation.id,
-        orgName: organisation.name,
-        projectCount: projectsData?.length || 0, 
-        projects: projectsData?.map(p => ({ name: p.name, ref: p.reference, orgId: p.organisation_id })),
-        error: projectsError
-      });
-
       if (projectsError) {
-        console.error('[OrganisationAdmin] Projects query error:', projectsError);
+        console.error('Projects query error:', projectsError);
         throw projectsError;
       }
 
-      // For now, just set projects without member counts to avoid additional queries
       setProjects((projectsData || []).map(p => ({ ...p, memberCount: 0 })));
     } catch (error) {
-      console.error('[OrganisationAdmin] Error fetching organisation projects:', error);
+      console.error('Error fetching organisation projects:', error);
       showError('Failed to load organisation projects');
     } finally {
       setLoading(false);
     }
-  }, [organisation?.id, organisation?.name, showError]);
+  }, [organisation?.id, showError]);
 
   useEffect(() => {
     fetchProjects();
