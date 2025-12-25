@@ -28,6 +28,8 @@ import ViewAsBar, { ViewAsInline } from './ViewAsBar';
 import ProjectSwitcher from './ProjectSwitcher';
 import OrganisationSwitcher from './OrganisationSwitcher';
 import { useToast } from '../contexts/ToastContext';
+import { useOrganisation } from '../contexts/OrganisationContext';
+import { useProject } from '../contexts/ProjectContext';
 
 // Import from centralized navigation config
 import { 
@@ -58,6 +60,13 @@ export default function Layout({ children }) {
   
   // Use usePermissions to get org-level admin flags
   const { isSystemAdmin, isOrgAdmin } = usePermissions();
+  
+  // Get organisation and project context for header display
+  const { currentOrganisation } = useOrganisation();
+  const { projectName } = useProject();
+  
+  // Get organisation brand color (default to green if not set)
+  const brandColor = currentOrganisation?.primary_color || '#10b981';
   
   // Local state for UI
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -250,20 +259,38 @@ export default function Layout({ children }) {
         height: '100vh',
         zIndex: 50
       }}>
-        {/* Logo/Header */}
+        {/* Logo/Header - Organisation : Project */}
         <div style={{ 
           padding: '1rem', 
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: `2px solid ${brandColor}`,
+          background: `linear-gradient(135deg, ${brandColor}10 0%, ${brandColor}05 100%)`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between'
         }}>
           {sidebarOpen && (
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
-                AMSF001
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '0.85rem', 
+                fontWeight: '600', 
+                color: brandColor,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {currentOrganisation?.display_name || currentOrganisation?.name || 'Organisation'}
               </h2>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Project Tracker</span>
+              <span style={{ 
+                fontSize: '0.75rem', 
+                color: '#64748b',
+                display: 'block',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {projectName || 'Select Project'}
+              </span>
             </div>
           )}
           <button
@@ -276,7 +303,8 @@ export default function Layout({ children }) {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexShrink: 0
             }}
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -441,7 +469,8 @@ export default function Layout({ children }) {
         <header style={{
           padding: '0.75rem 1.5rem',
           backgroundColor: 'white',
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: `2px solid ${brandColor}`,
+          background: `linear-gradient(135deg, ${brandColor}08 0%, white 50%)`,
           display: 'flex',
           justifyContent: 'flex-end',
           alignItems: 'center',
