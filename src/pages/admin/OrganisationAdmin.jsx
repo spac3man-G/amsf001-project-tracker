@@ -634,7 +634,11 @@ function ProjectsTab({
       setLoading(false);
       return;
     }
-    console.log('[OrganisationAdmin] Fetching projects for org:', organisation.id, organisation.name);
+    
+    // Debug alert - remove after debugging
+    const debugInfo = `Fetching projects for: ${organisation.name} (${organisation.id})`;
+    console.log('[OrganisationAdmin]', debugInfo);
+    
     setLoading(true);
     try {
       // Simple query - just get projects for this org
@@ -645,11 +649,13 @@ function ProjectsTab({
         .is('deleted_at', null)
         .order('name');
 
-      console.log('[OrganisationAdmin] Projects result:', { 
-        count: projectsData?.length, 
-        data: projectsData, 
-        error: projectsError,
-        orgId: organisation.id
+      // Debug log results
+      console.log('[OrganisationAdmin] Query complete:', { 
+        orgId: organisation.id,
+        orgName: organisation.name,
+        projectCount: projectsData?.length || 0, 
+        projects: projectsData?.map(p => ({ name: p.name, ref: p.reference, orgId: p.organisation_id })),
+        error: projectsError
       });
 
       if (projectsError) {
