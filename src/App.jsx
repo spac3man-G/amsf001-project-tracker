@@ -36,12 +36,13 @@ import ForcePasswordChange from './components/ForcePasswordChange';
 
 // Critical pages - loaded immediately
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
 
 // Lazy-loaded pages - split into separate chunks
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AcceptInvitation = lazy(() => import('./pages/AcceptInvitation'));
 const MobileChat = lazy(() => import('./pages/MobileChat'));
+// Dashboard Hub includes: Dashboard, Reports
+const DashboardHub = lazy(() => import('./pages/DashboardHub'));
 // Milestones Hub includes: Milestones, Gantt, Variations
 const MilestonesHub = lazy(() => import('./pages/MilestonesHub'));
 const MilestoneDetail = lazy(() => import('./pages/MilestoneDetail'));
@@ -56,7 +57,7 @@ const Expenses = lazy(() => import('./pages/Expenses'));
 const KPIDetail = lazy(() => import('./pages/KPIDetail'));
 const QualityStandardDetail = lazy(() => import('./pages/QualityStandardDetail'));
 const RaidLog = lazy(() => import('./pages/RaidLog'));
-const Reports = lazy(() => import('./pages/Reports'));
+// Reports is now a tab in Dashboard Hub
 // Finance Hub includes: Summary, Billing
 const FinanceHub = lazy(() => import('./pages/FinanceHub'));
 const TeamMembers = lazy(() => import('./pages/TeamMembers'));
@@ -288,9 +289,14 @@ export default function App() {
                               <PublicHomeRoute><LandingPage /></PublicHomeRoute>
                             } />
                             
-                            {/* Dashboard - not lazy loaded for fast initial render */}
+                            {/* Dashboard Hub - includes Dashboard, Reports */}
                             <Route path="/dashboard" element={
-                              <ProtectedRoute><Dashboard /></ProtectedRoute>
+                              <ProtectedRoute><DashboardHub /></ProtectedRoute>
+                            } />
+                            
+                            {/* Reports - redirect to Dashboard tab */}
+                            <Route path="/reports" element={
+                              <Navigate to="/dashboard?tab=reports" replace />
                             } />
                             
                             {/* Milestones Hub - includes Milestones, Gantt, Variations */}
@@ -375,11 +381,6 @@ export default function App() {
                             } />
                             <Route path="/variations/:id/edit" element={
                               <ProtectedRoute><VariationForm /></ProtectedRoute>
-                            } />
-                            
-                            {/* Reports */}
-                            <Route path="/reports" element={
-                              <ProtectedRoute><Reports /></ProtectedRoute>
                             } />
                             
                             {/* Finance Hub - includes Summary, Billing */}

@@ -75,14 +75,7 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
-  reports: {
-    id: 'reports',
-    path: '/reports',
-    icon: FileText,
-    label: 'Reports',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
-    readOnlyRoles: []
-  },
+  // reports is now a tab within Dashboard
   // gantt is now a tab within Milestones
   milestones: {
     id: 'milestones',
@@ -228,7 +221,6 @@ export const ROLE_NAV_ORDER = {
   [ROLES.ADMIN]: [
     'workflowSummary',
     'dashboard',
-    'reports',
     'milestones',
     'deliverables',
     'raid',
@@ -242,7 +234,6 @@ export const ROLE_NAV_ORDER = {
   [ROLES.SUPPLIER_PM]: [
     'workflowSummary',
     'dashboard',
-    'reports',
     'milestones',
     'deliverables',
     'raid',
@@ -265,7 +256,6 @@ export const ROLE_NAV_ORDER = {
   [ROLES.CUSTOMER_PM]: [
     'workflowSummary',
     'dashboard',
-    'reports',
     'milestones',
     'deliverables',
     'raid',
