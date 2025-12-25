@@ -1,28 +1,26 @@
 /**
  * Finance Summary Content - Tab content for FinanceHub
  * 
- * Expanded version of dashboard finance widget showing:
+ * Replicates the dashboard finance widget showing:
  * - Total billable from milestones
  * - Timesheet values (pending/validated) with gap calculation
  * - Expenses breakdown by status and chargeability
  * - PMO overhead percentage
  * 
- * @version 1.0
- * @created 25 December 2025
+ * @version 2.0 - Replicated dashboard widget layout
+ * @updated 25 December 2025
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   PoundSterling, TrendingUp, TrendingDown, Clock, CheckCircle,
-  RefreshCw, FileText, Receipt, Users, AlertCircle, ArrowRight
+  RefreshCw
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { milestonesService, timesheetsService, expensesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { calculateBillableValue, isPMORole } from '../../config/metricsConfig';
 import { supabase } from '../../lib/supabase';
 import { LoadingSpinner } from '../../components/common';
-import { formatCurrency } from '../../lib/formatters';
 import './FinanceSummaryContent.css';
 
 export default function FinanceSummaryContent() {
@@ -31,117 +29,126 @@ export default function FinanceSummaryContent() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
-    // Billable
     totalBillable: 0,
-    // Timesheets
     timesheetsPending: 0,
     timesheetsValidated: 0,
     timesheetsTotal: 0,
     gap: 0,
-    // Expenses - 2x2 matrix
     expensesPendingChargeable: 0,
     expensesPendingNonChargeable: 0,
     expensesValidatedChargeable: 0,
     expensesValidatedNonChargeable: 0,
-    // Expense totals
     expensesTotalPending: 0,
     expensesTotalValidated: 0,
     expensesTotalChargeable: 0,
     expensesTotalNonChargeable: 0,
-    // PMO
     pmoTimesheets: 0,
-    pmoPercentage: 0,
-    // Counts
-    timesheetCount: 0,
-    expenseCount: 0
+    pmoPercentage: 0
   });
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
     
     try {
-      // Fetch milestones for total billable
-      const milestones = await milestonesService.getAll(projectId);
-      const totalBillable = milestones?.reduce((sum, m) => sum + (parseFloat(m.value) || 0), 0) || 0;
-      
-      // Fetch timesheets with resource info
-      const { data: timesheets, error: tsError } = await supabase
-        .from('timesheets')
-        .select('id, hours_worked, hours, status, resource_id, resources!inner(sell_price, role)')
-        .eq('project_id', projectId)
-        .or('is_deleted.is.null,is_deleted.eq.false');
-      
-      if (tsError) throw tsError;
-      
-      // Calculate timesheet values
-      let pending = 0, validated = 0, pmo = 0;
-      const validatedStatuses = ['approved', 'invoiced', 'paid'];
-      const pendingStatuses = ['submitted'];
-      
-      (timesheets || []).forEach(ts => {
+      // 1. Get total billable from milestones
+      const milestones = await milestonesService.getAll(projectId, {
+        select: 'id, billable'
+      });
+      const totalBillable = (milestones || [])
+        .reduce((sum, m) => sum + (parseFloat(m.billable) || 0), 0);
+
+      // 2. Get timesheets with resource data (including role for PMO check)
+      const timesheets = await timesheetsService.getAll(projectId, {
+        select: `
+          id, hours_worked, hours, status, is_deleted,
+          resources(id, sell_price, role)
+        `
+      });
+
+      // Filter out deleted timesheets
+      const activeTimesheets = (timesheets || []).filter(ts => ts.is_deleted !== true);
+
+      let timesheetsPending = 0;
+      let timesheetsValidated = 0;
+      let pmoTimesheets = 0;
+
+      activeTimesheets.forEach(ts => {
         const hours = parseFloat(ts.hours_worked || ts.hours || 0);
-        const sellPrice = parseFloat(ts.resources?.sell_price || 0);
-        const value = calculateBillableValue(hours, sellPrice);
-        const role = ts.resources?.role;
-        
-        if (validatedStatuses.includes(ts.status)) {
-          validated += value;
-          if (isPMORole(role)) pmo += value;
-        } else if (pendingStatuses.includes(ts.status)) {
-          pending += value;
+        const sellPrice = ts.resources?.sell_price || 0;
+        const billableValue = calculateBillableValue(hours, sellPrice);
+        const isPMO = isPMORole(ts.resources?.role);
+
+        switch (ts.status) {
+          case 'Submitted':
+            timesheetsPending += billableValue;
+            if (isPMO) pmoTimesheets += billableValue;
+            break;
+          case 'Validated':
+          case 'Approved':
+            timesheetsValidated += billableValue;
+            if (isPMO) pmoTimesheets += billableValue;
+            break;
         }
       });
-      
-      // Fetch expenses
-      const { data: expenses, error: expError } = await supabase
-        .from('expenses')
-        .select('id, amount, status, chargeable_to_customer')
-        .eq('project_id', projectId)
-        .or('is_deleted.is.null,is_deleted.eq.false');
-      
-      if (expError) throw expError;
-      
-      // Calculate expense breakdown
-      let pendingChargeable = 0, pendingNonChargeable = 0;
-      let validatedChargeable = 0, validatedNonChargeable = 0;
-      
-      (expenses || []).forEach(exp => {
-        const amount = parseFloat(exp.amount || 0);
-        const isChargeable = exp.chargeable_to_customer;
-        const isValidated = validatedStatuses.includes(exp.status);
-        const isPending = pendingStatuses.includes(exp.status);
-        
-        if (isValidated) {
-          if (isChargeable) validatedChargeable += amount;
-          else validatedNonChargeable += amount;
-        } else if (isPending) {
-          if (isChargeable) pendingChargeable += amount;
-          else pendingNonChargeable += amount;
-        }
-      });
-      
-      const timesheetsTotal = pending + validated;
+
+      const timesheetsTotal = timesheetsPending + timesheetsValidated;
       const gap = totalBillable - timesheetsTotal;
-      const pmoPercentage = timesheetsTotal > 0 ? (pmo / timesheetsTotal) * 100 : 0;
-      
+      const pmoPercentage = timesheetsTotal > 0 
+        ? (pmoTimesheets / timesheetsTotal) * 100 
+        : 0;
+
+      // 3. Get expenses with chargeability
+      const expenses = await expensesService.getAll(projectId, {
+        select: 'id, amount, status, chargeable_to_customer, is_deleted'
+      });
+
+      // Filter out deleted expenses
+      const activeExpenses = (expenses || []).filter(exp => exp.is_deleted !== true);
+
+      let expensesPendingChargeable = 0;
+      let expensesPendingNonChargeable = 0;
+      let expensesValidatedChargeable = 0;
+      let expensesValidatedNonChargeable = 0;
+
+      activeExpenses.forEach(exp => {
+        const amount = parseFloat(exp.amount || 0);
+        const isChargeable = exp.chargeable_to_customer !== false;
+
+        switch (exp.status) {
+          case 'Submitted':
+            if (isChargeable) {
+              expensesPendingChargeable += amount;
+            } else {
+              expensesPendingNonChargeable += amount;
+            }
+            break;
+          case 'Validated':
+          case 'Approved':
+            if (isChargeable) {
+              expensesValidatedChargeable += amount;
+            } else {
+              expensesValidatedNonChargeable += amount;
+            }
+            break;
+        }
+      });
+
       setStats({
         totalBillable,
-        timesheetsPending: pending,
-        timesheetsValidated: validated,
+        timesheetsPending,
+        timesheetsValidated,
         timesheetsTotal,
         gap,
-        expensesPendingChargeable: pendingChargeable,
-        expensesPendingNonChargeable: pendingNonChargeable,
-        expensesValidatedChargeable: validatedChargeable,
-        expensesValidatedNonChargeable: validatedNonChargeable,
-        expensesTotalPending: pendingChargeable + pendingNonChargeable,
-        expensesTotalValidated: validatedChargeable + validatedNonChargeable,
-        expensesTotalChargeable: pendingChargeable + validatedChargeable,
-        expensesTotalNonChargeable: pendingNonChargeable + validatedNonChargeable,
-        pmoTimesheets: pmo,
-        pmoPercentage,
-        timesheetCount: timesheets?.length || 0,
-        expenseCount: expenses?.length || 0
+        expensesPendingChargeable,
+        expensesPendingNonChargeable,
+        expensesValidatedChargeable,
+        expensesValidatedNonChargeable,
+        expensesTotalPending: expensesPendingChargeable + expensesPendingNonChargeable,
+        expensesTotalValidated: expensesValidatedChargeable + expensesValidatedNonChargeable,
+        expensesTotalChargeable: expensesPendingChargeable + expensesValidatedChargeable,
+        expensesTotalNonChargeable: expensesPendingNonChargeable + expensesValidatedNonChargeable,
+        pmoTimesheets,
+        pmoPercentage
       });
     } catch (error) {
       console.error('Error fetching finance data:', error);
@@ -160,19 +167,30 @@ export default function FinanceSummaryContent() {
     fetchData();
   };
 
+  const formatCurrency = (value) => {
+    const absValue = Math.abs(Math.round(value));
+    const formatted = `£${absValue.toLocaleString()}`;
+    return value < 0 ? `-${formatted}` : formatted;
+  };
+
   if (loading) {
     return <LoadingSpinner message="Loading finance summary..." />;
   }
 
-  const gapIsPositive = stats.gap >= 0;
+  const isNegativeGap = stats.gap < 0;
 
   return (
-    <div className="finance-summary">
+    <div className="finance-summary-widget">
       {/* Header with refresh */}
-      <div className="summary-header">
-        <h2>Financial Overview</h2>
+      <div className="fsw-header">
+        <div className="fsw-header-left">
+          <div className="fsw-icon">
+            <PoundSterling size={24} />
+          </div>
+          <span className="fsw-title">Finance</span>
+        </div>
         <button 
-          className="btn-secondary"
+          className="fsw-refresh-btn"
           onClick={handleRefresh}
           disabled={refreshing}
         >
@@ -181,162 +199,95 @@ export default function FinanceSummaryContent() {
         </button>
       </div>
 
-      {/* Top Stats Cards */}
-      <div className="stats-grid">
+      <div className="fsw-content">
         {/* Total Billable */}
-        <div className="stat-card billable">
-          <div className="stat-icon">
-            <PoundSterling size={24} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">Total Billable</span>
-            <span className="stat-value">{formatCurrency(stats.totalBillable)}</span>
-            <span className="stat-subtitle">From milestones</span>
+        <div className="fsw-section fsw-billable">
+          <div className="fsw-row fsw-row-large">
+            <span className="fsw-label">Total Billable</span>
+            <span className="fsw-value">{formatCurrency(stats.totalBillable)}</span>
           </div>
         </div>
 
-        {/* Timesheets Total */}
-        <div className="stat-card timesheets">
-          <div className="stat-icon">
-            <Clock size={24} />
+        {/* Timesheets */}
+        <div className="fsw-section">
+          <div className="fsw-section-header">Timesheets</div>
+          <div className="fsw-row">
+            <Clock size={14} className="fsw-icon-sm pending" />
+            <span className="fsw-label">Pending Validation</span>
+            <span className="fsw-value">{formatCurrency(stats.timesheetsPending)}</span>
           </div>
-          <div className="stat-content">
-            <span className="stat-label">Timesheet Value</span>
-            <span className="stat-value">{formatCurrency(stats.timesheetsTotal)}</span>
-            <span className="stat-subtitle">{stats.timesheetCount} entries</span>
+          <div className="fsw-row">
+            <CheckCircle size={14} className="fsw-icon-sm approved" />
+            <span className="fsw-label">Validated</span>
+            <span className="fsw-value">{formatCurrency(stats.timesheetsValidated)}</span>
+          </div>
+          <div className="fsw-row fsw-row-total">
+            <span className="fsw-label">Total</span>
+            <span className="fsw-value">{formatCurrency(stats.timesheetsTotal)}</span>
+          </div>
+          <div className={`fsw-row fsw-row-gap ${isNegativeGap ? 'negative' : 'positive'}`}>
+            {isNegativeGap ? (
+              <TrendingDown size={14} className="fsw-icon-sm" />
+            ) : (
+              <TrendingUp size={14} className="fsw-icon-sm" />
+            )}
+            <span className="fsw-label">Gap vs Billable</span>
+            <span className="fsw-value">{formatCurrency(stats.gap)}</span>
           </div>
         </div>
 
-        {/* Gap */}
-        <div className={`stat-card gap ${gapIsPositive ? 'positive' : 'negative'}`}>
-          <div className="stat-icon">
-            {gapIsPositive ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">Gap (Billable - Timesheets)</span>
-            <span className="stat-value">
-              {gapIsPositive ? '+' : ''}{formatCurrency(stats.gap)}
-            </span>
-            <span className="stat-subtitle">
-              {gapIsPositive ? 'Under budget' : 'Over budget'}
-            </span>
+        {/* Expenses */}
+        <div className="fsw-section">
+          <div className="fsw-section-header">Expenses</div>
+          <div className="fsw-expenses-grid">
+            <div className="fsw-expenses-header"></div>
+            <div className="fsw-expenses-header">Chargeable</div>
+            <div className="fsw-expenses-header">Non-Chg</div>
+            <div className="fsw-expenses-header">Total</div>
+            
+            <div className="fsw-expenses-label">
+              <Clock size={12} className="fsw-icon-sm pending" />
+              Pending
+            </div>
+            <div className="fsw-expenses-value">{formatCurrency(stats.expensesPendingChargeable)}</div>
+            <div className="fsw-expenses-value">{formatCurrency(stats.expensesPendingNonChargeable)}</div>
+            <div className="fsw-expenses-value fsw-expenses-total">{formatCurrency(stats.expensesTotalPending)}</div>
+            
+            <div className="fsw-expenses-label">
+              <CheckCircle size={12} className="fsw-icon-sm approved" />
+              Validated
+            </div>
+            <div className="fsw-expenses-value">{formatCurrency(stats.expensesValidatedChargeable)}</div>
+            <div className="fsw-expenses-value">{formatCurrency(stats.expensesValidatedNonChargeable)}</div>
+            <div className="fsw-expenses-value fsw-expenses-total">{formatCurrency(stats.expensesTotalValidated)}</div>
+            
+            <div className="fsw-expenses-label fsw-expenses-total-label">Total</div>
+            <div className="fsw-expenses-value fsw-expenses-total">{formatCurrency(stats.expensesTotalChargeable)}</div>
+            <div className="fsw-expenses-value fsw-expenses-total">{formatCurrency(stats.expensesTotalNonChargeable)}</div>
+            <div className="fsw-expenses-value fsw-expenses-grand-total">
+              {formatCurrency(stats.expensesTotalChargeable + stats.expensesTotalNonChargeable)}
+            </div>
           </div>
         </div>
 
         {/* PMO Overhead */}
-        <div className="stat-card pmo">
-          <div className="stat-icon">
-            <Users size={24} />
+        <div className="fsw-section">
+          <div className="fsw-section-header">PMO Overhead</div>
+          <div className="fsw-row">
+            <span className="fsw-label">PMO Timesheets</span>
+            <span className="fsw-value">{formatCurrency(stats.pmoTimesheets)}</span>
           </div>
-          <div className="stat-content">
-            <span className="stat-label">PMO Overhead</span>
-            <span className="stat-value">{stats.pmoPercentage.toFixed(1)}%</span>
-            <span className="stat-subtitle">{formatCurrency(stats.pmoTimesheets)}</span>
+          <div className="fsw-row">
+            <span className="fsw-label">% of Total Timesheets</span>
+            <span className="fsw-value">{stats.pmoPercentage.toFixed(1)}%</span>
           </div>
-        </div>
-      </div>
-
-      {/* Detail Sections */}
-      <div className="detail-sections">
-        {/* Timesheets Section */}
-        <div className="detail-card">
-          <div className="detail-header">
-            <div className="detail-title">
-              <Clock size={20} />
-              <h3>Timesheets</h3>
-            </div>
-            <Link to="/timesheets" className="detail-link">
-              View All <ArrowRight size={16} />
-            </Link>
-          </div>
-          <div className="detail-grid">
-            <div className="detail-item pending">
-              <span className="detail-label">
-                <AlertCircle size={14} /> Pending Approval
-              </span>
-              <span className="detail-value">{formatCurrency(stats.timesheetsPending)}</span>
-            </div>
-            <div className="detail-item validated">
-              <span className="detail-label">
-                <CheckCircle size={14} /> Validated
-              </span>
-              <span className="detail-value">{formatCurrency(stats.timesheetsValidated)}</span>
-            </div>
-          </div>
-          <div className="detail-total">
-            <span>Total</span>
-            <span>{formatCurrency(stats.timesheetsTotal)}</span>
+          <div className="fsw-pmo-bar">
+            <div 
+              className="fsw-pmo-bar-fill" 
+              style={{ width: `${Math.min(stats.pmoPercentage, 100)}%` }}
+            />
           </div>
         </div>
-
-        {/* Expenses Section */}
-        <div className="detail-card">
-          <div className="detail-header">
-            <div className="detail-title">
-              <Receipt size={20} />
-              <h3>Expenses</h3>
-            </div>
-            <Link to="/expenses" className="detail-link">
-              View All <ArrowRight size={16} />
-            </Link>
-          </div>
-          <div className="expenses-matrix">
-            <div className="matrix-header">
-              <span></span>
-              <span>Chargeable</span>
-              <span>Non-Chargeable</span>
-              <span>Total</span>
-            </div>
-            <div className="matrix-row">
-              <span className="row-label">Pending</span>
-              <span>{formatCurrency(stats.expensesPendingChargeable)}</span>
-              <span>{formatCurrency(stats.expensesPendingNonChargeable)}</span>
-              <span className="row-total">{formatCurrency(stats.expensesTotalPending)}</span>
-            </div>
-            <div className="matrix-row">
-              <span className="row-label">Validated</span>
-              <span>{formatCurrency(stats.expensesValidatedChargeable)}</span>
-              <span>{formatCurrency(stats.expensesValidatedNonChargeable)}</span>
-              <span className="row-total">{formatCurrency(stats.expensesTotalValidated)}</span>
-            </div>
-            <div className="matrix-row totals">
-              <span className="row-label">Total</span>
-              <span>{formatCurrency(stats.expensesTotalChargeable)}</span>
-              <span>{formatCurrency(stats.expensesTotalNonChargeable)}</span>
-              <span className="row-total">
-                {formatCurrency(stats.expensesTotalChargeable + stats.expensesTotalNonChargeable)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="quick-actions">
-        <Link to="/finance?tab=billing" className="action-card">
-          <FileText size={24} />
-          <div>
-            <h4>Billing & Invoices</h4>
-            <p>Track billable milestones and invoicing</p>
-          </div>
-          <ArrowRight size={20} />
-        </Link>
-        <Link to="/timesheets" className="action-card">
-          <Clock size={24} />
-          <div>
-            <h4>Manage Timesheets</h4>
-            <p>Review and approve time entries</p>
-          </div>
-          <ArrowRight size={20} />
-        </Link>
-        <Link to="/expenses" className="action-card">
-          <Receipt size={24} />
-          <div>
-            <h4>Manage Expenses</h4>
-            <p>Review and approve expense claims</p>
-          </div>
-          <ArrowRight size={20} />
-        </Link>
       </div>
     </div>
   );
