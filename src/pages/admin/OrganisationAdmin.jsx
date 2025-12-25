@@ -646,7 +646,6 @@ function ProjectsTab({
         .from('projects')
         .select('id, name, reference, description, status, created_at, organisation_id')
         .eq('organisation_id', organisation.id)
-        .is('deleted_at', null)
         .order('name');
 
       // Debug log results
