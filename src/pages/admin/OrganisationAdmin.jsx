@@ -630,11 +630,11 @@ function ProjectsTab({
 
   const fetchProjects = useCallback(async () => {
     if (!organisation?.id) {
-      console.log('No organisation id, skipping fetch');
+      console.warn('[OrganisationAdmin] No organisation id, skipping fetch');
       setLoading(false);
       return;
     }
-    console.log('Fetching projects for organisation:', organisation.id, organisation.name);
+    console.log('[OrganisationAdmin] Fetching projects for org:', organisation.id, organisation.name);
     setLoading(true);
     try {
       // Simple query - just get projects for this org
@@ -645,22 +645,27 @@ function ProjectsTab({
         .is('deleted_at', null)
         .order('name');
 
-      console.log('Projects query result:', { data: projectsData, error: projectsError });
+      console.log('[OrganisationAdmin] Projects result:', { 
+        count: projectsData?.length, 
+        data: projectsData, 
+        error: projectsError,
+        orgId: organisation.id
+      });
 
       if (projectsError) {
-        console.error('Projects query error:', projectsError);
+        console.error('[OrganisationAdmin] Projects query error:', projectsError);
         throw projectsError;
       }
 
       // For now, just set projects without member counts to avoid additional queries
       setProjects((projectsData || []).map(p => ({ ...p, memberCount: 0 })));
     } catch (error) {
-      console.error('Error fetching organisation projects:', error);
+      console.error('[OrganisationAdmin] Error fetching organisation projects:', error);
       showError('Failed to load organisation projects');
     } finally {
       setLoading(false);
     }
-  }, [organisation?.id, showError]);
+  }, [organisation?.id, organisation?.name, showError]);
 
   useEffect(() => {
     fetchProjects();
