@@ -320,9 +320,9 @@ export default function App() {
                               <ProtectedRoute><ResourceDetail /></ProtectedRoute>
                             } />
                             
-                            {/* Partners */}
+                            {/* Partners - redirect to Organisation Admin tab */}
                             <Route path="/partners" element={
-                              <ProtectedRoute><Partners /></ProtectedRoute>
+                              <Navigate to="/admin/organisation?tab=partners" replace />
                             } />
                             <Route path="/partners/:id" element={
                               <ProtectedRoute><PartnerDetail /></ProtectedRoute>

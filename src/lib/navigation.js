@@ -156,14 +156,7 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
-  partners: {
-    id: 'partners',
-    path: '/partners',
-    icon: Building2,
-    label: 'Partners',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: []
-  },
+  // partners is now a tab within Organisation Admin
   teamMembers: {
     id: 'teamMembers',
     path: '/team-members',
@@ -273,7 +266,6 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'billing',
-    'partners',
     'settings',
     'orgSettings'
   ],
@@ -292,7 +284,6 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'billing',
-    'partners',
     'settings',
     'orgSettings'
   ],

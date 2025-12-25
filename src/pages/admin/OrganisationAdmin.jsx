@@ -19,7 +19,8 @@ import {
   Building2, Users, FolderKanban, Save, RefreshCw, 
   Plus, Shield, User, Trash2, ChevronDown, Mail, 
   Check, X, Clock, Copy, UserPlus, UserMinus, 
-  ChevronRight, Settings, AlertCircle
+  ChevronRight, Settings, AlertCircle, Briefcase,
+  ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -29,7 +30,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import { PendingInvitationCard } from '../../components/organisation';
 import { hasOrgPermission, ORG_ROLES, ORG_ROLE_CONFIG, ROLE_CONFIG, ROLE_OPTIONS } from '../../lib/permissionMatrix';
-import { organisationService, invitationService, emailService } from '../../services';
+import { organisationService, invitationService, emailService, partnersService } from '../../services';
 import { getOrgMembers } from '../../lib/queries';
 import './OrganisationAdmin.css';
 
@@ -38,6 +39,7 @@ const TABS = [
   { id: 'organisation', label: 'Organisation', icon: Building2 },
   { id: 'members', label: 'Members', icon: Users },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
+  { id: 'partners', label: 'Partners', icon: Briefcase },
 ];
 
 export default function OrganisationAdmin() {
@@ -153,6 +155,13 @@ export default function OrganisationAdmin() {
             showWarning={showWarning}
             refreshProjectAssignments={refreshProjectAssignments}
             navigate={navigate}
+          />
+        )}
+        {activeTab === 'partners' && (
+          <PartnersTab 
+            organisation={currentOrganisation}
+            showSuccess={showSuccess}
+            showError={showError}
           />
         )}
       </div>
@@ -834,6 +843,286 @@ function ProjectsTab({
             </form>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+
+// ============================================
+// PARTNERS TAB
+// ============================================
+function PartnersTab({ organisation, showSuccess, showError }) {
+  const [partners, setPartners] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, partner: null });
+  
+  const [newPartner, setNewPartner] = useState({
+    name: '',
+    contact_name: '',
+    contact_email: '',
+    payment_terms: 'Net 30',
+    notes: ''
+  });
+
+  const fetchPartners = useCallback(async () => {
+    if (!organisation?.id) return;
+    
+    setLoading(true);
+    try {
+      const data = await partnersService.getSummary(organisation.id);
+      setPartners(data || []);
+    } catch (error) {
+      console.error('Error fetching partners:', error);
+      showError?.('Failed to load partners');
+    } finally {
+      setLoading(false);
+    }
+  }, [organisation?.id, showError]);
+
+  useEffect(() => {
+    fetchPartners();
+  }, [fetchPartners]);
+
+  const handleAdd = async () => {
+    if (!newPartner.name?.trim()) {
+      showError?.('Partner name is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await partnersService.create({
+        organisation_id: organisation.id,
+        name: newPartner.name.trim(),
+        contact_name: newPartner.contact_name || null,
+        contact_email: newPartner.contact_email || null,
+        payment_terms: newPartner.payment_terms || 'Net 30',
+        notes: newPartner.notes || null
+      });
+
+      showSuccess?.('Partner added successfully');
+      setShowAddForm(false);
+      setNewPartner({ name: '', contact_name: '', contact_email: '', payment_terms: 'Net 30', notes: '' });
+      fetchPartners();
+    } catch (error) {
+      console.error('Error adding partner:', error);
+      showError?.(error.message || 'Failed to add partner');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleActive = async (partner) => {
+    try {
+      await partnersService.toggleActive(partner.id);
+      showSuccess?.(`Partner ${partner.is_active ? 'deactivated' : 'activated'}`);
+      fetchPartners();
+    } catch (error) {
+      console.error('Error toggling partner:', error);
+      showError?.('Failed to update partner');
+    }
+  };
+
+  const handleDelete = async () => {
+    const partner = deleteDialog.partner;
+    if (!partner) return;
+
+    try {
+      await partnersService.delete(partner.id);
+      showSuccess?.('Partner deleted');
+      setDeleteDialog({ isOpen: false, partner: null });
+      fetchPartners();
+    } catch (error) {
+      console.error('Error deleting partner:', error);
+      showError?.('Failed to delete partner');
+    }
+  };
+
+  const confirmDelete = async (partner) => {
+    // Check for dependencies
+    try {
+      const deps = await partnersService.getDependencyCounts(partner.id);
+      if (!deps.canDelete) {
+        showError?.(`Cannot delete: Partner has ${deps.resourceCount} resources and ${deps.invoiceCount} invoices`);
+        return;
+      }
+      setDeleteDialog({ isOpen: true, partner });
+    } catch (error) {
+      setDeleteDialog({ isOpen: true, partner });
+    }
+  };
+
+  if (loading) {
+    return <LoadingSpinner message="Loading partners..." />;
+  }
+
+  return (
+    <div className="partners-tab">
+      {/* Header */}
+      <div className="tab-section-header">
+        <div className="section-title">
+          <Briefcase size={20} />
+          <span>Partners ({partners.length})</span>
+        </div>
+        <button 
+          className="btn-primary"
+          onClick={() => setShowAddForm(true)}
+        >
+          <Plus size={18} />
+          Add Partner
+        </button>
+      </div>
+
+      <p className="section-description">
+        Manage third-party partner companies. Partners can be assigned to resources across all projects in your organisation.
+      </p>
+
+      {/* Add Form */}
+      {showAddForm && (
+        <div className="add-form-card">
+          <h3>Add New Partner</h3>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Company Name *</label>
+              <input
+                type="text"
+                className="form-input"
+                value={newPartner.name}
+                onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })}
+                placeholder="e.g., Acme Consulting Ltd"
+              />
+            </div>
+            <div className="form-group">
+              <label>Contact Name</label>
+              <input
+                type="text"
+                className="form-input"
+                value={newPartner.contact_name}
+                onChange={(e) => setNewPartner({ ...newPartner, contact_name: e.target.value })}
+                placeholder="Primary contact"
+              />
+            </div>
+            <div className="form-group">
+              <label>Contact Email</label>
+              <input
+                type="email"
+                className="form-input"
+                value={newPartner.contact_email}
+                onChange={(e) => setNewPartner({ ...newPartner, contact_email: e.target.value })}
+                placeholder="contact@partner.com"
+              />
+            </div>
+            <div className="form-group">
+              <label>Payment Terms</label>
+              <select
+                className="form-input"
+                value={newPartner.payment_terms}
+                onChange={(e) => setNewPartner({ ...newPartner, payment_terms: e.target.value })}
+              >
+                <option value="Net 7">Net 7</option>
+                <option value="Net 14">Net 14</option>
+                <option value="Net 30">Net 30</option>
+                <option value="Net 45">Net 45</option>
+                <option value="Net 60">Net 60</option>
+              </select>
+            </div>
+            <div className="form-group full-width">
+              <label>Notes</label>
+              <textarea
+                className="form-input"
+                value={newPartner.notes}
+                onChange={(e) => setNewPartner({ ...newPartner, notes: e.target.value })}
+                placeholder="Additional notes about this partner"
+                rows={2}
+              />
+            </div>
+          </div>
+          <div className="form-actions">
+            <button 
+              className="btn-secondary"
+              onClick={() => {
+                setShowAddForm(false);
+                setNewPartner({ name: '', contact_name: '', contact_email: '', payment_terms: 'Net 30', notes: '' });
+              }}
+            >
+              Cancel
+            </button>
+            <button 
+              className="btn-primary"
+              onClick={handleAdd}
+              disabled={saving || !newPartner.name?.trim()}
+            >
+              {saving ? 'Adding...' : 'Add Partner'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Partners List */}
+      {partners.length === 0 ? (
+        <div className="empty-state">
+          <Briefcase size={48} />
+          <h3>No Partners</h3>
+          <p>Add third-party partners to assign them to project resources.</p>
+        </div>
+      ) : (
+        <div className="partners-list">
+          {partners.map((partner) => (
+            <div key={partner.id} className={`partner-card ${!partner.is_active ? 'inactive' : ''}`}>
+              <div className="partner-info">
+                <div className="partner-header">
+                  <h4>{partner.name}</h4>
+                  <span className={`status-badge ${partner.is_active ? 'active' : 'inactive'}`}>
+                    {partner.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="partner-details">
+                  {partner.contact_name && (
+                    <span><User size={14} /> {partner.contact_name}</span>
+                  )}
+                  {partner.contact_email && (
+                    <span><Mail size={14} /> {partner.contact_email}</span>
+                  )}
+                  <span><Clock size={14} /> {partner.payment_terms}</span>
+                  {partner.resource_count > 0 && (
+                    <span><Users size={14} /> {partner.resource_count} resource{partner.resource_count !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+              </div>
+              <div className="partner-actions">
+                <button
+                  className="btn-icon"
+                  onClick={() => handleToggleActive(partner)}
+                  title={partner.is_active ? 'Deactivate' : 'Activate'}
+                >
+                  {partner.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                </button>
+                <button
+                  className="btn-icon danger"
+                  onClick={() => confirmDelete(partner)}
+                  title="Delete"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteDialog.isOpen && (
+        <ConfirmDialog
+          title="Delete Partner"
+          message={`Are you sure you want to delete "${deleteDialog.partner?.name}"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteDialog({ isOpen: false, partner: null })}
+        />
       )}
     </div>
   );

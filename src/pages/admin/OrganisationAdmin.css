@@ -663,3 +663,229 @@
     padding: 12px 16px;
   }
 }
+
+
+/* ============================================
+   PARTNERS TAB
+   ============================================ */
+
+.partners-tab {
+  padding: 0;
+}
+
+.partners-tab .section-description {
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+
+.partners-tab .add-form-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.partners-tab .add-form-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+
+.partners-tab .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.partners-tab .form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.partners-tab .form-group label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.partners-tab .form-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.partners-tab .form-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.partners-tab textarea.form-input {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.partners-tab .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Partners List */
+.partners-tab .partners-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.partners-tab .partner-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  transition: all 0.2s;
+}
+
+.partners-tab .partner-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.partners-tab .partner-card.inactive {
+  opacity: 0.7;
+  background: #f8fafc;
+}
+
+.partners-tab .partner-info {
+  flex: 1;
+}
+
+.partners-tab .partner-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.partners-tab .partner-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.partners-tab .status-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.partners-tab .status-badge.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.partners-tab .status-badge.inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.partners-tab .partner-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.partners-tab .partner-details span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.partners-tab .partner-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.partners-tab .btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.partners-tab .btn-icon:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.partners-tab .btn-icon.danger:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Empty State */
+.partners-tab .empty-state {
+  text-align: center;
+  padding: 3rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  color: #64748b;
+}
+
+.partners-tab .empty-state svg {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.partners-tab .empty-state h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1e293b;
+}
+
+.partners-tab .empty-state p {
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .partners-tab .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .partners-tab .partner-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .partners-tab .partner-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .partners-tab .partner-details {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
