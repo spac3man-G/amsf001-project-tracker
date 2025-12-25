@@ -63,7 +63,7 @@ export default function Layout({ children }) {
   
   // Get organisation and project context for header display
   const { currentOrganisation } = useOrganisation();
-  const { projectName } = useProject();
+  const { projectRef } = useProject();
   
   // Get organisation brand color (default to green if not set)
   const brandColor = currentOrganisation?.primary_color || '#10b981';
@@ -290,15 +290,12 @@ export default function Layout({ children }) {
                 {currentOrganisation?.display_name || currentOrganisation?.name || 'Organisation'}
               </h2>
               <span style={{ 
-                fontSize: '0.7rem', 
+                fontSize: '0.75rem', 
                 color: '#64748b',
                 display: 'block',
-                lineHeight: '1.3',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                lineHeight: '1.3'
               }}>
-                {projectName || 'Select Project'}
+                {projectRef || 'Select Project'}
               </span>
             </div>
           )}
