@@ -1,8 +1,9 @@
 // src/components/OrganisationSwitcher.jsx
-// Version 1.0 - Organisation switcher for multi-tenancy support
+// Version 1.1 - Organisation switcher with dynamic brand colors
 //
 // Only displays when user has multiple organisation memberships.
 // Allows switching between organisations with different roles.
+// Uses organisation's primary_color for theming.
 //
 // Test IDs (see docs/TESTING-CONVENTIONS.md):
 //   - org-switcher-button
@@ -20,6 +21,27 @@ const ORG_ROLE_ICONS = {
   [ORG_ROLES.ORG_MEMBER]: User,
 };
 
+// Helper to create color variants from a hex color
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 16, g: 185, b: 129 }; // fallback to teal
+}
+
+function getBrandColorVariants(brandColor) {
+  const rgb = hexToRgb(brandColor);
+  return {
+    main: brandColor,
+    light: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`,
+    lighter: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05)`,
+    border: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`,
+    borderHover: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`,
+  };
+}
+
 export default function OrganisationSwitcher() {
   const {
     currentOrganisation,
@@ -32,6 +54,10 @@ export default function OrganisationSwitcher() {
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Get brand color from current organisation
+  const brandColor = currentOrganisation?.primary_color || '#10b981';
+  const colors = getBrandColorVariants(brandColor);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,28 +116,28 @@ export default function OrganisationSwitcher() {
           alignItems: 'center',
           gap: '0.5rem',
           padding: '0.5rem 0.75rem',
-          backgroundColor: '#f5f3ff',
-          border: '1px solid #c4b5fd',
+          backgroundColor: colors.light,
+          border: `1px solid ${colors.border}`,
           borderRadius: '8px',
           cursor: 'pointer',
           fontSize: '0.875rem',
           fontWeight: '600',
-          color: '#6d28d9',
+          color: brandColor,
           transition: 'all 0.15s ease',
           minWidth: '140px',
           justifyContent: 'space-between'
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#ede9fe';
-          e.currentTarget.style.borderColor = '#a78bfa';
+          e.currentTarget.style.backgroundColor = colors.lighter;
+          e.currentTarget.style.borderColor = colors.borderHover;
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#f5f3ff';
-          e.currentTarget.style.borderColor = '#c4b5fd';
+          e.currentTarget.style.backgroundColor = colors.light;
+          e.currentTarget.style.borderColor = colors.border;
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Building2 size={16} style={{ color: '#7c3aed' }} />
+          <Building2 size={16} style={{ color: brandColor }} />
           <span style={{ 
             maxWidth: '120px', 
             overflow: 'hidden', 
@@ -124,7 +150,7 @@ export default function OrganisationSwitcher() {
         <ChevronDown 
           size={16} 
           style={{ 
-            color: '#7c3aed',
+            color: brandColor,
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
             transition: 'transform 0.15s ease'
           }} 
@@ -186,7 +212,7 @@ export default function OrganisationSwitcher() {
                     justifyContent: 'space-between',
                     gap: '0.75rem',
                     padding: '0.75rem 1rem',
-                    backgroundColor: isSelected ? '#faf5ff' : 'white',
+                    backgroundColor: isSelected ? colors.lighter : 'white',
                     border: 'none',
                     borderBottom: '1px solid #f1f5f9',
                     cursor: 'pointer',
@@ -199,7 +225,7 @@ export default function OrganisationSwitcher() {
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isSelected ? '#faf5ff' : 'white';
+                    e.currentTarget.style.backgroundColor = isSelected ? colors.lighter : 'white';
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -233,7 +259,7 @@ export default function OrganisationSwitcher() {
                       <span style={{ 
                         fontWeight: '600', 
                         fontSize: '0.875rem',
-                        color: isSelected ? '#7c3aed' : '#1e293b'
+                        color: isSelected ? brandColor : '#1e293b'
                       }}>
                         {org?.display_name || org?.name}
                       </span>
@@ -283,7 +309,7 @@ export default function OrganisationSwitcher() {
                       {roleConfig.label}
                     </span>
                     {isSelected && (
-                      <Check size={16} style={{ color: '#7c3aed' }} />
+                      <Check size={16} style={{ color: brandColor }} />
                     )}
                   </div>
                 </button>

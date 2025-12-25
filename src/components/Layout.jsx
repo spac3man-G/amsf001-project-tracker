@@ -551,7 +551,7 @@ export default function Layout({ children }) {
               width: '36px',
               height: '36px',
               borderRadius: '50%',
-              backgroundColor: roleDisplay.color,
+              backgroundColor: brandColor,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

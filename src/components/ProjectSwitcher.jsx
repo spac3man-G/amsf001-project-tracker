@@ -1,5 +1,5 @@
 // src/components/ProjectSwitcher.jsx
-// Version 1.2 - Fixed z-index to appear above sticky page headers
+// Version 1.3 - Uses organisation brand color for theming
 //
 // Only displays when user has multiple project assignments.
 // Allows switching between projects with different roles.
@@ -12,7 +12,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FolderKanban, ChevronDown, Check } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
+import { useOrganisation } from '../contexts/OrganisationContext';
 import { ROLE_CONFIG } from '../lib/permissionMatrix';
+
+// Helper to create color variants from a hex color
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 16, g: 185, b: 129 }; // fallback to teal
+}
+
+function getBrandColorVariants(brandColor) {
+  const rgb = hexToRgb(brandColor);
+  return {
+    main: brandColor,
+    light: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`,
+    lighter: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05)`,
+    border: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`,
+    borderHover: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`,
+  };
+}
 
 export default function ProjectSwitcher() {
   const {
@@ -24,8 +46,14 @@ export default function ProjectSwitcher() {
     isLoading
   } = useProject();
 
+  const { currentOrganisation } = useOrganisation();
+
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Get brand color from current organisation
+  const brandColor = currentOrganisation?.primary_color || '#10b981';
+  const colors = getBrandColorVariants(brandColor);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -79,28 +107,28 @@ export default function ProjectSwitcher() {
           alignItems: 'center',
           gap: '0.5rem',
           padding: '0.5rem 0.75rem',
-          backgroundColor: '#ecfdf5',
-          border: '1px solid #a7f3d0',
+          backgroundColor: colors.light,
+          border: `1px solid ${colors.border}`,
           borderRadius: '8px',
           cursor: 'pointer',
           fontSize: '0.875rem',
           fontWeight: '600',
-          color: '#047857',
+          color: brandColor,
           transition: 'all 0.15s ease',
           minWidth: '140px',
           justifyContent: 'space-between'
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#d1fae5';
-          e.currentTarget.style.borderColor = '#6ee7b7';
+          e.currentTarget.style.backgroundColor = colors.lighter;
+          e.currentTarget.style.borderColor = colors.borderHover;
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#ecfdf5';
-          e.currentTarget.style.borderColor = '#a7f3d0';
+          e.currentTarget.style.backgroundColor = colors.light;
+          e.currentTarget.style.borderColor = colors.border;
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <FolderKanban size={16} style={{ color: '#10b981' }} />
+          <FolderKanban size={16} style={{ color: brandColor }} />
           <span style={{ 
             maxWidth: '100px', 
             overflow: 'hidden', 
@@ -113,7 +141,7 @@ export default function ProjectSwitcher() {
         <ChevronDown 
           size={16} 
           style={{ 
-            color: '#10b981',
+            color: brandColor,
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
             transition: 'transform 0.15s ease'
           }} 
@@ -174,7 +202,7 @@ export default function ProjectSwitcher() {
                     justifyContent: 'space-between',
                     gap: '0.75rem',
                     padding: '0.75rem 1rem',
-                    backgroundColor: isSelected ? '#f0fdf4' : 'white',
+                    backgroundColor: isSelected ? colors.lighter : 'white',
                     border: 'none',
                     borderBottom: '1px solid #f1f5f9',
                     cursor: 'pointer',
@@ -187,7 +215,7 @@ export default function ProjectSwitcher() {
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isSelected ? '#f0fdf4' : 'white';
+                    e.currentTarget.style.backgroundColor = isSelected ? colors.lighter : 'white';
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -200,7 +228,7 @@ export default function ProjectSwitcher() {
                       <span style={{ 
                         fontWeight: '600', 
                         fontSize: '0.875rem',
-                        color: isSelected ? '#10b981' : '#1e293b'
+                        color: isSelected ? brandColor : '#1e293b'
                       }}>
                         {project?.reference}
                       </span>
@@ -243,7 +271,7 @@ export default function ProjectSwitcher() {
                       {roleConfig.shortLabel}
                     </span>
                     {isSelected && (
-                      <Check size={16} style={{ color: '#10b981' }} />
+                      <Check size={16} style={{ color: brandColor }} />
                     )}
                   </div>
                 </button>
