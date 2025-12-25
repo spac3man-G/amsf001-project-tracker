@@ -324,23 +324,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #0d9488;
+  background-color: var(--org-brand-color, #10b981);
   border: none;
   border-radius: 50%;
   color: white;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   transition: all 0.2s ease;
   z-index: 900;
 }
 
 .help-button:hover {
-  background-color: #0f766e;
+  filter: brightness(0.9);
   transform: scale(1.05);
 }
 
 .help-button.active {
-  background-color: #115e59;
+  filter: brightness(0.8);
 }
 
 /* ============================================

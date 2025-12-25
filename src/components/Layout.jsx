@@ -245,6 +245,11 @@ export default function Layout({ children }) {
     }
   }
 
+  // Set organisation brand color as CSS variable for chat/help buttons
+  useEffect(() => {
+    document.documentElement.style.setProperty('--org-brand-color', brandColor);
+  }, [brandColor]);
+
   // Fixed header height for alignment
   const headerHeight = '56px';
 
