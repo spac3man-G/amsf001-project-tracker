@@ -246,7 +246,7 @@ export default function App() {
                         <HelpProvider>
                           <Routes>
                             {/* Public routes */}
-                            <Route path="/login" element={<Login />} />
+                            <Route path="/login" element={<Navigate to="/" replace />} />
                             <Route 
                               path="/accept-invite" 
                               element={

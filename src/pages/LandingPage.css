@@ -1,5 +1,5 @@
 /**
- * Landing Page Styles - Minimal Version
+ * Landing Page Styles - With Integrated Login
  */
 
 /* ============================================
@@ -7,12 +7,8 @@
    ============================================ */
 .landing-page {
   min-height: 100vh;
-  background: #f8fafc;
   display: flex;
   flex-direction: column;
-}
-
-.landing-page-minimal {
   background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
 }
 
@@ -42,96 +38,175 @@
   font-weight: 700;
 }
 
-.header-nav {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.btn-login-header {
-  display: flex;
-  align-items: center;
-  padding: 10px 24px;
-  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: opacity 0.2s, transform 0.2s;
-}
-
-.btn-login-header:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
 /* ============================================
-   HERO SECTION - MINIMAL
+   MAIN CONTENT
    ============================================ */
-.hero-section {
+.landing-main {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 60px 24px;
+  padding: 40px 24px;
+}
+
+.landing-content {
+  width: 100%;
+  max-width: 400px;
   text-align: center;
 }
 
-.hero-minimal {
-  background: transparent;
-}
-
-.hero-container {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.hero-section h1 {
-  font-size: 2.5rem;
+.landing-content h1 {
+  font-size: 2rem;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 16px;
-  line-height: 1.2;
+  margin: 0 0 8px;
 }
 
-.hero-subtitle {
-  font-size: 1.125rem;
+.tagline {
+  font-size: 1rem;
   color: #64748b;
   margin: 0 0 32px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
-.hero-actions {
-  display: flex;
-  justify-content: center;
+/* ============================================
+   LOGIN CARD
+   ============================================ */
+.login-card {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  text-align: left;
 }
 
-.btn-primary-large {
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  background: white;
+}
+
+.form-group input::placeholder {
+  color: #9ca3af;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.btn-submit {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 14px 40px;
+  gap: 8px;
+  padding: 14px 20px;
   background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
   color: white;
-  text-decoration: none;
-  border-radius: 10px;
+  border: none;
+  border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
+  cursor: pointer;
   transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
 }
 
-.btn-primary-large:hover {
+.btn-submit:hover:not(:disabled) {
   opacity: 0.95;
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-link {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 12px;
+  margin-top: 12px;
+  color: #7c3aed;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-link:hover {
+  color: #6366f1;
+  text-decoration: underline;
+}
+
+/* ============================================
+   MESSAGES
+   ============================================ */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-bottom: 20px;
+}
+
+.success-message {
+  padding: 12px 14px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #15803d;
+  font-size: 0.875rem;
+  margin-bottom: 20px;
+}
+
+/* ============================================
+   SPINNER
+   ============================================ */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ============================================
    FOOTER
    ============================================ */
 .landing-footer {
-  padding: 24px;
+  padding: 20px 24px;
   background: #0f172a;
   color: white;
 }
@@ -161,13 +236,13 @@
 /* ============================================
    RESPONSIVE
    ============================================ */
-@media (max-width: 640px) {
-  .hero-section h1 {
-    font-size: 1.75rem;
+@media (max-width: 480px) {
+  .landing-content h1 {
+    font-size: 1.5rem;
   }
 
-  .hero-subtitle {
-    font-size: 1rem;
+  .login-card {
+    padding: 24px;
   }
 
   .footer-container {
