@@ -1,11 +1,16 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 3.0  
+**Document Version:** 4.0  
 **Created:** 11 December 2025  
 **Last Updated:** 24 December 2025  
 **Session:** 1.7 (updated for permission hierarchy fix)  
 **Author:** Claude AI (Anthropic)  
 
+> **Version 4.0 Updates (24 December 2025):**
+> - Added Section 13: New UI Components (Onboarding, Landing Page, Subscription)
+> - Documents OnboardingWizard, LandingPage, UpgradePrompt, UsageMeter components
+> - Added PendingInvitationCard, OrganisationUsageWidget documentation
+>
 > **Version 3.0 Updates (24 December 2025):**
 > - Updated Section 6: ViewAsContext v3.0 (org admin hierarchy in actualRole)
 > - Updated Section 9: Permission System (isOrgLevelAdmin)
@@ -36,6 +41,7 @@
 10. [Custom Hooks](#10-custom-hooks)
 11. [State Management Patterns](#11-state-management-patterns)
 12. [Page-Specific State Management](#12-page-specific-state-management)
+13. [New UI Components (December 2025)](#13-new-ui-components-december-2025) *(NEW)*
 - [Appendix A: Role Display Configuration](#appendix-a-role-display-configuration)
 - [Appendix B: Context Import Patterns](#appendix-b-context-import-patterns)
 - [Document History](#document-history)
@@ -1673,6 +1679,332 @@ setUsers(systemUsers)
 
 ---
 
+## 13. New UI Components (December 2025)
+
+This section documents new components added as part of the multi-tenancy implementation.
+
+### 13.1 Landing Page
+
+**File:** `src/pages/LandingPage.jsx`
+
+Public marketing page shown to unauthenticated visitors at `/`.
+
+**Features:**
+- Hero section with CTAs
+- Features grid (6 feature cards)
+- Benefits list
+- CTA section
+- Responsive footer
+
+**Routing Logic:**
+```jsx
+// In App.jsx
+function PublicHomeRoute({ children }) {
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) return <LoadingSpinner />;
+  if (user) return <Navigate to="/dashboard" replace />;
+  
+  return <Suspense fallback={...}>{children}</Suspense>;
+}
+
+// Route
+<Route path="/" element={
+  <PublicHomeRoute><LandingPage /></PublicHomeRoute>
+} />
+```
+
+**Key Links:**
+| Link | Destination |
+|------|-------------|
+| Sign Up | `/login?mode=signup` |
+| Login | `/login` |
+
+---
+
+### 13.2 Onboarding Components
+
+**Location:** `src/components/onboarding/`
+
+#### OnboardingWizard.jsx
+
+Main wizard component managing 4-step onboarding flow.
+
+**State:**
+```javascript
+const [currentStep, setCurrentStep] = useState(1);
+const [wizardData, setWizardData] = useState({
+  organisation: {},      // From Step 1
+  invitations: [],       // From Step 2
+  project: null,         // From Step 3
+});
+```
+
+**Steps:**
+
+| Step | Component | Purpose | Skippable |
+|------|-----------|---------|-----------|
+| 1 | Step1OrgDetails | Organisation name, display name | No |
+| 2 | Step2InviteTeam | Invite up to 5 team members | Yes |
+| 3 | Step3FirstProject | Create first project | Yes |
+| 4 | Step4Complete | Success message, next steps | No |
+
+**Completion Tracking:**
+```javascript
+// Updates organisations.settings.onboarding_completed
+await organisationService.updateSettings(orgId, { 
+  onboarding_completed: true 
+});
+```
+
+#### Step Components
+
+**Step1OrgDetails.jsx:**
+- Updates organisation display_name if changed
+- Validates name is not empty
+
+**Step2InviteTeam.jsx:**
+- Email input with add/remove
+- Maximum 5 invitations
+- Uses `invitationService.createInvitation()`
+- Shows success/error per invitation
+
+**Step3FirstProject.jsx:**
+- Project name and reference
+- Optional description
+- Uses `createProjectAPI()` 
+- Validates reference format
+
+**Step4Complete.jsx:**
+- Summary of what was created
+- Links to dashboard, invite more, create project
+
+---
+
+### 13.3 Organisation Creation Page
+
+**File:** `src/pages/onboarding/CreateOrganisation.jsx`
+
+Shown when authenticated user has no organisations.
+
+**Flow:**
+```
+User with no orgs → /onboarding/create-organisation → Create org → /onboarding/wizard
+```
+
+**Form Fields:**
+- Organisation Name (required)
+- Slug (auto-generated, editable)
+
+**API Call:**
+```javascript
+const response = await fetch('/api/create-organisation', {
+  method: 'POST',
+  body: JSON.stringify({ name, slug, adminToken })
+});
+```
+
+---
+
+### 13.4 Invitation Components
+
+**File:** `src/components/organisation/PendingInvitationCard.jsx`
+
+Displays pending invitation with actions.
+
+**Props:**
+```typescript
+interface PendingInvitationCardProps {
+  invitation: {
+    id: string;
+    email: string;
+    org_role: string;
+    expires_at: string;
+    created_at: string;
+  };
+  onResend: (id: string) => void;
+  onRevoke: (id: string) => void;
+  onCopyLink: (token: string) => void;
+}
+```
+
+**Features:**
+- Email and role display
+- Expiry countdown (e.g., "Expires in 5 days")
+- Expired badge when past expiry
+- Action buttons: Resend, Copy Link, Revoke
+
+**Expiry Logic:**
+```javascript
+const getExpiryText = (expiresAt) => {
+  const now = new Date();
+  const expiry = new Date(expiresAt);
+  const diffDays = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) return 'Expired';
+  if (diffDays === 0) return 'Expires today';
+  if (diffDays === 1) return 'Expires tomorrow';
+  return `Expires in ${diffDays} days`;
+};
+```
+
+---
+
+### 13.5 Subscription UI Components
+
+**Location:** `src/components/common/`
+
+#### UpgradePrompt.jsx
+
+Displays upgrade prompts when approaching or exceeding limits.
+
+**Variants:**
+| Variant | Use Case |
+|---------|----------|
+| `banner` | Full-width banner at top of page |
+| `modal` | Centered modal with comparison |
+| `card` | Card layout in settings/dashboard |
+| `inline` | Compact inline display |
+
+**Props:**
+```typescript
+interface UpgradePromptProps {
+  limitType: 'members' | 'projects' | 'storage';
+  current: number;
+  limit: number;
+  tier: string;
+  variant: 'banner' | 'modal' | 'card' | 'inline';
+  onUpgrade?: () => void;
+  onDismiss?: () => void;
+}
+```
+
+**Status Levels:**
+```javascript
+const getStatus = (current, limit) => {
+  const percentage = (current / limit) * 100;
+  if (percentage >= 100) return 'exceeded';
+  if (percentage >= 90) return 'critical';
+  if (percentage >= 75) return 'warning';
+  return 'normal';
+};
+```
+
+#### UsageMeter.jsx
+
+Visual progress bar showing usage vs limit.
+
+**Props:**
+```typescript
+interface UsageMeterProps {
+  type: 'members' | 'projects' | 'storage';
+  current: number;
+  limit: number;          // Can be Infinity
+  label?: string;
+  showIcon?: boolean;
+  showLabel?: boolean;
+  showValues?: boolean;
+  size?: 'small' | 'default' | 'large';
+}
+```
+
+**Handling Unlimited:**
+```javascript
+// When limit is Infinity, show just the count
+if (limit === Infinity) {
+  return <span>{current} (unlimited)</span>;
+}
+```
+
+**Exported Components:**
+- `UsageMeter` - Full meter with bar
+- `UsageInline` - Compact "X / Y" display
+- `UsageSummaryCard` - Dashboard card with multiple meters
+
+---
+
+### 13.6 Dashboard Widgets
+
+**File:** `src/components/dashboard/OrganisationUsageWidget.jsx`
+
+Shows organisation stats for org admins on dashboard.
+
+**Visibility:**
+- Only shown to users with `isOrgAdmin` role
+- Displays in dashboard grid
+
+**Current Implementation (Free Tier Unlimited):**
+```jsx
+// Simplified to show counts only (no limits)
+<div className="org-usage-widget">
+  <h3>{organisation.display_name || organisation.name}</h3>
+  <div className="stats">
+    <div className="stat">
+      <Users size={20} />
+      <span>{memberCount} members</span>
+    </div>
+    <div className="stat">
+      <FolderKanban size={20} />
+      <span>{projectCount} projects</span>
+    </div>
+  </div>
+</div>
+```
+
+**Future Implementation (With Paid Tiers):**
+When paid tiers are enabled, this widget will show:
+- Usage meters for members/projects
+- Tier badge
+- Upgrade button (links to /admin/billing)
+
+---
+
+### 13.7 File Structure Summary
+
+```
+src/
+├── pages/
+│   ├── LandingPage.jsx           # Public landing page
+│   ├── LandingPage.css
+│   └── onboarding/
+│       ├── CreateOrganisation.jsx
+│       ├── CreateOrganisation.css
+│       ├── OnboardingWizardPage.jsx
+│       └── index.js
+│
+├── components/
+│   ├── onboarding/
+│   │   ├── OnboardingWizard.jsx
+│   │   ├── OnboardingWizard.css
+│   │   ├── Step1OrgDetails.jsx
+│   │   ├── Step2InviteTeam.jsx
+│   │   ├── Step3FirstProject.jsx
+│   │   ├── Step4Complete.jsx
+│   │   └── index.js
+│   │
+│   ├── organisation/
+│   │   ├── PendingInvitationCard.jsx
+│   │   ├── PendingInvitationCard.css
+│   │   └── index.js
+│   │
+│   ├── common/
+│   │   ├── UpgradePrompt.jsx
+│   │   ├── UpgradePrompt.css
+│   │   ├── UsageMeter.jsx
+│   │   ├── UsageMeter.css
+│   │   └── index.js (updated exports)
+│   │
+│   └── dashboard/
+│       ├── OrganisationUsageWidget.jsx
+│       ├── OrganisationUsageWidget.css
+│       └── index.js (updated exports)
+│
+└── lib/
+    └── subscriptionTiers.js      # Tier definitions
+```
+
+---
+
 ## Appendix A: Role Display Configuration
 
 ```javascript
@@ -1751,3 +2083,4 @@ import {
 | 1.1 | 12 Dec 2025 | Claude AI | Added TestUserContext, ViewAs updates |
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added OrganisationContext (Section 4), OrganisationSwitcher component, updated Provider Hierarchy, updated ProjectContext to depend on OrganisationContext, added ORG_ROLE_CONFIG |
 | 3.0 | 24 Dec 2025 | Claude AI | **Permission Hierarchy Fix**: Updated ViewAsContext v3.0 (org admin hierarchy), usePermissions v5.0 (isOrgLevelAdmin), updated Role Resolution Flow |
+| 4.0 | 24 Dec 2025 | Claude AI | **New UI Components**: Added Section 13 documenting LandingPage, OnboardingWizard, PendingInvitationCard, UpgradePrompt, UsageMeter, OrganisationUsageWidget |
