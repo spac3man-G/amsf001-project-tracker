@@ -409,9 +409,9 @@ export default function App() {
                               <ProtectedRoute><AccountSettings /></ProtectedRoute>
                             } />
 
-                            {/* Workflow Summary */}
+                            {/* Workflow Summary - redirect to Dashboard tab */}
                             <Route path="/workflow-summary" element={
-                              <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
+                              <Navigate to="/dashboard?tab=workflow" replace />
                             } />
 
                             {/* Legacy routes - redirect to Project Settings tabs */}

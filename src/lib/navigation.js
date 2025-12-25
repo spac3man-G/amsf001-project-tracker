@@ -59,14 +59,7 @@ import { ROLES } from './permissions';
  * - readOnlyRoles: Array of roles that can view but not modify (optional)
  */
 export const NAV_ITEMS = {
-  workflowSummary: {
-    id: 'workflowSummary',
-    path: '/workflow-summary',
-    icon: ClipboardList,
-    label: 'Workflow Summary',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
-    readOnlyRoles: []
-  },
+  // workflowSummary is now a tab within Dashboard
   dashboard: {
     id: 'dashboard',
     path: '/dashboard',
@@ -219,7 +212,6 @@ export const NAV_ITEMS = {
  */
 export const ROLE_NAV_ORDER = {
   [ROLES.ADMIN]: [
-    'workflowSummary',
     'dashboard',
     'milestones',
     'deliverables',
@@ -232,7 +224,6 @@ export const ROLE_NAV_ORDER = {
     'orgSettings'
   ],
   [ROLES.SUPPLIER_PM]: [
-    'workflowSummary',
     'dashboard',
     'milestones',
     'deliverables',
@@ -245,7 +236,6 @@ export const ROLE_NAV_ORDER = {
     'orgSettings'
   ],
   [ROLES.SUPPLIER_FINANCE]: [
-    'workflowSummary',
     'dashboard',
     'calendar',
     'timesheets',
@@ -254,7 +244,6 @@ export const ROLE_NAV_ORDER = {
     'deliverables'
   ],
   [ROLES.CUSTOMER_PM]: [
-    'workflowSummary',
     'dashboard',
     'milestones',
     'deliverables',
@@ -265,7 +254,6 @@ export const ROLE_NAV_ORDER = {
     'finance'
   ],
   [ROLES.CUSTOMER_FINANCE]: [
-    'workflowSummary',
     'dashboard',
     'calendar',
     'timesheets',
@@ -274,7 +262,7 @@ export const ROLE_NAV_ORDER = {
     'deliverables'
   ],
   [ROLES.CONTRIBUTOR]: [
-    'workflowSummary',
+    'dashboard',
     'calendar',
     'timesheets',
     'expenses',

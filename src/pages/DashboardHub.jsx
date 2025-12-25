@@ -1,27 +1,31 @@
 /**
- * Dashboard Hub - Consolidated Dashboard and Reports
+ * Dashboard Hub - Consolidated Dashboard, Workflow Summary, and Reports
  * 
  * Tabbed interface for:
- * - Dashboard: Project overview with widgets
+ * - Overview: Project dashboard with widgets
+ * - Workflow: Pending workflow items requiring action
  * - Reports: Report builder and templates
  * 
- * @version 1.0
+ * @version 2.0
  * @created 25 December 2025
+ * @updated 25 December 2025 - Added Workflow tab
  */
 
 import React, { Suspense, lazy } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, FileText } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, FileText } from 'lucide-react';
 import { LoadingSpinner } from '../components/common';
 import './DashboardHub.css';
 
 // Lazy load the tab content components
 const DashboardContent = lazy(() => import('./dashboard/DashboardContent'));
+const WorkflowContent = lazy(() => import('./dashboard/WorkflowContent'));
 const ReportsContent = lazy(() => import('./dashboard/ReportsContent'));
 
 // Tab configuration
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'workflow', label: 'Workflow', icon: ClipboardList },
   { id: 'reports', label: 'Reports', icon: FileText },
 ];
 
@@ -55,6 +59,7 @@ export default function DashboardHub() {
       <div className="hub-content">
         <Suspense fallback={<LoadingSpinner message="Loading..." />}>
           {activeTab === 'overview' && <DashboardContent />}
+          {activeTab === 'workflow' && <WorkflowContent />}
           {activeTab === 'reports' && <ReportsContent />}
         </Suspense>
       </div>
