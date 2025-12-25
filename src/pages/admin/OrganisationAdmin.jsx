@@ -632,18 +632,28 @@ function ProjectsTab({
     if (!organisation?.id) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get projects
+      const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select(`
-          id, name, reference, description, status, created_at,
-          user_projects(count)
-        `)
+        .select('id, name, reference, description, status, created_at')
         .eq('organisation_id', organisation.id)
         .is('deleted_at', null)
         .order('name');
 
-      if (error) throw error;
-      setProjects(data || []);
+      if (projectsError) throw projectsError;
+
+      // Then get member counts for each project
+      const projectsWithCounts = await Promise.all(
+        (projectsData || []).map(async (project) => {
+          const { count } = await supabase
+            .from('user_projects')
+            .select('*', { count: 'exact', head: true })
+            .eq('project_id', project.id);
+          return { ...project, memberCount: count || 0 };
+        })
+      );
+
+      setProjects(projectsWithCounts);
     } catch (error) {
       console.error('Error fetching projects:', error);
       showError('Failed to load projects');
@@ -752,7 +762,7 @@ function ProjectsTab({
                     <td>
                       <span className="member-count">
                         <Users size={14} />
-                        {project.user_projects?.[0]?.count || 0}
+                        {project.memberCount}
                       </span>
                     </td>
                     <td>
