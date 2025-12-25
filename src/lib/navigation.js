@@ -183,26 +183,11 @@ export const NAV_ITEMS = {
     id: 'settings',
     path: '/settings',
     icon: Settings,
-    label: 'Settings',
+    label: 'Project Settings',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
-  auditLog: {
-    id: 'auditLog',
-    path: '/audit-log',
-    icon: History,
-    label: 'Audit Log',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: []
-  },
-  deletedItems: {
-    id: 'deletedItems',
-    path: '/deleted-items',
-    icon: Archive,
-    label: 'Deleted Items',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: []
-  },
+  // auditLog and deletedItems are now tabs within Project Settings
   calendar: {
     id: 'calendar',
     path: '/calendar',
@@ -298,10 +283,6 @@ export const ROLE_NAV_ORDER = {
     'billing',
     'partners',
     'settings',
-    'auditLog',
-    'deletedItems',
-    'systemUsers',
-    'systemAdmin',
     'orgSettings'
   ],
   [ROLES.SUPPLIER_PM]: [
@@ -322,8 +303,6 @@ export const ROLE_NAV_ORDER = {
     'billing',
     'partners',
     'settings',
-    'auditLog',
-    'deletedItems',
     'orgSettings'
   ],
   [ROLES.SUPPLIER_FINANCE]: [

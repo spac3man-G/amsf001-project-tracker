@@ -60,17 +60,13 @@ const RaidLog = lazy(() => import('./pages/RaidLog'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Billing = lazy(() => import('./pages/Billing'));
 const TeamMembers = lazy(() => import('./pages/TeamMembers'));
-const Settings = lazy(() => import('./pages/Settings'));
+const ProjectSettings = lazy(() => import('./pages/ProjectSettings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
-const AuditLog = lazy(() => import('./pages/AuditLog'));
-const DeletedItems = lazy(() => import('./pages/DeletedItems'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Variations = lazy(() => import('./pages/Variations'));
 const VariationDetail = lazy(() => import('./pages/VariationDetail'));
 const VariationForm = lazy(() => import('./pages/VariationForm'));
-const SystemUsers = lazy(() => import('./pages/admin/SystemUsers'));
-const SystemAdmin = lazy(() => import('./pages/admin/SystemAdmin'));
 const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
 const OrganisationSettings = lazy(() => import('./pages/admin/OrganisationSettings'));
 const OrganisationMembers = lazy(() => import('./pages/admin/OrganisationMembers'));
@@ -400,9 +396,9 @@ export default function App() {
                             {/* Redirect old /users URL to /team-members */}
                             <Route path="/users" element={<Navigate to="/team-members" replace />} />
                             
-                            {/* Settings */}
+                            {/* Project Settings - unified tabbed interface */}
                             <Route path="/settings" element={
-                              <ProtectedRoute><Settings /></ProtectedRoute>
+                              <ProtectedRoute><ProjectSettings /></ProtectedRoute>
                             } />
                             <Route path="/account" element={
                               <ProtectedRoute><AccountSettings /></ProtectedRoute>
@@ -413,22 +409,12 @@ export default function App() {
                               <ProtectedRoute><WorkflowSummary /></ProtectedRoute>
                             } />
 
-                            {/* Admin Pages */}
+                            {/* Legacy routes - redirect to Project Settings tabs */}
                             <Route path="/audit-log" element={
-                              <ProtectedRoute><AuditLog /></ProtectedRoute>
+                              <Navigate to="/settings?tab=audit" replace />
                             } />
                             <Route path="/deleted-items" element={
-                              <ProtectedRoute><DeletedItems /></ProtectedRoute>
-                            } />
-                            
-                            {/* System Users (admin only - requires global admin role) */}
-                            <Route path="/admin/users" element={
-                              <ProtectedRoute adminOnly><SystemUsers /></ProtectedRoute>
-                            } />
-                            
-                            {/* System Admin (system admin only - for creating organisations) */}
-                            <Route path="/admin/system" element={
-                              <ProtectedRoute adminOnly><SystemAdmin /></ProtectedRoute>
+                              <Navigate to="/settings?tab=deleted" replace />
                             } />
                             
                             {/* Project Management (admin and supplier_pm) */}
