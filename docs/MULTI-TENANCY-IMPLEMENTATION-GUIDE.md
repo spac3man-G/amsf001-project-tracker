@@ -1,7 +1,8 @@
 # AMSF001 Multi-Tenant SaaS Implementation Guide
 
-> **Version:** 1.0  
+> **Version:** 2.0  
 > **Created:** 24 December 2025  
+> **Last Updated:** 24 December 2025  
 > **Purpose:** Master reference document for implementing full multi-tenancy SaaS capabilities
 
 ---
@@ -42,18 +43,30 @@ and help me with task [ID]: [description]
 | Invitation System | ✅ Functional | Token-based with 7-day expiry |
 | Project Creation API | ✅ Org-aware | Validates org membership |
 | Data Integrity | ✅ Clean | Zero orphan records (verified 24 Dec 2025) |
+| **Security Hardening** | ✅ Phase 1 Complete | User queries org-filtered, API auth fixed |
+| **Self-Service Orgs** | ✅ Phase 2 Complete | Signup flow, onboarding wizard, invitation UI |
+| **Subscription System** | ✅ Phase 3 Complete | Tier definitions, limit checking (free unlimited) |
+| **Landing Page** | ✅ Complete | Public marketing page at `/` |
 
-### What's Missing ⚠️
+### What's Remaining ⚠️
 
 | Gap | Priority | Impact |
 |-----|----------|--------|
-| User list shows ALL profiles (cross-org exposure) | 🔴 P0 | Security |
-| API checks ANY pm role, not target project | 🔴 P0 | Security |
-| No org membership validation before project assignment | 🔴 P0 | Data integrity |
-| No subscription tier enforcement | 🟡 P1 | Revenue |
-| No billing/Stripe integration | 🟡 P1 | Revenue |
-| No onboarding wizard | 🟡 P1 | UX |
-| Incomplete invitation UI | 🟡 P1 | UX |
+| No billing/Stripe integration | 🟡 P2 | Revenue (not needed while free tier unlimited) |
+| Organisation settings page incomplete | 🟡 P2 | UX |
+| Organisation deletion flow | 🟡 P2 | Lifecycle |
+| Audit logging for org events | 🟢 P3 | Compliance |
+
+### Implementation Status Summary
+
+| Phase | Status | Completion |
+|-------|--------|------------|
+| Phase 1: Security Hardening | ✅ **Complete** | 12/15 tasks (3 manual tests pending) |
+| Phase 2: Self-Service Orgs | ✅ **Complete** | 22/25 tasks (3 manual tests pending) |
+| Phase 3: Subscription System | ✅ **Complete** | 17/19 tasks (2 manual tests pending) |
+| Phase 4: Billing/Stripe | ⏳ Not Started | 0/15 tasks |
+| Phase 5: Org Lifecycle | ⏳ Not Started | 0/? tasks |
+| Phase 6: Polish & Launch | ⏳ Not Started | 0/? tasks |
 
 ---
 
@@ -96,123 +109,77 @@ Access granted if ANY of:
 ### Data Flow
 
 ```
-User signs up
+New visitor hits /
     ↓
-Creates/Joins Organisation
+Landing Page (unauthenticated) OR Dashboard (authenticated)
     ↓
-Org Admin invites to projects OR
-Org Admin assigns to projects
+User signs up (/login?mode=signup)
+    ↓
+Creates Organisation (/onboarding/create-organisation)
+    ↓
+Onboarding Wizard (/onboarding/wizard)
+    ↓
+Dashboard - Can invite team, create projects
+    ↓
+Org Admin invites to projects OR assigns to projects
     ↓
 User accesses project data (filtered by RLS)
 ```
 
+### Public Routes
+
+| Route | Component | Purpose |
+|-------|-----------|---------|
+| `/` | `LandingPage` | Marketing page for new visitors |
+| `/login` | `Login` | Sign in form |
+| `/login?mode=signup` | `Login` | Sign up form (pre-selected) |
+| `/accept-invitation/:token` | `AcceptInvitation` | Accept org invitation |
+
+### Protected Routes (Onboarding)
+
+| Route | Component | Purpose |
+|-------|-----------|---------|
+| `/onboarding/create-organisation` | `CreateOrganisation` | New org setup |
+| `/onboarding/wizard` | `OnboardingWizardPage` | 4-step org onboarding |
+
 ---
 
-## 3. Security Issues (P0 - Fix First)
+## 3. Security Issues (P0 - ✅ ALL FIXED)
 
-### Issue 1: User List Cross-Org Exposure
+> **Status:** All P0 security issues were fixed in Phase 1 (24 December 2025)
 
-**Location:** `src/pages/admin/ProjectManagement.jsx` lines ~112-118  
-**Also in:** `src/pages/TeamMembers.jsx` function `fetchAvailableUsers()`
+### Issue 1: User List Cross-Org Exposure ✅ FIXED
 
-**Current (VULNERABLE):**
+**Location:** `src/lib/queries.js` (new centralised helper)  
+**Updated:** `src/pages/admin/ProjectManagement.jsx`, `src/pages/TeamMembers.jsx`
+
+**Solution:** Created `getOrgMembers()` helper that filters users by organisation membership.
+
 ```javascript
-const { data: usersData } = await supabase
-  .from('profiles')
-  .select('id, email, full_name, is_test_user');
-// Shows ALL users in system!
-```
-
-**Fixed:**
-```javascript
-const { data: orgMembersData } = await supabase
-  .from('user_organisations')
-  .select(`
-    user_id,
-    profiles:user_id (id, email, full_name, is_test_user)
-  `)
-  .eq('organisation_id', organisationId)
-  .eq('is_active', true);
-
-const usersData = (orgMembersData || [])
-  .filter(m => m.profiles)
-  .map(m => m.profiles);
-```
-
-### Issue 2: Weak API Authorization
-
-**Location:** `api/manage-project-users.js` lines ~56-75
-
-**Current (VULNERABLE):**
-```javascript
-// Checks if user is PM on ANY project
-const { data: pmAssignments } = await supabase
-  .from('user_projects')
-  .select('role, project_id')
-  .eq('user_id', requestingUser.id)
-  .in('role', ['admin', 'supplier_pm']);
-
-const hasProjectAccess = pmAssignments && pmAssignments.length > 0;
-// PM on Project A can manage Project B!
-```
-
-**Fixed:**
-```javascript
-// Must check authorization for TARGET project specifically
-async function isOrgAdminForProject(supabase, userId, projectId) {
-  const { data: project } = await supabase
-    .from('projects')
-    .select('organisation_id')
-    .eq('id', projectId)
-    .single();
-  
-  if (!project?.organisation_id) return false;
-  
-  const { data: membership } = await supabase
+// src/lib/queries.js
+export async function getOrgMembers(organisationId, options = {}) {
+  const { data } = await supabase
     .from('user_organisations')
-    .select('org_role')
-    .eq('user_id', userId)
-    .eq('organisation_id', project.organisation_id)
-    .eq('is_active', true)
-    .single();
-  
-  return membership?.org_role === 'org_admin';
-}
-
-// Then check:
-const canManage = isSystemAdmin || 
-  await isOrgAdminForProject(supabase, requestingUser.id, targetProjectId) ||
-  pmAssignments?.some(a => a.project_id === targetProjectId);
-```
-
-### Issue 3: Missing Org Membership Validation
-
-**Location:** `api/manage-project-users.js` ADD action
-
-**Add before insert:**
-```javascript
-// Get project's organisation
-const { data: project } = await supabase
-  .from('projects')
-  .select('organisation_id')
-  .eq('id', projectId)
-  .single();
-
-// Verify user is org member
-if (project?.organisation_id) {
-  const { data: userOrgMembership } = await supabase
-    .from('user_organisations')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('organisation_id', project.organisation_id)
-    .eq('is_active', true)
-    .single();
-
-  if (!userOrgMembership) {
-    return error('User must be an organisation member first');
-  }
+    .select(`user_id, org_role, profiles:user_id (id, email, full_name)`)
+    .eq('organisation_id', organisationId)
+    .eq('is_active', true);
+  // ... filter and return
 }
 ```
+
+### Issue 2: Weak API Authorization ✅ FIXED
+
+**Location:** `api/manage-project-users.js`
+
+**Solution:** Added `isOrgAdminForProject()` helper and updated all actions to check against the TARGET project.
+
+### Issue 3: Missing Org Membership Validation ✅ FIXED
+
+**Location:** `api/manage-project-users.js` + Database trigger
+
+**Solution:** 
+1. API checks user is org member before project assignment
+2. Database trigger `check_user_org_membership()` prevents direct SQL bypasses
 
 ---
 
