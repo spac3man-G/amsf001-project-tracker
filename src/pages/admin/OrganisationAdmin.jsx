@@ -297,41 +297,118 @@ function OrganisationTab({ organisation, canEdit, showSuccess, showError, refres
         <div className="section-body">
           <div className="form-group">
             <label>Primary Color</label>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <input
-                type="color"
-                value={formData.primary_color}
-                onChange={(e) => handleChange('primary_color', e.target.value)}
+            
+            {/* Color Picker - Click to open color wheel */}
+            <div style={{ marginBottom: '1rem' }}>
+              <label 
+                htmlFor="color-picker"
                 style={{
-                  width: '50px',
-                  height: '40px',
-                  padding: '2px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  padding: '1rem',
+                  border: '2px dashed #e2e8f0',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  backgroundColor: '#fafafa'
                 }}
-              />
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = formData.primary_color;
+                  e.currentTarget.style.backgroundColor = '#f0fdf4';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.backgroundColor = '#fafafa';
+                }}
+              >
+                <div 
+                  style={{ 
+                    width: '60px',
+                    height: '60px',
+                    backgroundColor: formData.primary_color,
+                    borderRadius: '12px',
+                    border: '2px solid white',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                  }}
+                />
+                <div>
+                  <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    Click to open color picker
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    Current: {formData.primary_color}
+                  </div>
+                </div>
+                <input
+                  id="color-picker"
+                  type="color"
+                  value={formData.primary_color}
+                  onChange={(e) => handleChange('primary_color', e.target.value)}
+                  style={{
+                    opacity: 0,
+                    position: 'absolute',
+                    width: '1px',
+                    height: '1px'
+                  }}
+                />
+              </label>
+            </div>
+
+            {/* Preset Colors */}
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                Quick select:
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {[
+                  { color: '#10b981', name: 'Green' },
+                  { color: '#3b82f6', name: 'Blue' },
+                  { color: '#8b5cf6', name: 'Purple' },
+                  { color: '#ec4899', name: 'Pink' },
+                  { color: '#f59e0b', name: 'Orange' },
+                  { color: '#ef4444', name: 'Red' },
+                  { color: '#06b6d4', name: 'Cyan' },
+                  { color: '#64748b', name: 'Slate' },
+                  { color: '#1e293b', name: 'Dark' },
+                ].map(({ color, name }) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => handleChange('primary_color', color)}
+                    title={name}
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      backgroundColor: color,
+                      border: formData.primary_color === color ? '3px solid #1e293b' : '2px solid white',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      transition: 'transform 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Hex Input */}
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Or enter hex:</span>
               <input
                 type="text"
                 value={formData.primary_color}
                 onChange={(e) => handleChange('primary_color', e.target.value)}
                 placeholder="#10b981"
-                style={{ flex: 1, maxWidth: '120px' }}
+                style={{ maxWidth: '120px' }}
               />
-              <div 
-                style={{ 
-                  padding: '0.5rem 1rem',
-                  backgroundColor: formData.primary_color,
-                  color: 'white',
-                  borderRadius: '6px',
-                  fontSize: '0.85rem',
-                  fontWeight: '500'
-                }}
-              >
-                Preview
-              </div>
             </div>
-            <span className="form-hint">This color is used in the header bar and sidebar accent</span>
+            
+            <span className="form-hint" style={{ marginTop: '0.75rem', display: 'block' }}>
+              This color is used in the header bar and sidebar accent
+            </span>
           </div>
         </div>
       </div>
