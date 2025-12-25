@@ -9,8 +9,8 @@
 /* Header */
 .finance-hub .hub-header {
   padding: 24px 32px;
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border-bottom: 1px solid #bbf7d0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--org-brand-color, #10b981) 5%, white) 0%, color-mix(in srgb, var(--org-brand-color, #10b981) 15%, white) 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--org-brand-color, #10b981) 30%, white);
 }
 
 .finance-hub .hub-header-content {
@@ -22,19 +22,19 @@
 }
 
 .finance-hub .hub-header-content svg {
-  color: #16a34a;
+  color: var(--org-brand-color, #10b981);
 }
 
 .finance-hub .hub-header-content h1 {
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #14532d;
+  color: #1e293b;
 }
 
 .finance-hub .hub-header-content p {
   margin: 0;
-  color: #166534;
+  color: #64748b;
   font-size: 0.95rem;
 }
 
@@ -66,13 +66,13 @@
 }
 
 .finance-hub .hub-tab:hover {
-  color: #16a34a;
-  background: rgba(22, 163, 74, 0.05);
+  color: var(--org-brand-color, #10b981);
+  background: color-mix(in srgb, var(--org-brand-color, #10b981) 5%, transparent);
 }
 
 .finance-hub .hub-tab.active {
-  color: #16a34a;
-  border-bottom-color: #16a34a;
+  color: var(--org-brand-color, #10b981);
+  border-bottom-color: var(--org-brand-color, #10b981);
   background: white;
 }
 

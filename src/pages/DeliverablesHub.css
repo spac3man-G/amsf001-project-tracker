@@ -41,8 +41,8 @@
 }
 
 .hub-tab.active {
-  color: #10b981;
-  border-bottom-color: #10b981;
+  color: var(--org-brand-color, #10b981);
+  border-bottom-color: var(--org-brand-color, #10b981);
 }
 
 .hub-tab svg {

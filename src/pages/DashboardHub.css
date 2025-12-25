@@ -33,13 +33,13 @@
 }
 
 .dashboard-hub .hub-tab:hover {
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.05);
+  color: var(--org-brand-color, #10b981);
+  background: color-mix(in srgb, var(--org-brand-color, #10b981) 5%, transparent);
 }
 
 .dashboard-hub .hub-tab.active {
-  color: #6366f1;
-  border-bottom-color: #6366f1;
+  color: var(--org-brand-color, #10b981);
+  border-bottom-color: var(--org-brand-color, #10b981);
 }
 
 /* Content */

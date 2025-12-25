@@ -18,7 +18,7 @@
   --color-warning: #ff9500;
   --color-danger: #ff3b30;
   --color-purple: #af52de;
-  --color-teal: #0d9488;
+  --color-teal: var(--org-brand-color, #10b981);
   
   --color-text-primary: #1d1d1f;
   --color-text-secondary: #86868b;
