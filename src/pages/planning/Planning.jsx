@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Plus, Trash2, ChevronRight, ChevronDown, GripVertical,
-  Flag, Package, CheckSquare, Calendar, RefreshCw,
-  ArrowRight, ArrowLeft, MoreHorizontal, Link2
+  Flag, Package, CheckSquare, RefreshCw,
+  ArrowRight, ArrowLeft, Keyboard
 } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
 import planItemsService from '../../services/planItemsService';
@@ -22,31 +22,95 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' }
 ];
 
+// Editable columns in order
+const COLUMNS = ['name', 'item_type', 'start_date', 'end_date', 'progress', 'status'];
+
 export default function Planning() {
   const { projectId } = useProject();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingCell, setEditingCell] = useState(null);
-  const [selectedRow, setSelectedRow] = useState(null);
-  const [milestones, setMilestones] = useState([]);
-  const [deliverables, setDeliverables] = useState([]);
+  const [activeCell, setActiveCell] = useState(null); // { rowIndex, field }
+  const [editingCell, setEditingCell] = useState(null); // { rowIndex, field }
+  const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);
+  const tableRef = useRef(null);
 
+  // Fetch items
   useEffect(() => {
-    if (projectId) {
-      fetchItems();
-      fetchLinkOptions();
-    }
+    if (projectId) fetchItems();
   }, [projectId]);
 
+  // Focus input when editing
   useEffect(() => {
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
-      if (inputRef.current.type === 'text') {
-        inputRef.current.select();
-      }
+      if (inputRef.current.select) inputRef.current.select();
     }
   }, [editingCell]);
+
+  // Handle keyboard navigation on table
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (!activeCell || editingCell) return;
+      
+      const { rowIndex, field } = activeCell;
+      const colIndex = COLUMNS.indexOf(field);
+      
+      switch (e.key) {
+        case 'Tab':
+          e.preventDefault();
+          if (e.shiftKey) {
+            navigateCell(rowIndex, colIndex - 1);
+          } else {
+            navigateCell(rowIndex, colIndex + 1);
+          }
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (e.shiftKey) {
+            navigateCell(rowIndex - 1, colIndex);
+          } else {
+            navigateCell(rowIndex + 1, colIndex);
+          }
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          navigateCell(rowIndex - 1, colIndex);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          navigateCell(rowIndex + 1, colIndex);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          navigateCell(rowIndex, colIndex - 1);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          navigateCell(rowIndex, colIndex + 1);
+          break;
+        case 'F2':
+        case 'Enter':
+          e.preventDefault();
+          startEditing(rowIndex, field);
+          break;
+        case 'Delete':
+        case 'Backspace':
+          e.preventDefault();
+          clearCell(rowIndex, field);
+          break;
+        default:
+          // Start typing to edit
+          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            startEditing(rowIndex, field, e.key);
+          }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activeCell, editingCell, items]);
 
   async function fetchItems() {
     try {
@@ -60,30 +124,23 @@ export default function Planning() {
     }
   }
 
-  async function fetchLinkOptions() {
-    try {
-      const [ms, del] = await Promise.all([
-        planItemsService.getProjectMilestones(projectId),
-        planItemsService.getProjectDeliverables(projectId)
-      ]);
-      setMilestones(ms);
-      setDeliverables(del);
-    } catch (error) {
-      console.error('Error fetching link options:', error);
-    }
-  }
-
-  async function handleAddItem() {
+  async function handleAddItem(focusName = true) {
     try {
       const newItem = await planItemsService.create({
         project_id: projectId,
-        name: 'New Task',
+        name: '',
         item_type: 'task',
         status: 'not_started',
         progress: 0
       });
-      setItems([...items, newItem]);
-      setEditingCell({ id: newItem.id, field: 'name' });
+      const newItems = [...items, newItem];
+      setItems(newItems);
+      if (focusName) {
+        const newRowIndex = newItems.length - 1;
+        setActiveCell({ rowIndex: newRowIndex, field: 'name' });
+        startEditing(newRowIndex, 'name');
+      }
+      return newItem;
     } catch (error) {
       console.error('Error adding item:', error);
     }
@@ -91,24 +148,23 @@ export default function Planning() {
 
   async function handleUpdateItem(id, field, value) {
     try {
-      // Optimistic update
       setItems(items.map(item => 
         item.id === id ? { ...item, [field]: value } : item
       ));
-      
       await planItemsService.update(id, { [field]: value });
     } catch (error) {
       console.error('Error updating item:', error);
-      fetchItems(); // Revert on error
+      fetchItems();
     }
   }
 
   async function handleDeleteItem(id) {
     if (!confirm('Delete this item?')) return;
-    
     try {
       await planItemsService.delete(id);
       setItems(items.filter(item => item.id !== id));
+      setActiveCell(null);
+      setEditingCell(null);
     } catch (error) {
       console.error('Error deleting item:', error);
     }
@@ -117,7 +173,6 @@ export default function Planning() {
   async function handleIndent(id) {
     const index = items.findIndex(item => item.id === id);
     if (index <= 0) return;
-    
     const parentId = items[index - 1].id;
     try {
       await planItemsService.indent(id, parentId);
@@ -136,30 +191,136 @@ export default function Planning() {
     }
   }
 
-  function handleCellClick(id, field) {
-    setEditingCell({ id, field });
-    setSelectedRow(id);
-  }
+  // Navigate to a cell, creating new row if needed
+  async function navigateCell(rowIndex, colIndex) {
+    // Wrap columns
+    if (colIndex < 0) {
+      colIndex = COLUMNS.length - 1;
+      rowIndex--;
+    } else if (colIndex >= COLUMNS.length) {
+      colIndex = 0;
+      rowIndex++;
+    }
 
-  function handleCellBlur() {
+    // Boundary checks
+    if (rowIndex < 0) rowIndex = 0;
+    
+    // Auto-create new row when navigating past last
+    if (rowIndex >= items.length) {
+      await handleAddItem(false);
+      rowIndex = items.length; // Will be the new item
+    }
+
+    const field = COLUMNS[colIndex];
+    setActiveCell({ rowIndex, field });
     setEditingCell(null);
   }
 
-  function handleKeyDown(e, id, field, value) {
-    if (e.key === 'Enter') {
-      handleUpdateItem(id, field, value);
-      setEditingCell(null);
-    } else if (e.key === 'Escape') {
-      setEditingCell(null);
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      handleUpdateItem(id, field, value);
-      // Move to next cell
-      const fields = ['name', 'item_type', 'start_date', 'end_date', 'progress', 'status'];
-      const currentIndex = fields.indexOf(field);
-      const nextField = fields[(currentIndex + 1) % fields.length];
-      setEditingCell({ id, field: nextField });
+  function startEditing(rowIndex, field, initialChar = null) {
+    const item = items[rowIndex];
+    if (!item) return;
+    
+    let value = item[field] || '';
+    if (initialChar !== null) {
+      value = initialChar; // Replace with typed character
     }
+    
+    setEditValue(value);
+    setEditingCell({ rowIndex, field });
+  }
+
+  function clearCell(rowIndex, field) {
+    const item = items[rowIndex];
+    if (!item) return;
+    
+    let clearValue = '';
+    if (field === 'progress') clearValue = 0;
+    if (field === 'status') clearValue = 'not_started';
+    if (field === 'item_type') clearValue = 'task';
+    
+    handleUpdateItem(item.id, field, clearValue);
+  }
+
+  function commitEdit() {
+    if (!editingCell) return;
+    
+    const { rowIndex, field } = editingCell;
+    const item = items[rowIndex];
+    if (!item) return;
+    
+    let value = editValue;
+    
+    // Type conversions
+    if (field === 'progress') {
+      value = Math.min(100, Math.max(0, parseInt(value) || 0));
+    }
+    if (field === 'start_date' || field === 'end_date') {
+      value = value || null;
+    }
+    
+    handleUpdateItem(item.id, field, value);
+    setEditingCell(null);
+  }
+
+  function cancelEdit() {
+    setEditingCell(null);
+    setEditValue('');
+  }
+
+  function handleEditKeyDown(e) {
+    switch (e.key) {
+      case 'Enter':
+        e.preventDefault();
+        commitEdit();
+        // Move down
+        navigateCell(editingCell.rowIndex + 1, COLUMNS.indexOf(editingCell.field));
+        break;
+      case 'Tab':
+        e.preventDefault();
+        commitEdit();
+        if (e.shiftKey) {
+          navigateCell(editingCell.rowIndex, COLUMNS.indexOf(editingCell.field) - 1);
+        } else {
+          navigateCell(editingCell.rowIndex, COLUMNS.indexOf(editingCell.field) + 1);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        cancelEdit();
+        break;
+      case 'ArrowUp':
+        if (e.target.type !== 'select-one') {
+          e.preventDefault();
+          commitEdit();
+          navigateCell(editingCell.rowIndex - 1, COLUMNS.indexOf(editingCell.field));
+        }
+        break;
+      case 'ArrowDown':
+        if (e.target.type !== 'select-one') {
+          e.preventDefault();
+          commitEdit();
+          navigateCell(editingCell.rowIndex + 1, COLUMNS.indexOf(editingCell.field));
+        }
+        break;
+    }
+  }
+
+  function handleCellClick(rowIndex, field, e) {
+    e.stopPropagation();
+    
+    // If already active, start editing
+    if (activeCell?.rowIndex === rowIndex && activeCell?.field === field) {
+      startEditing(rowIndex, field);
+    } else {
+      setActiveCell({ rowIndex, field });
+      setEditingCell(null);
+    }
+  }
+
+  function handleCellDoubleClick(rowIndex, field, e) {
+    e.stopPropagation();
+    setActiveCell({ rowIndex, field });
+    startEditing(rowIndex, field);
   }
 
   function getItemTypeInfo(type) {
@@ -169,127 +330,193 @@ export default function Planning() {
   function formatDate(date) {
     if (!date) return '';
     return new Date(date).toLocaleDateString('en-GB', { 
-      day: '2-digit', 
-      month: 'short', 
-      year: 'numeric' 
+      day: '2-digit', month: 'short', year: 'numeric' 
     });
   }
 
-  function renderCell(item, field) {
-    const isEditing = editingCell?.id === item.id && editingCell?.field === field;
+  function renderCell(item, field, rowIndex) {
+    const isActive = activeCell?.rowIndex === rowIndex && activeCell?.field === field;
+    const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.field === field;
     
+    const cellClass = `plan-cell plan-cell-${field} ${isActive ? 'active' : ''} ${isEditing ? 'editing' : ''}`;
+    
+    // Editing mode
+    if (isEditing) {
+      switch (field) {
+        case 'name':
+          return (
+            <td className={cellClass}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleEditKeyDown}
+                onBlur={commitEdit}
+                className="plan-cell-input"
+                placeholder="Task name"
+              />
+            </td>
+          );
+        
+        case 'item_type':
+          return (
+            <td className={cellClass}>
+              <select
+                ref={inputRef}
+                value={editValue || 'task'}
+                onChange={(e) => {
+                  setEditValue(e.target.value);
+                  handleUpdateItem(item.id, 'item_type', e.target.value);
+                  setEditingCell(null);
+                }}
+                onKeyDown={handleEditKeyDown}
+                onBlur={commitEdit}
+                className="plan-cell-select"
+              >
+                {ITEM_TYPES.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+            </td>
+          );
+        
+        case 'start_date':
+        case 'end_date':
+          return (
+            <td className={cellClass}>
+              <input
+                ref={inputRef}
+                type="date"
+                value={editValue || ''}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleEditKeyDown}
+                onBlur={commitEdit}
+                className="plan-cell-input"
+              />
+            </td>
+          );
+        
+        case 'progress':
+          return (
+            <td className={cellClass}>
+              <input
+                ref={inputRef}
+                type="number"
+                min="0"
+                max="100"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleEditKeyDown}
+                onBlur={commitEdit}
+                className="plan-cell-input plan-cell-progress-input"
+              />
+            </td>
+          );
+        
+        case 'status':
+          return (
+            <td className={cellClass}>
+              <select
+                ref={inputRef}
+                value={editValue || 'not_started'}
+                onChange={(e) => {
+                  setEditValue(e.target.value);
+                  handleUpdateItem(item.id, 'status', e.target.value);
+                  setEditingCell(null);
+                }}
+                onKeyDown={handleEditKeyDown}
+                onBlur={commitEdit}
+                className="plan-cell-select"
+              >
+                {STATUS_OPTIONS.map(status => (
+                  <option key={status.value} value={status.value}>{status.label}</option>
+                ))}
+              </select>
+            </td>
+          );
+      }
+    }
+    
+    // Display mode
     switch (field) {
       case 'name':
-        return isEditing ? (
-          <input
-            ref={inputRef}
-            type="text"
-            defaultValue={item.name}
-            onBlur={(e) => {
-              handleUpdateItem(item.id, 'name', e.target.value);
-              handleCellBlur();
-            }}
-            onKeyDown={(e) => handleKeyDown(e, item.id, 'name', e.target.value)}
-            className="plan-cell-input"
-          />
-        ) : (
-          <span className="plan-cell-text">{item.name}</span>
+        return (
+          <td 
+            className={cellClass}
+            onClick={(e) => handleCellClick(rowIndex, field, e)}
+            onDoubleClick={(e) => handleCellDoubleClick(rowIndex, field, e)}
+          >
+            <div className="plan-name-wrapper" style={{ paddingLeft: `${(item.indent_level || 0) * 20}px` }}>
+              {item.parent_id ? (
+                <ChevronRight size={14} className="indent-icon" />
+              ) : items.some(i => i.parent_id === item.id) ? (
+                <ChevronDown size={14} className="expand-icon" />
+              ) : null}
+              <span className="plan-cell-text">{item.name || <span className="placeholder">Enter task name</span>}</span>
+            </div>
+          </td>
         );
       
       case 'item_type':
         const typeInfo = getItemTypeInfo(item.item_type);
         const TypeIcon = typeInfo.icon;
-        return isEditing ? (
-          <select
-            ref={inputRef}
-            defaultValue={item.item_type}
-            onChange={(e) => {
-              handleUpdateItem(item.id, 'item_type', e.target.value);
-              handleCellBlur();
-            }}
-            onBlur={handleCellBlur}
-            className="plan-cell-select"
+        return (
+          <td 
+            className={cellClass}
+            onClick={(e) => handleCellClick(rowIndex, field, e)}
+            onDoubleClick={(e) => handleCellDoubleClick(rowIndex, field, e)}
           >
-            {ITEM_TYPES.map(type => (
-              <option key={type.value} value={type.value}>{type.label}</option>
-            ))}
-          </select>
-        ) : (
-          <span className={`plan-type-badge ${item.item_type}`}>
-            <TypeIcon size={12} />
-            {typeInfo.label}
-          </span>
+            <span className={`plan-type-badge ${item.item_type}`}>
+              <TypeIcon size={12} />
+              {typeInfo.label}
+            </span>
+          </td>
         );
       
       case 'start_date':
       case 'end_date':
-        return isEditing ? (
-          <input
-            ref={inputRef}
-            type="date"
-            defaultValue={item[field] || ''}
-            onChange={(e) => {
-              handleUpdateItem(item.id, field, e.target.value || null);
-            }}
-            onBlur={handleCellBlur}
-            className="plan-cell-input"
-          />
-        ) : (
-          <span className="plan-cell-date">{formatDate(item[field])}</span>
+        return (
+          <td 
+            className={cellClass}
+            onClick={(e) => handleCellClick(rowIndex, field, e)}
+            onDoubleClick={(e) => handleCellDoubleClick(rowIndex, field, e)}
+          >
+            <span className="plan-cell-date">{formatDate(item[field]) || <span className="placeholder">-</span>}</span>
+          </td>
         );
       
       case 'progress':
-        return isEditing ? (
-          <input
-            ref={inputRef}
-            type="number"
-            min="0"
-            max="100"
-            defaultValue={item.progress || 0}
-            onBlur={(e) => {
-              const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-              handleUpdateItem(item.id, 'progress', val);
-              handleCellBlur();
-            }}
-            onKeyDown={(e) => handleKeyDown(e, item.id, 'progress', e.target.value)}
-            className="plan-cell-input plan-cell-progress-input"
-          />
-        ) : (
-          <div className="plan-progress-cell">
-            <div className="plan-progress-bar">
-              <div 
-                className="plan-progress-fill" 
-                style={{ width: `${item.progress || 0}%` }}
-              />
+        return (
+          <td 
+            className={cellClass}
+            onClick={(e) => handleCellClick(rowIndex, field, e)}
+            onDoubleClick={(e) => handleCellDoubleClick(rowIndex, field, e)}
+          >
+            <div className="plan-progress-cell">
+              <div className="plan-progress-bar">
+                <div className="plan-progress-fill" style={{ width: `${item.progress || 0}%` }} />
+              </div>
+              <span className="plan-progress-text">{item.progress || 0}%</span>
             </div>
-            <span className="plan-progress-text">{item.progress || 0}%</span>
-          </div>
+          </td>
         );
       
       case 'status':
-        return isEditing ? (
-          <select
-            ref={inputRef}
-            defaultValue={item.status}
-            onChange={(e) => {
-              handleUpdateItem(item.id, 'status', e.target.value);
-              handleCellBlur();
-            }}
-            onBlur={handleCellBlur}
-            className="plan-cell-select"
+        return (
+          <td 
+            className={cellClass}
+            onClick={(e) => handleCellClick(rowIndex, field, e)}
+            onDoubleClick={(e) => handleCellDoubleClick(rowIndex, field, e)}
           >
-            {STATUS_OPTIONS.map(status => (
-              <option key={status.value} value={status.value}>{status.label}</option>
-            ))}
-          </select>
-        ) : (
-          <span className={`plan-status-badge ${item.status}`}>
-            {STATUS_OPTIONS.find(s => s.value === item.status)?.label || item.status}
-          </span>
+            <span className={`plan-status-badge ${item.status}`}>
+              {STATUS_OPTIONS.find(s => s.value === item.status)?.label || item.status}
+            </span>
+          </td>
         );
       
       default:
-        return item[field];
+        return <td className={cellClass}>{item[field]}</td>;
     }
   }
 
@@ -304,31 +531,35 @@ export default function Planning() {
   }
 
   return (
-    <div className="planning-page">
+    <div className="planning-page" onClick={() => { setActiveCell(null); setEditingCell(null); }}>
       <div className="plan-header">
         <div className="plan-header-left">
           <h1>Project Plan</h1>
           <p>Define tasks, milestones, and deliverables</p>
         </div>
         <div className="plan-header-actions">
+          <div className="plan-keyboard-hint">
+            <Keyboard size={14} />
+            <span>Tab/Enter to navigate • Type to edit • F2 to edit cell</span>
+          </div>
           <button onClick={fetchItems} className="plan-btn plan-btn-secondary">
             <RefreshCw size={16} />
             Refresh
           </button>
-          <button onClick={handleAddItem} className="plan-btn plan-btn-primary">
+          <button onClick={() => handleAddItem()} className="plan-btn plan-btn-primary">
             <Plus size={16} />
             Add Task
           </button>
         </div>
       </div>
 
-      <div className="plan-content">
-        <div className="plan-table-container">
+      <div className="plan-content" onClick={(e) => e.stopPropagation()}>
+        <div className="plan-table-container" ref={tableRef}>
           <table className="plan-table">
             <thead>
               <tr>
                 <th className="plan-col-grip"></th>
-                <th className="plan-col-wbs">WBS</th>
+                <th className="plan-col-wbs">#</th>
                 <th className="plan-col-name">Task Name</th>
                 <th className="plan-col-type">Type</th>
                 <th className="plan-col-start">Start</th>
@@ -346,73 +577,33 @@ export default function Planning() {
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="plan-empty-row">
-                    <p>No tasks yet. Click "Add Task" to get started.</p>
+                    <p>No tasks yet. Press Enter or click "Add Task" to start.</p>
                   </td>
                 </tr>
               ) : (
                 items.map((item, index) => (
                   <tr 
                     key={item.id} 
-                    className={`plan-row ${selectedRow === item.id ? 'selected' : ''} ${item.item_type}`}
-                    onClick={() => setSelectedRow(item.id)}
+                    className={`plan-row ${activeCell?.rowIndex === index ? 'active-row' : ''} ${item.item_type}`}
                   >
                     <td className="plan-cell plan-cell-grip">
                       <GripVertical size={14} className="grip-icon" />
                     </td>
                     <td className="plan-cell plan-cell-wbs">
-                      <span style={{ paddingLeft: `${(item.indent_level || 0) * 20}px` }}>
-                        {item.wbs || index + 1}
-                      </span>
+                      {item.wbs || index + 1}
                     </td>
-                    <td 
-                      className="plan-cell plan-cell-name"
-                      onClick={() => handleCellClick(item.id, 'name')}
-                    >
-                      <div className="plan-name-wrapper" style={{ paddingLeft: `${(item.indent_level || 0) * 20}px` }}>
-                        {item.parent_id ? (
-                          <ChevronRight size={14} className="indent-icon" />
-                        ) : items.some(i => i.parent_id === item.id) ? (
-                          <ChevronDown size={14} className="expand-icon" />
-                        ) : null}
-                        {renderCell(item, 'name')}
-                      </div>
-                    </td>
-                    <td 
-                      className="plan-cell plan-cell-type"
-                      onClick={() => handleCellClick(item.id, 'item_type')}
-                    >
-                      {renderCell(item, 'item_type')}
-                    </td>
-                    <td 
-                      className="plan-cell plan-cell-date"
-                      onClick={() => handleCellClick(item.id, 'start_date')}
-                    >
-                      {renderCell(item, 'start_date')}
-                    </td>
-                    <td 
-                      className="plan-cell plan-cell-date"
-                      onClick={() => handleCellClick(item.id, 'end_date')}
-                    >
-                      {renderCell(item, 'end_date')}
-                    </td>
-                    <td 
-                      className="plan-cell plan-cell-progress"
-                      onClick={() => handleCellClick(item.id, 'progress')}
-                    >
-                      {renderCell(item, 'progress')}
-                    </td>
-                    <td 
-                      className="plan-cell plan-cell-status"
-                      onClick={() => handleCellClick(item.id, 'status')}
-                    >
-                      {renderCell(item, 'status')}
-                    </td>
+                    {renderCell(item, 'name', index)}
+                    {renderCell(item, 'item_type', index)}
+                    {renderCell(item, 'start_date', index)}
+                    {renderCell(item, 'end_date', index)}
+                    {renderCell(item, 'progress', index)}
+                    {renderCell(item, 'status', index)}
                     <td className="plan-cell plan-cell-actions">
                       <div className="plan-actions">
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleIndent(item.id); }}
                           className="plan-action-btn"
-                          title="Indent"
+                          title="Indent (make sub-task)"
                         >
                           <ArrowRight size={14} />
                         </button>
@@ -440,9 +631,9 @@ export default function Planning() {
         </div>
         
         {/* Quick add row */}
-        <div className="plan-quick-add" onClick={handleAddItem}>
+        <div className="plan-quick-add" onClick={() => handleAddItem()}>
           <Plus size={16} />
-          <span>Click to add a new task</span>
+          <span>Click to add a new task (or press Enter from last row)</span>
         </div>
       </div>
     </div>
