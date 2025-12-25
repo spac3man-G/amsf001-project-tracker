@@ -146,7 +146,6 @@ export default function OrganisationAdmin() {
         {activeTab === 'projects' && (
           <ProjectsTab 
             organisation={currentOrganisation}
-            organisationId={organisationId}
             user={user}
             isSystemAdmin={isSystemAdmin}
             showSuccess={showSuccess}
@@ -620,7 +619,7 @@ function MembersTab({
 // PROJECTS TAB
 // ============================================
 function ProjectsTab({ 
-  organisation, organisationId, user, isSystemAdmin, 
+  organisation, user, isSystemAdmin, 
   showSuccess, showError, showWarning, refreshProjectAssignments, navigate 
 }) {
   const [projects, setProjects] = useState([]);
@@ -630,7 +629,7 @@ function ProjectsTab({
   const [newProject, setNewProject] = useState({ name: '', reference: '', description: '' });
 
   const fetchProjects = useCallback(async () => {
-    if (!organisationId) return;
+    if (!organisation?.id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -639,7 +638,7 @@ function ProjectsTab({
           id, name, reference, description, status, created_at,
           user_projects(count)
         `)
-        .eq('organisation_id', organisationId)
+        .eq('organisation_id', organisation.id)
         .is('deleted_at', null)
         .order('name');
 
@@ -651,7 +650,7 @@ function ProjectsTab({
     } finally {
       setLoading(false);
     }
-  }, [organisationId, showError]);
+  }, [organisation?.id, showError]);
 
   useEffect(() => {
     fetchProjects();
@@ -671,7 +670,7 @@ function ProjectsTab({
           name: newProject.name.trim(),
           reference: newProject.reference.trim().toUpperCase(),
           description: newProject.description.trim(),
-          organisation_id: organisationId,
+          organisation_id: organisation.id,
           adminToken: session.session?.access_token,
         }),
       });
