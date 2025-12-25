@@ -20,7 +20,7 @@ import {
   Plus, Shield, User, Trash2, ChevronDown, Mail, 
   Check, X, Clock, Copy, UserPlus, UserMinus, 
   ChevronRight, Settings, AlertCircle, Briefcase,
-  ToggleLeft, ToggleRight
+  ToggleLeft, ToggleRight, Palette
 } from 'lucide-react';
 import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -131,6 +131,7 @@ export default function OrganisationAdmin() {
             canEdit={canEdit}
             showSuccess={showSuccess}
             showError={showError}
+            refreshOrganisation={refreshOrganisationMemberships}
           />
         )}
         {activeTab === 'members' && (
@@ -172,11 +173,12 @@ export default function OrganisationAdmin() {
 // ============================================
 // ORGANISATION TAB
 // ============================================
-function OrganisationTab({ organisation, canEdit, showSuccess, showError }) {
+function OrganisationTab({ organisation, canEdit, showSuccess, showError, refreshOrganisation }) {
   const [formData, setFormData] = useState({
     name: organisation?.name || '',
     display_name: organisation?.display_name || '',
     slug: organisation?.slug || '',
+    primary_color: organisation?.primary_color || '#10b981',
   });
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -187,6 +189,7 @@ function OrganisationTab({ organisation, canEdit, showSuccess, showError }) {
         name: organisation.name || '',
         display_name: organisation.display_name || '',
         slug: organisation.slug || '',
+        primary_color: organisation.primary_color || '#10b981',
       });
     }
   }, [organisation]);
@@ -204,12 +207,17 @@ function OrganisationTab({ organisation, canEdit, showSuccess, showError }) {
         .update({
           name: formData.name,
           display_name: formData.display_name,
+          primary_color: formData.primary_color,
         })
         .eq('id', organisation.id);
 
       if (error) throw error;
       showSuccess('Organisation updated successfully');
       setHasChanges(false);
+      // Refresh the organisation context so the header updates
+      if (refreshOrganisation) {
+        await refreshOrganisation();
+      }
     } catch (error) {
       console.error('Error saving:', error);
       showError('Failed to save changes');
@@ -277,6 +285,54 @@ function OrganisationTab({ organisation, canEdit, showSuccess, showError }) {
               </button>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Branding Section */}
+      <div className="section-card">
+        <div className="section-header">
+          <Palette size={20} />
+          <h3>Branding</h3>
+        </div>
+        <div className="section-body">
+          <div className="form-group">
+            <label>Primary Color</label>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <input
+                type="color"
+                value={formData.primary_color}
+                onChange={(e) => handleChange('primary_color', e.target.value)}
+                style={{
+                  width: '50px',
+                  height: '40px',
+                  padding: '2px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+              />
+              <input
+                type="text"
+                value={formData.primary_color}
+                onChange={(e) => handleChange('primary_color', e.target.value)}
+                placeholder="#10b981"
+                style={{ flex: 1, maxWidth: '120px' }}
+              />
+              <div 
+                style={{ 
+                  padding: '0.5rem 1rem',
+                  backgroundColor: formData.primary_color,
+                  color: 'white',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: '500'
+                }}
+              >
+                Preview
+              </div>
+            </div>
+            <span className="form-hint">This color is used in the header bar and sidebar accent</span>
+          </div>
         </div>
       </div>
 

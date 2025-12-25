@@ -265,8 +265,9 @@ export default function Layout({ children }) {
           borderBottom: `2px solid ${brandColor}`,
           background: `linear-gradient(135deg, ${brandColor}10 0%, ${brandColor}05 100%)`,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: '0.5rem'
         }}>
           {sidebarOpen && (
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -275,9 +276,7 @@ export default function Layout({ children }) {
                 fontSize: '0.85rem', 
                 fontWeight: '600', 
                 color: brandColor,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                lineHeight: '1.3'
               }}>
                 {currentOrganisation?.display_name || currentOrganisation?.name || 'Organisation'}
               </h2>
@@ -285,9 +284,8 @@ export default function Layout({ children }) {
                 fontSize: '0.75rem', 
                 color: '#64748b',
                 display: 'block',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                lineHeight: '1.4',
+                marginTop: '0.25rem'
               }}>
                 {projectName || 'Select Project'}
               </span>
