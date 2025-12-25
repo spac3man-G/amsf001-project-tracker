@@ -245,6 +245,9 @@ export default function Layout({ children }) {
     }
   }
 
+  // Fixed header height for alignment
+  const headerHeight = '56px';
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       {/* Sidebar */}
@@ -259,33 +262,41 @@ export default function Layout({ children }) {
         height: '100vh',
         zIndex: 50
       }}>
-        {/* Logo/Header - Organisation : Project */}
+        {/* Logo/Header - Organisation : Project - FIXED HEIGHT */}
         <div style={{ 
-          padding: '1rem', 
+          height: headerHeight,
+          minHeight: headerHeight,
+          padding: '0 1rem',
           borderBottom: `2px solid ${brandColor}`,
-          background: `linear-gradient(135deg, ${brandColor}10 0%, ${brandColor}05 100%)`,
+          background: `linear-gradient(to right, ${brandColor}15, ${brandColor}08)`,
           display: 'flex',
-          alignItems: 'flex-start',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '0.5rem'
+          gap: '0.5rem',
+          boxSizing: 'border-box'
         }}>
           {sidebarOpen && (
-            <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
               <h2 style={{ 
                 margin: 0, 
-                fontSize: '0.85rem', 
+                fontSize: '0.8rem', 
                 fontWeight: '600', 
                 color: brandColor,
-                lineHeight: '1.3'
+                lineHeight: '1.2',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}>
                 {currentOrganisation?.display_name || currentOrganisation?.name || 'Organisation'}
               </h2>
               <span style={{ 
-                fontSize: '0.75rem', 
+                fontSize: '0.7rem', 
                 color: '#64748b',
                 display: 'block',
-                lineHeight: '1.4',
-                marginTop: '0.25rem'
+                lineHeight: '1.3',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}>
                 {projectName || 'Select Project'}
               </span>
@@ -463,19 +474,22 @@ export default function Layout({ children }) {
         display: 'flex',
         flexDirection: 'column'
       }}>
-        {/* Top Header Bar with User Info and Notification Bell */}
+        {/* Top Header Bar with User Info and Notification Bell - MATCHES SIDEBAR HEIGHT */}
         <header style={{
-          padding: '0.75rem 1.5rem',
+          height: headerHeight,
+          minHeight: headerHeight,
+          padding: '0 1.5rem',
           backgroundColor: 'white',
           borderBottom: `2px solid ${brandColor}`,
-          background: `linear-gradient(135deg, ${brandColor}08 0%, white 50%)`,
+          background: `linear-gradient(to right, ${brandColor}08, white 30%)`,
           display: 'flex',
           justifyContent: 'flex-end',
           alignItems: 'center',
           gap: '1rem',
           position: 'sticky',
           top: 0,
-          zIndex: 200
+          zIndex: 200,
+          boxSizing: 'border-box'
         }}>
           {/* Organisation Switcher (only shown for users with multiple organisations) */}
           <OrganisationSwitcher />
