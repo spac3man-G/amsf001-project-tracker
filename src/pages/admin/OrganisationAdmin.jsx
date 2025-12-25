@@ -630,18 +630,22 @@ function ProjectsTab({
 
   const fetchProjects = useCallback(async () => {
     if (!organisation?.id) {
+      console.log('No organisation id, skipping fetch');
       setLoading(false);
       return;
     }
+    console.log('Fetching projects for organisation:', organisation.id, organisation.name);
     setLoading(true);
     try {
       // Simple query - just get projects for this org
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('id, name, reference, description, status, created_at')
+        .select('id, name, reference, description, status, created_at, organisation_id')
         .eq('organisation_id', organisation.id)
         .is('deleted_at', null)
         .order('name');
+
+      console.log('Projects query result:', { data: projectsData, error: projectsError });
 
       if (projectsError) {
         console.error('Projects query error:', projectsError);
