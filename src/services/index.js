@@ -129,8 +129,3 @@ export {
   subscriptionService,
   LIMIT_TYPES
 } from './subscription.service';
-
-// Planning (MS Project-like task management)
-export {
-  planningService
-} from './planning.service';
