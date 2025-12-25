@@ -1,9 +1,14 @@
 # AMSF001 Technical Specification - API Layer & AI Integration
 
-**Version:** 1.1  
-**Last Updated:** 23 December 2025  
+**Version:** 1.2  
+**Last Updated:** 24 December 2025  
 **Session:** 1.6  
 **Status:** Complete  
+
+> **Version 1.2 Updates (24 December 2025):**
+> - Added `/api/create-organisation` endpoint (self-service org creation)
+> - Added Section 6.6: Organisation Creation API
+> - Updated endpoint summary table
 
 > **Version 1.1 Updates (23 December 2025):**
 > - Added `/api/create-project` endpoint (org-aware project creation)
@@ -100,6 +105,7 @@ The AMSF001 Project Tracker uses **Vercel Edge Functions** for its serverless AP
 | `/api/chat-context` | POST | Pre-fetch project context | Yes (JWT) |
 | `/api/create-user` | POST | Create new user accounts | Admin JWT |
 | `/api/create-project` | POST | Create project (org-aware) | Admin/Org Admin JWT |
+| `/api/create-organisation` | POST | Create new organisation | Yes (JWT) |
 | `/api/scan-receipt` | POST | AI receipt scanning | Yes (JWT) |
 
 ### 2.2 Vercel Routing Configuration
@@ -691,6 +697,132 @@ Creates new projects within an organisation. Requires organisation admin permiss
 {
   "error": "Insufficient permissions. Only organisation admins can create projects."
 }
+```
+
+---
+
+### 6.6 Organisation Creation API (New - December 2025)
+
+**File:** `api/create-organisation.js`
+
+Creates new organisations during the self-service signup flow. Any authenticated user can create an organisation.
+
+**Endpoint:** `POST /api/create-organisation`
+
+**Request Body:**
+
+```json
+{
+  "name": "My Company Ltd",
+  "slug": "my-company",
+  "display_name": "My Company",
+  "description": "Optional description",
+  "adminToken": "jwt-token"
+}
+```
+
+**Field Details:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Organisation name (used internally) |
+| `slug` | No | URL-friendly identifier (auto-generated from name if not provided) |
+| `display_name` | No | Display name for UI (defaults to name) |
+| `description` | No | Organisation description |
+| `adminToken` | Yes | JWT token from authenticated user |
+
+**Permissions:**
+- Any authenticated user can create an organisation
+- Creator automatically becomes `org_admin`
+- Organisation is set as user's default if they have no others
+
+**Validation:**
+- Name is required and must not be empty
+- Slug must be unique across all organisations
+- Slug must be URL-safe (lowercase alphanumeric and hyphens only)
+
+**Response (Success):**
+
+```json
+{
+  "success": true,
+  "organisation": {
+    "id": "uuid",
+    "name": "My Company Ltd",
+    "slug": "my-company",
+    "display_name": "My Company",
+    "subscription_tier": "free",
+    "is_active": true,
+    "settings": {
+      "onboarding_completed": false
+    }
+  },
+  "membership": {
+    "id": "uuid",
+    "org_role": "org_admin",
+    "is_default": true
+  },
+  "message": "Organisation created successfully"
+}
+```
+
+**Response (Error - Duplicate Slug):**
+
+```json
+{
+  "error": "Organisation with this slug already exists",
+  "code": "DUPLICATE_SLUG"
+}
+```
+
+**Response (Error - Unauthorized):**
+
+```json
+{
+  "error": "Unauthorized - valid authentication required"
+}
+```
+
+**Workflow:**
+
+```
+User Request
+      │
+      ▼
+┌─────────────────┐
+│ Verify Auth     │
+│ (JWT token)     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Validate Input  │
+│ - Name required │
+│ - Generate slug │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Check Slug      │
+│ Uniqueness      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Create Org      │
+│ tier: 'free'    │
+│ active: true    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Add Creator as  │
+│ org_admin       │
+│ is_default: true│
+└────────┬────────┘
+         │
+         ▼
+   Return Success
 ```
 
 ---
