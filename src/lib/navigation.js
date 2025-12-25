@@ -128,14 +128,15 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
     readOnlyRoles: []
   },
-  billing: {
-    id: 'billing',
-    path: '/billing',
+  finance: {
+    id: 'finance',
+    path: '/finance',
     icon: PoundSterling,
-    label: 'Billing',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    label: 'Finance',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE],
     readOnlyRoles: []
   },
+  // billing is now a tab within Finance
   // partners is now a tab within Organisation Admin
   teamMembers: {
     id: 'teamMembers',
@@ -234,7 +235,7 @@ export const ROLE_NAV_ORDER = {
     'calendar',
     'timesheets',
     'expenses',
-    'billing',
+    'finance',
     'settings',
     'orgSettings'
   ],
@@ -248,7 +249,7 @@ export const ROLE_NAV_ORDER = {
     'calendar',
     'timesheets',
     'expenses',
-    'billing',
+    'finance',
     'settings',
     'orgSettings'
   ],
@@ -258,6 +259,7 @@ export const ROLE_NAV_ORDER = {
     'calendar',
     'timesheets',
     'expenses',
+    'finance',
     'deliverables'
   ],
   [ROLES.CUSTOMER_PM]: [
@@ -269,7 +271,8 @@ export const ROLE_NAV_ORDER = {
     'raid',
     'calendar',
     'timesheets',
-    'expenses'
+    'expenses',
+    'finance'
   ],
   [ROLES.CUSTOMER_FINANCE]: [
     'workflowSummary',
@@ -277,6 +280,7 @@ export const ROLE_NAV_ORDER = {
     'calendar',
     'timesheets',
     'expenses',
+    'finance',
     'deliverables'
   ],
   [ROLES.CONTRIBUTOR]: [

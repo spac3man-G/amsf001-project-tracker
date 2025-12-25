@@ -57,7 +57,8 @@ const KPIDetail = lazy(() => import('./pages/KPIDetail'));
 const QualityStandardDetail = lazy(() => import('./pages/QualityStandardDetail'));
 const RaidLog = lazy(() => import('./pages/RaidLog'));
 const Reports = lazy(() => import('./pages/Reports'));
-const Billing = lazy(() => import('./pages/Billing'));
+// Finance Hub includes: Summary, Billing
+const FinanceHub = lazy(() => import('./pages/FinanceHub'));
 const TeamMembers = lazy(() => import('./pages/TeamMembers'));
 const ProjectSettings = lazy(() => import('./pages/ProjectSettings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
@@ -381,9 +382,14 @@ export default function App() {
                               <ProtectedRoute><Reports /></ProtectedRoute>
                             } />
                             
-                            {/* Billing */}
+                            {/* Finance Hub - includes Summary, Billing */}
+                            <Route path="/finance" element={
+                              <ProtectedRoute><FinanceHub /></ProtectedRoute>
+                            } />
+                            
+                            {/* Billing - redirect to Finance tab */}
                             <Route path="/billing" element={
-                              <ProtectedRoute><Billing /></ProtectedRoute>
+                              <Navigate to="/finance?tab=billing" replace />
                             } />
                             
                             {/* Team Members (project-scoped user management) */}
