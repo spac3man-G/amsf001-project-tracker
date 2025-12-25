@@ -641,10 +641,10 @@ function ProjectsTab({
     
     setLoading(true);
     try {
-      // Simple query - just get projects for this org
+      // Simple query - only select columns we know exist
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('id, name, reference, description, status, created_at, organisation_id')
+        .select('id, name, reference, description, organisation_id, start_date, created_at')
         .eq('organisation_id', organisation.id)
         .order('name');
 
