@@ -1,8 +1,8 @@
 /* AMSF001 Modern Minimalist Design System v1.0 */
 :root {
-  --color-primary: #0EA5A5;
-  --color-primary-hover: rgba(14, 165, 165, 0.9);
-  --color-primary-light: rgba(14, 165, 165, 0.1);
+  --color-primary: var(--org-brand-color, #10b981);
+  --color-primary-hover: color-mix(in srgb, var(--org-brand-color, #10b981) 85%, black);
+  --color-primary-light: color-mix(in srgb, var(--org-brand-color, #10b981) 10%, transparent);
   --color-text-primary: #2C2C2C;
   --color-text-secondary: #666666;
   --color-text-inverse: #FFFFFF;

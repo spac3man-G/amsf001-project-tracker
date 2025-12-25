@@ -9,11 +9,15 @@
    Design Tokens
    ============================================== */
 :root {
-  /* Primary Brand Colors */
-  --color-primary: #0d9488;
-  --color-primary-hover: #0f766e;
-  --color-primary-light: rgba(13, 148, 136, 0.1);
-  --color-primary-lighter: rgba(13, 148, 136, 0.05);
+  /* Organisation Brand Color - Set dynamically by Layout.jsx */
+  /* Fallback to teal if not set */
+  --org-brand-color: #10b981;
+  
+  /* Primary Brand Colors - Now use org brand color */
+  --color-primary: var(--org-brand-color);
+  --color-primary-hover: color-mix(in srgb, var(--org-brand-color) 85%, black);
+  --color-primary-light: color-mix(in srgb, var(--org-brand-color) 10%, transparent);
+  --color-primary-lighter: color-mix(in srgb, var(--org-brand-color) 5%, transparent);
   
   /* Semantic Colors */
   --color-accent: #0071e3;

@@ -343,8 +343,8 @@ export default function Layout({ children }) {
                 style={{
                   position: 'relative',
                   marginBottom: '0.25rem',
-                  borderTop: isDragOver && draggedItem > index ? '2px solid #10b981' : '2px solid transparent',
-                  borderBottom: isDragOver && draggedItem < index ? '2px solid #10b981' : '2px solid transparent',
+                  borderTop: isDragOver && draggedItem > index ? `2px solid ${brandColor}` : '2px solid transparent',
+                  borderBottom: isDragOver && draggedItem < index ? `2px solid ${brandColor}` : '2px solid transparent',
                   transition: 'border-color 0.15s ease'
                 }}
               >
@@ -358,8 +358,8 @@ export default function Layout({ children }) {
                     padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem',
                     borderRadius: '8px',
                     textDecoration: 'none',
-                    color: isActive ? '#10b981' : '#64748b',
-                    backgroundColor: isActive ? '#f0fdf4' : isDragging ? '#f1f5f9' : 'transparent',
+                    color: isActive ? brandColor : '#64748b',
+                    backgroundColor: isActive ? `${brandColor}15` : isDragging ? '#f1f5f9' : 'transparent',
                     fontWeight: isActive ? '600' : '500',
                     justifyContent: sidebarOpen ? 'flex-start' : 'center',
                     transition: 'all 0.15s ease',

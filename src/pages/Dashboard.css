@@ -18,8 +18,8 @@
   
   --ds-accent: #0071e3;
   --ds-accent-hover: #0077ed;
-  --ds-teal: #0d9488;
-  --ds-teal-light: rgba(13, 148, 136, 0.1);
+  --ds-teal: var(--org-brand-color);
+  --ds-teal-light: color-mix(in srgb, var(--org-brand-color) 10%, transparent);
   
   --ds-success: #34c759;
   --ds-success-bg: rgba(52, 199, 89, 0.1);

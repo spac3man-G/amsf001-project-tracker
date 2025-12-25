@@ -11,8 +11,8 @@
   --ds-text-primary: #1d1d1f;
   --ds-text-secondary: #86868b;
   --ds-text-tertiary: #6e6e73;
-  --ds-teal: #0d9488;
-  --ds-teal-light: rgba(13, 148, 136, 0.1);
+  --ds-teal: var(--org-brand-color);
+  --ds-teal-light: color-mix(in srgb, var(--org-brand-color) 10%, transparent);
   --ds-blue: #007aff;
   --ds-blue-light: rgba(0, 122, 255, 0.1);
   --ds-green: #34c759;
@@ -127,7 +127,7 @@
 }
 
 .vd-btn-primary:hover {
-  background: #0b8278;
+  filter: brightness(0.9);
 }
 
 .vd-btn-secondary {
