@@ -52,6 +52,7 @@ export default function GanttContent() {
   async function fetchMilestones(projId) {
     const pid = projId || projectId;
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('milestones')
         .select('*')
@@ -62,6 +63,8 @@ export default function GanttContent() {
       setMilestones(data || []);
     } catch (error) {
       console.error('Error fetching milestones:', error);
+    } finally {
+      setLoading(false);
     }
   }
 
