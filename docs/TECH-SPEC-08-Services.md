@@ -1,10 +1,16 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 2.0  
+**Document Version:** 3.0  
 **Created:** 11 December 2025  
-**Updated:** 23 December 2025  
+**Updated:** 24 December 2025  
 **Session:** 1.8  
 **Status:** Complete
+
+> **Version 3.0 Updates (24 December 2025):**
+> - Added Section 4.8: Subscription Service (tier limits, usage tracking)
+> - Added Section 4.9: Invitation Service (email invitations)
+> - Updated organisation.service.js with limit checking parameter
+> - Updated file structure listing
 
 > **Version 2.0 Updates (23 December 2025):**
 > - Added Section 4: Organisation Services (new for multi-tenancy)
@@ -87,6 +93,8 @@ src/services/
 │
 ├── # Organisation Services (NEW - December 2025)
 ├── organisation.service.js     # Multi-tenancy, member management
+├── invitation.service.js       # Email invitations (NEW)
+├── subscription.service.js     # Tier limits & usage (NEW)
 │
 ├── # Entity Services
 ├── milestones.service.js
@@ -385,10 +393,17 @@ const org = await organisationService.create({
 | Method | Parameters | Returns | Description |
 |--------|------------|---------|-------------|
 | `getMembers(orgId)` | Organisation UUID | `Array` | Get all org members with profiles |
-| `addMember(orgId, userId, role, invitedBy)` | UUIDs, role | `Object` | Add member to org |
+| `addMember(orgId, userId, role, invitedBy, options)` | UUIDs, role, options | `Object` | Add member to org |
 | `removeMember(orgId, userId)` | UUIDs | `boolean` | Remove member (not owner) |
 | `changeMemberRole(orgId, userId, newRole)` | UUIDs, role | `Object` | Change member's role |
 | `getUserRole(orgId, userId)` | UUIDs | `string\|null` | Get user's org role |
+
+**addMember Options (NEW - December 2025):**
+```typescript
+interface AddMemberOptions {
+  skipLimitCheck?: boolean;  // Skip member limit check (for system admin)
+}
+```
 
 **Organisation Roles:**
 
@@ -439,6 +454,315 @@ const stats = await organisationService.getStatistics(organisationId);
 | Soft Delete | Via `deleted_at` | Via `is_active` flag |
 | Member Mgmt | N/A | Built-in |
 | Settings | N/A | Built-in with merge |
+
+---
+
+### 4.8 Subscription Service (NEW - December 2025)
+
+**File:** `src/services/subscription.service.js`  
+**Version:** 1.0  
+**Created:** 24 December 2025
+
+Manages subscription tiers, limit checking, and usage tracking.
+
+#### 4.8.1 Purpose
+
+The Subscription Service handles:
+- Tier-based limit enforcement (members, projects, storage)
+- Feature flag checking based on tier
+- Usage statistics for dashboards
+- Upgrade prompts and limit error generation
+
+#### 4.8.2 Class Structure
+
+```javascript
+import { supabase } from '../lib/supabase';
+import { getTierConfig, getTierLimit, tierHasFeature } from '../lib/subscriptionTiers';
+
+export class SubscriptionService {
+  // Methods...
+}
+
+export const subscriptionService = new SubscriptionService();
+```
+
+#### 4.8.3 Tier Information Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getOrganisationTier(orgId)` | UUID | `string` | Get org's subscription tier |
+| `getTierLimits(tier)` | tier name | `Object` | Get all limits for tier |
+
+#### 4.8.4 Count Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getMemberCount(orgId)` | UUID | `number` | Active members count |
+| `getProjectCount(orgId)` | UUID | `number` | Non-deleted projects count |
+| `getPendingInvitationCount(orgId)` | UUID | `number` | Pending invitations count |
+
+#### 4.8.5 Limit Checking Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `checkMemberLimit(orgId)` | UUID | `LimitCheck` | Check member limit |
+| `checkProjectLimit(orgId)` | UUID | `LimitCheck` | Check project limit |
+| `checkLimit(orgId, limitType)` | UUID, type | `LimitCheck` | Generic limit check |
+
+**LimitCheck Return Type:**
+```typescript
+interface LimitCheck {
+  allowed: boolean;      // Can add more?
+  current: number;       // Current count
+  limit: number;         // Maximum allowed (Infinity if unlimited)
+  remaining: number;     // How many more can be added
+  tier: string;          // Current tier name
+}
+```
+
+**Example Usage:**
+```javascript
+const check = await subscriptionService.checkMemberLimit(orgId);
+// Returns: { allowed: true, current: 5, limit: Infinity, remaining: Infinity, tier: 'free' }
+
+if (!check.allowed) {
+  throw new Error(`Member limit reached: ${check.current}/${check.limit}`);
+}
+```
+
+#### 4.8.6 Feature Checking
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `hasFeature(orgId, featureName)` | UUID, feature | `boolean` | Check if feature enabled |
+
+**Available Features:**
+- `ai_chat` - AI chat assistant
+- `receipt_scanner` - Receipt OCR
+- `variations` - Contract variations
+- `report_builder` - Custom reports
+- `custom_branding` - Logo/colors
+- `api_access` - API keys
+- `audit_log` - Audit logging
+- `advanced_permissions` - Advanced roles
+
+#### 4.8.7 Usage Dashboard
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getCurrentUsage(orgId)` | UUID | `UsageStats` | Comprehensive usage for dashboard |
+
+**UsageStats Return Type:**
+```typescript
+interface UsageStats {
+  tier: string;
+  members: { current: number; limit: number; percentage: number };
+  projects: { current: number; limit: number; percentage: number };
+  storage: { current: number; limit: number; percentage: number };
+  features: { [key: string]: boolean };
+}
+```
+
+#### 4.8.8 Error Generation
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `createLimitError(limitType, limitCheck, orgId)` | type, check, UUID | `LimitError` | Structured error with upgrade info |
+
+**LimitError Structure:**
+```javascript
+{
+  code: 'MEMBER_LIMIT_EXCEEDED',
+  message: 'Member limit reached (10/10)',
+  current: 10,
+  limit: 10,
+  tier: 'starter',
+  upgradeUrl: '/admin/billing',
+  nextTier: { name: 'professional', limit: 50 }
+}
+```
+
+#### 4.8.9 Current Tier Configuration
+
+> **Note:** Free tier is currently set to unlimited. When paid tiers are enabled, these limits will apply:
+
+| Tier | Members | Projects | Storage | Price |
+|------|---------|----------|---------|-------|
+| Free | ∞ | ∞ | ∞ | £0 |
+| Starter | 10 | 5 | 1GB | £29/mo |
+| Professional | 50 | 25 | 10GB | £79/mo |
+| Enterprise | ∞ | ∞ | ∞ | Custom |
+
+---
+
+### 4.9 Invitation Service (NEW - December 2025)
+
+**File:** `src/services/invitation.service.js`  
+**Version:** 2.0  
+**Updated:** 24 December 2025
+
+Manages organisation email invitations.
+
+#### 4.9.1 Purpose
+
+The Invitation Service handles:
+- Creating and sending email invitations
+- Token generation and validation
+- Invitation acceptance flow
+- Resend and revoke functionality
+- **Limit checking before creating invitations** (NEW)
+
+#### 4.9.2 Class Structure
+
+```javascript
+import { supabase } from '../lib/supabase';
+
+export class InvitationService {
+  constructor() {
+    this.tableName = 'org_invitations';
+    this.defaultExpiryDays = 7;
+  }
+  // Methods...
+}
+
+export const invitationService = new InvitationService();
+```
+
+#### 4.9.3 Invitation Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `createInvitation(orgId, email, role, invitedBy, options)` | UUIDs, email, role, options | `InviteResult` | Create and send invitation |
+| `getPendingInvitations(orgId)` | UUID | `Array` | Get all pending invitations |
+| `getInvitationByToken(token)` | token string | `Object\|null` | Get invitation by token |
+| `acceptInvitation(token, userId)` | token, UUID | `AcceptResult` | Accept invitation |
+| `resendInvitation(invitationId)` | UUID | `Object` | Resend with new token |
+| `revokeInvitation(invitationId)` | UUID | `boolean` | Delete invitation |
+
+#### 4.9.4 createInvitation Options
+
+```typescript
+interface CreateInvitationOptions {
+  skipLimitCheck?: boolean;  // Skip member limit check (for system admin)
+  expiryDays?: number;       // Override default 7-day expiry
+}
+```
+
+**Limit Check Behavior (NEW):**
+```javascript
+// Default: checks limit before creating invitation
+const result = await invitationService.createInvitation(orgId, email, 'org_member', userId);
+
+// With skip: bypasses limit check (for admin operations)
+const result = await invitationService.createInvitation(
+  orgId, email, 'org_member', userId, 
+  { skipLimitCheck: true }
+);
+```
+
+**Limit Check Logic:**
+```javascript
+// Counts both active members AND pending invitations against limit
+const memberCount = await subscriptionService.getMemberCount(orgId);
+const pendingCount = await subscriptionService.getPendingInvitationCount(orgId);
+const totalCount = memberCount + pendingCount;
+
+if (totalCount >= limit) {
+  return { 
+    success: false, 
+    error: 'LIMIT_EXCEEDED',
+    code: 'MEMBER_LIMIT_EXCEEDED'
+  };
+}
+```
+
+#### 4.9.5 Return Types
+
+**InviteResult:**
+```typescript
+interface InviteResult {
+  success: boolean;
+  invitation?: {
+    id: string;
+    token: string;
+    email: string;
+    expires_at: string;
+  };
+  error?: string;
+  code?: string;  // e.g., 'MEMBER_LIMIT_EXCEEDED', 'ALREADY_MEMBER'
+}
+```
+
+**AcceptResult:**
+```typescript
+interface AcceptResult {
+  success: boolean;
+  membership?: {
+    id: string;
+    organisation_id: string;
+    org_role: string;
+  };
+  error?: string;
+}
+```
+
+#### 4.9.6 Token Generation
+
+```javascript
+// Generates secure random token
+generateToken() {
+  return crypto.randomUUID() + '-' + Date.now().toString(36);
+}
+
+// Example: "550e8400-e29b-41d4-a716-446655440000-lxk8v7b"
+```
+
+#### 4.9.7 Email Sending
+
+Invitations are sent via the Resend API:
+
+```javascript
+await fetch('/api/send-invitation-email', {
+  method: 'POST',
+  body: JSON.stringify({
+    to: email,
+    inviterName: inviter.full_name,
+    organisationName: org.name,
+    acceptUrl: `${baseUrl}/accept-invitation/${token}`,
+    expiresAt: invitation.expires_at
+  })
+});
+```
+
+#### 4.9.8 Invitation Lifecycle
+
+```
+Create Invitation
+      │
+      ├─► Check member limit (unless skipLimitCheck)
+      │
+      ├─► Check if already member → Error
+      │
+      ├─► Check if pending invitation exists → Resend existing
+      │
+      ├─► Generate token, set expiry (7 days)
+      │
+      ├─► Insert into org_invitations
+      │
+      ├─► Send email via Resend API
+      │
+      └─► Return invitation details
+
+Accept Invitation
+      │
+      ├─► Validate token exists and not expired
+      │
+      ├─► Create user_organisations record
+      │
+      ├─► Delete invitation record
+      │
+      └─► Return membership details
+```
 
 ---
 
@@ -1860,3 +2184,4 @@ All services use the singleton pattern and are exported through a barrel file fo
 | 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
 | 1.1 | 17 Dec 2025 | Claude AI | Added Report Builder Services section |
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added Section 4 (Organisation Services), updated file structure, updated architecture diagram, renumbered sections 5-14 |
+| 3.0 | 24 Dec 2025 | Claude AI | **Subscription & Invitations**: Added Section 4.8 (Subscription Service), Section 4.9 (Invitation Service), updated addMember with skipLimitCheck option |
