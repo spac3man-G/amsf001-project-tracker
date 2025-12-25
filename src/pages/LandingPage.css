@@ -56,6 +56,24 @@
   color: #7c3aed;
 }
 
+.btn-login-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.btn-login-header:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
 .btn-signup-header {
   display: flex;
   align-items: center;
