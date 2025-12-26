@@ -62,6 +62,8 @@ const RaidLog = lazy(() => import('./pages/RaidLog'));
 const FinanceHub = lazy(() => import('./pages/FinanceHub'));
 // Benchmarking - SFIA 8 rate comparison tool
 const Benchmarking = lazy(() => import('./pages/benchmarking/Benchmarking'));
+// Estimator - Component-based cost estimation
+const Estimator = lazy(() => import('./pages/estimator/Estimator'));
 const TeamMembers = lazy(() => import('./pages/TeamMembers'));
 const ProjectSettings = lazy(() => import('./pages/ProjectSettings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
@@ -404,6 +406,11 @@ export default function App() {
                             {/* Benchmarking - SFIA 8 rate comparison */}
                             <Route path="/benchmarking" element={
                               <ProtectedRoute><Benchmarking /></ProtectedRoute>
+                            } />
+                            
+                            {/* Estimator - Component-based cost estimation */}
+                            <Route path="/estimator" element={
+                              <ProtectedRoute><Estimator /></ProtectedRoute>
                             } />
                             
                             {/* Team Members (project-scoped user management) */}

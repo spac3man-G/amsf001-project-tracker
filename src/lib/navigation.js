@@ -40,7 +40,8 @@ import {
   Shield,
   Building,
   UsersRound,
-  Scale
+  Scale,
+  Calculator
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -128,6 +129,14 @@ export const NAV_ITEMS = {
     path: '/benchmarking',
     icon: Scale,
     label: 'Benchmarking',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: []
+  },
+  estimator: {
+    id: 'estimator',
+    path: '/estimator',
+    icon: Calculator,
+    label: 'Estimator',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
@@ -239,6 +248,7 @@ export const ROLE_NAV_ORDER = {
     'expenses',
     'finance',
     'benchmarking',
+    'estimator',
     'settings',
     'orgSettings'
   ],
@@ -253,6 +263,7 @@ export const ROLE_NAV_ORDER = {
     'expenses',
     'finance',
     'benchmarking',
+    'estimator',
     'settings',
     'orgSettings'
   ],
