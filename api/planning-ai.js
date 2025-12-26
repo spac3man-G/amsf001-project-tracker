@@ -6,16 +6,19 @@
  * 
  * Features:
  * - Project structure generation from description
+ * - Document analysis (PDF, images) for plan extraction
  * - Structure refinement based on feedback
  * - Date calculation from durations
  * - Hierarchy management (milestone → deliverable → task)
  * 
- * @version 1.0
+ * @version 1.1
  * @created 26 December 2025
+ * @updated 26 December 2025 - Added document support, extended timeout
  */
 
 export const config = {
   runtime: 'edge',
+  maxDuration: 60, // 60 seconds for document processing
 };
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
