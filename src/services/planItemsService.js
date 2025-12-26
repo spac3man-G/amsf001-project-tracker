@@ -3,11 +3,15 @@ import { supabase } from '../lib/supabase';
 /**
  * Plan Items Service
  * Handles CRUD operations for project planning items
+ * 
+ * @version 2.0 - Added estimate linking support
+ * @updated 26 December 2025
+ * @checkpoint 4 - Linked Estimates Feature
  */
 
 export const planItemsService = {
   /**
-   * Get all plan items for a project
+   * Get all plan items for a project (with estimate data)
    */
   async getAll(projectId) {
     const { data, error } = await supabase
@@ -16,7 +20,15 @@ export const planItemsService = {
         *,
         milestone:milestones(id, name, milestone_ref),
         deliverable:deliverables(id, name, deliverable_ref),
-        assigned_resource:resources(id, name)
+        assigned_resource:resources(id, name),
+        estimate_component:estimate_components(
+          id, 
+          name, 
+          total_cost, 
+          total_days, 
+          quantity,
+          estimate:estimates(id, name, status)
+        )
       `)
       .eq('project_id', projectId)
       .eq('is_deleted', false)
@@ -25,6 +37,25 @@ export const planItemsService = {
 
     if (error) throw error;
     return data || [];
+  },
+
+  /**
+   * Get all plan items with flattened estimate data for display
+   */
+  async getAllWithEstimates(projectId) {
+    const items = await this.getAll(projectId);
+    
+    // Flatten estimate data for easier access
+    return items.map(item => ({
+      ...item,
+      estimate_id: item.estimate_component?.estimate?.id || null,
+      estimate_name: item.estimate_component?.estimate?.name || null,
+      estimate_status: item.estimate_component?.estimate?.status || null,
+      estimate_component_name: item.estimate_component?.name || null,
+      estimate_cost: item.estimate_component?.total_cost || 0,
+      estimate_days: item.estimate_component?.total_days || 0,
+      estimate_quantity: item.estimate_component?.quantity || 1
+    }));
   },
 
   /**
@@ -361,6 +392,74 @@ export const planItemsService = {
       created: results.length,
       items: results
     };
+  },
+
+  // =========================================================================
+  // ESTIMATE LINKING (Added for Checkpoint 4 - Linked Estimates)
+  // =========================================================================
+
+  /**
+   * Link a plan item to an estimate component
+   * @param {string} planItemId - Plan item UUID
+   * @param {string} estimateComponentId - Estimate component UUID
+   */
+  async linkToEstimateComponent(planItemId, estimateComponentId) {
+    const { data, error } = await supabase
+      .from('plan_items')
+      .update({ estimate_component_id: estimateComponentId })
+      .eq('id', planItemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Unlink a plan item from its estimate component
+   * @param {string} planItemId - Plan item UUID
+   */
+  async unlinkFromEstimateComponent(planItemId) {
+    const { data, error } = await supabase
+      .from('plan_items')
+      .update({ estimate_component_id: null })
+      .eq('id', planItemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Get all plan items linked to a specific estimate component
+   * @param {string} estimateComponentId - Estimate component UUID
+   */
+  async getByEstimateComponent(estimateComponentId) {
+    const { data, error } = await supabase
+      .from('plan_items')
+      .select('*')
+      .eq('estimate_component_id', estimateComponentId)
+      .eq('is_deleted', false);
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Get plan items that are not yet linked to any estimate
+   * @param {string} projectId - Project UUID
+   */
+  async getUnlinkedItems(projectId) {
+    const { data, error } = await supabase
+      .from('plan_items')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('is_deleted', false)
+      .is('estimate_component_id', null);
+
+    if (error) throw error;
+    return data || [];
   }
 };
 

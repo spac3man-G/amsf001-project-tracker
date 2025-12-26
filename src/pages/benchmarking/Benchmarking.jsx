@@ -1,7 +1,6 @@
 /**
  * Benchmarking Page - SFIA 8 Rate Comparison Tool
  * 
- * Static MVP implementation for UI validation.
  * Compares UK IT/digital market rates across 3 tiers:
  * - Contractor: Independent contractors
  * - Associate: Mid-tier consultancies
@@ -9,11 +8,12 @@
  * 
  * Access: Admin and Supplier PM only
  * 
- * @version 1.0 - Static MVP
+ * @version 2.0 - Database-backed via benchmarkRatesService
  * @created 26 December 2025
+ * @checkpoint 1 - Linked Estimates Feature
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Scale, 
   Filter, 
@@ -27,181 +27,69 @@ import {
   ChevronUp,
   Building2,
   Users,
-  Award
+  Award,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import './Benchmarking.css';
 
+// Import from centralized service
+import {
+  benchmarkRatesService,
+  ROLE_FAMILIES,
+  ROLES,
+  SKILLS,
+  SFIA_LEVELS,
+  getRoleName,
+  getSkillName,
+  getFamilyName,
+  getRoleFamily,
+  formatRate,
+  calculatePremium
+} from '../../services';
+
 // =============================================================================
-// STATIC BENCHMARK DATA - MVP
-// Based on UK market research, December 2025
+// FALLBACK STATIC DATA (used if database is empty)
 // =============================================================================
 
-const ROLE_FAMILIES = [
-  { id: 'SE', name: 'Software Engineering', icon: '💻' },
-  { id: 'DA', name: 'Data & Analytics', icon: '📊' },
-  { id: 'DEVOPS', name: 'DevOps & Cloud', icon: '☁️' },
-  { id: 'BA', name: 'Business Analysis', icon: '📋' },
-  { id: 'SEC', name: 'Security', icon: '🔒' },
-  { id: 'PM', name: 'Project Management', icon: '📁' }
-];
-
-const ROLES = [
-  { id: 'DEV', name: 'Software Developer', familyId: 'SE' },
-  { id: 'SDEV', name: 'Senior Developer', familyId: 'SE' },
-  { id: 'LDEV', name: 'Lead Developer', familyId: 'SE' },
-  { id: 'ARCH', name: 'Solutions Architect', familyId: 'SE' },
-  { id: 'DATASCI', name: 'Data Scientist', familyId: 'DA' },
-  { id: 'DATAENG', name: 'Data Engineer', familyId: 'DA' },
-  { id: 'ANALYST', name: 'Data Analyst', familyId: 'DA' },
-  { id: 'MLENG', name: 'ML Engineer', familyId: 'DA' },
-  { id: 'DEVOPS', name: 'DevOps Engineer', familyId: 'DEVOPS' },
-  { id: 'SRE', name: 'Site Reliability Engineer', familyId: 'DEVOPS' },
-  { id: 'CLOUD', name: 'Cloud Engineer', familyId: 'DEVOPS' },
-  { id: 'PLAT', name: 'Platform Engineer', familyId: 'DEVOPS' },
-  { id: 'BA', name: 'Business Analyst', familyId: 'BA' },
-  { id: 'SBA', name: 'Senior Business Analyst', familyId: 'BA' },
-  { id: 'PO', name: 'Product Owner', familyId: 'BA' },
-  { id: 'SECENG', name: 'Security Engineer', familyId: 'SEC' },
-  { id: 'SECARCH', name: 'Security Architect', familyId: 'SEC' },
-  { id: 'PENT', name: 'Penetration Tester', familyId: 'SEC' },
-  { id: 'PM', name: 'Project Manager', familyId: 'PM' },
-  { id: 'SPM', name: 'Senior Project Manager', familyId: 'PM' },
-  { id: 'DELM', name: 'Delivery Manager', familyId: 'PM' },
-  { id: 'PROG', name: 'Programme Manager', familyId: 'PM' }
-];
-
-const SKILLS = [
-  { id: 'JAVA', name: 'Java', category: 'Languages' },
-  { id: 'PYTHON', name: 'Python', category: 'Languages' },
-  { id: 'DOTNET', name: '.NET/C#', category: 'Languages' },
-  { id: 'JS', name: 'JavaScript/TypeScript', category: 'Languages' },
-  { id: 'GO', name: 'Go', category: 'Languages' },
-  { id: 'AWS', name: 'AWS', category: 'Cloud' },
-  { id: 'AZURE', name: 'Azure', category: 'Cloud' },
-  { id: 'GCP', name: 'GCP', category: 'Cloud' },
-  { id: 'K8S', name: 'Kubernetes', category: 'DevOps' },
-  { id: 'DOCKER', name: 'Docker', category: 'DevOps' },
-  { id: 'TERRAFORM', name: 'Terraform', category: 'DevOps' },
-  { id: 'ML', name: 'Machine Learning', category: 'Data' },
-  { id: 'SQL', name: 'SQL/Databases', category: 'Data' },
-  { id: 'SPARK', name: 'Spark/Big Data', category: 'Data' },
-  { id: 'AGILE', name: 'Agile/Scrum', category: 'Methods' }
-];
-
-const SFIA_LEVELS = [
-  { id: 1, name: 'Level 1', description: 'Follow' },
-  { id: 2, name: 'Level 2', description: 'Assist' },
-  { id: 3, name: 'Level 3', description: 'Apply' },
-  { id: 4, name: 'Level 4', description: 'Enable' },
-  { id: 5, name: 'Level 5', description: 'Ensure/Advise' },
-  { id: 6, name: 'Level 6', description: 'Initiate/Influence' },
-  { id: 7, name: 'Level 7', description: 'Set Strategy' }
-];
-
-// Benchmark rates: Daily rates in GBP
-// Source: ITJobsWatch, G-Cloud, market research Dec 2025
-const BENCHMARK_RATES = [
+const FALLBACK_BENCHMARK_RATES = [
   // Software Engineering
   { roleId: 'DEV', skillId: 'JAVA', level: 3, contractor: 525, associate: 750, top4: 1100 },
   { roleId: 'DEV', skillId: 'JAVA', level: 4, contractor: 600, associate: 850, top4: 1250 },
   { roleId: 'DEV', skillId: 'PYTHON', level: 3, contractor: 500, associate: 720, top4: 1050 },
   { roleId: 'DEV', skillId: 'PYTHON', level: 4, contractor: 575, associate: 820, top4: 1200 },
-  { roleId: 'DEV', skillId: 'DOTNET', level: 3, contractor: 500, associate: 700, top4: 1000 },
-  { roleId: 'DEV', skillId: 'DOTNET', level: 4, contractor: 575, associate: 800, top4: 1150 },
-  { roleId: 'DEV', skillId: 'JS', level: 3, contractor: 475, associate: 680, top4: 980 },
-  { roleId: 'DEV', skillId: 'JS', level: 4, contractor: 550, associate: 780, top4: 1120 },
   { roleId: 'SDEV', skillId: 'JAVA', level: 4, contractor: 650, associate: 920, top4: 1350 },
   { roleId: 'SDEV', skillId: 'JAVA', level: 5, contractor: 750, associate: 1050, top4: 1550 },
-  { roleId: 'SDEV', skillId: 'PYTHON', level: 4, contractor: 625, associate: 880, top4: 1300 },
-  { roleId: 'SDEV', skillId: 'PYTHON', level: 5, contractor: 725, associate: 1000, top4: 1480 },
-  { roleId: 'LDEV', skillId: 'JAVA', level: 5, contractor: 800, associate: 1150, top4: 1700 },
-  { roleId: 'LDEV', skillId: 'JAVA', level: 6, contractor: 900, associate: 1300, top4: 1950 },
   { roleId: 'ARCH', skillId: 'AWS', level: 5, contractor: 850, associate: 1200, top4: 1800 },
   { roleId: 'ARCH', skillId: 'AWS', level: 6, contractor: 950, associate: 1400, top4: 2100 },
-  { roleId: 'ARCH', skillId: 'AZURE', level: 5, contractor: 825, associate: 1150, top4: 1750 },
-  { roleId: 'ARCH', skillId: 'AZURE', level: 6, contractor: 925, associate: 1350, top4: 2050 },
-  
   // Data & Analytics
   { roleId: 'DATASCI', skillId: 'PYTHON', level: 4, contractor: 600, associate: 850, top4: 1300 },
-  { roleId: 'DATASCI', skillId: 'PYTHON', level: 5, contractor: 700, associate: 1000, top4: 1500 },
-  { roleId: 'DATASCI', skillId: 'ML', level: 4, contractor: 650, associate: 920, top4: 1400 },
   { roleId: 'DATASCI', skillId: 'ML', level: 5, contractor: 775, associate: 1100, top4: 1650 },
-  { roleId: 'DATAENG', skillId: 'SPARK', level: 4, contractor: 575, associate: 820, top4: 1220 },
-  { roleId: 'DATAENG', skillId: 'SPARK', level: 5, contractor: 675, associate: 950, top4: 1420 },
-  { roleId: 'DATAENG', skillId: 'SQL', level: 4, contractor: 525, associate: 750, top4: 1100 },
-  { roleId: 'MLENG', skillId: 'ML', level: 4, contractor: 700, associate: 1000, top4: 1500 },
-  { roleId: 'MLENG', skillId: 'ML', level: 5, contractor: 825, associate: 1180, top4: 1750 },
-  
   // DevOps & Cloud
   { roleId: 'DEVOPS', skillId: 'K8S', level: 4, contractor: 600, associate: 850, top4: 1280 },
-  { roleId: 'DEVOPS', skillId: 'K8S', level: 5, contractor: 700, associate: 1000, top4: 1500 },
-  { roleId: 'DEVOPS', skillId: 'AWS', level: 4, contractor: 575, associate: 820, top4: 1220 },
   { roleId: 'DEVOPS', skillId: 'AWS', level: 5, contractor: 675, associate: 950, top4: 1420 },
-  { roleId: 'DEVOPS', skillId: 'TERRAFORM', level: 4, contractor: 550, associate: 780, top4: 1160 },
-  { roleId: 'SRE', skillId: 'K8S', level: 5, contractor: 725, associate: 1030, top4: 1550 },
-  { roleId: 'CLOUD', skillId: 'AWS', level: 4, contractor: 600, associate: 850, top4: 1280 },
-  { roleId: 'CLOUD', skillId: 'AZURE', level: 4, contractor: 580, associate: 820, top4: 1240 },
-  { roleId: 'PLAT', skillId: 'K8S', level: 5, contractor: 700, associate: 1000, top4: 1500 },
-  
   // Security
   { roleId: 'SECENG', skillId: 'AWS', level: 4, contractor: 625, associate: 880, top4: 1320 },
-  { roleId: 'SECENG', skillId: 'AWS', level: 5, contractor: 725, associate: 1020, top4: 1540 },
   { roleId: 'SECARCH', skillId: 'AWS', level: 5, contractor: 800, associate: 1140, top4: 1720 },
-  { roleId: 'SECARCH', skillId: 'AWS', level: 6, contractor: 925, associate: 1320, top4: 2000 },
-  { roleId: 'PENT', skillId: 'AWS', level: 4, contractor: 650, associate: 920, top4: 1380 },
-  
   // Project Management
   { roleId: 'PM', skillId: 'AGILE', level: 4, contractor: 550, associate: 780, top4: 1180 },
-  { roleId: 'PM', skillId: 'AGILE', level: 5, contractor: 650, associate: 920, top4: 1380 },
   { roleId: 'SPM', skillId: 'AGILE', level: 5, contractor: 700, associate: 1000, top4: 1500 },
-  { roleId: 'SPM', skillId: 'AGILE', level: 6, contractor: 800, associate: 1150, top4: 1720 },
-  { roleId: 'DELM', skillId: 'AGILE', level: 5, contractor: 725, associate: 1030, top4: 1550 },
-  { roleId: 'PROG', skillId: 'AGILE', level: 6, contractor: 900, associate: 1300, top4: 1950 },
-  { roleId: 'PROG', skillId: 'AGILE', level: 7, contractor: 1050, associate: 1500, top4: 2250 },
-  
   // Business Analysis
   { roleId: 'BA', skillId: 'AGILE', level: 3, contractor: 450, associate: 640, top4: 960 },
-  { roleId: 'BA', skillId: 'AGILE', level: 4, contractor: 525, associate: 750, top4: 1120 },
-  { roleId: 'SBA', skillId: 'AGILE', level: 4, contractor: 575, associate: 820, top4: 1220 },
-  { roleId: 'SBA', skillId: 'AGILE', level: 5, contractor: 650, associate: 920, top4: 1380 },
-  { roleId: 'PO', skillId: 'AGILE', level: 4, contractor: 600, associate: 850, top4: 1280 },
-  { roleId: 'PO', skillId: 'AGILE', level: 5, contractor: 700, associate: 1000, top4: 1500 }
+  { roleId: 'BA', skillId: 'AGILE', level: 4, contractor: 525, associate: 750, top4: 1120 }
 ];
-
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-function getRoleName(roleId) {
-  return ROLES.find(r => r.id === roleId)?.name || roleId;
-}
-
-function getSkillName(skillId) {
-  return SKILLS.find(s => s.id === skillId)?.name || skillId;
-}
-
-function getFamilyName(familyId) {
-  return ROLE_FAMILIES.find(f => f.id === familyId)?.name || familyId;
-}
-
-function getRoleFamily(roleId) {
-  return ROLES.find(r => r.id === roleId)?.familyId || null;
-}
-
-function formatRate(rate) {
-  return `£${rate.toLocaleString()}`;
-}
-
-function calculatePremium(base, compare) {
-  if (!base || !compare) return null;
-  return Math.round(((compare - base) / base) * 100);
-}
 
 // =============================================================================
 // COMPONENT
 // =============================================================================
 
 export default function Benchmarking() {
+  // Data state
+  const [benchmarkRates, setBenchmarkRates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [dataSource, setDataSource] = useState('loading'); // 'database', 'fallback', 'loading'
+  
   // Filter state
   const [filters, setFilters] = useState({
     familyId: '',
@@ -215,15 +103,57 @@ export default function Benchmarking() {
   const [sortConfig, setSortConfig] = useState({ key: 'roleId', direction: 'asc' });
   const [showFilters, setShowFilters] = useState(true);
 
+  // Load benchmark rates from database on mount
+  useEffect(() => {
+    async function loadRates() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const rates = await benchmarkRatesService.getAllRates();
+        
+        if (rates && rates.length > 0) {
+          // Transform database format to component format
+          const transformedRates = rates.map(r => ({
+            roleId: r.role_id,
+            skillId: r.skill_id,
+            level: r.sfia_level,
+            contractor: Number(r.contractor_rate) || 0,
+            associate: Number(r.associate_rate) || 0,
+            top4: Number(r.top4_rate) || 0
+          }));
+          setBenchmarkRates(transformedRates);
+          setDataSource('database');
+        } else {
+          // No data in database, use fallback
+          console.warn('No benchmark rates in database, using fallback data');
+          setBenchmarkRates(FALLBACK_BENCHMARK_RATES);
+          setDataSource('fallback');
+        }
+      } catch (err) {
+        console.error('Failed to load benchmark rates:', err);
+        setError(err.message);
+        // Use fallback data on error
+        setBenchmarkRates(FALLBACK_BENCHMARK_RATES);
+        setDataSource('fallback');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadRates();
+  }, []);
+
   // Filter options based on current selections
   const availableRoles = useMemo(() => {
     if (!filters.familyId) return ROLES;
     return ROLES.filter(r => r.familyId === filters.familyId);
   }, [filters.familyId]);
 
+
   // Filter and sort benchmark data
   const filteredData = useMemo(() => {
-    let data = [...BENCHMARK_RATES];
+    let data = [...benchmarkRates];
     
     // Apply filters
     if (filters.familyId) {
@@ -281,7 +211,7 @@ export default function Benchmarking() {
     });
     
     return data;
-  }, [filters, sortConfig]);
+  }, [benchmarkRates, filters, sortConfig]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -332,6 +262,19 @@ export default function Benchmarking() {
       : <ChevronDown size={14} />;
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="benchmarking-page" data-testid="benchmarking-page">
+        <div className="bench-loading">
+          <Loader2 size={48} className="bench-spinner" />
+          <p>Loading benchmark rates...</p>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
     <div className="benchmarking-page" data-testid="benchmarking-page">
       {/* Header */}
@@ -366,6 +309,17 @@ export default function Benchmarking() {
       </header>
 
       <div className="bench-content">
+        {/* Data Source Warning */}
+        {dataSource === 'fallback' && (
+          <div className="bench-warning">
+            <AlertCircle size={18} />
+            <span>
+              Using sample data. Run the database migration to load full benchmark rates.
+              {error && ` (Error: ${error})`}
+            </span>
+          </div>
+        )}
+
         {/* Filter Panel */}
         {showFilters && (
           <div className="bench-filters" data-testid="benchmarking-filters">
@@ -469,6 +423,7 @@ export default function Benchmarking() {
           </div>
         )}
 
+
         {/* Statistics Panel */}
         {stats && (
           <div className="bench-stats" data-testid="benchmarking-stats">
@@ -521,7 +476,12 @@ export default function Benchmarking() {
             <h2>Benchmark Rates</h2>
             <div className="bench-table-info">
               <Info size={14} />
-              <span>Daily rates in GBP • Source: ITJobsWatch, G-Cloud Dec 2025</span>
+              <span>
+                Daily rates in GBP • 
+                {dataSource === 'database' 
+                  ? ' Source: Database (ITJobsWatch, G-Cloud Dec 2025)' 
+                  : ' Source: Sample data'}
+              </span>
             </div>
           </div>
           
@@ -592,6 +552,7 @@ export default function Benchmarking() {
             </div>
           )}
         </div>
+
 
         {/* Info Footer */}
         <div className="bench-footer">

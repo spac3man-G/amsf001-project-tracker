@@ -1,12 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Plus, Trash2, ChevronRight, ChevronDown, GripVertical,
   Flag, Package, CheckSquare, RefreshCw,
-  ArrowRight, ArrowLeft, Keyboard, Sparkles
+  ArrowRight, ArrowLeft, Keyboard, Sparkles,
+  Calculator, Link2, FileSpreadsheet, List,
+  ExternalLink, Copy, Download, Clock
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useProject } from '../../contexts/ProjectContext';
+import { useToast } from '../../contexts/ToastContext';
 import planItemsService from '../../services/planItemsService';
+import { estimatesService, ESTIMATE_STATUS } from '../../services';
 import PlanningAIAssistant from './PlanningAIAssistant';
+import { EstimateLinkModal, EstimateGeneratorModal } from '../../components/planning';
 import './Planning.css';
 
 const ITEM_TYPES = [
@@ -28,19 +34,63 @@ const COLUMNS = ['name', 'item_type', 'start_date', 'end_date', 'progress', 'sta
 
 export default function Planning() {
   const { projectId } = useProject();
+  const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCell, setActiveCell] = useState(null); // { rowIndex, field }
   const [editingCell, setEditingCell] = useState(null); // { rowIndex, field }
   const [editValue, setEditValue] = useState('');
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [estimateLinkItem, setEstimateLinkItem] = useState(null); // Item to link to estimate
+  const [showEstimateGenerator, setShowEstimateGenerator] = useState(false); // Generate estimate modal
+  const [showEstimatesList, setShowEstimatesList] = useState(false); // Estimates list panel
+  const [estimates, setEstimates] = useState([]); // All project estimates
   const inputRef = useRef(null);
   const tableRef = useRef(null);
+
+  // Fetch items (with estimate data)
+  const fetchItems = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      setLoading(true);
+      const data = await planItemsService.getAllWithEstimates(projectId);
+      setItems(data);
+    } catch (error) {
+      console.error('Error fetching items:', error);
+      showError('Failed to load plan items');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, showError]);
 
   // Fetch items
   useEffect(() => {
     if (projectId) fetchItems();
+  }, [projectId, fetchItems]);
+
+  // Fetch estimates for summary
+  const fetchEstimates = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const data = await estimatesService.getSummaryList(projectId);
+      setEstimates(data);
+    } catch (error) {
+      console.error('Error fetching estimates:', error);
+    }
   }, [projectId]);
+
+  useEffect(() => {
+    if (projectId) fetchEstimates();
+  }, [projectId, fetchEstimates]);
+
+  // Calculate estimate summary stats
+  const estimateSummary = useMemo(() => {
+    const totalCost = estimates.reduce((sum, e) => sum + (e.totalCost || 0), 0);
+    const totalDays = estimates.reduce((sum, e) => sum + (e.totalDays || 0), 0);
+    const linkedItems = items.filter(i => i.estimate_component_id).length;
+    return { count: estimates.length, totalCost, totalDays, linkedItems };
+  }, [estimates, items]);
 
   // Focus input when editing
   useEffect(() => {
@@ -113,18 +163,6 @@ export default function Planning() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [activeCell, editingCell, items]);
-
-  async function fetchItems() {
-    try {
-      setLoading(true);
-      const data = await planItemsService.getAll(projectId);
-      setItems(data);
-    } catch (error) {
-      console.error('Error fetching plan items:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   // Handle AI-generated structure
   async function handleApplyStructure(structure) {
@@ -351,6 +389,62 @@ export default function Planning() {
     });
   }
 
+  // Export estimate to CSV
+  function exportEstimateToCSV(estimate) {
+    const rows = [];
+    
+    // Header
+    rows.push(['Component', 'Task', 'Resource Type', 'Role', 'Skill', 'SFIA Level', 'Day Rate', 'Effort (Days)', 'Cost']);
+    
+    // Data rows
+    for (const comp of estimate.components || []) {
+      for (const task of comp.tasks || []) {
+        if (comp.resourceTypes && comp.resourceTypes.length > 0) {
+          for (const rt of comp.resourceTypes) {
+            const effort = task.efforts?.[rt.id] || 0;
+            const cost = effort * (rt.dayRate || 0);
+            rows.push([
+              comp.name,
+              task.name,
+              rt.name || `${rt.role} - ${rt.skill}`,
+              rt.role || '',
+              rt.skill || '',
+              rt.sfiaLevel || '',
+              rt.dayRate || 0,
+              effort,
+              cost
+            ]);
+          }
+        } else {
+          rows.push([comp.name, task.name, '', '', '', '', '', '', '']);
+        }
+      }
+    }
+    
+    // Summary row
+    rows.push([]);
+    rows.push(['TOTAL', '', '', '', '', '', '', estimate.total_days || 0, estimate.total_cost || 0]);
+    
+    // Convert to CSV
+    const csv = rows.map(row => 
+      row.map(cell => {
+        const str = String(cell);
+        return str.includes(',') || str.includes('"') 
+          ? `"${str.replace(/"/g, '""')}"` 
+          : str;
+      }).join(',')
+    ).join('\n');
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${estimate.name || 'estimate'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function renderCell(item, field, rowIndex) {
     const isActive = activeCell?.rowIndex === rowIndex && activeCell?.field === field;
     const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.field === field;
@@ -548,17 +642,63 @@ export default function Planning() {
   }
 
   return (
-    <div className={`planning-page ${showAIPanel ? 'with-ai-panel' : ''}`} onClick={() => { setActiveCell(null); setEditingCell(null); }}>
+    <div className={`planning-page ${showAIPanel ? 'with-ai-panel' : ''} ${showEstimatesList ? 'with-estimates-panel' : ''}`} onClick={() => { setActiveCell(null); setEditingCell(null); }}>
       <div className="plan-header">
         <div className="plan-header-left">
           <h1>Project Plan</h1>
           <p>Define tasks, milestones, and deliverables</p>
         </div>
+        
+        {/* Estimate Summary Widget */}
+        {estimateSummary.count > 0 && (
+          <div className="plan-estimate-summary" onClick={() => setShowEstimatesList(!showEstimatesList)}>
+            <div className="plan-summary-stat">
+              <span className="plan-summary-value">{estimateSummary.count}</span>
+              <span className="plan-summary-label">Estimates</span>
+            </div>
+            <div className="plan-summary-divider" />
+            <div className="plan-summary-stat">
+              <span className="plan-summary-value">
+                £{Math.round(estimateSummary.totalCost / 1000)}k
+              </span>
+              <span className="plan-summary-label">Total Cost</span>
+            </div>
+            <div className="plan-summary-divider" />
+            <div className="plan-summary-stat">
+              <span className="plan-summary-value">{Math.round(estimateSummary.totalDays)}</span>
+              <span className="plan-summary-label">Days</span>
+            </div>
+            <div className="plan-summary-divider" />
+            <div className="plan-summary-stat">
+              <span className="plan-summary-value">{estimateSummary.linkedItems}</span>
+              <span className="plan-summary-label">Linked</span>
+            </div>
+            <ChevronRight size={16} className={`plan-summary-chevron ${showEstimatesList ? 'expanded' : ''}`} />
+          </div>
+        )}
+        
         <div className="plan-header-actions">
           <div className="plan-keyboard-hint">
             <Keyboard size={14} />
             <span>Tab/Enter to navigate • Type to edit • F2 to edit cell</span>
           </div>
+          <button 
+            onClick={() => setShowEstimatesList(!showEstimatesList)} 
+            className={`plan-btn plan-btn-secondary ${showEstimatesList ? 'active' : ''}`}
+            title="View All Estimates"
+          >
+            <List size={16} />
+            Estimates
+          </button>
+          <button 
+            onClick={() => setShowEstimateGenerator(true)} 
+            className="plan-btn plan-btn-estimate"
+            title="Generate Estimate from Plan"
+            disabled={items.length === 0}
+          >
+            <FileSpreadsheet size={16} />
+            Generate Estimate
+          </button>
           <button 
             onClick={() => setShowAIPanel(true)} 
             className="plan-btn plan-btn-ai"
@@ -591,17 +731,18 @@ export default function Planning() {
                 <th className="plan-col-end">End</th>
                 <th className="plan-col-progress">Progress</th>
                 <th className="plan-col-status">Status</th>
+                <th className="plan-col-estimate">Estimate</th>
                 <th className="plan-col-actions"></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="plan-loading">Loading...</td>
+                  <td colSpan="10" className="plan-loading">Loading...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="plan-empty-row">
+                  <td colSpan="10" className="plan-empty-row">
                     <p>No tasks yet. Press Enter or click "Add Task" to start.</p>
                   </td>
                 </tr>
@@ -623,6 +764,32 @@ export default function Planning() {
                     {renderCell(item, 'end_date', index)}
                     {renderCell(item, 'progress', index)}
                     {renderCell(item, 'status', index)}
+                    <td className="plan-cell plan-cell-estimate">
+                      {item.estimate_component_id ? (
+                        <button
+                          className="plan-estimate-badge"
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setEstimateLinkItem(item);
+                          }}
+                          title={`${item.estimate_name || 'Estimate'}: ${item.estimate_component_name}`}
+                        >
+                          <Calculator size={12} />
+                          <span>£{Math.round((item.estimate_cost || 0) / 1000)}k</span>
+                        </button>
+                      ) : (
+                        <button
+                          className="plan-estimate-link-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEstimateLinkItem(item);
+                          }}
+                          title="Link to estimate"
+                        >
+                          <Link2 size={12} />
+                        </button>
+                      )}
+                    </td>
                     <td className="plan-cell plan-cell-actions">
                       <div className="plan-actions">
                         <button 
@@ -668,6 +835,126 @@ export default function Planning() {
           onClose={() => setShowAIPanel(false)}
           onApplyStructure={handleApplyStructure}
         />
+      )}
+
+      {/* Estimate Link Modal */}
+      {estimateLinkItem && (
+        <EstimateLinkModal
+          planItem={estimateLinkItem}
+          projectId={projectId}
+          onClose={() => setEstimateLinkItem(null)}
+          onLinked={() => {
+            fetchItems();
+            setEstimateLinkItem(null);
+          }}
+        />
+      )}
+
+      {/* Estimate Generator Modal */}
+      {showEstimateGenerator && (
+        <EstimateGeneratorModal
+          planItems={items}
+          projectId={projectId}
+          onClose={() => setShowEstimateGenerator(false)}
+          onGenerated={() => {
+            fetchItems();
+            fetchEstimates();
+            setShowEstimateGenerator(false);
+          }}
+        />
+      )}
+
+      {/* Estimates List Panel */}
+      {showEstimatesList && (
+        <div className="plan-estimates-panel">
+          <div className="plan-estimates-header">
+            <h3>Project Estimates</h3>
+            <button onClick={() => setShowEstimatesList(false)} className="plan-estimates-close">×</button>
+          </div>
+          <div className="plan-estimates-list">
+            {estimates.length === 0 ? (
+              <div className="plan-estimates-empty">
+                <Calculator size={24} />
+                <p>No estimates yet</p>
+                <button 
+                  onClick={() => { setShowEstimatesList(false); setShowEstimateGenerator(true); }}
+                  className="plan-btn plan-btn-primary"
+                >
+                  Create First Estimate
+                </button>
+              </div>
+            ) : (
+              estimates.map(est => (
+                <div key={est.id} className="plan-estimate-card">
+                  <div className="plan-estimate-card-header">
+                    <span className="plan-estimate-card-name">{est.name}</span>
+                    <span className={`plan-estimate-card-status ${est.status}`}>
+                      {est.status}
+                    </span>
+                  </div>
+                  <div className="plan-estimate-card-stats">
+                    <div className="plan-estimate-card-stat">
+                      <span className="stat-value">£{Math.round((est.totalCost || 0) / 1000)}k</span>
+                      <span className="stat-label">Cost</span>
+                    </div>
+                    <div className="plan-estimate-card-stat">
+                      <span className="stat-value">{Math.round(est.totalDays || 0)}</span>
+                      <span className="stat-label">Days</span>
+                    </div>
+                    <div className="plan-estimate-card-stat">
+                      <span className="stat-value">{est.componentCount || 0}</span>
+                      <span className="stat-label">Components</span>
+                    </div>
+                  </div>
+                  <div className="plan-estimate-card-meta">
+                    <Clock size={12} />
+                    <span>Updated {new Date(est.updatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="plan-estimate-card-actions">
+                    <button 
+                      onClick={() => navigate(`/estimator?estimateId=${est.id}`)}
+                      className="plan-estimate-card-btn"
+                      title="Open in Estimator"
+                    >
+                      <ExternalLink size={14} />
+                      Open
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await estimatesService.duplicateEstimate(est.id, `${est.name} (Copy)`);
+                          fetchEstimates();
+                          showSuccess('Estimate duplicated');
+                        } catch (err) {
+                          showError('Failed to duplicate');
+                        }
+                      }}
+                      className="plan-estimate-card-btn"
+                      title="Duplicate"
+                    >
+                      <Copy size={14} />
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const fullEst = await estimatesService.getWithDetails(est.id);
+                          exportEstimateToCSV(fullEst);
+                          showSuccess('Exported to CSV');
+                        } catch (err) {
+                          showError('Failed to export');
+                        }
+                      }}
+                      className="plan-estimate-card-btn"
+                      title="Export CSV"
+                    >
+                      <Download size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

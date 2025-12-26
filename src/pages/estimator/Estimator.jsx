@@ -10,14 +10,20 @@
  * - Effort in days × day rate = cost
  * - Component quantity multiplier
  * - Real-time totals
+ * - Save/Load estimates to database
+ * - Duplicate estimates
+ * - Unsaved changes indicator
+ * - Back to Planning navigation
+ * - CSV export
  * 
  * Access: Admin and Supplier PM only
  * 
- * @version 1.0 - Static MVP
+ * @version 3.1 - Final polish (Checkpoint 6)
  * @created 26 December 2025
+ * @checkpoint 6 - Linked Estimates Feature Complete
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { 
   Calculator, 
   Plus, 
@@ -27,130 +33,69 @@ import {
   ChevronUp,
   Save,
   FileDown,
-  Settings2,
+  FolderOpen,
+  FilePlus,
   X,
   GripVertical,
-  Hash
+  Loader2,
+  AlertCircle,
+  Check,
+  Clock,
+  MoreVertical,
+  ArrowLeft
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import './Estimator.css';
 
+// Import from centralized services
+import {
+  benchmarkRatesService,
+  estimatesService,
+  ROLES,
+  SKILLS,
+  TIERS,
+  ESTIMATE_STATUS,
+  getRoleName,
+  getSkillName,
+  getTierName,
+  getTierColor
+} from '../../services';
+
+// Import contexts
+import { useProject } from '../../contexts/ProjectContext';
+import { useToast } from '../../contexts/ToastContext';
+
 // =============================================================================
-// BENCHMARK DATA (shared with Benchmarking page - will be refactored to service)
+// FALLBACK STATIC RATE DATA (used if database is empty)
 // =============================================================================
 
-const ROLES = [
-  { id: 'DEV', name: 'Software Developer', familyId: 'SE' },
-  { id: 'SDEV', name: 'Senior Developer', familyId: 'SE' },
-  { id: 'LDEV', name: 'Lead Developer', familyId: 'SE' },
-  { id: 'ARCH', name: 'Solutions Architect', familyId: 'SE' },
-  { id: 'DATASCI', name: 'Data Scientist', familyId: 'DA' },
-  { id: 'DATAENG', name: 'Data Engineer', familyId: 'DA' },
-  { id: 'MLENG', name: 'ML Engineer', familyId: 'DA' },
-  { id: 'DEVOPS', name: 'DevOps Engineer', familyId: 'DEVOPS' },
-  { id: 'SRE', name: 'Site Reliability Engineer', familyId: 'DEVOPS' },
-  { id: 'CLOUD', name: 'Cloud Engineer', familyId: 'DEVOPS' },
-  { id: 'BA', name: 'Business Analyst', familyId: 'BA' },
-  { id: 'SBA', name: 'Senior Business Analyst', familyId: 'BA' },
-  { id: 'PO', name: 'Product Owner', familyId: 'BA' },
-  { id: 'SECENG', name: 'Security Engineer', familyId: 'SEC' },
-  { id: 'SECARCH', name: 'Security Architect', familyId: 'SEC' },
-  { id: 'PM', name: 'Project Manager', familyId: 'PM' },
-  { id: 'SPM', name: 'Senior Project Manager', familyId: 'PM' },
-  { id: 'DELM', name: 'Delivery Manager', familyId: 'PM' },
-  { id: 'PROG', name: 'Programme Manager', familyId: 'PM' }
-];
-
-const SKILLS = [
-  { id: 'JAVA', name: 'Java' },
-  { id: 'PYTHON', name: 'Python' },
-  { id: 'DOTNET', name: '.NET/C#' },
-  { id: 'JS', name: 'JavaScript/TS' },
-  { id: 'AWS', name: 'AWS' },
-  { id: 'AZURE', name: 'Azure' },
-  { id: 'GCP', name: 'GCP' },
-  { id: 'K8S', name: 'Kubernetes' },
-  { id: 'ML', name: 'Machine Learning' },
-  { id: 'SQL', name: 'SQL/Databases' },
-  { id: 'AGILE', name: 'Agile/Scrum' }
-];
-
-const TIERS = [
-  { id: 'contractor', name: 'Contractor', color: '#2563eb' },
-  { id: 'associate', name: 'Associate', color: '#059669' },
-  { id: 'top4', name: 'Top 4', color: '#7c3aed' }
-];
-
-const SFIA_LEVELS = [3, 4, 5, 6, 7];
-
-// Sample benchmark rates lookup
-const RATE_LOOKUP = {
+const FALLBACK_RATE_LOOKUP = {
   'DEV-JAVA-3-contractor': 525, 'DEV-JAVA-3-associate': 750, 'DEV-JAVA-3-top4': 1100,
   'DEV-JAVA-4-contractor': 600, 'DEV-JAVA-4-associate': 850, 'DEV-JAVA-4-top4': 1250,
   'DEV-PYTHON-3-contractor': 500, 'DEV-PYTHON-3-associate': 720, 'DEV-PYTHON-3-top4': 1050,
   'DEV-PYTHON-4-contractor': 575, 'DEV-PYTHON-4-associate': 820, 'DEV-PYTHON-4-top4': 1200,
   'SDEV-JAVA-4-contractor': 650, 'SDEV-JAVA-4-associate': 920, 'SDEV-JAVA-4-top4': 1350,
   'SDEV-JAVA-5-contractor': 750, 'SDEV-JAVA-5-associate': 1050, 'SDEV-JAVA-5-top4': 1550,
-  'SDEV-PYTHON-4-contractor': 625, 'SDEV-PYTHON-4-associate': 880, 'SDEV-PYTHON-4-top4': 1300,
-  'SDEV-PYTHON-5-contractor': 725, 'SDEV-PYTHON-5-associate': 1000, 'SDEV-PYTHON-5-top4': 1480,
-  'LDEV-JAVA-5-contractor': 800, 'LDEV-JAVA-5-associate': 1150, 'LDEV-JAVA-5-top4': 1700,
-  'LDEV-JAVA-6-contractor': 900, 'LDEV-JAVA-6-associate': 1300, 'LDEV-JAVA-6-top4': 1950,
   'ARCH-AWS-5-contractor': 850, 'ARCH-AWS-5-associate': 1200, 'ARCH-AWS-5-top4': 1800,
   'ARCH-AWS-6-contractor': 950, 'ARCH-AWS-6-associate': 1400, 'ARCH-AWS-6-top4': 2100,
-  'ARCH-AZURE-5-contractor': 825, 'ARCH-AZURE-5-associate': 1150, 'ARCH-AZURE-5-top4': 1750,
   'DATASCI-PYTHON-4-contractor': 600, 'DATASCI-PYTHON-4-associate': 850, 'DATASCI-PYTHON-4-top4': 1300,
   'DATASCI-ML-5-contractor': 775, 'DATASCI-ML-5-associate': 1100, 'DATASCI-ML-5-top4': 1650,
-  'DATAENG-SQL-4-contractor': 525, 'DATAENG-SQL-4-associate': 750, 'DATAENG-SQL-4-top4': 1100,
-  'MLENG-ML-5-contractor': 825, 'MLENG-ML-5-associate': 1180, 'MLENG-ML-5-top4': 1750,
   'DEVOPS-K8S-4-contractor': 600, 'DEVOPS-K8S-4-associate': 850, 'DEVOPS-K8S-4-top4': 1280,
-  'DEVOPS-AWS-4-contractor': 575, 'DEVOPS-AWS-4-associate': 820, 'DEVOPS-AWS-4-top4': 1220,
   'DEVOPS-AWS-5-contractor': 675, 'DEVOPS-AWS-5-associate': 950, 'DEVOPS-AWS-5-top4': 1420,
-  'SRE-K8S-5-contractor': 725, 'SRE-K8S-5-associate': 1030, 'SRE-K8S-5-top4': 1550,
-  'CLOUD-AWS-4-contractor': 600, 'CLOUD-AWS-4-associate': 850, 'CLOUD-AWS-4-top4': 1280,
-  'CLOUD-AZURE-4-contractor': 580, 'CLOUD-AZURE-4-associate': 820, 'CLOUD-AZURE-4-top4': 1240,
-  'BA-AGILE-3-contractor': 450, 'BA-AGILE-3-associate': 640, 'BA-AGILE-3-top4': 960,
-  'BA-AGILE-4-contractor': 525, 'BA-AGILE-4-associate': 750, 'BA-AGILE-4-top4': 1120,
-  'SBA-AGILE-4-contractor': 575, 'SBA-AGILE-4-associate': 820, 'SBA-AGILE-4-top4': 1220,
-  'SBA-AGILE-5-contractor': 650, 'SBA-AGILE-5-associate': 920, 'SBA-AGILE-5-top4': 1380,
-  'PO-AGILE-4-contractor': 600, 'PO-AGILE-4-associate': 850, 'PO-AGILE-4-top4': 1280,
-  'PO-AGILE-5-contractor': 700, 'PO-AGILE-5-associate': 1000, 'PO-AGILE-5-top4': 1500,
   'SECENG-AWS-4-contractor': 625, 'SECENG-AWS-4-associate': 880, 'SECENG-AWS-4-top4': 1320,
   'SECARCH-AWS-5-contractor': 800, 'SECARCH-AWS-5-associate': 1140, 'SECARCH-AWS-5-top4': 1720,
   'PM-AGILE-4-contractor': 550, 'PM-AGILE-4-associate': 780, 'PM-AGILE-4-top4': 1180,
   'PM-AGILE-5-contractor': 650, 'PM-AGILE-5-associate': 920, 'PM-AGILE-5-top4': 1380,
-  'SPM-AGILE-5-contractor': 700, 'SPM-AGILE-5-associate': 1000, 'SPM-AGILE-5-top4': 1500,
-  'SPM-AGILE-6-contractor': 800, 'SPM-AGILE-6-associate': 1150, 'SPM-AGILE-6-top4': 1720,
-  'DELM-AGILE-5-contractor': 725, 'DELM-AGILE-5-associate': 1030, 'DELM-AGILE-5-top4': 1550,
-  'PROG-AGILE-6-contractor': 900, 'PROG-AGILE-6-associate': 1300, 'PROG-AGILE-6-top4': 1950,
-  'PROG-AGILE-7-contractor': 1050, 'PROG-AGILE-7-associate': 1500, 'PROG-AGILE-7-top4': 2250
+  'BA-AGILE-3-contractor': 450, 'BA-AGILE-3-associate': 640, 'BA-AGILE-3-top4': 960,
+  'BA-AGILE-4-contractor': 525, 'BA-AGILE-4-associate': 750, 'BA-AGILE-4-top4': 1120
 };
-
-// Helper to get rate
-function getRate(roleId, skillId, level, tier) {
-  const key = `${roleId}-${skillId}-${level}-${tier}`;
-  return RATE_LOOKUP[key] || null;
-}
-
-// Get available skills for a role
-function getSkillsForRole(roleId) {
-  const roleKeys = Object.keys(RATE_LOOKUP).filter(k => k.startsWith(roleId + '-'));
-  const skillIds = [...new Set(roleKeys.map(k => k.split('-')[1]))];
-  return SKILLS.filter(s => skillIds.includes(s.id));
-}
-
-// Get available levels for role+skill
-function getLevelsForRoleSkill(roleId, skillId) {
-  const prefix = `${roleId}-${skillId}-`;
-  const keys = Object.keys(RATE_LOOKUP).filter(k => k.startsWith(prefix));
-  const levels = [...new Set(keys.map(k => parseInt(k.split('-')[2])))];
-  return levels.sort((a, b) => a - b);
-}
 
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
 
 function generateId() {
-  return Math.random().toString(36).substr(2, 9);
+  return 'temp-' + Math.random().toString(36).substr(2, 9);
 }
 
 function formatCurrency(amount) {
@@ -162,44 +107,70 @@ function formatCurrency(amount) {
   }).format(amount);
 }
 
-function getRoleName(roleId) {
-  return ROLES.find(r => r.id === roleId)?.name || roleId;
+function formatDateTime(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-GB', { 
+    day: 'numeric', 
+    month: 'short', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 }
 
-function getSkillName(skillId) {
-  return SKILLS.find(s => s.id === skillId)?.name || skillId;
+// Rate lookup helpers
+function getRate(rateLookup, roleId, skillId, level, tier) {
+  const key = `${roleId}-${skillId}-${level}-${tier}`;
+  return rateLookup[key] || null;
 }
 
-function getTierName(tierId) {
-  return TIERS.find(t => t.id === tierId)?.name || tierId;
+function getSkillsForRole(rateLookup, roleId) {
+  const roleKeys = Object.keys(rateLookup).filter(k => k.startsWith(roleId + '-'));
+  const skillIds = [...new Set(roleKeys.map(k => k.split('-')[1]))];
+  return SKILLS.filter(s => skillIds.includes(s.id));
 }
 
-function getTierColor(tierId) {
-  return TIERS.find(t => t.id === tierId)?.color || '#666';
+function getLevelsForRoleSkill(rateLookup, roleId, skillId) {
+  const prefix = `${roleId}-${skillId}-`;
+  const keys = Object.keys(rateLookup).filter(k => k.startsWith(prefix));
+  const levels = [...new Set(keys.map(k => parseInt(k.split('-')[2])))];
+  return levels.sort((a, b) => a - b);
 }
+
+// Create empty estimate
+function createEmptyEstimate() {
+  return {
+    id: null,
+    name: 'New Estimate',
+    description: '',
+    status: ESTIMATE_STATUS.DRAFT,
+    components: []
+  };
+}
+
 
 // =============================================================================
 // RESOURCE TYPE SELECTOR COMPONENT
 // =============================================================================
 
-function ResourceTypeSelector({ onSelect, onClose, existingTypes = [] }) {
+function ResourceTypeSelector({ rateLookup, onSelect, onClose, existingTypes = [] }) {
   const [roleId, setRoleId] = useState('');
   const [skillId, setSkillId] = useState('');
   const [level, setLevel] = useState('');
   const [tier, setTier] = useState('contractor');
   
-  const availableSkills = roleId ? getSkillsForRole(roleId) : [];
-  const availableLevels = roleId && skillId ? getLevelsForRoleSkill(roleId, skillId) : [];
-  const rate = roleId && skillId && level && tier ? getRate(roleId, skillId, parseInt(level), tier) : null;
+  const availableSkills = roleId ? getSkillsForRole(rateLookup, roleId) : [];
+  const availableLevels = roleId && skillId ? getLevelsForRoleSkill(rateLookup, roleId, skillId) : [];
+  const rate = roleId && skillId && level && tier ? getRate(rateLookup, roleId, skillId, parseInt(level), tier) : null;
   
-  const isDuplicate = existingTypes.some(t => 
-    t.roleId === roleId && t.skillId === skillId && t.level === parseInt(level) && t.tier === tier
-  );
+  // Check for duplicate using the composite key format
+  const proposedKey = `${roleId}-${skillId}-${level}-${tier}`;
+  const isDuplicate = existingTypes.some(t => t.id === proposedKey);
   
   const handleAdd = () => {
     if (roleId && skillId && level && tier && rate && !isDuplicate) {
       onSelect({
-        id: generateId(),
+        id: proposedKey,
         roleId,
         skillId,
         level: parseInt(level),
@@ -289,20 +260,22 @@ function ResourceTypeSelector({ onSelect, onClose, existingTypes = [] }) {
   );
 }
 
+
 // =============================================================================
 // COMPONENT CARD
 // =============================================================================
 
 function ComponentCard({ 
   component, 
+  rateLookup,
   onUpdate, 
   onClone, 
   onDelete,
   isExpanded,
-  onToggleExpand
+  onToggleExpand,
+  onMarkChanged
 }) {
   const [showResourceSelector, setShowResourceSelector] = useState(false);
-  const [editingCell, setEditingCell] = useState(null);
   
   // Calculate component totals
   const totals = useMemo(() => {
@@ -328,6 +301,11 @@ function ComponentCard({
     return { byResource, totalDays, totalCost, grandTotal: totalCost * component.quantity };
   }, [component]);
   
+  const handleChange = (updates) => {
+    onUpdate(updates);
+    onMarkChanged();
+  };
+  
   const handleAddTask = () => {
     const newTask = {
       id: generateId(),
@@ -335,14 +313,14 @@ function ComponentCard({
       description: '',
       efforts: {}
     };
-    onUpdate({
+    handleChange({
       ...component,
       tasks: [...component.tasks, newTask]
     });
   };
   
   const handleUpdateTask = (taskId, field, value) => {
-    onUpdate({
+    handleChange({
       ...component,
       tasks: component.tasks.map(t => 
         t.id === taskId ? { ...t, [field]: value } : t
@@ -352,7 +330,7 @@ function ComponentCard({
   
   const handleUpdateEffort = (taskId, resourceId, days) => {
     const numDays = parseFloat(days) || 0;
-    onUpdate({
+    handleChange({
       ...component,
       tasks: component.tasks.map(t => 
         t.id === taskId ? { ...t, efforts: { ...t.efforts, [resourceId]: numDays } } : t
@@ -361,21 +339,21 @@ function ComponentCard({
   };
   
   const handleDeleteTask = (taskId) => {
-    onUpdate({
+    handleChange({
       ...component,
       tasks: component.tasks.filter(t => t.id !== taskId)
     });
   };
   
   const handleAddResourceType = (resourceType) => {
-    onUpdate({
+    handleChange({
       ...component,
       resourceTypes: [...component.resourceTypes, resourceType]
     });
   };
   
   const handleRemoveResourceType = (resourceId) => {
-    onUpdate({
+    handleChange({
       ...component,
       resourceTypes: component.resourceTypes.filter(r => r.id !== resourceId),
       tasks: component.tasks.map(t => {
@@ -383,12 +361,6 @@ function ComponentCard({
         return { ...t, efforts: remainingEfforts };
       })
     });
-  };
-  
-  const handleKeyDown = (e, taskId, resourceId) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      setEditingCell(null);
-    }
   };
   
   return (
@@ -402,7 +374,7 @@ function ComponentCard({
           <input
             type="text"
             value={component.name}
-            onChange={(e) => onUpdate({ ...component, name: e.target.value })}
+            onChange={(e) => handleChange({ ...component, name: e.target.value })}
             onClick={(e) => e.stopPropagation()}
             placeholder="Component name..."
             className="est-component-name-input"
@@ -419,7 +391,7 @@ function ComponentCard({
             type="number"
             min="1"
             value={component.quantity}
-            onChange={(e) => onUpdate({ ...component, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+            onChange={(e) => handleChange({ ...component, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
           />
         </div>
         
@@ -445,6 +417,7 @@ function ComponentCard({
           </button>
         </div>
       </div>
+
       
       {isExpanded && (
         <div className="est-component-body">
@@ -452,7 +425,7 @@ function ComponentCard({
           <div className="est-component-description">
             <textarea
               value={component.description}
-              onChange={(e) => onUpdate({ ...component, description: e.target.value })}
+              onChange={(e) => handleChange({ ...component, description: e.target.value })}
               placeholder="Component description (optional)..."
               rows={2}
             />
@@ -530,7 +503,6 @@ function ComponentCard({
                             step="0.5"
                             value={task.efforts[rt.id] || ''}
                             onChange={(e) => handleUpdateEffort(task.id, rt.id, e.target.value)}
-                            onKeyDown={(e) => handleKeyDown(e, task.id, rt.id)}
                             placeholder="0"
                             className="est-effort-input"
                           />
@@ -590,6 +562,7 @@ function ComponentCard({
             <div className="est-modal-overlay" onClick={() => setShowResourceSelector(false)}>
               <div className="est-modal" onClick={(e) => e.stopPropagation()}>
                 <ResourceTypeSelector
+                  rateLookup={rateLookup}
                   onSelect={handleAddResourceType}
                   onClose={() => setShowResourceSelector(false)}
                   existingTypes={component.resourceTypes}
@@ -603,19 +576,204 @@ function ComponentCard({
   );
 }
 
+
+// =============================================================================
+// ESTIMATE SELECTOR DROPDOWN
+// =============================================================================
+
+function EstimateSelector({ 
+  currentEstimate, 
+  availableEstimates, 
+  onNew, 
+  onSelect, 
+  onDuplicate,
+  onDelete,
+  isLoading 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = (est) => {
+    onSelect(est.id);
+    setIsOpen(false);
+  };
+
+  const handleDelete = () => {
+    setShowConfirmDelete(false);
+    setIsOpen(false);
+    onDelete();
+  };
+
+  return (
+    <div className="est-estimate-selector" ref={dropdownRef}>
+      <button 
+        className="est-selector-trigger"
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isLoading}
+      >
+        <FolderOpen size={18} />
+        <span className="est-selector-name">
+          {currentEstimate?.name || 'New Estimate'}
+        </span>
+        <ChevronDown size={16} className={isOpen ? 'rotated' : ''} />
+      </button>
+
+      {isOpen && (
+        <div className="est-selector-dropdown">
+          <div className="est-selector-section">
+            <button className="est-selector-item est-selector-new" onClick={() => { onNew(); setIsOpen(false); }}>
+              <FilePlus size={16} />
+              New Estimate
+            </button>
+          </div>
+
+          {availableEstimates.length > 0 && (
+            <div className="est-selector-section">
+              <div className="est-selector-section-title">Recent Estimates</div>
+              {availableEstimates.map(est => (
+                <button 
+                  key={est.id} 
+                  className={`est-selector-item ${est.id === currentEstimate?.id ? 'active' : ''}`}
+                  onClick={() => handleSelect(est)}
+                >
+                  <div className="est-selector-item-info">
+                    <span className="est-selector-item-name">{est.name}</span>
+                    <span className="est-selector-item-meta">
+                      {formatCurrency(est.totalCost)} • {est.componentCount} components
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {currentEstimate?.id && (
+            <div className="est-selector-section est-selector-actions-section">
+              <button 
+                className="est-selector-item"
+                onClick={() => { onDuplicate(); setIsOpen(false); }}
+              >
+                <Copy size={16} />
+                Duplicate Estimate
+              </button>
+              <button 
+                className="est-selector-item est-selector-delete"
+                onClick={() => setShowConfirmDelete(true)}
+              >
+                <Trash2 size={16} />
+                Delete Estimate
+              </button>
+            </div>
+          )}
+
+          {showConfirmDelete && (
+            <div className="est-selector-confirm">
+              <p>Delete "{currentEstimate?.name}"?</p>
+              <div className="est-selector-confirm-actions">
+                <button onClick={() => setShowConfirmDelete(false)}>Cancel</button>
+                <button className="danger" onClick={handleDelete}>Delete</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
 export default function Estimator() {
-  const [estimate, setEstimate] = useState({
-    name: 'New Estimate',
-    description: '',
-    components: []
-  });
+  // Context hooks
+  const { currentProject } = useProject();
+  const { showSuccess, showError, showWarning } = useToast();
   
+  // Rate data state
+  const [rateLookup, setRateLookup] = useState(FALLBACK_RATE_LOOKUP);
+  const [ratesLoading, setRatesLoading] = useState(true);
+  const [ratesError, setRatesError] = useState(null);
+  const [ratesSource, setRatesSource] = useState('loading');
+  
+  // Estimate data state
+  const [estimate, setEstimate] = useState(createEmptyEstimate());
+  const [availableEstimates, setAvailableEstimates] = useState([]);
   const [expandedComponents, setExpandedComponents] = useState(new Set());
   
+  // UI state
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+
+  // Refs
+  const initialLoadDone = useRef(false);
+
+  // Load rates from database on mount
+  useEffect(() => {
+    async function loadRates() {
+      try {
+        setRatesLoading(true);
+        setRatesError(null);
+        
+        const lookup = await benchmarkRatesService.buildRateLookup();
+        
+        if (lookup && Object.keys(lookup).length > 0) {
+          setRateLookup(lookup);
+          setRatesSource('database');
+        } else {
+          console.warn('No benchmark rates in database, using fallback data');
+          setRateLookup(FALLBACK_RATE_LOOKUP);
+          setRatesSource('fallback');
+        }
+      } catch (err) {
+        console.error('Failed to load benchmark rates:', err);
+        setRatesError(err.message);
+        setRateLookup(FALLBACK_RATE_LOOKUP);
+        setRatesSource('fallback');
+      } finally {
+        setRatesLoading(false);
+      }
+    }
+    
+    loadRates();
+  }, []);
+
+  // Load available estimates when project changes
+  useEffect(() => {
+    async function loadEstimates() {
+      if (!currentProject?.id) return;
+      
+      try {
+        const estimates = await estimatesService.getSummaryList(currentProject.id);
+        setAvailableEstimates(estimates);
+        
+        // On initial load, if there's a recent estimate, don't auto-load it
+        // User should explicitly choose to load an estimate
+        initialLoadDone.current = true;
+      } catch (err) {
+        console.error('Failed to load estimates:', err);
+        showError('Failed to load estimates');
+      }
+    }
+    
+    loadEstimates();
+  }, [currentProject?.id]);
+
   // Calculate estimate totals
   const estimateTotals = useMemo(() => {
     let totalDays = 0;
@@ -633,8 +791,147 @@ export default function Estimator() {
     
     return { totalDays, totalCost, componentCount: estimate.components.length };
   }, [estimate]);
-  
-  const handleAddComponent = () => {
+
+  // Mark as having unsaved changes
+  const markChanged = useCallback(() => {
+    setHasUnsavedChanges(true);
+  }, []);
+
+  // Handler: New Estimate
+  const handleNewEstimate = useCallback(() => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('You have unsaved changes. Create new estimate anyway?')) {
+        return;
+      }
+    }
+    setEstimate(createEmptyEstimate());
+    setExpandedComponents(new Set());
+    setHasUnsavedChanges(false);
+    setLastSavedAt(null);
+  }, [hasUnsavedChanges]);
+
+  // Handler: Load Estimate
+  const handleLoadEstimate = useCallback(async (estimateId) => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('You have unsaved changes. Load different estimate anyway?')) {
+        return;
+      }
+    }
+
+    try {
+      setIsLoading(true);
+      const fullEstimate = await estimatesService.getWithDetails(estimateId);
+      const uiFormat = estimatesService.toUIFormat(fullEstimate);
+      
+      setEstimate(uiFormat);
+      setExpandedComponents(new Set(uiFormat.components.map(c => c.id)));
+      setHasUnsavedChanges(false);
+      setLastSavedAt(fullEstimate.updated_at);
+      
+      showSuccess(`Loaded "${uiFormat.name}"`);
+    } catch (err) {
+      console.error('Failed to load estimate:', err);
+      showError('Failed to load estimate');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [hasUnsavedChanges, showSuccess, showError]);
+
+
+  // Handler: Save Estimate
+  const handleSaveEstimate = useCallback(async () => {
+    if (!currentProject?.id) {
+      showWarning('Please select a project first');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      
+      const savedEstimate = await estimatesService.saveFullEstimate(currentProject.id, estimate);
+      const uiFormat = estimatesService.toUIFormat(savedEstimate);
+      
+      setEstimate(uiFormat);
+      setHasUnsavedChanges(false);
+      setLastSavedAt(new Date().toISOString());
+      
+      // Refresh available estimates list
+      const estimates = await estimatesService.getSummaryList(currentProject.id);
+      setAvailableEstimates(estimates);
+      
+      showSuccess('Estimate saved');
+    } catch (err) {
+      console.error('Failed to save estimate:', err);
+      showError('Failed to save estimate');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [currentProject?.id, estimate, showSuccess, showError, showWarning]);
+
+  // Handler: Duplicate Estimate
+  const handleDuplicateEstimate = useCallback(async () => {
+    if (!estimate.id) {
+      showWarning('Save the estimate first before duplicating');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      const duplicated = await estimatesService.duplicateEstimate(estimate.id);
+      const uiFormat = estimatesService.toUIFormat(duplicated);
+      
+      setEstimate(uiFormat);
+      setExpandedComponents(new Set(uiFormat.components.map(c => c.id)));
+      setHasUnsavedChanges(false);
+      setLastSavedAt(new Date().toISOString());
+      
+      // Refresh available estimates list
+      const estimates = await estimatesService.getSummaryList(currentProject.id);
+      setAvailableEstimates(estimates);
+      
+      showSuccess(`Created "${uiFormat.name}"`);
+    } catch (err) {
+      console.error('Failed to duplicate estimate:', err);
+      showError('Failed to duplicate estimate');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [estimate.id, currentProject?.id, showSuccess, showError, showWarning]);
+
+  // Handler: Delete Estimate
+  const handleDeleteEstimate = useCallback(async () => {
+    if (!estimate.id) {
+      handleNewEstimate();
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      await estimatesService.delete(estimate.id);
+      
+      // Refresh available estimates list
+      const estimates = await estimatesService.getSummaryList(currentProject.id);
+      setAvailableEstimates(estimates);
+      
+      // Reset to new estimate
+      setEstimate(createEmptyEstimate());
+      setExpandedComponents(new Set());
+      setHasUnsavedChanges(false);
+      setLastSavedAt(null);
+      
+      showSuccess('Estimate deleted');
+    } catch (err) {
+      console.error('Failed to delete estimate:', err);
+      showError('Failed to delete estimate');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [estimate.id, currentProject?.id, handleNewEstimate, showSuccess, showError]);
+
+  // Handler: Add Component
+  const handleAddComponent = useCallback(() => {
     const newComponent = {
       id: generateId(),
       name: `Component ${estimate.components.length + 1}`,
@@ -648,18 +945,21 @@ export default function Estimator() {
       components: [...prev.components, newComponent]
     }));
     setExpandedComponents(prev => new Set([...prev, newComponent.id]));
-  };
+    markChanged();
+  }, [estimate.components.length, markChanged]);
   
-  const handleUpdateComponent = (componentId, updates) => {
+  // Handler: Update Component
+  const handleUpdateComponent = useCallback((componentId, updates) => {
     setEstimate(prev => ({
       ...prev,
       components: prev.components.map(c => 
         c.id === componentId ? updates : c
       )
     }));
-  };
+  }, []);
   
-  const handleCloneComponent = (componentId) => {
+  // Handler: Clone Component
+  const handleCloneComponent = useCallback((componentId) => {
     const original = estimate.components.find(c => c.id === componentId);
     if (!original) return;
     
@@ -670,21 +970,6 @@ export default function Estimator() {
     };
     // Regenerate IDs for tasks
     cloned.tasks = cloned.tasks.map(t => ({ ...t, id: generateId() }));
-    // Regenerate IDs for resource types
-    const rtIdMap = {};
-    cloned.resourceTypes = cloned.resourceTypes.map(rt => {
-      const newId = generateId();
-      rtIdMap[rt.id] = newId;
-      return { ...rt, id: newId };
-    });
-    // Update effort keys
-    cloned.tasks = cloned.tasks.map(t => {
-      const newEfforts = {};
-      Object.entries(t.efforts).forEach(([oldId, value]) => {
-        if (rtIdMap[oldId]) newEfforts[rtIdMap[oldId]] = value;
-      });
-      return { ...t, efforts: newEfforts };
-    });
     
     const index = estimate.components.findIndex(c => c.id === componentId);
     const newComponents = [...estimate.components];
@@ -692,9 +977,11 @@ export default function Estimator() {
     
     setEstimate(prev => ({ ...prev, components: newComponents }));
     setExpandedComponents(prev => new Set([...prev, cloned.id]));
-  };
+    markChanged();
+  }, [estimate.components, markChanged]);
   
-  const handleDeleteComponent = (componentId) => {
+  // Handler: Delete Component
+  const handleDeleteComponent = useCallback((componentId) => {
     setEstimate(prev => ({
       ...prev,
       components: prev.components.filter(c => c.id !== componentId)
@@ -704,9 +991,11 @@ export default function Estimator() {
       next.delete(componentId);
       return next;
     });
-  };
+    markChanged();
+  }, [markChanged]);
   
-  const toggleComponentExpanded = (componentId) => {
+  // Handler: Toggle Component Expanded
+  const toggleComponentExpanded = useCallback((componentId) => {
     setExpandedComponents(prev => {
       const next = new Set(prev);
       if (next.has(componentId)) {
@@ -716,15 +1005,43 @@ export default function Estimator() {
       }
       return next;
     });
-  };
+  }, []);
   
-  const expandAll = () => {
-    setExpandedComponents(new Set(estimate.components.map(c => c.id)));
-  };
-  
-  const collapseAll = () => {
-    setExpandedComponents(new Set());
-  };
+  // Handler: Expand/Collapse All
+  const expandAll = () => setExpandedComponents(new Set(estimate.components.map(c => c.id)));
+  const collapseAll = () => setExpandedComponents(new Set());
+
+  // Handler: Update Estimate Name
+  const handleUpdateName = useCallback((name) => {
+    setEstimate(prev => ({ ...prev, name }));
+    markChanged();
+  }, [markChanged]);
+
+
+  // Loading state (rates)
+  if (ratesLoading) {
+    return (
+      <div className="estimator-page" data-testid="estimator-page">
+        <div className="est-loading">
+          <Loader2 size={48} className="est-spinner" />
+          <p>Loading benchmark rates...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No project selected
+  if (!currentProject) {
+    return (
+      <div className="estimator-page" data-testid="estimator-page">
+        <div className="est-no-project">
+          <Calculator size={48} />
+          <h2>No Project Selected</h2>
+          <p>Please select a project from the header to use the Estimator.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="estimator-page" data-testid="estimator-page">
@@ -732,18 +1049,38 @@ export default function Estimator() {
       <header className="est-header">
         <div className="est-header-content">
           <div className="est-header-left">
+            <Link to="/planning" className="est-back-link" title="Back to Planning">
+              <ArrowLeft size={18} />
+            </Link>
             <div className="est-header-icon">
               <Calculator size={24} />
             </div>
             <div className="est-header-info">
-              <input
-                type="text"
-                value={estimate.name}
-                onChange={(e) => setEstimate(prev => ({ ...prev, name: e.target.value }))}
-                className="est-title-input"
-                placeholder="Estimate name..."
-              />
-              <p>Component-based cost estimation</p>
+              <div className="est-header-title-row">
+                <EstimateSelector
+                  currentEstimate={estimate}
+                  availableEstimates={availableEstimates}
+                  onNew={handleNewEstimate}
+                  onSelect={handleLoadEstimate}
+                  onDuplicate={handleDuplicateEstimate}
+                  onDelete={handleDeleteEstimate}
+                  isLoading={isLoading}
+                />
+                {hasUnsavedChanges && (
+                  <span className="est-unsaved-indicator" title="Unsaved changes">
+                    ●
+                  </span>
+                )}
+              </div>
+              <div className="est-header-meta">
+                <span>Component-based cost estimation</span>
+                {lastSavedAt && (
+                  <span className="est-last-saved">
+                    <Clock size={12} />
+                    Saved {formatDateTime(lastSavedAt)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           
@@ -763,17 +1100,50 @@ export default function Estimator() {
           </div>
           
           <div className="est-header-actions">
-            <button className="est-btn est-btn-secondary" onClick={() => alert('Export coming soon!')}>
+            <button 
+              className="est-btn est-btn-secondary" 
+              onClick={() => showWarning('Export coming soon!')}
+            >
               <FileDown size={18} />
               Export
             </button>
-            <button className="est-btn est-btn-primary" onClick={() => alert('Save coming soon!')}>
-              <Save size={18} />
-              Save
+            <button 
+              className={`est-btn est-btn-primary ${isSaving ? 'est-btn-loading' : ''}`}
+              onClick={handleSaveEstimate}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 size={18} className="est-spinner" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  Save
+                </>
+              )}
             </button>
           </div>
         </div>
       </header>
+      
+      {/* Warnings */}
+      {ratesSource === 'fallback' && (
+        <div className="est-warning">
+          <AlertCircle size={18} />
+          <span>
+            Using sample rate data. Run the database migration to load full benchmark rates.
+            {ratesError && ` (Error: ${ratesError})`}
+          </span>
+        </div>
+      )}
+      
+      {isLoading && (
+        <div className="est-loading-overlay">
+          <Loader2 size={32} className="est-spinner" />
+        </div>
+      )}
       
       {/* Toolbar */}
       <div className="est-toolbar">
@@ -794,6 +1164,7 @@ export default function Estimator() {
           </div>
         </div>
       </div>
+
       
       {/* Main Content */}
       <div className="est-content">
@@ -813,11 +1184,13 @@ export default function Estimator() {
               <ComponentCard
                 key={component.id}
                 component={component}
+                rateLookup={rateLookup}
                 onUpdate={(updates) => handleUpdateComponent(component.id, updates)}
                 onClone={() => handleCloneComponent(component.id)}
                 onDelete={() => handleDeleteComponent(component.id)}
                 isExpanded={expandedComponents.has(component.id)}
                 onToggleExpand={() => toggleComponentExpanded(component.id)}
+                onMarkChanged={markChanged}
               />
             ))}
           </div>
@@ -828,6 +1201,14 @@ export default function Estimator() {
       {estimate.components.length > 0 && (
         <footer className="est-footer">
           <div className="est-footer-content">
+            <div className="est-footer-left">
+              {hasUnsavedChanges && (
+                <span className="est-footer-unsaved">
+                  <AlertCircle size={14} />
+                  Unsaved changes
+                </span>
+              )}
+            </div>
             <div className="est-footer-summary">
               <div className="est-summary-item">
                 <span className="est-summary-label">Components:</span>

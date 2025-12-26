@@ -9,9 +9,9 @@
  *   // Or import the base class for custom services
  *   import { BaseService } from '../services';
  * 
- * @version 2.5
- * @updated 22 December 2025
- * @phase Organisation Multi-tenancy
+ * @version 2.8
+ * @updated 26 December 2025
+ * @phase Linked Estimates - Checkpoint 6 Complete
  */
 
 // Base class for extending
@@ -129,3 +129,31 @@ export {
   subscriptionService,
   LIMIT_TYPES
 } from './subscription.service';
+
+// Benchmark Rates (SFIA rate card for Estimator & Benchmarking)
+export {
+  benchmarkRatesService,
+  BenchmarkRatesService,
+  ROLE_FAMILIES,
+  ROLES,
+  SKILLS,
+  TIERS,
+  SFIA_LEVELS,
+  getRoleName,
+  getSkillName,
+  getFamilyName,
+  getFamilyIcon,
+  getRoleFamily,
+  getTierName,
+  getTierColor,
+  formatRate,
+  calculatePremium
+} from './benchmarkRates.service';
+
+// Estimates (Cost estimation with components/tasks/resources)
+export {
+  estimatesService,
+  EstimatesService,
+  ESTIMATE_STATUS,
+  ESTIMATE_STATUS_CONFIG
+} from './estimates.service';

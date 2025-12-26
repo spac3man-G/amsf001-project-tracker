@@ -480,6 +480,33 @@
 }
 
 /* ============================================
+   Estimate Generation Button
+   ============================================ */
+
+.plan-btn-estimate {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+}
+
+.plan-btn-estimate:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.plan-btn-estimate:disabled {
+  background: var(--gray-300);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.plan-btn-estimate svg {
+  color: white;
+}
+
+/* ============================================
    AI Assistant Panel Integration
    ============================================ */
 
@@ -537,4 +564,362 @@
     border-left: none;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
   }
+}
+
+
+/* =============================================================================
+   ESTIMATE COLUMN (Added for Checkpoint 4 - Linked Estimates)
+   ============================================================================= */
+
+.plan-col-estimate {
+  width: 100px;
+  text-align: center;
+}
+
+.plan-cell-estimate {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Estimate Badge - Shows linked estimate cost */
+.plan-estimate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--green-100);
+  border: 1px solid var(--green-300);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green-700);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plan-estimate-badge:hover {
+  background: var(--green-200);
+  border-color: var(--green-400);
+}
+
+.plan-estimate-badge svg {
+  flex-shrink: 0;
+}
+
+/* Link Button - Shows when not linked */
+.plan-estimate-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px dashed var(--gray-300);
+  border-radius: 6px;
+  color: var(--gray-400);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plan-estimate-link-btn:hover {
+  background: var(--primary-50);
+  border-color: var(--primary-400);
+  border-style: solid;
+  color: var(--primary-600);
+}
+
+
+/* ============================================
+   Estimate Summary Widget (Checkpoint 6)
+   ============================================ */
+
+.plan-estimate-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 1px solid var(--green-200);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.plan-estimate-summary:hover {
+  border-color: var(--green-300);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+}
+
+.plan-summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.plan-summary-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--green-700);
+}
+
+.plan-summary-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--green-600);
+}
+
+.plan-summary-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--green-200);
+}
+
+.plan-summary-chevron {
+  color: var(--green-500);
+  transition: transform 0.2s ease;
+}
+
+.plan-summary-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+/* ============================================
+   Estimates List Panel (Checkpoint 6)
+   ============================================ */
+
+.planning-page.with-estimates-panel {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+
+.planning-page.with-estimates-panel .plan-header {
+  grid-column: 1 / -1;
+}
+
+.planning-page.with-estimates-panel .plan-content {
+  overflow-y: auto;
+  height: 100%;
+}
+
+.planning-page.with-estimates-panel.with-ai-panel {
+  grid-template-columns: 1fr 340px 420px;
+}
+
+.plan-estimates-panel {
+  background: white;
+  border-left: 1px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.plan-estimates-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gray-100);
+  background: var(--gray-50);
+}
+
+.plan-estimates-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.plan-estimates-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  font-size: 20px;
+  color: var(--gray-400);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.plan-estimates-close:hover {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.plan-estimates-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plan-estimates-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--gray-400);
+  text-align: center;
+}
+
+.plan-estimates-empty p {
+  margin: 0;
+  color: var(--gray-500);
+}
+
+/* Estimate Card */
+.plan-estimate-card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 14px;
+  transition: all 0.15s ease;
+}
+
+.plan-estimate-card:hover {
+  border-color: var(--gray-300);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.plan-estimate-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.plan-estimate-card-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--gray-800);
+  line-height: 1.3;
+}
+
+.plan-estimate-card-status {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.plan-estimate-card-status.draft {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.plan-estimate-card-status.submitted {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+.plan-estimate-card-status.approved {
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.plan-estimate-card-status.rejected {
+  background: var(--red-100);
+  color: var(--red-700);
+}
+
+.plan-estimate-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.plan-estimate-card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  background: var(--gray-50);
+  border-radius: 6px;
+}
+
+.plan-estimate-card-stat .stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.plan-estimate-card-stat .stat-label {
+  font-size: 10px;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.plan-estimate-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--gray-500);
+  margin-bottom: 10px;
+}
+
+.plan-estimate-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.plan-estimate-card-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--gray-200);
+  background: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plan-estimate-card-btn:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-300);
+  color: var(--gray-800);
+}
+
+.plan-estimate-card-btn:first-child {
+  flex: 2;
+  background: var(--primary-50);
+  border-color: var(--primary-200);
+  color: var(--primary-700);
+}
+
+.plan-estimate-card-btn:first-child:hover {
+  background: var(--primary-100);
+  border-color: var(--primary-300);
+}
+
+/* Active Estimates Button */
+.plan-btn-secondary.active {
+  background: var(--primary-50);
+  border-color: var(--primary-300);
+  color: var(--primary-700);
 }
