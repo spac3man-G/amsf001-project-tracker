@@ -478,3 +478,63 @@
     min-width: 900px;
   }
 }
+
+/* ============================================
+   AI Assistant Panel Integration
+   ============================================ */
+
+/* AI Button */
+.plan-btn-ai {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  border: none;
+}
+
+.plan-btn-ai:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.plan-btn-ai svg {
+  color: white;
+}
+
+/* Split Layout when AI Panel is open */
+.planning-page.with-ai-panel {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+
+.planning-page.with-ai-panel .plan-header {
+  grid-column: 1 / -1;
+}
+
+.planning-page.with-ai-panel .plan-content {
+  overflow-y: auto;
+  height: 100%;
+}
+
+.planning-page.with-ai-panel .planning-ai-panel {
+  grid-row: 2;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Responsive: Stack AI panel on smaller screens */
+@media (max-width: 1200px) {
+  .planning-page.with-ai-panel {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr 50vh;
+  }
+  
+  .planning-page.with-ai-panel .planning-ai-panel {
+    grid-column: 1;
+    grid-row: 3;
+    border-left: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+}

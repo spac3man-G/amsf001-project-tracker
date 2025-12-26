@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Plus, Trash2, ChevronRight, ChevronDown, GripVertical,
   Flag, Package, CheckSquare, RefreshCw,
-  ArrowRight, ArrowLeft, Keyboard
+  ArrowRight, ArrowLeft, Keyboard, Sparkles
 } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
 import planItemsService from '../../services/planItemsService';
+import PlanningAIAssistant from './PlanningAIAssistant';
 import './Planning.css';
 
 const ITEM_TYPES = [
@@ -32,6 +33,7 @@ export default function Planning() {
   const [activeCell, setActiveCell] = useState(null); // { rowIndex, field }
   const [editingCell, setEditingCell] = useState(null); // { rowIndex, field }
   const [editValue, setEditValue] = useState('');
+  const [showAIPanel, setShowAIPanel] = useState(false);
   const inputRef = useRef(null);
   const tableRef = useRef(null);
 
@@ -119,6 +121,21 @@ export default function Planning() {
       setItems(data);
     } catch (error) {
       console.error('Error fetching plan items:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Handle AI-generated structure
+  async function handleApplyStructure(structure) {
+    try {
+      setLoading(true);
+      await planItemsService.createBatch(projectId, structure);
+      await fetchItems(); // Refresh the grid
+      setShowAIPanel(false);
+    } catch (error) {
+      console.error('Error applying AI structure:', error);
+      throw error; // Re-throw so AI panel can show error
     } finally {
       setLoading(false);
     }
@@ -531,7 +548,7 @@ export default function Planning() {
   }
 
   return (
-    <div className="planning-page" onClick={() => { setActiveCell(null); setEditingCell(null); }}>
+    <div className={`planning-page ${showAIPanel ? 'with-ai-panel' : ''}`} onClick={() => { setActiveCell(null); setEditingCell(null); }}>
       <div className="plan-header">
         <div className="plan-header-left">
           <h1>Project Plan</h1>
@@ -542,6 +559,14 @@ export default function Planning() {
             <Keyboard size={14} />
             <span>Tab/Enter to navigate • Type to edit • F2 to edit cell</span>
           </div>
+          <button 
+            onClick={() => setShowAIPanel(true)} 
+            className="plan-btn plan-btn-ai"
+            title="AI Planning Assistant"
+          >
+            <Sparkles size={16} />
+            AI Assistant
+          </button>
           <button onClick={fetchItems} className="plan-btn plan-btn-secondary">
             <RefreshCw size={16} />
             Refresh
@@ -636,6 +661,14 @@ export default function Planning() {
           <span>Click to add a new task (or press Enter from last row)</span>
         </div>
       </div>
+
+      {/* AI Assistant Panel */}
+      {showAIPanel && (
+        <PlanningAIAssistant
+          onClose={() => setShowAIPanel(false)}
+          onApplyStructure={handleApplyStructure}
+        />
+      )}
     </div>
   );
 }
