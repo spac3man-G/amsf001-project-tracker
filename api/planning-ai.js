@@ -227,6 +227,114 @@ Never output raw JSON - always use tools to return structured data.
 Be conversational and helpful. Explain your reasoning when generating structures.`;
 
 // ============================================
+// DOCUMENT ANALYSIS ADDITIONS TO SYSTEM PROMPT
+// ============================================
+
+const DOCUMENT_ANALYSIS_PROMPT = `
+
+## Document Analysis
+
+You have been provided with a document (PDF or image). Analyze it thoroughly to:
+
+1. **Identify Project Scope**: What is the project about? What are the main objectives?
+2. **Extract Phases/Milestones**: Look for natural project phases, stages, or major checkpoints
+3. **Find Deliverables**: Identify tangible outputs, documents, or products mentioned
+4. **Discover Tasks**: Extract specific work items, activities, or action items
+5. **Note Timelines**: If dates or durations are mentioned, incorporate them
+6. **Capture Dependencies**: Note any mentioned dependencies or sequences
+
+When generating a structure from a document:
+- Be thorough but don't invent items not supported by the document
+- Ask clarifying questions if the document is ambiguous about scope or timeline
+- Group related items logically even if the document doesn't explicitly group them
+- Use professional naming conventions for items you create
+
+If the document is a:
+- **Project Brief**: Extract objectives, scope, deliverables, and timeline
+- **Requirements Document**: Create deliverables from requirement groups, tasks from individual requirements
+- **Scope Document**: Map scope items to milestones and deliverables
+- **Proposal**: Extract work packages, phases, and deliverables
+- **Meeting Notes**: Identify action items and decisions that need planning`;
+
+// ============================================
+// DOCUMENT VALIDATION
+// ============================================
+
+const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_DOCUMENT_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif'
+];
+
+function validateDocument(document) {
+  if (!document) return { valid: true }; // Document is optional
+  
+  if (!document.data || !document.mediaType) {
+    return { valid: false, error: 'Document must include data and mediaType' };
+  }
+  
+  if (!ALLOWED_DOCUMENT_TYPES.includes(document.mediaType)) {
+    return { 
+      valid: false, 
+      error: `Unsupported document type: ${document.mediaType}. Allowed: PDF, JPEG, PNG, WebP, GIF` 
+    };
+  }
+  
+  // Estimate size from base64 (base64 is ~33% larger than binary)
+  const estimatedSize = (document.data.length * 3) / 4;
+  if (estimatedSize > MAX_DOCUMENT_SIZE) {
+    return { 
+      valid: false, 
+      error: `Document too large. Maximum size is 10MB.` 
+    };
+  }
+  
+  return { valid: true };
+}
+
+function buildMessageWithDocument(userMessage, document) {
+  // If no document, return simple text message
+  if (!document) {
+    return { role: 'user', content: userMessage };
+  }
+  
+  const content = [];
+  
+  // Add document first
+  if (document.mediaType === 'application/pdf') {
+    content.push({
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: document.mediaType,
+        data: document.data
+      }
+    });
+  } else {
+    // Image types
+    content.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: document.mediaType,
+        data: document.data
+      }
+    });
+  }
+  
+  // Add text message
+  content.push({
+    type: 'text',
+    text: userMessage || 'Please analyze this document and suggest a project plan structure.'
+  });
+  
+  return { role: 'user', content };
+}
+
+// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -250,7 +358,7 @@ export default async function handler(req) {
 
   try {
     const body = await req.json();
-    const { messages, projectContext, currentStructure } = body;
+    const { messages, projectContext, currentStructure, document } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: 'Messages array required' }), {
@@ -259,8 +367,24 @@ export default async function handler(req) {
       });
     }
 
+    // Validate document if provided
+    if (document) {
+      const validation = validateDocument(document);
+      if (!validation.valid) {
+        return new Response(JSON.stringify({ error: validation.error }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Build context-aware system prompt
     let systemPrompt = SYSTEM_PROMPT;
+    
+    // Add document analysis prompt if document is provided
+    if (document) {
+      systemPrompt += DOCUMENT_ANALYSIS_PROMPT;
+    }
     
     if (projectContext) {
       systemPrompt += `\n\n## Current Project Context
@@ -278,6 +402,18 @@ ${JSON.stringify(currentStructure, null, 2)}
 When the user asks to modify or add to this structure, use the refineStructure tool and include the complete updated structure.`;
     }
 
+    // Process messages - attach document to the last user message if provided
+    let processedMessages = messages;
+    if (document && messages.length > 0) {
+      processedMessages = messages.map((msg, index) => {
+        // Attach document to the last user message
+        if (index === messages.length - 1 && msg.role === 'user') {
+          return buildMessageWithDocument(msg.content, document);
+        }
+        return msg;
+      });
+    }
+
     // Call Claude API
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -291,7 +427,7 @@ When the user asks to modify or add to this structure, use the refineStructure t
         max_tokens: 4096,
         system: systemPrompt,
         tools: TOOLS,
-        messages: messages
+        messages: processedMessages
       })
     });
 
