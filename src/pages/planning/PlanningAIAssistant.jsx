@@ -5,8 +5,9 @@
  * Allows users to describe projects in natural language
  * and generates structured plans with milestones, deliverables, and tasks.
  * 
- * @version 1.0
+ * @version 1.1
  * @created 26 December 2025
+ * @updated 26 December 2025 - Added document upload support
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -25,7 +26,11 @@ import {
   Plus,
   RefreshCw,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Upload,
+  FileText,
+  Image,
+  Trash2
 } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
 import './PlanningAIAssistant.css';
@@ -56,6 +61,23 @@ const QUICK_PROMPTS = [
     prompt: 'Help me plan a system migration project with assessment, migration, and validation phases.'
   }
 ];
+
+// Document upload constants
+const ALLOWED_FILE_TYPES = {
+  'application/pdf': { icon: FileText, label: 'PDF' },
+  'image/jpeg': { icon: Image, label: 'JPEG' },
+  'image/png': { icon: Image, label: 'PNG' },
+  'image/webp': { icon: Image, label: 'WebP' },
+  'image/gif': { icon: Image, label: 'GIF' }
+};
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
 
 const ITEM_ICONS = {
   milestone: Flag,
@@ -270,6 +292,179 @@ function QuickPrompts({ onSelect, disabled }) {
 }
 
 // ============================================
+// DOCUMENT UPLOAD COMPONENT
+// ============================================
+
+function DocumentUpload({ document, onDocumentChange, onRemove, disabled }) {
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isReading, setIsReading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const validateFile = (file) => {
+    // Check file type
+    if (!ALLOWED_FILE_TYPES[file.type]) {
+      return { valid: false, error: 'Unsupported file type. Please upload a PDF or image (JPEG, PNG, WebP, GIF).' };
+    }
+    
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      return { valid: false, error: `File too large. Maximum size is ${formatFileSize(MAX_FILE_SIZE)}.` };
+    }
+    
+    return { valid: true };
+  };
+
+  const readFileAsBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // Extract base64 data (remove the data:xxx;base64, prefix)
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFile = async (file) => {
+    setError(null);
+    
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
+
+    setIsReading(true);
+    try {
+      const base64Data = await readFileAsBase64(file);
+      onDocumentChange({
+        filename: file.name,
+        mediaType: file.type,
+        size: file.size,
+        data: base64Data
+      });
+    } catch (err) {
+      setError('Failed to read file. Please try again.');
+      console.error('File read error:', err);
+    } finally {
+      setIsReading(false);
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFile(file);
+    }
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (disabled) return;
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleFile(file);
+    }
+  };
+
+  const handleClick = () => {
+    if (!disabled && !document) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  // If document is uploaded, show the preview
+  if (document) {
+    const FileIcon = ALLOWED_FILE_TYPES[document.mediaType]?.icon || FileText;
+    return (
+      <div className="document-upload-preview">
+        <div className="document-preview-info">
+          <FileIcon size={20} className="document-preview-icon" />
+          <div className="document-preview-details">
+            <span className="document-preview-name">{document.filename}</span>
+            <span className="document-preview-size">{formatFileSize(document.size)}</span>
+          </div>
+        </div>
+        <button 
+          className="document-preview-remove"
+          onClick={onRemove}
+          disabled={disabled}
+          title="Remove document"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="document-upload-container">
+      <div 
+        className={`document-upload-zone ${isDragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''}`}
+        onClick={handleClick}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.gif"
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+          disabled={disabled}
+        />
+        
+        {isReading ? (
+          <div className="document-upload-reading">
+            <Loader2 size={24} className="spinning" />
+            <span>Reading document...</span>
+          </div>
+        ) : (
+          <>
+            <Upload size={24} className="document-upload-icon" />
+            <span className="document-upload-text">
+              Drop a document here or click to upload
+            </span>
+            <span className="document-upload-hint">
+              PDF, JPEG, PNG (max 10MB)
+            </span>
+          </>
+        )}
+      </div>
+      
+      {error && (
+        <div className="document-upload-error">
+          <AlertCircle size={14} />
+          <span>{error}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -283,6 +478,7 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
   const [currentStructure, setCurrentStructure] = useState(null);
   const [currentItemCounts, setCurrentItemCounts] = useState(null);
   const [clarificationQuestions, setClarificationQuestions] = useState(null);
+  const [uploadedDocument, setUploadedDocument] = useState(null);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -416,8 +612,8 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
             <Bot size={32} />
             <h3>Let's plan your project</h3>
             <p>
-              Describe your project and I'll create a structured plan with 
-              milestones, deliverables, and tasks.
+              Describe your project or upload a document (project brief, requirements, scope) 
+              and I'll create a structured plan with milestones, deliverables, and tasks.
             </p>
             <QuickPrompts onSelect={sendMessage} disabled={isLoading} />
           </div>
@@ -455,6 +651,16 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
         <div ref={messagesEndRef} />
       </div>
       
+      {/* Document Upload */}
+      <div className="planning-ai-upload-section">
+        <DocumentUpload
+          document={uploadedDocument}
+          onDocumentChange={setUploadedDocument}
+          onRemove={() => setUploadedDocument(null)}
+          disabled={isLoading || isApplying}
+        />
+      </div>
+      
       {/* Input */}
       <form className="planning-ai-input-form" onSubmit={handleSubmit}>
         <input
@@ -462,14 +668,14 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Describe your project..."
+          placeholder={uploadedDocument ? "Describe what to do with this document..." : "Describe your project..."}
           disabled={isLoading || isApplying}
           className="planning-ai-input"
         />
         <button 
           type="submit" 
           className="planning-ai-send"
-          disabled={!inputValue.trim() || isLoading || isApplying}
+          disabled={(!inputValue.trim() && !uploadedDocument) || isLoading || isApplying}
         >
           <Send size={18} />
         </button>
