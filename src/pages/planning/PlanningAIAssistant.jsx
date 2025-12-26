@@ -62,6 +62,30 @@ const QUICK_PROMPTS = [
   }
 ];
 
+// Document-specific quick prompts
+const DOCUMENT_QUICK_PROMPTS = [
+  {
+    id: 'analyze',
+    label: 'Create plan from document',
+    prompt: 'Analyze this document and create a complete project plan structure.'
+  },
+  {
+    id: 'extract',
+    label: 'Extract deliverables',
+    prompt: 'Extract the key deliverables and milestones from this document.'
+  },
+  {
+    id: 'timeline',
+    label: 'Build timeline',
+    prompt: 'Create a project timeline based on the requirements in this document.'
+  },
+  {
+    id: 'summarize',
+    label: 'Summarize scope',
+    prompt: 'Summarize the project scope and suggest a work breakdown structure.'
+  }
+];
+
 // Document upload constants
 const ALLOWED_FILE_TYPES = {
   'application/pdf': { icon: FileText, label: 'PDF' },
@@ -268,15 +292,15 @@ function StructurePreview({ structure, itemCounts, onApply, onRefine, isApplying
 // QUICK PROMPTS COMPONENT
 // ============================================
 
-function QuickPrompts({ onSelect, disabled }) {
+function QuickPrompts({ onSelect, disabled, prompts = QUICK_PROMPTS, label = 'Quick start:' }) {
   return (
     <div className="planning-ai-quick-prompts">
       <div className="planning-ai-quick-prompts-label">
         <Sparkles size={14} />
-        Quick start:
+        {label}
       </div>
       <div className="planning-ai-quick-prompts-list">
-        {QUICK_PROMPTS.map(prompt => (
+        {prompts.map(prompt => (
           <button
             key={prompt.id}
             className="planning-ai-quick-prompt"
@@ -479,6 +503,7 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
   const [currentItemCounts, setCurrentItemCounts] = useState(null);
   const [clarificationQuestions, setClarificationQuestions] = useState(null);
   const [uploadedDocument, setUploadedDocument] = useState(null);
+  const [isAnalyzingDocument, setIsAnalyzingDocument] = useState(false);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -506,29 +531,63 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
   
   // Send message to API
   const sendMessage = useCallback(async (content) => {
-    if (!content.trim() || isLoading) return;
+    const hasContent = content && content.trim();
+    const hasDocument = !!uploadedDocument;
     
-    // Add user message
-    addMessage('user', content.trim());
+    // Must have content or document
+    if (!hasContent && !hasDocument) return;
+    if (isLoading) return;
+    
+    // Build user message text
+    const messageText = hasContent 
+      ? content.trim() 
+      : 'Please analyze this document and create a project plan structure.';
+    
+    // Add user message (include document indicator if present)
+    const displayMessage = hasDocument && hasContent
+      ? `📎 ${uploadedDocument.filename}\n\n${content.trim()}`
+      : hasDocument
+        ? `📎 ${uploadedDocument.filename}\n\nAnalyze this document and create a project plan.`
+        : content.trim();
+    
+    addMessage('user', displayMessage);
     setInputValue('');
     setIsLoading(true);
+    setIsAnalyzingDocument(hasDocument);
     setClarificationQuestions(null);
+    
+    // Store document reference and clear from state
+    const documentToSend = uploadedDocument;
+    setUploadedDocument(null);
     
     try {
       // Build message history
       const messageHistory = [
         ...messages.map(m => ({ role: m.role, content: m.content })),
-        { role: 'user', content: content.trim() }
+        { role: 'user', content: messageText }
       ];
+      
+      // Build request payload
+      const requestPayload = {
+        messages: messageHistory,
+        projectContext: { projectId, projectName },
+        currentStructure: currentStructure
+      };
+      
+      // Add document if present
+      if (documentToSend) {
+        requestPayload.document = {
+          mediaType: documentToSend.mediaType,
+          data: documentToSend.data,
+          filename: documentToSend.filename,
+          size: documentToSend.size
+        };
+      }
       
       const response = await fetch('/api/planning-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: messageHistory,
-          projectContext: { projectId, projectName },
-          currentStructure: currentStructure
-        })
+        body: JSON.stringify(requestPayload)
       });
       
       if (!response.ok) {
@@ -556,8 +615,9 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
       addMessage('assistant', 'Sorry, I had trouble connecting. Please try again.', error.message);
     } finally {
       setIsLoading(false);
+      setIsAnalyzingDocument(false);
     }
-  }, [messages, isLoading, addMessage, projectId, projectName, currentStructure]);
+  }, [messages, isLoading, addMessage, projectId, projectName, currentStructure, uploadedDocument]);
   
   // Handle form submit
   const handleSubmit = (e) => {
@@ -644,7 +704,7 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
         {isLoading && (
           <div className="planning-ai-loading">
             <Loader2 size={20} className="spinning" />
-            <span>Thinking...</span>
+            <span>{isAnalyzingDocument ? 'Analyzing document...' : 'Thinking...'}</span>
           </div>
         )}
         
@@ -659,6 +719,14 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
           onRemove={() => setUploadedDocument(null)}
           disabled={isLoading || isApplying}
         />
+        {uploadedDocument && !isLoading && (
+          <QuickPrompts 
+            onSelect={sendMessage} 
+            disabled={isLoading} 
+            prompts={DOCUMENT_QUICK_PROMPTS}
+            label="With this document:"
+          />
+        )}
       </div>
       
       {/* Input */}
