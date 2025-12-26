@@ -592,6 +592,8 @@
   border-color: var(--ai-accent);
   background: var(--ai-accent-light);
   border-style: solid;
+  transform: scale(1.01);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ai-accent) 15%, transparent);
 }
 
 .document-upload-zone.disabled {
@@ -648,6 +650,7 @@
   background: var(--ai-bg-secondary);
   border: 1px solid var(--ai-border);
   border-radius: var(--ai-radius);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .document-preview-info {
@@ -706,6 +709,31 @@
 .document-preview-remove:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Quick prompts in upload section (when document is attached) */
+.planning-ai-upload-section .planning-ai-quick-prompts {
+  margin-top: 12px;
+  padding: 0;
+}
+
+.planning-ai-upload-section .planning-ai-quick-prompts-label {
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.planning-ai-upload-section .planning-ai-quick-prompts-list {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.planning-ai-upload-section .planning-ai-quick-prompt {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 6px 12px;
 }
 
 /* ============================================
