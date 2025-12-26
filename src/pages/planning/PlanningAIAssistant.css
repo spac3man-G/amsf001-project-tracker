@@ -1,0 +1,582 @@
+/**
+ * Planning AI Assistant Styles
+ * 
+ * Styling for the conversational AI panel in the Planning tool.
+ * Follows Apple Design System patterns used throughout the app.
+ * 
+ * @version 1.0
+ * @created 26 December 2025
+ */
+
+/* ============================================
+   CSS Variables
+   ============================================ */
+
+.planning-ai-panel {
+  --ai-bg: #ffffff;
+  --ai-bg-secondary: #f5f5f7;
+  --ai-bg-tertiary: #fbfbfd;
+  --ai-text: #1d1d1f;
+  --ai-text-secondary: #86868b;
+  --ai-border: rgba(0, 0, 0, 0.08);
+  --ai-accent: var(--org-brand-color, #6366f1);
+  --ai-accent-light: color-mix(in srgb, var(--ai-accent) 10%, transparent);
+  
+  --ai-user-bg: var(--ai-accent);
+  --ai-user-text: #ffffff;
+  --ai-assistant-bg: #f5f5f7;
+  --ai-assistant-text: #1d1d1f;
+  
+  --ai-milestone: #8b5cf6;
+  --ai-deliverable: #3b82f6;
+  --ai-task: #64748b;
+  
+  --ai-radius: 12px;
+  --ai-radius-sm: 8px;
+  --ai-transition: 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* ============================================
+   Panel Layout
+   ============================================ */
+
+.planning-ai-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--ai-bg);
+  border-left: 1px solid var(--ai-border);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+}
+
+/* ============================================
+   Header
+   ============================================ */
+
+.planning-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ai-border);
+  background: var(--ai-bg);
+  flex-shrink: 0;
+}
+
+.planning-ai-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ai-text);
+}
+
+.planning-ai-header-title svg {
+  color: var(--ai-accent);
+}
+
+.planning-ai-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--ai-bg-secondary);
+  color: var(--ai-text-secondary);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--ai-transition);
+}
+
+.planning-ai-close:hover {
+  background: var(--ai-border);
+  color: var(--ai-text);
+}
+
+/* ============================================
+   Messages Area
+   ============================================ */
+
+.planning-ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Welcome State */
+.planning-ai-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 20px;
+  gap: 12px;
+}
+
+.planning-ai-welcome svg {
+  color: var(--ai-accent);
+  opacity: 0.8;
+}
+
+.planning-ai-welcome h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ai-text);
+  margin: 0;
+}
+
+.planning-ai-welcome p {
+  font-size: 14px;
+  color: var(--ai-text-secondary);
+  margin: 0;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+/* ============================================
+   Chat Messages
+   ============================================ */
+
+.planning-ai-message {
+  display: flex;
+  gap: 12px;
+  max-width: 90%;
+}
+
+.planning-ai-message.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.planning-ai-message.assistant {
+  align-self: flex-start;
+}
+
+.planning-ai-message-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.planning-ai-message.user .planning-ai-message-avatar {
+  background: var(--ai-user-bg);
+  color: var(--ai-user-text);
+}
+
+.planning-ai-message.assistant .planning-ai-message-avatar {
+  background: var(--ai-bg-secondary);
+  color: var(--ai-accent);
+}
+
+.planning-ai-message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.planning-ai-message-text {
+  padding: 12px 16px;
+  border-radius: var(--ai-radius);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.planning-ai-message.user .planning-ai-message-text {
+  background: var(--ai-user-bg);
+  color: var(--ai-user-text);
+  border-bottom-right-radius: 4px;
+}
+
+.planning-ai-message.assistant .planning-ai-message-text {
+  background: var(--ai-assistant-bg);
+  color: var(--ai-assistant-text);
+  border-bottom-left-radius: 4px;
+}
+
+.planning-ai-message-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #ef4444;
+  padding: 0 4px;
+}
+
+/* ============================================
+   Clarification Questions
+   ============================================ */
+
+.planning-ai-clarification {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: var(--ai-radius);
+  padding: 16px;
+  margin-left: 44px;
+}
+
+.planning-ai-clarification-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #92400e;
+  margin-bottom: 12px;
+}
+
+.planning-ai-clarification-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #78350f;
+  line-height: 1.6;
+}
+
+.planning-ai-clarification-list li {
+  margin-bottom: 4px;
+}
+
+/* ============================================
+   Structure Preview
+   ============================================ */
+
+.planning-ai-preview {
+  background: var(--ai-bg);
+  border: 1px solid var(--ai-border);
+  border-radius: var(--ai-radius);
+  overflow: hidden;
+  margin-left: 44px;
+}
+
+.planning-ai-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--ai-bg-secondary);
+  border-bottom: 1px solid var(--ai-border);
+}
+
+.planning-ai-preview-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ai-text);
+  margin: 0;
+}
+
+.planning-ai-preview-counts {
+  display: flex;
+  gap: 8px;
+}
+
+.count-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.count-badge.milestone {
+  background: color-mix(in srgb, var(--ai-milestone) 15%, transparent);
+  color: var(--ai-milestone);
+}
+
+.count-badge.deliverable {
+  background: color-mix(in srgb, var(--ai-deliverable) 15%, transparent);
+  color: var(--ai-deliverable);
+}
+
+.count-badge.task {
+  background: color-mix(in srgb, var(--ai-task) 15%, transparent);
+  color: var(--ai-task);
+}
+
+/* Structure Tree */
+.planning-ai-preview-tree {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.structure-tree-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--ai-text);
+  transition: background var(--ai-transition);
+}
+
+.structure-tree-item-row:hover {
+  background: var(--ai-bg-secondary);
+}
+
+.structure-tree-toggle {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--ai-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.structure-tree-toggle:hover {
+  background: var(--ai-border);
+  color: var(--ai-text);
+}
+
+.structure-tree-spacer {
+  width: 18px;
+}
+
+.structure-tree-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.structure-tree-duration {
+  font-size: 11px;
+  color: var(--ai-text-secondary);
+  background: var(--ai-bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Preview Actions */
+.planning-ai-preview-actions {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--ai-border);
+  background: var(--ai-bg-tertiary);
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+
+.planning-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--ai-radius-sm);
+  cursor: pointer;
+  transition: all var(--ai-transition);
+  border: none;
+  font-family: inherit;
+}
+
+.planning-ai-btn.primary {
+  flex: 1;
+  background: var(--ai-accent);
+  color: white;
+}
+
+.planning-ai-btn.primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.planning-ai-btn.secondary {
+  background: var(--ai-bg);
+  color: var(--ai-text);
+  border: 1px solid var(--ai-border);
+}
+
+.planning-ai-btn.secondary:hover:not(:disabled) {
+  background: var(--ai-bg-secondary);
+}
+
+.planning-ai-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   Quick Prompts
+   ============================================ */
+
+.planning-ai-quick-prompts {
+  margin-top: 16px;
+  width: 100%;
+}
+
+.planning-ai-quick-prompts-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ai-text-secondary);
+  margin-bottom: 10px;
+}
+
+.planning-ai-quick-prompts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.planning-ai-quick-prompt {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ai-accent);
+  background: var(--ai-accent-light);
+  border: 1px solid transparent;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all var(--ai-transition);
+  font-family: inherit;
+}
+
+.planning-ai-quick-prompt:hover:not(:disabled) {
+  border-color: var(--ai-accent);
+  background: color-mix(in srgb, var(--ai-accent) 20%, transparent);
+}
+
+.planning-ai-quick-prompt:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   Loading State
+   ============================================ */
+
+.planning-ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-left: 44px;
+  font-size: 14px;
+  color: var(--ai-text-secondary);
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   Input Area
+   ============================================ */
+
+.planning-ai-input-form {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--ai-border);
+  background: var(--ai-bg);
+  flex-shrink: 0;
+}
+
+.planning-ai-input {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 14px;
+  border: 1px solid var(--ai-border);
+  border-radius: var(--ai-radius);
+  background: var(--ai-bg-secondary);
+  color: var(--ai-text);
+  outline: none;
+  transition: all var(--ai-transition);
+  font-family: inherit;
+}
+
+.planning-ai-input:focus {
+  border-color: var(--ai-accent);
+  background: var(--ai-bg);
+  box-shadow: 0 0 0 3px var(--ai-accent-light);
+}
+
+.planning-ai-input::placeholder {
+  color: var(--ai-text-secondary);
+}
+
+.planning-ai-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.planning-ai-send {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: var(--ai-accent);
+  color: white;
+  border-radius: var(--ai-radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--ai-transition);
+}
+
+.planning-ai-send:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.planning-ai-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 768px) {
+  .planning-ai-panel {
+    border-left: none;
+    border-top: 1px solid var(--ai-border);
+  }
+  
+  .planning-ai-messages {
+    padding: 16px;
+  }
+  
+  .planning-ai-preview {
+    margin-left: 0;
+  }
+  
+  .planning-ai-clarification {
+    margin-left: 0;
+  }
+  
+  .planning-ai-loading {
+    margin-left: 0;
+  }
+}
