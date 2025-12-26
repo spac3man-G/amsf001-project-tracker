@@ -14,29 +14,50 @@ export const planItemsService = {
    * Get all plan items for a project (with estimate data)
    */
   async getAll(projectId) {
-    const { data, error } = await supabase
-      .from('plan_items')
-      .select(`
-        *,
-        milestone:milestones(id, name, milestone_ref),
-        deliverable:deliverables(id, name, deliverable_ref),
-        assigned_resource:resources(id, name),
-        estimate_component:estimate_components(
-          id, 
-          name, 
-          total_cost, 
-          total_days, 
-          quantity,
-          estimate:estimates(id, name, status)
-        )
-      `)
-      .eq('project_id', projectId)
-      .eq('is_deleted', false)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true });
+    // Try query with estimate data first
+    try {
+      const { data, error } = await supabase
+        .from('plan_items')
+        .select(`
+          *,
+          milestone:milestones(id, name, milestone_ref),
+          deliverable:deliverables(id, name, deliverable_ref),
+          assigned_resource:resources(id, name),
+          estimate_component:estimate_components(
+            id, 
+            name, 
+            total_cost, 
+            total_days, 
+            quantity,
+            estimate:estimates(id, name, status)
+          )
+        `)
+        .eq('project_id', projectId)
+        .eq('is_deleted', false)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
 
-    if (error) throw error;
-    return data || [];
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      // Fallback: query without estimate join if schema not ready
+      console.warn('Falling back to basic plan items query:', err.message);
+      const { data, error } = await supabase
+        .from('plan_items')
+        .select(`
+          *,
+          milestone:milestones(id, name, milestone_ref),
+          deliverable:deliverables(id, name, deliverable_ref),
+          assigned_resource:resources(id, name)
+        `)
+        .eq('project_id', projectId)
+        .eq('is_deleted', false)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }
   },
 
   /**
