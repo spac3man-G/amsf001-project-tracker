@@ -39,7 +39,8 @@ import {
   getRoleDisplay,
   isReadOnlyForRole,
   getNavItemIdByPath,
-  isDefaultOrder
+  isDefaultOrder,
+  NAV_SECTIONS
 } from '../lib/navigation';
 
 // Import AuthContext for user data
@@ -325,6 +326,37 @@ export default function Layout({ children }) {
         {/* Navigation */}
         <nav style={{ flex: 1, padding: '0.5rem', overflowY: 'auto' }}>
           {navItems.map((item, index) => {
+            // Handle section headers
+            if (item.isSection) {
+              return (
+                <div
+                  key={`section-${item.id}`}
+                  style={{
+                    padding: sidebarOpen ? '1rem 1rem 0.5rem 1rem' : '1rem 0.5rem 0.5rem',
+                    marginTop: index > 0 ? '0.5rem' : 0
+                  }}
+                >
+                  {sidebarOpen ? (
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: '600',
+                      color: '#94a3b8',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em'
+                    }}>
+                      {item.label}
+                    </span>
+                  ) : (
+                    <div style={{
+                      height: '1px',
+                      backgroundColor: '#e2e8f0',
+                      margin: '0 0.25rem'
+                    }} />
+                  )}
+                </div>
+              );
+            }
+            
             const Icon = item.icon;
             const isActive = location.pathname === item.path || 
                            (item.path !== '/dashboard' && location.pathname.startsWith(item.path));

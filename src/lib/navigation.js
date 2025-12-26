@@ -47,6 +47,22 @@ import {
 import { ROLES } from './permissions';
 
 // ============================================
+// NAVIGATION SECTIONS
+// ============================================
+
+/**
+ * Navigation section definitions
+ * Sections group related nav items under a header
+ */
+export const NAV_SECTIONS = {
+  tools: {
+    id: 'tools',
+    label: 'Tools',
+    icon: null // Section headers don't need icons
+  }
+};
+
+// ============================================
 // NAVIGATION ITEM DEFINITIONS
 // ============================================
 
@@ -59,6 +75,7 @@ import { ROLES } from './permissions';
  * - label: Display text
  * - allowedRoles: Array of roles that can see this item
  * - readOnlyRoles: Array of roles that can view but not modify (optional)
+ * - section: Optional section id for grouping (e.g., 'tools')
  */
 export const NAV_ITEMS = {
   // workflowSummary is now a tab within Dashboard
@@ -130,7 +147,8 @@ export const NAV_ITEMS = {
     icon: Scale,
     label: 'Benchmarking',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: []
+    readOnlyRoles: [],
+    section: 'tools'
   },
   estimator: {
     id: 'estimator',
@@ -138,7 +156,8 @@ export const NAV_ITEMS = {
     icon: Calculator,
     label: 'Estimator',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
-    readOnlyRoles: []
+    readOnlyRoles: [],
+    section: 'tools'
   },
   // billing is now a tab within Finance
   // partners is now a tab within Organisation Admin
@@ -173,7 +192,8 @@ export const NAV_ITEMS = {
     icon: ClipboardList,
     label: 'Planning',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
-    readOnlyRoles: []
+    readOnlyRoles: [],
+    section: 'tools'
   },
   // variations is now a tab within Milestones page
   systemUsers: {
@@ -239,7 +259,6 @@ export const NAV_ITEMS = {
 export const ROLE_NAV_ORDER = {
   [ROLES.ADMIN]: [
     'dashboard',
-    'planning',
     'milestones',
     'deliverables',
     'raid',
@@ -247,6 +266,8 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
+    { section: 'tools' },
+    'planning',
     'benchmarking',
     'estimator',
     'settings',
@@ -254,7 +275,6 @@ export const ROLE_NAV_ORDER = {
   ],
   [ROLES.SUPPLIER_PM]: [
     'dashboard',
-    'planning',
     'milestones',
     'deliverables',
     'raid',
@@ -262,6 +282,8 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
+    { section: 'tools' },
+    'planning',
     'benchmarking',
     'estimator',
     'settings',
@@ -277,14 +299,15 @@ export const ROLE_NAV_ORDER = {
   ],
   [ROLES.CUSTOMER_PM]: [
     'dashboard',
-    'planning',
     'milestones',
     'deliverables',
     'raid',
     'calendar',
     'timesheets',
     'expenses',
-    'finance'
+    'finance',
+    { section: 'tools' },
+    'planning'
   ],
   [ROLES.CUSTOMER_FINANCE]: [
     'dashboard',
@@ -324,6 +347,7 @@ export const ROLE_NAV_ORDER = {
 export function getDefaultNavOrder(role) {
   const navOrder = ROLE_NAV_ORDER[role] || ROLE_NAV_ORDER[ROLES.VIEWER];
   return navOrder
+    .filter(item => typeof item === 'string') // Skip section markers
     .map(itemId => NAV_ITEMS[itemId]?.path)
     .filter(Boolean);
 }
@@ -337,8 +361,25 @@ export function getNavigationForRole(role) {
   const navOrder = ROLE_NAV_ORDER[role] || ROLE_NAV_ORDER[ROLES.VIEWER];
   
   return navOrder
-    .map(itemId => NAV_ITEMS[itemId])
-    .filter(item => item && item.allowedRoles.includes(role));
+    .map(item => {
+      // Handle section markers
+      if (typeof item === 'object' && item.section) {
+        const section = NAV_SECTIONS[item.section];
+        if (section) {
+          return { ...section, isSection: true };
+        }
+        return null;
+      }
+      // Handle regular nav items
+      return NAV_ITEMS[item];
+    })
+    .filter(item => {
+      if (!item) return false;
+      // Sections are always included (filtering happens on the items within)
+      if (item.isSection) return true;
+      // Regular items must be allowed for this role
+      return item.allowedRoles.includes(role);
+    });
 }
 
 /**
@@ -352,7 +393,11 @@ export function canSeeNavItem(role, itemId) {
   if (!item) return false;
   
   const navOrder = ROLE_NAV_ORDER[role] || [];
-  return navOrder.includes(itemId) && item.allowedRoles.includes(role);
+  // Check if itemId exists in navOrder (handle both strings and section objects)
+  const hasItem = navOrder.some(entry => 
+    typeof entry === 'string' ? entry === itemId : false
+  );
+  return hasItem && item.allowedRoles.includes(role);
 }
 
 /**
