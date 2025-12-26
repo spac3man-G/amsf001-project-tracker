@@ -17,7 +17,7 @@
  */
 
 export const config = {
-  maxDuration: 60, // 60 seconds for document processing (Node.js runtime)
+  maxDuration: 120, // 120 seconds for document processing (Vercel Pro)
 };
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
