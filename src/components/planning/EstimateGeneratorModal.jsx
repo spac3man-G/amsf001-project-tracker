@@ -377,23 +377,29 @@ export default function EstimateGeneratorModal({
 
         {/* Footer */}
         <div className="egm-footer">
-          <button className="egm-btn egm-btn-secondary" onClick={onClose}>
+          <button 
+            type="button"
+            className="egm-btn egm-btn-secondary" 
+            onClick={onClose}
+          >
             Cancel
           </button>
           <button 
+            type="button"
             className="egm-btn egm-btn-primary"
             onClick={handleGenerate}
             disabled={generating || selectedIds.size === 0}
+            style={{ minWidth: '160px' }}
           >
             {generating ? (
               <>
                 <Loader2 size={16} className="egm-spinner" />
-                Generating...
+                <span>Generating...</span>
               </>
             ) : (
               <>
                 <Calculator size={16} />
-                Generate Estimate
+                <span>Generate Estimate</span>
               </>
             )}
           </button>

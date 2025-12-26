@@ -413,12 +413,16 @@
 .egm-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 12px;
   padding: 16px 20px;
-  border-top: 1px solid var(--gray-100);
-  background: var(--gray-50);
+  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--gray-100, #e5e7eb);
+  background: #f9fafb;
+  background: var(--gray-50, #f9fafb);
   flex-shrink: 0;
   border-radius: 0 0 12px 12px;
+  min-height: 68px;
 }
 
 /* Buttons */
@@ -437,27 +441,37 @@
 
 .egm-btn-secondary {
   background: white;
-  border: 1px solid var(--gray-300);
-  color: var(--gray-700);
+  border: 1px solid #d1d5db;
+  border: 1px solid var(--gray-300, #d1d5db);
+  color: #374151;
+  color: var(--gray-700, #374151);
+  min-width: 80px;
 }
 
 .egm-btn-secondary:hover {
-  background: var(--gray-50);
-  border-color: var(--gray-400);
+  background: #f9fafb;
+  background: var(--gray-50, #f9fafb);
+  border-color: #9ca3af;
+  border-color: var(--gray-400, #9ca3af);
 }
 
 .egm-btn-primary {
-  background: var(--primary-600);
+  background: #6366f1;
+  background: var(--primary-600, #6366f1);
   color: white;
+  min-width: 140px;
 }
 
 .egm-btn-primary:hover {
-  background: var(--primary-700);
+  background: #4f46e5;
+  background: var(--primary-700, #4f46e5);
 }
 
 .egm-btn-primary:disabled {
-  background: var(--gray-300);
+  background: #9ca3af;
+  background: var(--gray-300, #9ca3af);
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .egm-spinner {
