@@ -1,5 +1,5 @@
 /**
- * Planning AI Assistant - Vercel Edge Function
+ * Planning AI Assistant - Vercel Serverless Function
  * 
  * Converts natural language project descriptions into structured plans
  * with milestones, deliverables, and tasks.
@@ -11,14 +11,13 @@
  * - Date calculation from durations
  * - Hierarchy management (milestone → deliverable → task)
  * 
- * @version 1.1
+ * @version 1.2
  * @created 26 December 2025
- * @updated 26 December 2025 - Added document support, extended timeout
+ * @updated 26 December 2025 - Converted to Node.js runtime for 60s timeout
  */
 
 export const config = {
-  runtime: 'edge',
-  maxDuration: 60, // 60 seconds for document processing
+  maxDuration: 60, // 60 seconds for document processing (Node.js runtime)
 };
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -341,43 +340,30 @@ function buildMessageWithDocument(userMessage, document) {
 // MAIN HANDLER
 // ============================================
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   // Check API key
   if (!ANTHROPIC_API_KEY) {
     console.error('ANTHROPIC_API_KEY not configured');
-    return new Response(JSON.stringify({ error: 'AI service not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return res.status(500).json({ error: 'AI service not configured' });
   }
 
   try {
-    const body = await req.json();
-    const { messages, projectContext, currentStructure, document } = body;
+    const { messages, projectContext, currentStructure, document } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
-      return new Response(JSON.stringify({ error: 'Messages array required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return res.status(400).json({ error: 'Messages array required' });
     }
 
     // Validate document if provided
     if (document) {
       const validation = validateDocument(document);
       if (!validation.valid) {
-        return new Response(JSON.stringify({ error: validation.error }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(400).json({ error: validation.error });
       }
     }
 
@@ -437,12 +423,9 @@ When the user asks to modify or add to this structure, use the refineStructure t
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Claude API error:', response.status, errorText);
-      return new Response(JSON.stringify({ 
+      return res.status(500).json({ 
         error: 'AI service error',
         details: response.status 
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
       });
     }
 
@@ -458,19 +441,13 @@ When the user asks to modify or add to this structure, use the refineStructure t
     // Process response
     const result = processClaudeResponse(data);
 
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return res.status(200).json(result);
 
   } catch (error) {
     console.error('Planning AI error:', error);
-    return new Response(JSON.stringify({ 
+    return res.status(500).json({ 
       error: 'Internal server error',
       message: error.message 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
     });
   }
 }
