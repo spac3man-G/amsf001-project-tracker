@@ -60,6 +60,8 @@ const RaidLog = lazy(() => import('./pages/RaidLog'));
 // Reports is now a tab in Dashboard Hub
 // Finance Hub includes: Summary, Billing
 const FinanceHub = lazy(() => import('./pages/FinanceHub'));
+// Benchmarking - SFIA 8 rate comparison tool
+const Benchmarking = lazy(() => import('./pages/benchmarking/Benchmarking'));
 const TeamMembers = lazy(() => import('./pages/TeamMembers'));
 const ProjectSettings = lazy(() => import('./pages/ProjectSettings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
@@ -397,6 +399,11 @@ export default function App() {
                             {/* Billing - redirect to Finance tab */}
                             <Route path="/billing" element={
                               <Navigate to="/finance?tab=billing" replace />
+                            } />
+                            
+                            {/* Benchmarking - SFIA 8 rate comparison */}
+                            <Route path="/benchmarking" element={
+                              <ProtectedRoute><Benchmarking /></ProtectedRoute>
                             } />
                             
                             {/* Team Members (project-scoped user management) */}

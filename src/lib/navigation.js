@@ -39,7 +39,8 @@ import {
   GitPullRequestDraft,
   Shield,
   Building,
-  UsersRound
+  UsersRound,
+  Scale
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -120,6 +121,14 @@ export const NAV_ITEMS = {
     icon: PoundSterling,
     label: 'Finance',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE],
+    readOnlyRoles: []
+  },
+  benchmarking: {
+    id: 'benchmarking',
+    path: '/benchmarking',
+    icon: Scale,
+    label: 'Benchmarking',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
   // billing is now a tab within Finance
@@ -229,6 +238,7 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
+    'benchmarking',
     'settings',
     'orgSettings'
   ],
@@ -242,6 +252,7 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
+    'benchmarking',
     'settings',
     'orgSettings'
   ],
