@@ -707,3 +707,479 @@
   flex-shrink: 0;
   color: #f59e0b;
 }
+
+
+/* =============================================================================
+   SFIA 8 Layout Classes (Added 27 Dec 2025)
+   ============================================================================= */
+
+/* Page Header */
+.benchmarking-page .page-header {
+  background: var(--ds-bg-primary);
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--ds-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.benchmarking-page .header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.benchmarking-page .header-content svg {
+  color: var(--ds-teal);
+}
+
+.benchmarking-page .header-content h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ds-text-primary);
+}
+
+.benchmarking-page .header-content p {
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+  margin: 4px 0 0;
+}
+
+.benchmarking-page .header-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.benchmarking-page .header-stats .stat {
+  text-align: right;
+}
+
+.benchmarking-page .header-stats .stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.benchmarking-page .header-stats .stat-label {
+  font-size: 12px;
+  color: var(--ds-text-secondary);
+  text-transform: uppercase;
+}
+
+/* Banners */
+.benchmarking-page .error-banner,
+.benchmarking-page .info-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  margin: 16px 32px 0;
+  border-radius: var(--ds-radius-md);
+  font-size: 14px;
+}
+
+.benchmarking-page .error-banner {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.benchmarking-page .info-banner {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+/* Filters Section */
+.benchmarking-page .filters-section {
+  padding: 16px 32px;
+}
+
+.benchmarking-page .filters-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.benchmarking-page .filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--ds-bg-primary);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ds-text-primary);
+}
+
+.benchmarking-page .filter-toggle:hover {
+  background: var(--ds-bg-tertiary);
+}
+
+.benchmarking-page .search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--ds-bg-primary);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  flex: 1;
+  max-width: 300px;
+}
+
+.benchmarking-page .search-box svg {
+  color: var(--ds-text-secondary);
+}
+
+.benchmarking-page .search-box input {
+  border: none;
+  background: transparent;
+  flex: 1;
+  font-size: 14px;
+  outline: none;
+}
+
+.benchmarking-page .filters-panel {
+  margin-top: 16px;
+  padding: 20px;
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.benchmarking-page .filter-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.benchmarking-page .filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.benchmarking-page .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.benchmarking-page .filter-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  text-transform: uppercase;
+}
+
+.benchmarking-page .filter-group select {
+  padding: 10px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  font-size: 14px;
+  background: white;
+}
+
+.benchmarking-page .clear-filters {
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+  align-self: flex-end;
+}
+
+.benchmarking-page .clear-filters:hover {
+  background: var(--ds-bg-secondary);
+}
+
+/* Tier Legend */
+.benchmarking-page .tier-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 16px 32px;
+  background: var(--ds-bg-primary);
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.benchmarking-page .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.benchmarking-page .legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.benchmarking-page .legend-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ds-text-primary);
+}
+
+.benchmarking-page .legend-desc {
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+}
+
+/* Rates Container */
+.benchmarking-page .rates-container {
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Category Section */
+.benchmarking-page .category-section {
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-card);
+  overflow: hidden;
+}
+
+.benchmarking-page .category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: pointer;
+  border-left: 4px solid;
+  transition: background var(--ds-transition);
+}
+
+.benchmarking-page .category-header:hover {
+  background: var(--ds-bg-secondary);
+}
+
+.benchmarking-page .category-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.benchmarking-page .category-title h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ds-text-primary);
+}
+
+.benchmarking-page .category-toggle {
+  color: var(--ds-text-secondary);
+}
+
+/* Category Content */
+.benchmarking-page .category-content {
+  border-top: 1px solid var(--ds-border);
+  padding: 20px;
+}
+
+.benchmarking-page .subcategory-section {
+  margin-bottom: 24px;
+}
+
+.benchmarking-page .subcategory-section:last-child {
+  margin-bottom: 0;
+}
+
+.benchmarking-page .subcategory-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+/* Skills Grid */
+.benchmarking-page .skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 16px;
+}
+
+/* Skill Card */
+.benchmarking-page .skill-card {
+  background: var(--ds-bg-tertiary);
+  border-radius: var(--ds-radius-md);
+  padding: 16px;
+  border: 1px solid var(--ds-border-subtle);
+}
+
+.benchmarking-page .skill-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.benchmarking-page .skill-code {
+  font-family: var(--ds-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-teal);
+  background: var(--ds-teal-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.benchmarking-page .skill-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+/* Skill Levels */
+.benchmarking-page .skill-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.benchmarking-page .level-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.benchmarking-page .level-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+  padding: 6px 8px;
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-sm);
+  border: 1px solid var(--ds-border);
+}
+
+.benchmarking-page .level-number {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ds-text-primary);
+}
+
+.benchmarking-page .level-title {
+  font-size: 10px;
+  color: var(--ds-text-secondary);
+  text-transform: uppercase;
+}
+
+/* Tier Comparison */
+.benchmarking-page .tier-comparison {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+}
+
+.benchmarking-page .tier-rate {
+  flex: 1;
+  min-width: 70px;
+  padding: 8px 10px;
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-sm);
+  border-left: 3px solid;
+  text-align: center;
+}
+
+.benchmarking-page .tier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.benchmarking-page .tier-name {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.benchmarking-page .premium {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.benchmarking-page .premium.positive {
+  color: #dc2626;
+}
+
+.benchmarking-page .premium.negative {
+  color: #059669;
+}
+
+.benchmarking-page .tier-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ds-text-primary);
+}
+
+.benchmarking-page .tier-label {
+  font-size: 10px;
+  color: var(--ds-text-secondary);
+}
+
+/* Loading State */
+.benchmarking-page .loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 16px;
+  color: var(--ds-text-secondary);
+}
+
+.benchmarking-page .loading-state .spinner {
+  animation: spin 1s linear infinite;
+  color: var(--ds-teal);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .benchmarking-page .page-header {
+    padding: 16px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .benchmarking-page .header-stats {
+    width: 100%;
+    justify-content: space-around;
+  }
+  
+  .benchmarking-page .filters-section,
+  .benchmarking-page .rates-container,
+  .benchmarking-page .tier-legend {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  
+  .benchmarking-page .skills-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .benchmarking-page .tier-legend {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

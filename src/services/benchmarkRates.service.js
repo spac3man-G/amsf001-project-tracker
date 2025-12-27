@@ -350,6 +350,7 @@ export class BenchmarkRatesService extends BaseService {
 
   /**
    * Get summary statistics
+   * Alias: getSummaryStats for backward compatibility
    */
   async getStatistics() {
     try {
@@ -392,6 +393,13 @@ export class BenchmarkRatesService extends BaseService {
       console.error('Error calculating statistics:', error);
       throw error;
     }
+  }
+
+  /**
+   * Alias for getStatistics (backward compatibility)
+   */
+  async getSummaryStats() {
+    return this.getStatistics();
   }
 }
 

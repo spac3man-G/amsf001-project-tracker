@@ -329,7 +329,7 @@ export default function Benchmarking() {
         </div>
         <div className="header-stats">
           <div className="stat">
-            <span className="stat-value">{stats?.skillCount || SFIA_SKILLS.length}</span>
+            <span className="stat-value">{stats?.skillsCovered || SFIA_SKILLS.length}</span>
             <span className="stat-label">Skills</span>
           </div>
           <div className="stat">
