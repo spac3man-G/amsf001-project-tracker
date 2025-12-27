@@ -264,31 +264,29 @@ export default function Benchmarking() {
     const contractorRate = tiers.contractor?.dayRate;
     
     return (
-      <div className="tier-comparison">
+      <>
         {TIERS.map(tier => {
           const tierData = tiers[tier.id];
-          if (!tierData) return null;
-          
-          const premium = tier.id !== 'contractor' && contractorRate
+          const premium = tier.id !== 'contractor' && contractorRate && tierData
             ? calculatePremium(contractorRate, tierData.dayRate)
             : null;
           
           return (
-            <div key={tier.id} className="tier-rate" style={{ borderColor: tier.color }}>
-              <div className="tier-header">
-                <span className="tier-name" style={{ color: tier.color }}>{tier.name}</span>
-                {premium !== null && (
-                  <span className={`premium ${premium > 0 ? 'positive' : premium < 0 ? 'negative' : ''}`}>
-                    {premium > 0 ? '+' : ''}{premium}%
-                  </span>
-                )}
-              </div>
-              <div className="tier-value">{formatRate(tierData.dayRate)}</div>
-              <div className="tier-label">per day</div>
-            </div>
+            <td key={tier.id} className="rate-cell">
+              {tierData ? (
+                <>
+                  <span className="rate-value">{formatRate(tierData.dayRate)}</span>
+                  {premium !== null && (
+                    <span className="rate-premium">+{premium}%</span>
+                  )}
+                </>
+              ) : (
+                <span className="rate-na">—</span>
+              )}
+            </td>
           );
         })}
-      </div>
+      </>
     );
   };
 
@@ -527,27 +525,42 @@ export default function Benchmarking() {
                   <div key={subcatId} className="subcategory-section">
                     <h3 className="subcategory-title">{subcategory.name}</h3>
                     
-                    <div className="skills-grid">
+                    <div className="skills-list">
                       {Object.entries(subcategory.skills).map(([skillId, skill]) => (
-                        <div key={skillId} className="skill-card">
-                          <div className="skill-header">
+                        <div key={skillId} className="skill-table-wrapper">
+                          <div className="skill-table-header">
                             <span className="skill-code">{skill.code}</span>
                             <span className="skill-name">{skill.name}</span>
                           </div>
                           
-                          <div className="skill-levels">
-                            {Object.entries(skill.levels)
-                              .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                              .map(([level, levelData]) => (
-                                <div key={level} className="level-row">
-                                  <div className="level-badge">
-                                    <span className="level-number">L{level}</span>
-                                    <span className="level-title">{levelData.title}</span>
-                                  </div>
-                                  {renderTierComparison(levelData)}
-                                </div>
-                              ))}
-                          </div>
+                          <table className="rates-table">
+                            <thead>
+                              <tr>
+                                <th className="level-col">Level</th>
+                                {TIERS.map(tier => (
+                                  <th key={tier.id} className="tier-col">
+                                    <span className="tier-dot" style={{ backgroundColor: tier.color }} />
+                                    {tier.id === 'contractor' ? 'Contractor' : 
+                                     tier.id === 'boutique' ? 'Boutique' :
+                                     tier.id === 'mid' ? 'Mid-tier' : 'Big 4'}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Object.entries(skill.levels)
+                                .sort(([a], [b]) => parseInt(a) - parseInt(b))
+                                .map(([level, levelData]) => (
+                                  <tr key={level}>
+                                    <td className="level-cell">
+                                      <span className="level-num">L{level}</span>
+                                      <span className="level-name">{levelData.title}</span>
+                                    </td>
+                                    {renderTierComparison(levelData)}
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
                         </div>
                       ))}
                     </div>

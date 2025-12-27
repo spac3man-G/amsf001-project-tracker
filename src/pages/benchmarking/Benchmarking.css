@@ -1010,131 +1010,141 @@
 }
 
 /* Skills Grid */
-.benchmarking-page .skills-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 16px;
-}
-
-/* Skill Card */
-.benchmarking-page .skill-card {
-  background: var(--ds-bg-tertiary);
-  border-radius: var(--ds-radius-md);
-  padding: 16px;
-  border: 1px solid var(--ds-border-subtle);
-}
-
-.benchmarking-page .skill-header {
+.benchmarking-page .skills-list {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.benchmarking-page .skill-code {
+/* Skill Table Wrapper */
+.benchmarking-page .skill-table-wrapper {
+  background: var(--ds-bg-primary);
+  border-radius: var(--ds-radius-md);
+  border: 1px solid var(--ds-border);
+  overflow: hidden;
+}
+
+.benchmarking-page .skill-table-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--ds-bg-tertiary);
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.benchmarking-page .skill-table-header .skill-code {
   font-family: var(--ds-font-mono);
   font-size: 12px;
   font-weight: 600;
   color: var(--ds-teal);
   background: var(--ds-teal-light);
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: 4px;
 }
 
-.benchmarking-page .skill-name {
+.benchmarking-page .skill-table-header .skill-name {
   font-size: 15px;
   font-weight: 600;
   color: var(--ds-text-primary);
 }
 
-/* Skill Levels */
-.benchmarking-page .skill-levels {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.benchmarking-page .level-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.benchmarking-page .level-badge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 60px;
-  padding: 6px 8px;
-  background: var(--ds-bg-primary);
-  border-radius: var(--ds-radius-sm);
-  border: 1px solid var(--ds-border);
-}
-
-.benchmarking-page .level-number {
+/* Rates Table */
+.benchmarking-page .rates-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 14px;
-  font-weight: 700;
-  color: var(--ds-text-primary);
 }
 
-.benchmarking-page .level-title {
-  font-size: 10px;
+.benchmarking-page .rates-table thead {
+  background: var(--ds-bg-secondary);
+}
+
+.benchmarking-page .rates-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
   color: var(--ds-text-secondary);
   text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--ds-border);
 }
 
-/* Tier Comparison */
-.benchmarking-page .tier-comparison {
+.benchmarking-page .rates-table th.level-col {
+  width: 140px;
+}
+
+.benchmarking-page .rates-table th.tier-col {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.benchmarking-page .rates-table th .tier-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.benchmarking-page .rates-table tbody tr {
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+.benchmarking-page .rates-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.benchmarking-page .rates-table tbody tr:hover {
+  background: var(--ds-bg-tertiary);
+}
+
+.benchmarking-page .rates-table td {
+  padding: 12px;
+}
+
+.benchmarking-page .level-cell {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  flex: 1;
-}
-
-.benchmarking-page .tier-rate {
-  flex: 1;
-  min-width: 70px;
-  padding: 8px 10px;
-  background: var(--ds-bg-primary);
-  border-radius: var(--ds-radius-sm);
-  border-left: 3px solid;
-  text-align: center;
-}
-
-.benchmarking-page .tier-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  gap: 8px;
 }
 
-.benchmarking-page .tier-name {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.benchmarking-page .premium {
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.benchmarking-page .premium.positive {
-  color: #dc2626;
-}
-
-.benchmarking-page .premium.negative {
-  color: #059669;
-}
-
-.benchmarking-page .tier-value {
-  font-size: 16px;
+.benchmarking-page .level-num {
   font-weight: 700;
   color: var(--ds-text-primary);
+  min-width: 28px;
 }
 
-.benchmarking-page .tier-label {
-  font-size: 10px;
+.benchmarking-page .level-name {
+  font-size: 13px;
+  color: var(--ds-text-secondary);
+}
+
+.benchmarking-page .rate-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.benchmarking-page .rate-value {
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  font-size: 15px;
+}
+
+.benchmarking-page .rate-premium {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+  background: var(--ds-bg-secondary);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.benchmarking-page .rate-na {
   color: var(--ds-text-secondary);
 }
 
