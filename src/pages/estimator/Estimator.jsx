@@ -44,7 +44,7 @@ import {
   MoreVertical,
   ArrowLeft
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import './Estimator.css';
 
 // Import from centralized services
@@ -702,6 +702,7 @@ export default function Estimator() {
   // Context hooks
   const { currentProject } = useProject();
   const { showSuccess, showError, showWarning } = useToast();
+  const [searchParams] = useSearchParams();
   
   // Rate data state
   const [rateLookup, setRateLookup] = useState(FALLBACK_RATE_LOOKUP);
@@ -773,6 +774,37 @@ export default function Estimator() {
     
     loadEstimates();
   }, [currentProject?.id]);
+
+  // Load estimate from URL parameter (e.g., /estimator?estimateId=xxx)
+  useEffect(() => {
+    async function loadFromUrl() {
+      const estimateId = searchParams.get('estimateId');
+      if (!estimateId || !currentProject?.id) return;
+      
+      try {
+        setIsLoading(true);
+        const fullEstimate = await estimatesService.getWithDetails(estimateId);
+        
+        if (fullEstimate) {
+          setEstimate(fullEstimate);
+          setExpandedComponents(new Set(fullEstimate.components?.map(c => c.id) || []));
+          setHasUnsavedChanges(false);
+          setLastSavedAt(fullEstimate.updated_at ? new Date(fullEstimate.updated_at) : null);
+          showSuccess(`Loaded estimate: ${fullEstimate.name}`);
+        }
+      } catch (err) {
+        console.error('Failed to load estimate from URL:', err);
+        showError('Failed to load estimate');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    // Only load from URL on mount, not on every searchParams change
+    if (initialLoadDone.current) {
+      loadFromUrl();
+    }
+  }, [searchParams, currentProject?.id, initialLoadDone.current]);
 
   // Calculate estimate totals
   const estimateTotals = useMemo(() => {
