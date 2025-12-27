@@ -130,22 +130,37 @@ export {
   LIMIT_TYPES
 } from './subscription.service';
 
-// Benchmark Rates (SFIA rate card for Estimator & Benchmarking)
+// SFIA 8 Reference Data (full framework)
+export {
+  SFIA_CATEGORIES,
+  SFIA_SUBCATEGORIES,
+  SFIA_SKILLS,
+  SFIA_LEVELS,
+  TIERS,
+  getSkillById,
+  getSkillsByCategory,
+  getSkillsBySubcategory,
+  getCategoryById,
+  getSubcategoryById,
+  getLevelById,
+  getTierById,
+  calculateDefaultRate,
+  generateAllRates
+} from './sfia8-reference-data';
+
+// Benchmark Rates Service (SFIA 8 rate card for Estimator & Benchmarking)
 export {
   benchmarkRatesService,
   BenchmarkRatesService,
-  ROLE_FAMILIES,
-  ROLES,
-  SKILLS,
-  TIERS,
-  SFIA_LEVELS,
-  getRoleName,
   getSkillName,
-  getFamilyName,
-  getFamilyIcon,
-  getRoleFamily,
+  getSkillCode,
+  getCategoryName,
+  getCategoryColor,
+  getSubcategoryName,
   getTierName,
   getTierColor,
+  getLevelTitle,
+  getLevelDescription,
   formatRate,
   calculatePremium
 } from './benchmarkRates.service';

@@ -51,14 +51,20 @@ import './Estimator.css';
 import {
   benchmarkRatesService,
   estimatesService,
-  ROLES,
-  SKILLS,
+  SFIA_CATEGORIES,
+  SFIA_SUBCATEGORIES,
+  SFIA_SKILLS,
+  SFIA_LEVELS,
   TIERS,
   ESTIMATE_STATUS,
-  getRoleName,
   getSkillName,
+  getSkillCode,
+  getCategoryName,
+  getSubcategoryName,
   getTierName,
-  getTierColor
+  getTierColor,
+  getLevelTitle,
+  calculateDefaultRate
 } from '../../services';
 
 // Import contexts
@@ -66,28 +72,44 @@ import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 
 // =============================================================================
-// FALLBACK STATIC RATE DATA (used if database is empty)
+// FALLBACK STATIC RATE DATA - SFIA 8 format (used if database is empty)
 // =============================================================================
 
 const FALLBACK_RATE_LOOKUP = {
-  'DEV-JAVA-3-contractor': 525, 'DEV-JAVA-3-associate': 750, 'DEV-JAVA-3-top4': 1100,
-  'DEV-JAVA-4-contractor': 600, 'DEV-JAVA-4-associate': 850, 'DEV-JAVA-4-top4': 1250,
-  'DEV-PYTHON-3-contractor': 500, 'DEV-PYTHON-3-associate': 720, 'DEV-PYTHON-3-top4': 1050,
-  'DEV-PYTHON-4-contractor': 575, 'DEV-PYTHON-4-associate': 820, 'DEV-PYTHON-4-top4': 1200,
-  'SDEV-JAVA-4-contractor': 650, 'SDEV-JAVA-4-associate': 920, 'SDEV-JAVA-4-top4': 1350,
-  'SDEV-JAVA-5-contractor': 750, 'SDEV-JAVA-5-associate': 1050, 'SDEV-JAVA-5-top4': 1550,
-  'ARCH-AWS-5-contractor': 850, 'ARCH-AWS-5-associate': 1200, 'ARCH-AWS-5-top4': 1800,
-  'ARCH-AWS-6-contractor': 950, 'ARCH-AWS-6-associate': 1400, 'ARCH-AWS-6-top4': 2100,
-  'DATASCI-PYTHON-4-contractor': 600, 'DATASCI-PYTHON-4-associate': 850, 'DATASCI-PYTHON-4-top4': 1300,
-  'DATASCI-ML-5-contractor': 775, 'DATASCI-ML-5-associate': 1100, 'DATASCI-ML-5-top4': 1650,
-  'DEVOPS-K8S-4-contractor': 600, 'DEVOPS-K8S-4-associate': 850, 'DEVOPS-K8S-4-top4': 1280,
-  'DEVOPS-AWS-5-contractor': 675, 'DEVOPS-AWS-5-associate': 950, 'DEVOPS-AWS-5-top4': 1420,
-  'SECENG-AWS-4-contractor': 625, 'SECENG-AWS-4-associate': 880, 'SECENG-AWS-4-top4': 1320,
-  'SECARCH-AWS-5-contractor': 800, 'SECARCH-AWS-5-associate': 1140, 'SECARCH-AWS-5-top4': 1720,
-  'PM-AGILE-4-contractor': 550, 'PM-AGILE-4-associate': 780, 'PM-AGILE-4-top4': 1180,
-  'PM-AGILE-5-contractor': 650, 'PM-AGILE-5-associate': 920, 'PM-AGILE-5-top4': 1380,
-  'BA-AGILE-3-contractor': 450, 'BA-AGILE-3-associate': 640, 'BA-AGILE-3-top4': 960,
-  'BA-AGILE-4-contractor': 525, 'BA-AGILE-4-associate': 750, 'BA-AGILE-4-top4': 1120
+  // Programming/Software Development
+  'PROG-3-contractor': 450, 'PROG-3-boutique': 585, 'PROG-3-mid': 675, 'PROG-3-big4': 855,
+  'PROG-4-contractor': 550, 'PROG-4-boutique': 715, 'PROG-4-mid': 825, 'PROG-4-big4': 1045,
+  'PROG-5-contractor': 700, 'PROG-5-boutique': 910, 'PROG-5-mid': 1050, 'PROG-5-big4': 1330,
+  // Solution Architecture
+  'ARCH-4-contractor': 635, 'ARCH-4-boutique': 825, 'ARCH-4-mid': 950, 'ARCH-4-big4': 1205,
+  'ARCH-5-contractor': 805, 'ARCH-5-boutique': 1045, 'ARCH-5-mid': 1205, 'ARCH-5-big4': 1530,
+  'ARCH-6-contractor': 1035, 'ARCH-6-boutique': 1345, 'ARCH-6-mid': 1555, 'ARCH-6-big4': 1965,
+  // Network Design
+  'NTDS-3-contractor': 495, 'NTDS-3-boutique': 645, 'NTDS-3-mid': 745, 'NTDS-3-big4': 940,
+  'NTDS-4-contractor': 605, 'NTDS-4-boutique': 785, 'NTDS-4-mid': 910, 'NTDS-4-big4': 1150,
+  'NTDS-5-contractor': 770, 'NTDS-5-boutique': 1000, 'NTDS-5-mid': 1155, 'NTDS-5-big4': 1465,
+  // Data Science
+  'DATS-3-contractor': 540, 'DATS-3-boutique': 700, 'DATS-3-mid': 810, 'DATS-3-big4': 1025,
+  'DATS-4-contractor': 660, 'DATS-4-boutique': 860, 'DATS-4-mid': 990, 'DATS-4-big4': 1255,
+  'DATS-5-contractor': 840, 'DATS-5-boutique': 1090, 'DATS-5-mid': 1260, 'DATS-5-big4': 1595,
+  // Machine Learning
+  'MLNG-4-contractor': 690, 'MLNG-4-boutique': 895, 'MLNG-4-mid': 1035, 'MLNG-4-big4': 1310,
+  'MLNG-5-contractor': 875, 'MLNG-5-boutique': 1140, 'MLNG-5-mid': 1315, 'MLNG-5-big4': 1665,
+  // Testing
+  'TEST-3-contractor': 430, 'TEST-3-boutique': 560, 'TEST-3-mid': 645, 'TEST-3-big4': 815,
+  'TEST-4-contractor': 525, 'TEST-4-boutique': 680, 'TEST-4-mid': 785, 'TEST-4-big4': 995,
+  // Project Management
+  'PRMG-4-contractor': 575, 'PRMG-4-boutique': 750, 'PRMG-4-mid': 865, 'PRMG-4-big4': 1095,
+  'PRMG-5-contractor': 735, 'PRMG-5-boutique': 955, 'PRMG-5-mid': 1100, 'PRMG-5-big4': 1395,
+  // Programme Management
+  'PGMG-5-contractor': 805, 'PGMG-5-boutique': 1045, 'PGMG-5-mid': 1205, 'PGMG-5-big4': 1530,
+  'PGMG-6-contractor': 1035, 'PGMG-6-boutique': 1345, 'PGMG-6-mid': 1555, 'PGMG-6-big4': 1965,
+  // Business Analysis
+  'BUAN-3-contractor': 450, 'BUAN-3-boutique': 585, 'BUAN-3-mid': 675, 'BUAN-3-big4': 855,
+  'BUAN-4-contractor': 550, 'BUAN-4-boutique': 715, 'BUAN-4-mid': 825, 'BUAN-4-big4': 1045,
+  // Information Security
+  'SCTY-4-contractor': 660, 'SCTY-4-boutique': 860, 'SCTY-4-mid': 990, 'SCTY-4-big4': 1255,
+  'SCTY-5-contractor': 840, 'SCTY-5-boutique': 1090, 'SCTY-5-mid': 1260, 'SCTY-5-big4': 1595
 };
 
 // =============================================================================
@@ -118,23 +140,20 @@ function formatDateTime(dateString) {
   });
 }
 
-// Rate lookup helpers
-function getRate(rateLookup, roleId, skillId, level, tier) {
-  const key = `${roleId}-${skillId}-${level}-${tier}`;
-  return rateLookup[key] || null;
+// Rate lookup helpers - SFIA 8 version
+function getRate(rateLookup, skillId, level, tier) {
+  const key = `${skillId}-${level}-${tier}`;
+  return rateLookup[key] || calculateDefaultRate(skillId, level, tier);
 }
 
-function getSkillsForRole(rateLookup, roleId) {
-  const roleKeys = Object.keys(rateLookup).filter(k => k.startsWith(roleId + '-'));
-  const skillIds = [...new Set(roleKeys.map(k => k.split('-')[1]))];
-  return SKILLS.filter(s => skillIds.includes(s.id));
+function getLevelsForSkill(skillId) {
+  const skill = SFIA_SKILLS.find(s => s.id === skillId);
+  return skill?.levels || [];
 }
 
-function getLevelsForRoleSkill(rateLookup, roleId, skillId) {
-  const prefix = `${roleId}-${skillId}-`;
-  const keys = Object.keys(rateLookup).filter(k => k.startsWith(prefix));
-  const levels = [...new Set(keys.map(k => parseInt(k.split('-')[2])))];
-  return levels.sort((a, b) => a - b);
+function getSkillDisplayName(skillId) {
+  const skill = SFIA_SKILLS.find(s => s.id === skillId);
+  return skill ? `${skill.code} - ${skill.name}` : skillId;
 }
 
 // Create empty estimate
@@ -150,28 +169,56 @@ function createEmptyEstimate() {
 
 
 // =============================================================================
-// RESOURCE TYPE SELECTOR COMPONENT
+// RESOURCE TYPE SELECTOR COMPONENT - SFIA 8
 // =============================================================================
 
 function ResourceTypeSelector({ rateLookup, onSelect, onClose, existingTypes = [] }) {
-  const [roleId, setRoleId] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [subcategoryId, setSubcategoryId] = useState('');
   const [skillId, setSkillId] = useState('');
   const [level, setLevel] = useState('');
   const [tier, setTier] = useState('contractor');
+  const [searchTerm, setSearchTerm] = useState('');
   
-  const availableSkills = roleId ? getSkillsForRole(rateLookup, roleId) : [];
-  const availableLevels = roleId && skillId ? getLevelsForRoleSkill(rateLookup, roleId, skillId) : [];
-  const rate = roleId && skillId && level && tier ? getRate(rateLookup, roleId, skillId, parseInt(level), tier) : null;
+  // Filter options based on selections
+  const filteredSubcategories = categoryId 
+    ? SFIA_SUBCATEGORIES.filter(sc => sc.categoryId === categoryId)
+    : SFIA_SUBCATEGORIES;
+    
+  const filteredSkills = useMemo(() => {
+    let skills = SFIA_SKILLS;
+    
+    if (subcategoryId) {
+      skills = skills.filter(s => s.subcategoryId === subcategoryId);
+    } else if (categoryId) {
+      const subcatIds = SFIA_SUBCATEGORIES
+        .filter(sc => sc.categoryId === categoryId)
+        .map(sc => sc.id);
+      skills = skills.filter(s => subcatIds.includes(s.subcategoryId));
+    }
+    
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      skills = skills.filter(s => 
+        s.name.toLowerCase().includes(search) ||
+        s.code.toLowerCase().includes(search)
+      );
+    }
+    
+    return skills;
+  }, [categoryId, subcategoryId, searchTerm]);
+  
+  const availableLevels = skillId ? getLevelsForSkill(skillId) : [];
+  const rate = skillId && level && tier ? getRate(rateLookup, skillId, parseInt(level), tier) : null;
   
   // Check for duplicate using the composite key format
-  const proposedKey = `${roleId}-${skillId}-${level}-${tier}`;
+  const proposedKey = `${skillId}-${level}-${tier}`;
   const isDuplicate = existingTypes.some(t => t.id === proposedKey);
   
   const handleAdd = () => {
-    if (roleId && skillId && level && tier && rate && !isDuplicate) {
+    if (skillId && level && tier && rate && !isDuplicate) {
       onSelect({
         id: proposedKey,
-        roleId,
         skillId,
         level: parseInt(level),
         tier,
@@ -184,29 +231,67 @@ function ResourceTypeSelector({ rateLookup, onSelect, onClose, existingTypes = [
   return (
     <div className="est-resource-selector">
       <div className="est-selector-header">
-        <h4>Add Resource Type</h4>
+        <h4>Add Resource Type (SFIA 8)</h4>
         <button className="est-close-btn" onClick={onClose}>
           <X size={18} />
         </button>
       </div>
       
+      {/* Quick Search */}
+      <div className="est-selector-search">
+        <input
+          type="text"
+          placeholder="Search skills..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+      
       <div className="est-selector-grid">
         <div className="est-selector-field">
-          <label>Role</label>
-          <select value={roleId} onChange={(e) => { setRoleId(e.target.value); setSkillId(''); setLevel(''); }}>
-            <option value="">Select role...</option>
-            {ROLES.map(r => (
-              <option key={r.id} value={r.id}>{r.name}</option>
+          <label>Category</label>
+          <select 
+            value={categoryId} 
+            onChange={(e) => { 
+              setCategoryId(e.target.value); 
+              setSubcategoryId(''); 
+              setSkillId(''); 
+              setLevel(''); 
+            }}
+          >
+            <option value="">All categories...</option>
+            {SFIA_CATEGORIES.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         </div>
         
         <div className="est-selector-field">
-          <label>Skill</label>
-          <select value={skillId} onChange={(e) => { setSkillId(e.target.value); setLevel(''); }} disabled={!roleId}>
+          <label>Subcategory</label>
+          <select 
+            value={subcategoryId} 
+            onChange={(e) => { 
+              setSubcategoryId(e.target.value); 
+              setSkillId(''); 
+              setLevel(''); 
+            }}
+          >
+            <option value="">All subcategories...</option>
+            {filteredSubcategories.map(sc => (
+              <option key={sc.id} value={sc.id}>{sc.name}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="est-selector-field est-selector-field-wide">
+          <label>Skill ({filteredSkills.length} available)</label>
+          <select 
+            value={skillId} 
+            onChange={(e) => { setSkillId(e.target.value); setLevel(''); }}
+          >
             <option value="">Select skill...</option>
-            {availableSkills.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+            {filteredSkills.map(s => (
+              <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
             ))}
           </select>
         </div>
@@ -216,13 +301,13 @@ function ResourceTypeSelector({ rateLookup, onSelect, onClose, existingTypes = [
           <select value={level} onChange={(e) => setLevel(e.target.value)} disabled={!skillId}>
             <option value="">Level...</option>
             {availableLevels.map(l => (
-              <option key={l} value={l}>L{l}</option>
+              <option key={l} value={l}>L{l} - {getLevelTitle(l)}</option>
             ))}
           </select>
         </div>
         
         <div className="est-selector-field">
-          <label>Rate Tier</label>
+          <label>Supplier Tier</label>
           <select value={tier} onChange={(e) => setTier(e.target.value)}>
             {TIERS.map(t => (
               <option key={t.id} value={t.id}>{t.name}</option>
@@ -441,9 +526,9 @@ function ComponentCard({
                   {component.resourceTypes.map(rt => (
                     <th key={rt.id} className="est-col-resource">
                       <div className="est-resource-header">
-                        <span className="est-resource-name">{getRoleName(rt.roleId)}</span>
+                        <span className="est-resource-name">{getSkillDisplayName(rt.skillId)}</span>
                         <span className="est-resource-detail">
-                          {getSkillName(rt.skillId)} • L{rt.level}
+                          L{rt.level} ({getLevelTitle(rt.level)}) • {getTierName(rt.tier)}
                         </span>
                         <span className="est-resource-rate" style={{ color: getTierColor(rt.tier) }}>
                           {formatCurrency(rt.rate)}/day

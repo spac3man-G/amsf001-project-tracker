@@ -1,112 +1,73 @@
 /**
- * Benchmark Rates Service
+ * Benchmark Rates Service - SFIA 8 Edition
  * 
- * Global rate card for SFIA roles/skills - no project scoping.
+ * Global rate card for SFIA 8 skills - no project scoping.
  * Used by both Benchmarking and Estimator pages.
  * 
- * @version 1.0
- * @created 26 December 2025
- * @checkpoint 1 - Linked Estimates Feature
+ * @version 2.0
+ * @updated 27 December 2025
+ * @description Full SFIA 8 framework with 97 skills
  */
 
 import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
 
-// =============================================================================
-// STATIC REFERENCE DATA (for dropdowns, not stored in DB)
-// =============================================================================
+// Import SFIA 8 reference data
+import {
+  SFIA_CATEGORIES,
+  SFIA_SUBCATEGORIES,
+  SFIA_SKILLS,
+  SFIA_LEVELS,
+  TIERS,
+  getSkillById,
+  getSkillsByCategory,
+  getSkillsBySubcategory,
+  getCategoryById,
+  getSubcategoryById,
+  getLevelById,
+  getTierById,
+  calculateDefaultRate
+} from './sfia8-reference-data';
 
-export const ROLE_FAMILIES = [
-  { id: 'SE', name: 'Software Engineering', icon: '💻' },
-  { id: 'DA', name: 'Data & Analytics', icon: '📊' },
-  { id: 'DEVOPS', name: 'DevOps & Cloud', icon: '☁️' },
-  { id: 'BA', name: 'Business Analysis', icon: '📋' },
-  { id: 'SEC', name: 'Security', icon: '🔒' },
-  { id: 'PM', name: 'Project Management', icon: '📁' }
-];
-
-export const ROLES = [
-  { id: 'DEV', name: 'Software Developer', familyId: 'SE' },
-  { id: 'SDEV', name: 'Senior Developer', familyId: 'SE' },
-  { id: 'LDEV', name: 'Lead Developer', familyId: 'SE' },
-  { id: 'ARCH', name: 'Solutions Architect', familyId: 'SE' },
-  { id: 'DATASCI', name: 'Data Scientist', familyId: 'DA' },
-  { id: 'DATAENG', name: 'Data Engineer', familyId: 'DA' },
-  { id: 'ANALYST', name: 'Data Analyst', familyId: 'DA' },
-  { id: 'MLENG', name: 'ML Engineer', familyId: 'DA' },
-  { id: 'DEVOPS', name: 'DevOps Engineer', familyId: 'DEVOPS' },
-  { id: 'SRE', name: 'Site Reliability Engineer', familyId: 'DEVOPS' },
-  { id: 'CLOUD', name: 'Cloud Engineer', familyId: 'DEVOPS' },
-  { id: 'PLAT', name: 'Platform Engineer', familyId: 'DEVOPS' },
-  { id: 'BA', name: 'Business Analyst', familyId: 'BA' },
-  { id: 'SBA', name: 'Senior Business Analyst', familyId: 'BA' },
-  { id: 'PO', name: 'Product Owner', familyId: 'BA' },
-  { id: 'SECENG', name: 'Security Engineer', familyId: 'SEC' },
-  { id: 'SECARCH', name: 'Security Architect', familyId: 'SEC' },
-  { id: 'PENT', name: 'Penetration Tester', familyId: 'SEC' },
-  { id: 'PM', name: 'Project Manager', familyId: 'PM' },
-  { id: 'SPM', name: 'Senior Project Manager', familyId: 'PM' },
-  { id: 'DELM', name: 'Delivery Manager', familyId: 'PM' },
-  { id: 'PROG', name: 'Programme Manager', familyId: 'PM' }
-];
-
-export const SKILLS = [
-  { id: 'JAVA', name: 'Java', category: 'Languages' },
-  { id: 'PYTHON', name: 'Python', category: 'Languages' },
-  { id: 'DOTNET', name: '.NET/C#', category: 'Languages' },
-  { id: 'JS', name: 'JavaScript/TypeScript', category: 'Languages' },
-  { id: 'GO', name: 'Go', category: 'Languages' },
-  { id: 'AWS', name: 'AWS', category: 'Cloud' },
-  { id: 'AZURE', name: 'Azure', category: 'Cloud' },
-  { id: 'GCP', name: 'GCP', category: 'Cloud' },
-  { id: 'K8S', name: 'Kubernetes', category: 'DevOps' },
-  { id: 'DOCKER', name: 'Docker', category: 'DevOps' },
-  { id: 'TERRAFORM', name: 'Terraform', category: 'DevOps' },
-  { id: 'ML', name: 'Machine Learning', category: 'Data' },
-  { id: 'SQL', name: 'SQL/Databases', category: 'Data' },
-  { id: 'SPARK', name: 'Spark/Big Data', category: 'Data' },
-  { id: 'AGILE', name: 'Agile/Scrum', category: 'Methods' }
-];
-
-export const TIERS = [
-  { id: 'contractor', name: 'Contractor', color: '#2563eb' },
-  { id: 'associate', name: 'Associate', color: '#059669' },
-  { id: 'top4', name: 'Top 4', color: '#7c3aed' }
-];
-
-export const SFIA_LEVELS = [
-  { id: 1, name: 'Level 1', description: 'Follow' },
-  { id: 2, name: 'Level 2', description: 'Assist' },
-  { id: 3, name: 'Level 3', description: 'Apply' },
-  { id: 4, name: 'Level 4', description: 'Enable' },
-  { id: 5, name: 'Level 5', description: 'Ensure/Advise' },
-  { id: 6, name: 'Level 6', description: 'Initiate/Influence' },
-  { id: 7, name: 'Level 7', description: 'Set Strategy' }
-];
-
+// Re-export reference data for use by components
+export {
+  SFIA_CATEGORIES,
+  SFIA_SUBCATEGORIES,
+  SFIA_SKILLS,
+  SFIA_LEVELS,
+  TIERS,
+  getSkillById,
+  getSkillsByCategory,
+  getSkillsBySubcategory,
+  getCategoryById,
+  getSubcategoryById,
+  getLevelById,
+  getTierById,
+  calculateDefaultRate
+};
 
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
 
-export function getRoleName(roleId) {
-  return ROLES.find(r => r.id === roleId)?.name || roleId;
-}
-
 export function getSkillName(skillId) {
-  return SKILLS.find(s => s.id === skillId)?.name || skillId;
+  return SFIA_SKILLS.find(s => s.id === skillId)?.name || skillId;
 }
 
-export function getFamilyName(familyId) {
-  return ROLE_FAMILIES.find(f => f.id === familyId)?.name || familyId;
+export function getSkillCode(skillId) {
+  return SFIA_SKILLS.find(s => s.id === skillId)?.code || skillId;
 }
 
-export function getFamilyIcon(familyId) {
-  return ROLE_FAMILIES.find(f => f.id === familyId)?.icon || '📦';
+export function getCategoryName(categoryId) {
+  return SFIA_CATEGORIES.find(c => c.id === categoryId)?.name || categoryId;
 }
 
-export function getRoleFamily(roleId) {
-  return ROLES.find(r => r.id === roleId)?.familyId || null;
+export function getCategoryColor(categoryId) {
+  return SFIA_CATEGORIES.find(c => c.id === categoryId)?.color || '#666';
+}
+
+export function getSubcategoryName(subcategoryId) {
+  return SFIA_SUBCATEGORIES.find(sc => sc.id === subcategoryId)?.name || subcategoryId;
 }
 
 export function getTierName(tierId) {
@@ -117,6 +78,14 @@ export function getTierColor(tierId) {
   return TIERS.find(t => t.id === tierId)?.color || '#666';
 }
 
+export function getLevelTitle(levelId) {
+  return SFIA_LEVELS.find(l => l.id === levelId)?.title || `Level ${levelId}`;
+}
+
+export function getLevelDescription(levelId) {
+  return SFIA_LEVELS.find(l => l.id === levelId)?.description || '';
+}
+
 export function formatRate(rate) {
   return `£${Number(rate).toLocaleString()}`;
 }
@@ -124,6 +93,21 @@ export function formatRate(rate) {
 export function calculatePremium(base, compare) {
   if (!base || !compare) return null;
   return Math.round(((compare - base) / base) * 100);
+}
+
+/**
+ * Get skills available at a specific SFIA level
+ */
+export function getSkillsForLevel(level) {
+  return SFIA_SKILLS.filter(skill => skill.levels.includes(level));
+}
+
+/**
+ * Get levels available for a specific skill
+ */
+export function getLevelsForSkill(skillId) {
+  const skill = SFIA_SKILLS.find(s => s.id === skillId);
+  return skill ? skill.levels : [];
 }
 
 // =============================================================================
@@ -147,259 +131,270 @@ export class BenchmarkRatesService extends BaseService {
       let query = supabase
         .from(this.tableName)
         .select('*')
-        .order('role_family_id')
-        .order('role_id')
+        .order('category_id')
+        .order('subcategory_id')
         .order('skill_id')
-        .order('sfia_level');
+        .order('sfia_level')
+        .order('tier_id');
 
-      if (filters.roleFamily) {
-        query = query.eq('role_family_id', filters.roleFamily);
+      // Apply optional filters
+      if (filters.categoryId) {
+        query = query.eq('category_id', filters.categoryId);
       }
-      if (filters.role) {
-        query = query.eq('role_id', filters.role);
+      if (filters.subcategoryId) {
+        query = query.eq('subcategory_id', filters.subcategoryId);
       }
-      if (filters.skill) {
-        query = query.eq('skill_id', filters.skill);
+      if (filters.skillId) {
+        query = query.eq('skill_id', filters.skillId);
       }
-      if (filters.minLevel) {
-        query = query.gte('sfia_level', filters.minLevel);
+      if (filters.sfiaLevel) {
+        query = query.eq('sfia_level', filters.sfiaLevel);
       }
-      if (filters.maxLevel) {
-        query = query.lte('sfia_level', filters.maxLevel);
+      if (filters.tierId) {
+        query = query.eq('tier_id', filters.tierId);
       }
 
       const { data, error } = await query;
-      
-      if (error) {
-        console.error('BenchmarkRatesService.getAllRates error:', error);
-        throw error;
-      }
-      
+
+      if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('BenchmarkRatesService.getAllRates failed:', error);
+      console.error('Error fetching benchmark rates:', error);
       throw error;
     }
   }
 
   /**
-   * Get rate for specific combination
-   * @param {string} roleId - Role ID
-   * @param {string} skillId - Skill ID
-   * @param {number} sfiaLevel - SFIA level (1-7)
-   * @returns {Promise<Object|null>} Rate record or null
+   * Get rate for specific skill/level/tier combination
    */
-  async getRate(roleId, skillId, sfiaLevel) {
+  async getRate(skillId, sfiaLevel, tierId) {
     try {
       const { data, error } = await supabase
         .from(this.tableName)
         .select('*')
-        .eq('role_id', roleId)
         .eq('skill_id', skillId)
         .eq('sfia_level', sfiaLevel)
-        .limit(1);
+        .eq('tier_id', tierId)
+        .single();
 
-      if (error) {
-        console.error('BenchmarkRatesService.getRate error:', error);
-        throw error;
-      }
-
-      return data && data.length > 0 ? data[0] : null;
-    } catch (error) {
-      console.error('BenchmarkRatesService.getRate failed:', error);
-      throw error;
-    }
-  }
-
-
-  /**
-   * Get rate value for a specific tier
-   * Used by Estimator for cost calculations
-   * @param {string} roleId - Role ID
-   * @param {string} skillId - Skill ID
-   * @param {number} sfiaLevel - SFIA level
-   * @param {string} tier - 'contractor', 'associate', or 'top4'
-   * @returns {Promise<number|null>} Day rate in GBP or null
-   */
-  async getRateValue(roleId, skillId, sfiaLevel, tier) {
-    try {
-      const rate = await this.getRate(roleId, skillId, sfiaLevel);
-      if (!rate) return null;
+      if (error && error.code !== 'PGRST116') throw error;
       
-      switch (tier) {
-        case 'contractor':
-          return rate.contractor_rate;
-        case 'associate':
-          return rate.associate_rate;
-        case 'top4':
-          return rate.top4_rate;
-        default:
-          return null;
+      // If no rate found, calculate default
+      if (!data) {
+        const skill = getSkillById(skillId);
+        return {
+          skill_id: skillId,
+          skill_name: skill?.name || skillId,
+          sfia_level: sfiaLevel,
+          tier_id: tierId,
+          day_rate: calculateDefaultRate(skillId, sfiaLevel, tierId),
+          source: 'Calculated default'
+        };
       }
-    } catch (error) {
-      console.error('BenchmarkRatesService.getRateValue failed:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get available skills for a role (based on existing rates)
-   * @param {string} roleId - Role ID
-   * @returns {Promise<Array>} Array of skill IDs with rates for this role
-   */
-  async getSkillsForRole(roleId) {
-    try {
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .select('skill_id, skill_name')
-        .eq('role_id', roleId)
-        .order('skill_id');
-
-      if (error) {
-        console.error('BenchmarkRatesService.getSkillsForRole error:', error);
-        throw error;
-      }
-
-      // Return unique skills
-      const uniqueSkills = [];
-      const seen = new Set();
-      (data || []).forEach(row => {
-        if (!seen.has(row.skill_id)) {
-          seen.add(row.skill_id);
-          uniqueSkills.push({ id: row.skill_id, name: row.skill_name });
-        }
-      });
       
-      return uniqueSkills;
+      return data;
     } catch (error) {
-      console.error('BenchmarkRatesService.getSkillsForRole failed:', error);
+      console.error('Error fetching rate:', error);
       throw error;
     }
   }
 
   /**
-   * Get available SFIA levels for a role+skill combination
-   * @param {string} roleId - Role ID
-   * @param {string} skillId - Skill ID
-   * @returns {Promise<Array>} Array of available SFIA levels
+   * Get rates grouped by category for display
    */
-  async getLevelsForRoleSkill(roleId, skillId) {
-    try {
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .select('sfia_level')
-        .eq('role_id', roleId)
-        .eq('skill_id', skillId)
-        .order('sfia_level');
-
-      if (error) {
-        console.error('BenchmarkRatesService.getLevelsForRoleSkill error:', error);
-        throw error;
-      }
-
-      return (data || []).map(row => row.sfia_level);
-    } catch (error) {
-      console.error('BenchmarkRatesService.getLevelsForRoleSkill failed:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Build rate lookup map (for Estimator compatibility)
-   * Returns format: { 'DEV-JAVA-3-contractor': 525, ... }
-   * @returns {Promise<Object>} Rate lookup map
-   */
-  async buildRateLookup() {
+  async getRatesGroupedByCategory() {
     try {
       const rates = await this.getAllRates();
-      const lookup = {};
       
-      rates.forEach(rate => {
-        const baseKey = `${rate.role_id}-${rate.skill_id}-${rate.sfia_level}`;
-        lookup[`${baseKey}-contractor`] = Number(rate.contractor_rate) || null;
-        lookup[`${baseKey}-associate`] = Number(rate.associate_rate) || null;
-        lookup[`${baseKey}-top4`] = Number(rate.top4_rate) || null;
-      });
+      // Group by category
+      const grouped = {};
+      for (const category of SFIA_CATEGORIES) {
+        grouped[category.id] = {
+          ...category,
+          subcategories: {}
+        };
+        
+        // Add subcategories
+        const subcats = SFIA_SUBCATEGORIES.filter(sc => sc.categoryId === category.id);
+        for (const subcat of subcats) {
+          grouped[category.id].subcategories[subcat.id] = {
+            ...subcat,
+            skills: {}
+          };
+        }
+      }
       
-      return lookup;
+      // Populate with rates
+      for (const rate of rates) {
+        const cat = grouped[rate.category_id];
+        if (cat && cat.subcategories[rate.subcategory_id]) {
+          const subcat = cat.subcategories[rate.subcategory_id];
+          if (!subcat.skills[rate.skill_id]) {
+            subcat.skills[rate.skill_id] = {
+              id: rate.skill_id,
+              name: rate.skill_name,
+              code: rate.skill_code,
+              rates: []
+            };
+          }
+          subcat.skills[rate.skill_id].rates.push(rate);
+        }
+      }
+      
+      return grouped;
     } catch (error) {
-      console.error('BenchmarkRatesService.buildRateLookup failed:', error);
+      console.error('Error grouping rates:', error);
       throw error;
     }
   }
 
-
   /**
-   * Seed initial rate data
-   * Called during setup or migration
-   * @param {Array} rates - Array of rate objects
-   * @returns {Promise<number>} Number of records inserted
+   * Update a rate
    */
-  async seedRates(rates) {
+  async updateRate(id, dayRate, notes = null) {
     try {
-      // Transform to database format
-      const records = rates.map(rate => ({
-        role_id: rate.roleId,
-        role_name: getRoleName(rate.roleId),
-        role_family_id: getRoleFamily(rate.roleId),
-        role_family_name: getFamilyName(getRoleFamily(rate.roleId)),
-        skill_id: rate.skillId,
-        skill_name: getSkillName(rate.skillId),
-        sfia_level: rate.level,
-        contractor_rate: rate.contractor,
-        associate_rate: rate.associate,
-        top4_rate: rate.top4,
-        source: rate.source || 'ITJobsWatch/G-Cloud Dec 2025',
-        effective_date: new Date().toISOString().split('T')[0]
-      }));
-
-      // Use upsert to handle duplicates
       const { data, error } = await supabase
         .from(this.tableName)
-        .upsert(records, { 
-          onConflict: 'role_id,skill_id,sfia_level',
-          ignoreDuplicates: false 
+        .update({
+          day_rate: dayRate,
+          notes: notes,
+          updated_at: new Date().toISOString()
         })
-        .select();
+        .eq('id', id)
+        .select()
+        .single();
 
-      if (error) {
-        console.error('BenchmarkRatesService.seedRates error:', error);
-        throw error;
-      }
-
-      return data?.length || 0;
+      if (error) throw error;
+      return data;
     } catch (error) {
-      console.error('BenchmarkRatesService.seedRates failed:', error);
+      console.error('Error updating rate:', error);
       throw error;
     }
   }
 
   /**
-   * Check if rates table has data
-   * @returns {Promise<boolean>}
+   * Create or update a rate (upsert)
    */
-  async hasRates() {
+  async upsertRate(skillId, sfiaLevel, tierId, dayRate, source = 'Manual entry') {
     try {
-      const { data, error, count } = await supabase
+      const skill = getSkillById(skillId);
+      const subcat = SFIA_SUBCATEGORIES.find(sc => sc.id === skill?.subcategoryId);
+      const tier = getTierById(tierId);
+      
+      const { data, error } = await supabase
         .from(this.tableName)
-        .select('id', { count: 'exact', head: true });
+        .upsert({
+          skill_id: skillId,
+          skill_name: skill?.name || skillId,
+          skill_code: skill?.code || skillId,
+          subcategory_id: skill?.subcategoryId || 'UNKNOWN',
+          category_id: subcat?.categoryId || 'UNKNOWN',
+          sfia_level: sfiaLevel,
+          tier_id: tierId,
+          tier_name: tier?.name || tierId,
+          day_rate: dayRate,
+          source: source,
+          effective_date: new Date().toISOString().split('T')[0]
+        }, {
+          onConflict: 'skill_id,sfia_level,tier_id'
+        })
+        .select()
+        .single();
 
-      if (error) {
-        console.error('BenchmarkRatesService.hasRates error:', error);
-        return false;
-      }
-
-      return count > 0;
+      if (error) throw error;
+      return data;
     } catch (error) {
-      console.error('BenchmarkRatesService.hasRates failed:', error);
-      return false;
+      console.error('Error upserting rate:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get rate comparison across tiers for a skill/level
+   */
+  async getRateComparison(skillId, sfiaLevel) {
+    try {
+      const { data, error } = await supabase
+        .from(this.tableName)
+        .select('*')
+        .eq('skill_id', skillId)
+        .eq('sfia_level', sfiaLevel)
+        .order('tier_id');
+
+      if (error) throw error;
+      
+      // Calculate premiums vs contractor rate
+      const contractorRate = data?.find(r => r.tier_id === 'contractor')?.day_rate;
+      
+      return (data || []).map(rate => ({
+        ...rate,
+        premium: contractorRate ? calculatePremium(contractorRate, rate.day_rate) : null
+      }));
+    } catch (error) {
+      console.error('Error fetching rate comparison:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search skills by name or code
+   */
+  searchSkills(query) {
+    const lowerQuery = query.toLowerCase();
+    return SFIA_SKILLS.filter(skill => 
+      skill.name.toLowerCase().includes(lowerQuery) ||
+      skill.code.toLowerCase().includes(lowerQuery) ||
+      skill.id.toLowerCase().includes(lowerQuery)
+    );
+  }
+
+  /**
+   * Get summary statistics
+   */
+  async getStatistics() {
+    try {
+      const rates = await this.getAllRates();
+      
+      const stats = {
+        totalRates: rates.length,
+        skillsCovered: new Set(rates.map(r => r.skill_id)).size,
+        totalSkills: SFIA_SKILLS.length,
+        averageByTier: {},
+        averageByLevel: {}
+      };
+      
+      // Calculate averages by tier
+      for (const tier of TIERS) {
+        const tierRates = rates.filter(r => r.tier_id === tier.id);
+        if (tierRates.length > 0) {
+          stats.averageByTier[tier.id] = {
+            name: tier.name,
+            average: Math.round(tierRates.reduce((sum, r) => sum + Number(r.day_rate), 0) / tierRates.length),
+            count: tierRates.length
+          };
+        }
+      }
+      
+      // Calculate averages by level
+      for (const level of SFIA_LEVELS) {
+        const levelRates = rates.filter(r => r.sfia_level === level.id);
+        if (levelRates.length > 0) {
+          stats.averageByLevel[level.id] = {
+            title: level.title,
+            average: Math.round(levelRates.reduce((sum, r) => sum + Number(r.day_rate), 0) / levelRates.length),
+            count: levelRates.length
+          };
+        }
+      }
+      
+      return stats;
+    } catch (error) {
+      console.error('Error calculating statistics:', error);
+      throw error;
     }
   }
 }
 
-// =============================================================================
-// SINGLETON EXPORT
-// =============================================================================
-
+// Export singleton instance
 export const benchmarkRatesService = new BenchmarkRatesService();
 export default benchmarkRatesService;
