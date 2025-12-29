@@ -1,154 +1,235 @@
 # Local Development Environment Setup Guide
 
-This document describes how to set up a new Mac computer to work on the AMSF001 Project Tracker. Use this guide if you need to set up a fresh machine or restore your development environment.
+This document describes how to set up a new Mac computer to work on the AMSF001 Project Tracker using a **Claude-first development workflow**. This setup uses Claude Desktop with MCP (Model Context Protocol) servers for AI-assisted full-stack development.
 
 ---
 
 ## Current Environment Snapshot
 
-**Last Updated:** December 2025
+**Last Updated:** December 29, 2025
+
+### Core Tools
 
 | Component | Version |
 |-----------|---------|
 | macOS | 26.1 (Build 25B78) |
+| Chip | Apple M4 |
 | Node.js | v24.11.1 |
 | npm | 11.6.2 |
 | Git | 2.50.1 |
-| Supabase CLI | 2.65.5 |
+| Supabase CLI | 2.67.1 |
 | Homebrew | 5.0.5 |
+| Python | 3.14.0 |
+
+### Claude Desktop Configuration
+
+| Component | Status |
+|-----------|--------|
+| Claude Desktop | Installed |
+| Desktop Commander (DXT) | Enabled - Filesystem + Terminal |
+| GitHub MCP | Configured |
+| Supabase MCP | Configured |
+| Vercel MCP | Via Claude.ai Connector |
+
+---
+
+## Development Workflow Overview
+
+This environment uses **Claude Desktop as the primary development interface**:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   DEVELOPMENT WORKFLOW                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  You ──▶ Claude Desktop ──▶ MCP Servers ──▶ External Services│
+│              │                                               │
+│              ├── Desktop Commander (files, terminal)         │
+│              ├── GitHub MCP (repos, PRs, issues)            │
+│              ├── Supabase MCP (database queries)            │
+│              └── Vercel MCP (deployments, logs)             │
+│                                                              │
+│  Push to GitHub ──▶ Vercel Auto-Deploy ──▶ Production       │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Points:**
+- No code editor required (VS Code, Cursor, etc.)
+- Claude handles all file operations via Desktop Commander
+- Direct database access via Supabase MCP
+- Git operations via GitHub MCP
+- Deployment monitoring via Vercel connector
 
 ---
 
 ## Step 1: Install Homebrew
 
-Homebrew is the package manager for macOS. It installs everything else.
-
-Open Terminal and run:
+Homebrew is the package manager for macOS.
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-After installation, add Homebrew to your PATH. For Apple Silicon Macs (M1/M2/M3/M4):
+Add Homebrew to your PATH (Apple Silicon Macs):
 
 ```bash
 echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-Verify it works:
-
+Verify:
 ```bash
 brew --version
 ```
 
 ---
 
-## Step 2: Install Git
+## Step 2: Install Core Tools
 
+### Git
 ```bash
 brew install git
-```
-
-Configure Git with your identity:
-
-```bash
 git config --global user.name "spac3man-G"
 git config --global user.email "glenn@nickols.com"
 ```
 
----
-
-## Step 3: Install Node.js
-
-Install Node.js (includes npm):
-
+### Node.js
 ```bash
 brew install node
-```
-
-Verify installation:
-
-```bash
 node --version
 npm --version
 ```
 
----
-
-## Step 4: Install Supabase CLI
-
+### Supabase CLI
 ```bash
 brew install supabase/tap/supabase
-```
-
-Verify installation:
-
-```bash
 supabase --version
 ```
 
 ---
 
-## Step 5: Set Up GitHub Authentication
+## Step 3: Install Claude Desktop
 
-### Option A: GitHub CLI (Recommended)
-
-```bash
-brew install gh
-gh auth login
-```
-
-Follow the prompts to authenticate via browser.
-
-### Option B: SSH Keys
-
-Generate an SSH key:
-
-```bash
-ssh-keygen -t ed25519 -C "glenn@nickols.com"
-```
-
-Start the SSH agent and add your key:
-
-```bash
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519
-```
-
-Copy the public key:
-
-```bash
-pbcopy < ~/.ssh/id_ed25519.pub
-```
-
-Add it to GitHub:
-1. Go to github.com → Settings → SSH and GPG keys
-2. Click "New SSH key"
-3. Paste the key and save
+1. Download from https://claude.ai/download
+2. Install the application
+3. Sign in with your Anthropic account
 
 ---
 
-## Step 6: Clone the Project
+## Step 4: Configure MCP Servers
+
+MCP servers give Claude direct access to GitHub, Supabase, and your filesystem.
+
+### 4.1 Create GitHub Personal Access Token
+
+1. Go to https://github.com/settings/tokens
+2. Generate new token (classic)
+3. Select scopes: `repo`, `workflow`, `admin:org`, `user`
+4. Copy the token
+
+### 4.2 Get Supabase Service Key
+
+1. Go to https://supabase.com/dashboard/project/ljqpmrcqxzgcfojrkxce
+2. Settings → API
+3. Copy the `service_role` key (NOT the anon key)
+
+### 4.3 Edit MCP Configuration
+
+Open the Claude Desktop config file:
+```bash
+open ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+Add this configuration (replace with your actual keys):
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+      }
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-postgrest",
+        "--apiUrl",
+        "https://ljqpmrcqxzgcfojrkxce.supabase.co/rest/v1",
+        "--apiKey",
+        "your_service_role_key_here",
+        "--schema",
+        "public"
+      ]
+    }
+  }
+}
+```
+
+### 4.4 Restart Claude Desktop
+
+Quit Claude Desktop (Cmd+Q) and reopen it for changes to take effect.
+
+---
+
+## Step 5: Install Desktop Extensions (DXT)
+
+Desktop Extensions provide additional Claude capabilities.
+
+### Required: Desktop Commander
+
+1. In Claude Desktop, go to Settings → Extensions
+2. Search for "Desktop Commander"
+3. Install and enable it
+
+This provides:
+- Full filesystem access (read, write, edit files)
+- Terminal command execution
+- Process management
+- File search with regex
+
+### Recommended: osascript
+
+Enables macOS automation (AppleScript execution).
+
+### Optional Extensions
+
+| Extension | Purpose |
+|-----------|---------|
+| PDF Filler | Fill and manage PDF forms |
+| Docling | Document format conversion |
+| iMessage | Send/read messages via Claude |
+| Notes | Access Apple Notes |
+
+---
+
+## Step 6: Configure Vercel MCP
+
+Vercel access is configured via Claude.ai connectors:
+
+1. Go to https://claude.ai
+2. Click Settings → Connectors
+3. Connect Vercel
+4. Authorize with your Vercel account
+
+This gives Claude access to:
+- Deployment status and logs
+- Project management
+- Documentation search
+
+---
+
+## Step 7: Clone the Project
 
 ```bash
+mkdir -p ~/Projects
 cd ~/Projects
 git clone https://github.com/spac3man-G/amsf001-project-tracker.git
 cd amsf001-project-tracker
-```
-
-Or if using SSH:
-
-```bash
-git clone git@github.com:spac3man-G/amsf001-project-tracker.git
-```
-
----
-
-## Step 7: Install Project Dependencies
-
-```bash
-cd ~/Projects/amsf001-project-tracker
 npm install
 ```
 
@@ -156,14 +237,11 @@ npm install
 
 ## Step 8: Set Up Environment Variables
 
-Create the local environment file:
-
 ```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local` and add your Supabase credentials:
-
+Edit `.env.local`:
 ```env
 VITE_SUPABASE_URL=https://ljqpmrcqxzgcfojrkxce.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
@@ -171,135 +249,204 @@ VITE_PROJECT_REF=AMSF001
 VITE_DEBUG=false
 ```
 
-**To get your Supabase anon key:**
-1. Go to https://supabase.com/dashboard/project/ljqpmrcqxzgcfojrkxce
-2. Click "Settings" → "API"
-3. Copy the "anon public" key
-
 ---
 
 ## Step 9: Link Supabase Project
 
-Log in to Supabase CLI:
-
 ```bash
 supabase login
-```
-
-This opens a browser window. Authorize the CLI.
-
-Link your project:
-
-```bash
 cd ~/Projects/amsf001-project-tracker
 supabase link
 ```
 
-Select the project when prompted. If asked for database password, you can skip it or reset it in Supabase Dashboard → Settings → Database.
+Select the project when prompted.
 
 ---
 
-## Step 10: Verify Everything Works
+## Step 10: Configure Shell Aliases
 
-Start the development server:
+Add these to `~/.zshrc` for productivity:
 
 ```bash
-npm run dev
+# Homebrew
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# Project shortcuts
+alias proj="cd ~/Projects/amsf001-project-tracker"
+alias proj2="cd ~/Projects/resource-capacity-planner"
+alias dev="npm run dev"
+alias build="npm run build"
+
+# Git shortcuts
+alias gs="git status"
+alias gp="git push"
+alias gl="git log --oneline -10"
+alias ga="git add ."
+alias gc="git commit -m"
+
+# Supabase shortcuts
+alias sb="supabase"
+alias sbstatus="supabase status"
+
+# Quick commands
+alias ll="ls -la"
+alias cls="clear"
 ```
 
-Open http://localhost:5173 in your browser. You should see the login page.
+Reload: `source ~/.zshrc`
 
 ---
 
-## Recommended Applications
+## Step 11: Verify Setup
 
-These are optional but useful applications I use:
+### Test in Terminal
+```bash
+node --version          # v24.x.x
+npm --version           # 11.x.x
+git --version           # 2.x.x
+supabase --version      # 2.67.x
+proj && npm run build   # Should complete without errors
+```
 
-| Application | Purpose | Install |
-|-------------|---------|---------|
-| **iTerm2** | Better terminal | `brew install --cask iterm2` |
-| **Claude Desktop** | AI assistant | Download from claude.ai |
-| **Comet Browser** | Arc alternative | Download from comet.surf |
-| **Raycast** | Spotlight replacement | `brew install --cask raycast` |
+### Test in Claude Desktop
 
----
+Start a new conversation and ask:
+```
+Verify my development environment:
+1. List files in ~/Projects/amsf001-project-tracker
+2. Query the profiles table in Supabase
+3. Show my GitHub repositories
+```
 
-## Project-Specific Configuration
-
-### Vercel Connection
-
-The project is deployed on Vercel. To manage deployments:
-
-1. Go to https://vercel.com/glenns-projects-56c63cc4/amsf001-project-tracker
-2. Sign in with your GitHub account
-
-The Vercel-GitHub integration handles automatic deployments. No local Vercel CLI setup is needed.
-
-### Supabase Branching
-
-Supabase branching is already configured via the Supabase-Vercel integration. When you create a Pull Request with migration files:
-
-1. Vercel creates a preview deployment
-2. Supabase creates a database branch
-3. Your preview uses the isolated branch database
-
-No additional local configuration is needed.
+All three should work if MCP is configured correctly.
 
 ---
 
-## Folder Structure After Setup
+
+## Folder Structure
 
 ```
 /Users/glennnickols/
-└── Projects/
-    └── amsf001-project-tracker/
-        ├── .env.local          # Your local environment variables (not in git)
-        ├── .git/               # Git repository
-        ├── docs/               # Documentation
-        ├── node_modules/       # Dependencies (not in git)
-        ├── public/             # Static assets
-        ├── src/                # Source code
-        ├── supabase/
-        │   └── migrations/     # Database migration files
-        ├── package.json
-        └── vite.config.js
+├── Projects/
+│   ├── amsf001-project-tracker/
+│   │   ├── .env.local              # Local environment variables (not in git)
+│   │   ├── .git/                   # Git repository
+│   │   ├── .github/
+│   │   │   └── workflows/          # CI/CD workflows
+│   │   ├── api/                    # Vercel serverless functions
+│   │   │   ├── chat.js
+│   │   │   ├── create-organisation.js
+│   │   │   ├── create-project.js
+│   │   │   └── ...
+│   │   ├── docs/                   # Documentation
+│   │   ├── e2e/                    # Playwright E2E tests
+│   │   ├── node_modules/           # Dependencies (not in git)
+│   │   ├── public/                 # Static assets
+│   │   ├── scripts/                # Build and test automation
+│   │   ├── src/
+│   │   │   ├── components/         # React components
+│   │   │   ├── contexts/           # React contexts
+│   │   │   ├── hooks/              # Custom hooks
+│   │   │   ├── lib/                # Utilities and helpers
+│   │   │   ├── pages/              # Page components
+│   │   │   └── services/           # API service layer
+│   │   ├── supabase/
+│   │   │   ├── functions/          # Edge Functions
+│   │   │   ├── migrations/         # Database migrations
+│   │   │   └── tests/              # RLS policy tests
+│   │   ├── package.json
+│   │   ├── playwright.config.js
+│   │   ├── vercel.json
+│   │   └── vite.config.js
+│   │
+│   └── resource-capacity-planner/  # Second project
+│
+└── Library/
+    └── Application Support/
+        └── Claude/
+            ├── claude_desktop_config.json    # MCP server config
+            └── Claude Extensions/            # DXT extensions
 ```
 
 ---
 
-## Common Issues & Solutions
+## Tech Stack
 
-### "Command not found: node"
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, Vite, React Router |
+| **Styling** | Custom CSS, Lucide Icons |
+| **State** | React Context |
+| **Backend** | Supabase (PostgreSQL, Auth, RLS) |
+| **API** | Vercel Serverless Functions |
+| **Deployment** | Vercel (auto-deploy from GitHub) |
+| **Testing** | Vitest (unit), Playwright (E2E) |
+| **AI Assistant** | Claude Desktop + MCP |
 
-Homebrew might not be in your PATH. Run:
+---
 
+## External Services
+
+| Service | Purpose | URL |
+|---------|---------|-----|
+| **GitHub** | Source control | https://github.com/spac3man-G |
+| **Supabase** | Database & Auth | https://supabase.com/dashboard/project/ljqpmrcqxzgcfojrkxce |
+| **Vercel** | Hosting & Deploy | https://vercel.com/glenns-projects-56c63cc4 |
+
+---
+
+## CI/CD Pipeline
+
+```
+Push to main ──▶ GitHub Actions ──▶ Build + Test ──▶ Vercel Deploy
+                      │
+                      ├── Unit tests (Vitest)
+                      └── Build verification
+
+Pull Request ──▶ GitHub Actions ──▶ Preview Deploy ──▶ Supabase Branch DB
+```
+
+---
+
+## Troubleshooting
+
+### MCP Server Not Connecting
+
+1. Verify JSON syntax: 
+   ```bash
+   cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | python3 -m json.tool
+   ```
+2. Restart Claude Desktop (Cmd+Q, then reopen)
+3. Check for error banner at top of Claude window
+4. Clear npx cache: `rm -rf ~/.npm/_npx`
+
+### Desktop Commander Not Working
+
+1. Go to Settings → Extensions
+2. Verify Desktop Commander is enabled
+3. Try disabling and re-enabling
+
+### "Command not found" Errors
+
+Homebrew not in PATH. Add to `~/.zshrc`:
 ```bash
 eval "$(/opt/homebrew/bin/brew shellenv)"
 ```
 
-Then add it to your shell profile permanently.
+### Git Authentication Issues
 
-### "Permission denied" when cloning
-
-You haven't authenticated with GitHub. Run:
-
+Your credentials are stored in macOS Keychain. If issues occur:
 ```bash
-gh auth login
+git config --global credential.helper osxkeychain
 ```
 
-Or set up SSH keys (see Step 5).
+### Supabase Connection Issues
 
-### "Missing Supabase environment variables"
+1. Check IP allowlist: Supabase Dashboard → Settings → Database → Network
+2. Verify credentials in `.env.local`
+3. Test connection: `supabase status`
 
-Your `.env.local` file is missing or incomplete. Check that both `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set.
-
-### Can't connect to Supabase
-
-Check that your IP isn't blocked. Go to Supabase Dashboard → Settings → Database → Network and ensure your IP is allowed (or allow all IPs for development).
-
-### npm install fails
-
-Try clearing the npm cache:
+### npm Install Fails
 
 ```bash
 npm cache clean --force
@@ -309,68 +456,106 @@ npm install
 
 ---
 
-## Account Access Required
+## Working with Claude
 
-To work on this project, you need access to:
+### Starting a Development Session
 
-| Service | Account | URL |
-|---------|---------|-----|
-| **GitHub** | spac3man-G | https://github.com |
-| **Supabase** | glenn@nickols.com | https://supabase.com |
-| **Vercel** | glenn@nickols.com | https://vercel.com |
+Share this document at the start of your conversation:
 
-Make sure you can log into all three services before starting.
+```
+Read ~/Projects/amsf001-project-tracker/docs/LOCAL-ENV-SETUP.md 
+to understand my environment, then help me with [your task].
+```
+
+### What Claude Can Do
+
+With your MCP setup, Claude can:
+
+- **Read/write/edit** any file in your home directory
+- **Run terminal commands** (npm, git, supabase, etc.)
+- **Query your database** directly via Supabase MCP
+- **Manage GitHub** repos, PRs, issues, branches
+- **Check Vercel** deployments and logs
+- **Search files** with regex patterns
+- **Execute scripts** and manage processes
+
+### Example Prompts
+
+```
+"Check the latest deployment status for amsf001-project-tracker"
+
+"Query the database to show me all admin users"
+
+"Find all files that import usePermissions hook"
+
+"Create a new migration to add a status column to projects"
+
+"Run the E2E tests and show me any failures"
+```
 
 ---
 
-## Quick Verification Checklist
+## Security Notes
 
-Run these commands to verify your setup is complete:
+### Credential Storage
 
+| Credential | Location | Security |
+|------------|----------|----------|
+| GitHub Token | `claude_desktop_config.json` | Local file only |
+| Supabase Key | `claude_desktop_config.json` | Local file only |
+| Git credentials | macOS Keychain | System secured |
+| Vercel | OAuth via Claude.ai | Token managed by Anthropic |
+
+### Recommendations
+
+1. **Don't share your screen** when Claude Desktop settings are visible
+2. **Back up credentials** in a password manager
+3. **Rotate tokens periodically** (GitHub: Settings → Tokens)
+4. Consider moving secrets to environment variables for added security
+
+---
+
+## Backup Checklist
+
+| Item | Backed Up To |
+|------|--------------|
+| Code | GitHub (commit regularly) |
+| `.env.local` values | Password manager |
+| MCP config | This document + password manager |
+| Database | Supabase automatic backups |
+
+---
+
+## Quick Reference
+
+### Key Commands
 ```bash
-# Check all tools are installed
-node --version          # Should show v24.x.x or later
-npm --version           # Should show 11.x.x or later
-git --version           # Should show 2.x.x
-supabase --version      # Should show 2.x.x
+proj                    # Navigate to project
+dev                     # Start dev server (localhost:5173)
+build                   # Production build
+gs                      # Git status
+gp                      # Git push
+sb status               # Supabase status
+```
 
-# Check project is set up
-cd ~/Projects/amsf001-project-tracker
-cat .env.local          # Should show your Supabase credentials
-npm run build           # Should complete without errors
+### Key Files
+```
+~/.zshrc                                    # Shell config
+~/Library/Application Support/Claude/
+  └── claude_desktop_config.json            # MCP config
+~/Projects/amsf001-project-tracker/
+  ├── .env.local                            # Environment vars
+  └── supabase/migrations/                  # DB migrations
+```
 
-# Check Supabase is linked
-supabase status         # Should show project info
+### Key URLs
+```
+http://localhost:5173                       # Local dev
+https://amsf001-project-tracker.vercel.app  # Production
+https://supabase.com/dashboard/project/ljqpmrcqxzgcfojrkxce  # Database
+https://github.com/spac3man-G/amsf001-project-tracker        # Repo
 ```
 
 ---
 
-## Getting Help
-
-If you're setting this up with Claude's help, share this document at the start of your conversation:
-
-```
-Please read /Users/glennnickols/Projects/amsf001-project-tracker/docs/LOCAL-ENV-SETUP.md 
-to understand my development environment, then help me with [your issue].
-```
-
-Also share the project context document:
-
-```
-/Users/glennnickols/Projects/amsf001-project-tracker/docs/AI-PROMPT-Project-Context.md
-```
-
----
-
-## Backup Recommendations
-
-To avoid losing your setup, regularly back up:
-
-1. **Code** - Already backed up on GitHub (just commit and push regularly)
-2. **Environment variables** - Keep `.env.local` values in a password manager (1Password, etc.)
-3. **Supabase credentials** - Available in Supabase Dashboard, but save them somewhere safe
-4. **SSH keys** - Back up `~/.ssh/` folder to a secure location
-
----
-
-*Last verified: December 13, 2025*
+*Last verified: December 29, 2025*
