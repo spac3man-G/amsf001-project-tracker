@@ -1,12 +1,17 @@
 # AMSF001 Technical Specification - Database Supporting Tables
 
 **Document:** TECH-SPEC-04-Database-Supporting.md  
-**Version:** 1.1  
+**Version:** 1.2  
 **Date:** 10 December 2025  
-**Updated:** 23 December 2025  
-**Session:** 1.4  
+**Updated:** 28 December 2025  
+**Session:** 1.4.1  
 **Status:** Complete  
 
+> **Version 1.2 Updates (28 December 2025):**
+> - Added `benchmark_rates` table (Section 11) - SFIA 8 rate card
+> - This is **global data** (not project-scoped)
+> - Updated Table of Contents and Document History
+>
 > **Version 1.1 Updates (23 December 2025):**
 > - Added note about organisation context inheritance
 > - Added Document History section
@@ -30,6 +35,7 @@
 8. [Soft Delete Infrastructure](#soft-delete-infrastructure)
 9. [Supporting Views](#supporting-views)
 10. [Relationships and Dependencies](#relationships-and-dependencies)
+11. [Benchmark Rates Table (Global)](#benchmark-rates-table-global)
 
 ---
 
@@ -1569,6 +1575,126 @@ ORDER BY deleted_at DESC;
 
 ---
 
+## Benchmark Rates Table (Global)
+
+> **Note:** Unlike other tables in this document, `benchmark_rates` is **global data** - not scoped to any project or organisation. It serves as a shared rate card for the SFIA 8 skills framework.
+
+### Purpose
+
+Stores UK market day rates for SFIA 8 skills across different supplier tiers. Used by:
+- **Benchmarking tool** - Rate comparison and analysis
+- **Estimator tool** - Cost estimation using current rates
+
+### Table Structure
+
+```sql
+CREATE TABLE IF NOT EXISTS benchmark_rates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  skill_id VARCHAR(10) NOT NULL,
+  skill_name VARCHAR(100) NOT NULL,
+  skill_code VARCHAR(10) NOT NULL,
+  subcategory_id VARCHAR(10) NOT NULL,
+  category_id VARCHAR(10) NOT NULL,
+  sfia_level INTEGER NOT NULL CHECK (sfia_level >= 1 AND sfia_level <= 7),
+  tier_id VARCHAR(20) NOT NULL,
+  tier_name VARCHAR(50) NOT NULL,
+  day_rate DECIMAL(10,2) NOT NULL,
+  source VARCHAR(200),
+  effective_date DATE DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  CONSTRAINT benchmark_rates_unique UNIQUE (skill_id, sfia_level, tier_id)
+);
+```
+
+### Column Reference
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `skill_id` | VARCHAR(10) | SFIA skill identifier (e.g., 'PROG') |
+| `skill_name` | VARCHAR(100) | Full skill name (e.g., 'Programming/Software Development') |
+| `skill_code` | VARCHAR(10) | SFIA code |
+| `subcategory_id` | VARCHAR(10) | SFIA subcategory |
+| `category_id` | VARCHAR(10) | SFIA category (SA, CT, DI, DO, SQ, RE) |
+| `sfia_level` | INTEGER | Responsibility level 1-7 |
+| `tier_id` | VARCHAR(20) | Supplier tier (contractor, boutique, mid, big4) |
+| `tier_name` | VARCHAR(50) | Tier display name |
+| `day_rate` | DECIMAL(10,2) | Day rate in GBP |
+| `source` | VARCHAR(200) | Rate source/origin |
+| `effective_date` | DATE | When rate became effective |
+
+### SFIA 8 Coverage
+
+| Entity | Count |
+|--------|-------|
+| Categories | 6 |
+| Subcategories | 19 |
+| Skills | 97 |
+| Levels | 7 |
+| Tiers | 4 |
+| **Potential Rate Combinations** | ~1,500+ |
+
+### Tier Definitions
+
+| Tier ID | Name | Typical Multiplier |
+|---------|------|--------------------|
+| `contractor` | Contractor/Freelance | 1.0x (base) |
+| `boutique` | Boutique/SME | 1.3x |
+| `mid` | Mid-tier Consultancy | 1.5x |
+| `big4` | Big 4/Global SI | 1.9x |
+
+### Indexes
+
+```sql
+CREATE INDEX idx_benchmark_rates_skill ON benchmark_rates(skill_id);
+CREATE INDEX idx_benchmark_rates_category ON benchmark_rates(category_id);
+CREATE INDEX idx_benchmark_rates_subcategory ON benchmark_rates(subcategory_id);
+CREATE INDEX idx_benchmark_rates_level ON benchmark_rates(sfia_level);
+CREATE INDEX idx_benchmark_rates_tier ON benchmark_rates(tier_id);
+```
+
+### Trigger
+
+```sql
+CREATE TRIGGER update_benchmark_rates_timestamp
+  BEFORE UPDATE ON benchmark_rates
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+```
+
+### RLS Policies
+
+Unlike project-scoped tables, benchmark_rates uses simple public read / admin write:
+
+```sql
+-- Anyone can read rates
+CREATE POLICY "Anyone can read benchmark rates" 
+  ON benchmark_rates FOR SELECT TO authenticated 
+  USING (true);
+
+-- Only admins can modify rates
+CREATE POLICY "Admins can modify benchmark rates" 
+  ON benchmark_rates FOR ALL TO authenticated 
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+```
+
+### Related Service
+
+See `benchmarkRates.service.js` in TECH-SPEC-08 for:
+- `getAllRates(filters)` - Fetch with filters
+- `getRate(skillId, sfiaLevel, tierId)` - Single rate lookup
+- `buildRateLookup()` - Rate dictionary for Estimator
+- `getRatesGroupedByCategory()` - Hierarchical grouping
+- Rate statistics and comparisons
+
+---
+
 ## Summary
 
 The supporting tables provide critical infrastructure for:
@@ -1613,3 +1739,4 @@ All tables follow consistent patterns:
 |---------|------|--------|--------|
 | 1.0 | 10 Dec 2025 | Claude AI | Initial creation |
 | 1.1 | 23 Dec 2025 | Claude AI | Added organisation context note (Tier 3 entities), added Document History section |
+| 1.2 | 28 Dec 2025 | Claude AI | Added benchmark_rates table (global SFIA 8 rate card) |

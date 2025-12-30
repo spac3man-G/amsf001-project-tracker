@@ -7,6 +7,177 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.11] - 2025-12-28
+
+### Changed
+
+#### TD-001: Permission Hook Consolidation
+Refactored all entity detail modals to use internal permission hooks instead of receiving permission props from parent pages. This eliminates prop drilling and creates a single source of truth for permissions per entity.
+
+**New Hooks Created:**
+- `useExpensePermissions` - Expense-specific permissions with ownership, status, and chargeable logic
+- `useRaidPermissions` - RAID item permissions with status-based logic
+- `useNetworkStandardPermissions` - Simple permission hook for network standards
+
+**Modals Refactored:**
+- `ExpenseDetailModal` - Removed 6 permission props, uses `useExpensePermissions` internally
+- `RaidDetailModal` - Removed 2 permission props, uses `useRaidPermissions` internally
+- `TimesheetDetailModal` - Removed 5 permission props, uses `useTimesheetPermissions` internally
+- `CertificateModal` - Removed 2 permission props, uses `useMilestonePermissions` internally
+- `NetworkStandardDetailModal` - Removed 1 permission prop, uses `useNetworkStandardPermissions` internally
+- `DeliverableDetailModal` - Removed 4 permission props, uses `useDeliverablePermissions` exclusively
+
+**Parent Pages Updated:**
+- `Expenses.jsx` - Removed modal permission prop calculations
+- `RaidLog.jsx` - Removed modal permission prop calculations
+- `Timesheets.jsx` - Removed modal permission prop calculations
+- `MilestonesContent.jsx` - Removed certificate modal permission props
+- `NetworkStandards.jsx` - Removed modal permission prop
+- `Deliverables.jsx` / `DeliverablesContent.jsx` - Removed modal permission props
+
+**Benefits:**
+- Single source of truth for permissions per entity
+- Self-contained modals that manage their own permissions
+- Reduced prop drilling through component hierarchies
+- Consistent pattern across all entities
+- Easier maintenance - permission changes in one place per entity
+
+---
+
+## [0.9.10] - 2025-12-28
+
+### Added
+
+#### Planning Tool
+- New `/planning` page with Excel-like hierarchical grid interface
+- `plan_items` table for storing WBS (Work Breakdown Structure) data
+- 22-column schema supporting milestones, deliverables, and tasks
+- Self-referencing hierarchy with `parent_id` for tree structure
+- Automatic WBS numbering via `recalculate_wbs()` function
+- Keyboard navigation (Arrow keys, Tab, Enter, Escape)
+- Inline editing with auto-save
+- Drag-and-drop reordering
+- Expand/collapse tree nodes
+- Status tracking (not_started, in_progress, completed, on_hold, cancelled)
+- Progress percentage with visual indicators
+- Links to milestones, deliverables, and resources
+- `planItemsService` with 18 methods for CRUD operations
+
+#### Planning AI Assistant
+- `PlanningAIAssistant.jsx` component (22KB)
+- Document upload and parsing (PDF, DOCX, TXT)
+- AI-powered WBS extraction using Claude Sonnet 4.5
+- `/api/planning-ai.js` serverless function (17KB)
+- 120-second timeout for large document processing
+- Streaming responses with progress indication
+- Multi-format prompt templates for extraction
+
+#### Estimator Tool
+- New `/estimator` page with component-based cost estimation
+- 4 database tables: `estimates`, `estimate_components`, `estimate_tasks`, `estimate_resources`
+- SFIA 8 skills framework integration (97 skills, 7 levels, 4 tiers)
+- `ResourceTypeSelector` component with hierarchical skill selection
+- Excel-like effort grid for resource allocation
+- Real-time cost calculations with totals
+- Component quantity multipliers
+- Save, load, and duplicate estimates
+- Status workflow (draft, submitted, approved, rejected, archived)
+- `estimatesService` with 14 methods + constants
+- Bidirectional linking to Planning tool
+
+#### Benchmarking Tool
+- New `/benchmarking` page for SFIA 8 rate comparison
+- `benchmark_rates` table (global, not project-scoped)
+- 15-column schema for rate data
+- UK market day rates by skill, level, and tier
+- Collapsible category/subcategory navigation
+- Tier comparison view (Contractor, Boutique, Mid, Big4)
+- Rate filtering and search
+- `benchmarkRatesService` with 8 async methods + 14 helpers
+- `sfia8-reference-data.js` with 97 skills, 6 categories, 19 subcategories
+
+#### Planning ↔ Estimator Integration
+- `EstimateGeneratorModal` - Generate estimate from plan structure
+- `EstimateLinkModal` - Link/unlink plan items to estimate components
+- `plan_items_with_estimates` view for denormalized queries
+- `link_plan_item_to_estimate()` and `unlink_plan_item_from_estimate()` functions
+- Auto-navigation from Planning to Estimator with deep linking
+- Bidirectional FK relationships (plan_items ↔ estimate_components)
+
+### Changed
+
+#### Navigation
+- Added "Tools" section with Planning, Benchmarking, Estimator
+- Planning: Available to Admin, Supplier PM, Customer PM
+- Benchmarking: Available to Admin, Supplier PM
+- Estimator: Available to Admin, Supplier PM
+
+#### Route Security
+- Added `requiredRoles` prop to ProtectedRoute for tool pages
+- Planning: `['admin', 'supplier_pm', 'customer_pm']`
+- Benchmarking: `['admin', 'supplier_pm']`
+- Estimator: `['admin', 'supplier_pm']`
+
+### Fixed
+
+#### BUG-001: Tier Constraint Mismatch (CRITICAL)
+- **Issue:** `estimate_resources` CHECK constraint used wrong tier values ('associate', 'top4')
+- **Impact:** Database rejected valid tier selections from UI
+- **Fix:** Migration `202512281500_fix_estimate_resources_tier_check.sql`
+- **Correct values:** 'contractor', 'boutique', 'mid', 'big4'
+
+#### BUG-002: Missing buildRateLookup Method (HIGH)
+- **Issue:** `benchmarkRatesService.buildRateLookup()` method did not exist
+- **Impact:** Estimator always fell back to hardcoded rates, ignoring database
+- **Fix:** Added `buildRateLookup()` method to BenchmarkRatesService
+
+#### ISSUE-001: Route Access Control Gap (MEDIUM)
+- **Issue:** Tool routes lacked `requiredRoles` parameter
+- **Impact:** Users knowing URLs could access pages beyond their role
+- **Fix:** Added explicit `requiredRoles` to Planning, Benchmarking, Estimator routes
+
+### New Files
+
+```
+# Planning
+src/pages/planning/Planning.jsx (33KB)
+src/components/planning/PlanningAIAssistant.jsx (22KB)
+src/components/planning/EstimateGeneratorModal.jsx
+src/components/planning/EstimateLinkModal.jsx
+src/services/planItems.service.js
+api/planning-ai.js (17KB)
+
+# Estimator
+src/pages/estimator/Estimator.jsx (46KB)
+src/components/estimator/ResourceTypeSelector.jsx
+src/services/estimates.service.js
+
+# Benchmarking
+src/pages/benchmarking/Benchmarking.jsx (19KB)
+src/services/benchmarkRates.service.js
+src/services/sfia8-reference-data.js
+
+# Database
+supabase/migrations/202512261000_create_planning_tables.sql
+supabase/migrations/202512261100_create_estimates_tables.sql
+supabase/migrations/202512261200_add_estimate_link_to_plan_items.sql
+supabase/migrations/202512261300_create_benchmark_rates.sql
+supabase/migrations/202512261400_seed_benchmark_rates.sql
+supabase/migrations/202512281500_fix_estimate_resources_tier_check.sql
+```
+
+### Documentation
+
+- Updated TECH-SPEC-02 (v4.0) with Planning & Estimator tables
+- Updated TECH-SPEC-04 (v1.2) with benchmark_rates table
+- Updated TECH-SPEC-05 (v4.0) with 22 new RLS policies
+- Updated TECH-SPEC-06 (v1.3) with Planning AI API documentation (Section 6.7)
+- Updated TECH-SPEC-07 (v5.0) with Planning & Estimator tools (Section 14)
+- Updated TECH-SPEC-08 (v4.0) with Planning & Estimator services (Section 15)
+- Created SYSTEMATIC-APPLICATION-REVIEW.md with comprehensive analysis
+
+---
+
 ## [0.9.9] - 2025-12-24
 
 ### Added

@@ -1,9 +1,32 @@
 # Technical Debt and Future Features
 
-**Version:** 1.1  
+**Version:** 1.4  
 **Created:** 2025-12-16  
-**Last Updated:** 2025-12-23  
+**Last Updated:** 2025-12-29  
 **Purpose:** Track technical debt items and planned future features for prioritisation
+
+> **Version 1.5 Updates (30 December 2025):**
+> - **ALL DEFERRED:** FF-016, FF-018, and FF-019 work deferred
+> - Archived all implementation plans to `docs/archive/FF018-Option-B-Unified-Table/`
+> - Key insight: Milestones and deliverables are the core architecture; planning tool is a visual layer
+> - Architecture documentation retained as reference: `docs/MILESTONE-DELIVERABLE-ARCHITECTURE.md`
+> - No database changes were made — all migration files archived before execution
+
+> **Version 1.4 Updates (29 December 2025):**
+> - Added FF-016: Deliverable Task Checklists
+> - Added FF-017: Project Types and Workflow Configuration
+> - Added FF-018: Unified Project Structure Model (MAJOR - supersedes FF-004/FF-005)
+> - Added FF-019: Milestone Billing Types
+> - Marked FF-004 and FF-005 as SUPERSEDED by FF-018
+> - Created detailed implementation plan: `IMPLEMENTATION-PLAN-FF018-Unified-Project-Structure.md`
+
+> **Version 1.3 Updates (29 December 2025):**
+> - Added FF-004 to FF-015: Planning, Benchmarking, and Estimator feature roadmap
+> - 12 new future feature items covering tool integration and enhancements
+
+> **Version 1.2 Updates (28 December 2025):**
+> - Completed TD-001: Entity Permission Hook Consolidation
+> - Moved TD-001 to Completed Items section
 
 > **Version 1.1 Updates (23 December 2025):**
 > - Added completed item: Organisation-level multi-tenancy implementation
@@ -18,73 +41,6 @@
 
 Items that require refactoring or architectural improvements to maintain code quality and consistency.
 
-### TD-001: Entity Permission Hook Consolidation
-
-**Priority:** Medium  
-**Added:** 2025-12-16  
-**Context:** Issues #5 and #6 from test session (Customer PM deliverable permissions)
-
-#### Problem
-
-The application has inconsistent patterns for handling entity-level permissions across different modals:
-
-| Modal | Pattern Used |
-|-------|-------------|
-| `TimesheetDetailModal` | Props passed as **functions** from parent (e.g., `canEditTimesheet={canEditTimesheet}`) |
-| `ExpenseDetailModal` | Props passed as **functions** from parent |
-| `RaidDetailModal` | Props passed as **booleans** (simpler, no object-level checks) |
-| `DeliverableDetailModal` | **Hybrid** - receives boolean props AND uses `useDeliverablePermissions` hook internally |
-
-The `useDeliverablePermissions` hook exists and contains correct business logic, but it's not consistently used. The modal receives permission props from the parent but also imports the hook, creating a dual permission system.
-
-#### Current State (Tactical Fix Applied)
-
-A tactical fix was applied on 2025-12-16 (commit `a28069a8`) to resolve the immediate bugs:
-- Updated permission matrix to remove `customer_pm` from `deliverables.edit`, `deliverables.create`, and `deliverables.submit`
-- Added separate `canSubmit` prop to `DeliverableDetailModal`
-- Changed submit button visibility from `canEditProp && canSubmitForReview()` to `canSubmitProp && canSubmitForReview()`
-
-#### Strategic Solution
-
-Refactor `DeliverableDetailModal` to consistently use `useDeliverablePermissions` for ALL permission decisions:
-
-1. **Update the hook** - Remove `assigned_to` logic (not applicable to this workflow). Ensure any contributor can edit/submit deliverables.
-
-2. **Refactor the modal** - Replace prop-based permission checks with hook-based ones:
-   ```javascript
-   // Instead of:
-   const showSubmitForReview = canSubmitProp && canSubmitForReview(deliverable);
-   
-   // Use:
-   const showSubmitForReview = permissions.canSubmit;
-   ```
-
-3. **Update the parent page** - Remove permission props passed to the modal (or keep as optional overrides for edge cases).
-
-4. **Consider creating similar hooks** for timesheets and expenses to establish a consistent pattern across all entity modals.
-
-#### Benefits
-
-- Self-contained components (modals don't depend on parent for permissions)
-- Single source of truth per entity
-- Easier to test
-- Sets a pattern for future development
-- Reduces prop drilling
-
-#### Files Affected
-
-- `src/hooks/useDeliverablePermissions.js` - Update logic
-- `src/components/deliverables/DeliverableDetailModal.jsx` - Use hook exclusively
-- `src/pages/Deliverables.jsx` - Remove or simplify permission props
-- Potentially create:
-  - `src/hooks/useTimesheetPermissions.js`
-  - `src/hooks/useExpensePermissions.js`
-
-#### Effort Estimate
-
-Medium (1-2 days) - Mostly refactoring existing code with thorough testing
-
----
 
 ### TD-002: Z-Index Scale Standardisation
 
@@ -258,6 +214,561 @@ As a Customer PM, I want to delegate my approval responsibilities to a colleague
 
 #### Effort Estimate
 Medium (2-3 days)
+
+---
+
+### ~~FF-004: Planning Tool - Create Milestones/Deliverables from Plan Items~~ [SUPERSEDED]
+
+**Status:** ⚠️ SUPERSEDED by FF-018 (Unified Project Structure Model)  
+**Priority:** ~~High~~  
+**Added:** 2025-12-29  
+**Requested By:** Planning Tool Enhancement
+
+> **Note:** This feature has been superseded by FF-018. In the unified model, there is no "creation" from plan items—instead, users change the `item_type` of an existing record from 'phase'/'task' to 'milestone'/'deliverable', which makes governance fields available. See `IMPLEMENTATION-PLAN-FF018-Unified-Project-Structure.md` for details.
+
+#### Description
+Allow users to create actual milestones and deliverables directly from plan items, converting the planning structure into trackable project entities.
+
+#### User Story
+As a Supplier PM, I want to convert my plan items into milestones and deliverables, so that I can move from planning into execution without re-entering data.
+
+#### Acceptance Criteria
+- Select one or more plan items to convert
+- Choose conversion options (create milestone, deliverable, or both)
+- Automatically populate milestone/deliverable fields from plan item data
+- Maintain link between plan item and created entity
+- Bulk conversion for entire plan or selected items
+- Preview before conversion with field mapping display
+- Handle parent-child relationships (milestone plan items create milestones, nested items create deliverables)
+
+#### Dependencies
+- Plan items table relationship to milestones/deliverables (partially exists)
+- Transaction handling for bulk operations
+- UI for conversion wizard/modal
+
+#### Effort Estimate
+Medium-High (2-3 days)
+
+---
+
+### ~~FF-005: Planning Tool - Bidirectional Sync with Milestones/Deliverables~~ [SUPERSEDED]
+
+**Status:** ⚠️ SUPERSEDED by FF-018 (Unified Project Structure Model)  
+**Priority:** ~~Medium~~  
+**Added:** 2025-12-29  
+**Requested By:** Planning Tool Enhancement
+
+> **Note:** This feature has been superseded by FF-018. In the unified model, there is no sync needed—milestones, deliverables, and plan items are the same records displayed differently. Changes in any view are immediately visible in all other views. See `IMPLEMENTATION-PLAN-FF018-Unified-Project-Structure.md` for details.
+
+#### Description
+Enable two-way synchronisation between plan items and their linked milestones/deliverables, keeping both views consistent.
+
+#### User Story
+As a Supplier PM, I want changes to milestones/deliverables to reflect in my plan (and vice versa), so that I have a single source of truth for project structure.
+
+#### Acceptance Criteria
+- Changes to milestone dates sync to linked plan item
+- Changes to plan item dates sync to linked milestone
+- Status changes propagate bidirectionally
+- Conflict detection when both sides changed
+- User can choose sync direction (plan → entities, entities → plan, or bidirectional)
+- Manual sync trigger option
+- Auto-sync toggle in settings
+- Audit trail of sync operations
+
+#### Dependencies
+- FF-004 (Create from Plan Items)
+- Sync conflict resolution UI
+- Database triggers or application-level sync logic
+
+#### Effort Estimate
+High (3-5 days)
+
+---
+
+### FF-006: Planning Tool - Version History and Revert
+
+**Priority:** Medium  
+**Added:** 2025-12-29  
+**Requested By:** Planning Tool Enhancement
+
+#### Description
+Maintain version history of the project plan with ability to view previous versions and revert changes.
+
+#### User Story
+As a Supplier PM, I want to see how my plan has evolved and revert to a previous version if needed, so that I can recover from planning mistakes or compare approaches.
+
+#### Acceptance Criteria
+- Automatic version capture on significant changes
+- Manual "save version" with user-provided description
+- Version list with timestamps and descriptions
+- Side-by-side comparison between versions
+- View-only mode for historical versions
+- Revert to specific version (creates new version, doesn't delete history)
+- Export version as snapshot
+
+#### Dependencies
+- Plan version history table
+- Diff calculation logic
+- Version comparison UI
+
+#### Effort Estimate
+Medium-High (2-4 days)
+
+---
+
+### FF-007: Planning Tool - Gantt Chart Visualisation
+
+**Priority:** Medium  
+**Added:** 2025-12-29  
+**Requested By:** Planning Tool Enhancement
+
+#### Description
+Add Gantt chart view to the Planning tool for visual timeline representation of the project plan.
+
+#### User Story
+As a Supplier PM, I want to see my plan as a Gantt chart, so that I can visualise dependencies, timeline, and resource allocation.
+
+#### Acceptance Criteria
+- Toggle between grid view and Gantt view
+- Display plan items as bars on timeline
+- Show parent-child relationships (nested bars)
+- Drag to adjust dates directly on chart
+- Zoom levels (day, week, month, quarter)
+- Today marker and baseline comparison
+- Critical path highlighting (future)
+- Export as image/PDF
+- Print-friendly view
+
+#### Dependencies
+- Gantt chart library (e.g., frappe-gantt, dhtmlx-gantt, or custom)
+- Date calculation utilities
+
+#### Effort Estimate
+Medium-High (3-4 days)
+
+---
+
+### FF-008: Planning Tool - Impact Assessment
+
+**Priority:** Low  
+**Added:** 2025-12-29  
+**Requested By:** Planning Tool Enhancement
+
+#### Description
+Analyse the impact of proposed changes to the plan before applying them, showing affected items and schedule implications.
+
+#### User Story
+As a Supplier PM, I want to see what happens if I change a task's duration or move a milestone, so that I can make informed planning decisions.
+
+#### Acceptance Criteria
+- "What-if" mode for planning changes
+- Show downstream impacts (affected dates, dependent items)
+- Highlight schedule conflicts
+- Cost impact calculation (if linked to estimates)
+- Compare current vs proposed plan
+- Apply or discard proposed changes
+- Generate impact report
+
+#### Dependencies
+- FF-005 (Bidirectional Sync) - for accurate impact on linked entities
+- Dependency tracking between plan items
+
+#### Effort Estimate
+High (4-5 days)
+
+---
+
+### FF-009: Planning Tool - Missing Element Detection
+
+**Priority:** Low  
+**Added:** 2025-12-29  
+**Requested By:** Planning Tool Enhancement
+
+#### Description
+AI-assisted analysis to identify gaps in the project plan and suggest missing elements.
+
+#### User Story
+As a Supplier PM, I want the system to identify what might be missing from my plan, so that I don't overlook important deliverables or tasks.
+
+#### Acceptance Criteria
+- Analyse plan structure against project type templates
+- Identify common missing elements (e.g., testing phase, documentation, sign-off)
+- Suggest additions based on similar projects
+- Compare against best practices
+- User can accept/reject suggestions
+- Learn from user choices over time
+
+#### Dependencies
+- AI integration (Claude API)
+- Project type classification
+- Best practices database or training data
+
+#### Effort Estimate
+Medium (2-3 days)
+
+---
+
+### FF-010: Estimator - Formal Approval Workflow
+
+**Priority:** Medium  
+**Added:** 2025-12-29  
+**Requested By:** Estimator Enhancement
+
+#### Description
+Implement a proper approval workflow for estimates with submission, review, and approval stages.
+
+#### User Story
+As a Supplier PM, I want to submit estimates for review and approval, so that there's a formal sign-off process before presenting to customers.
+
+#### Acceptance Criteria
+- Submit estimate for review (changes status from Draft to Submitted)
+- Reviewer can approve, reject, or request changes
+- Rejection requires reason/comments
+- Approved estimates become read-only
+- Approval audit trail (who, when, comments)
+- Email notifications for workflow steps
+- Estimate can be recalled before approval
+
+#### Dependencies
+- Estimate status workflow (partially exists: Draft → Submitted → Approved)
+- Reviewer role definition (likely senior Supplier PM or Admin)
+- Email notification service (FF-001)
+
+#### Effort Estimate
+Medium (2-3 days)
+
+---
+
+### FF-011: Estimator - Lock/Baseline Estimates
+
+**Priority:** Medium  
+**Added:** 2025-12-29  
+**Requested By:** Estimator Enhancement
+
+#### Description
+Allow estimates to be locked/baselined to create an immutable snapshot for tracking actuals against.
+
+#### User Story
+As a Supplier PM, I want to baseline an approved estimate, so that I can track actual project costs against the original estimate.
+
+#### Acceptance Criteria
+- "Baseline" action on approved estimates
+- Baselined estimate creates immutable snapshot
+- Original estimate can continue to be modified (creates variance)
+- Compare current estimate vs baseline
+- Multiple baselines over time (re-baseline after variations)
+- Baseline metadata (date, reason, version number)
+- Baseline appears in Finance Hub for comparison
+
+#### Dependencies
+- FF-010 (Approval Workflow)
+- Estimate baseline history table
+- Finance Hub integration (FF-012)
+
+#### Effort Estimate
+Medium (2-3 days)
+
+---
+
+### FF-012: Estimator - Finance Integration
+
+**Priority:** High  
+**Added:** 2025-12-29  
+**Requested By:** Estimator Enhancement
+
+#### Description
+Connect estimates to project finances to track actual spend against estimated costs.
+
+#### User Story
+As a Supplier PM, I want to see how actual project costs compare to my estimate, so that I can identify budget variances early and take corrective action.
+
+#### Acceptance Criteria
+- Link estimate to project financials
+- Show estimate vs actuals comparison in Finance Hub
+- Actuals sourced from:
+  - Approved timesheets (hours × rates)
+  - Validated expenses
+  - Partner invoices
+- Variance calculation (estimate - actuals)
+- Variance by component/task breakdown
+- RAG status based on variance thresholds
+- Forecast to completion based on burn rate
+- Dashboard widget for estimate vs actuals
+
+#### Dependencies
+- FF-011 (Lock/Baseline Estimates)
+- Actuals aggregation queries
+- Finance Hub modifications
+
+#### Effort Estimate
+High (4-5 days)
+
+---
+
+### FF-013: Estimator - Proposal/Document Generation
+
+**Priority:** Low  
+**Added:** 2025-12-29  
+**Requested By:** Estimator Enhancement
+
+#### Description
+Generate professional proposal documents from estimates.
+
+#### User Story
+As a Supplier PM, I want to generate a customer-facing proposal document from my estimate, so that I can quickly produce professional quotes.
+
+#### Acceptance Criteria
+- Generate proposal from approved estimate
+- Customisable templates (cover page, terms, etc.)
+- Include/exclude cost breakdowns by section
+- Add narrative text per component
+- Output formats: PDF, DOCX
+- Branding options (logo, colours)
+- Save generated proposals for audit
+
+#### Dependencies
+- Document generation service (may use existing DocumentRendererService)
+- Proposal template management
+
+#### Effort Estimate
+Medium (2-3 days)
+
+---
+
+### FF-014: Benchmarking - Resource Rate Selection
+
+**Priority:** Medium  
+**Added:** 2025-12-29  
+**Requested By:** Benchmarking Integration
+
+#### Description
+When adding a resource to a project, allow selection from benchmark rates or manual entry.
+
+#### User Story
+As a Supplier PM, I want to choose from benchmark rates when setting up a resource's cost/sell rates, so that I can ensure consistent pricing aligned with market rates.
+
+#### Acceptance Criteria
+- Resource form shows "Select from Benchmarks" option
+- Browse/search benchmark rates by skill, level, tier
+- Auto-populate cost and sell rates from selection
+- Override option for manual adjustment
+- Track whether rate is benchmark-based or manual
+- Show benchmark comparison on resource detail (% above/below)
+- Bulk apply benchmark rates to multiple resources
+
+#### Dependencies
+- Resource form modifications
+- Benchmark rate lookup integration
+
+#### Effort Estimate
+Medium (1-2 days)
+
+---
+
+### FF-015: Planning + Estimator Integration
+
+**Priority:** Medium  
+**Added:** 2025-12-29  
+**Requested By:** Tool Integration
+
+#### Description
+Deeper integration between Planning and Estimator tools, potentially merging into a single unified experience.
+
+#### User Story
+As a Supplier PM, I want planning and estimation to work seamlessly together, so that I can plan my project and cost it in one workflow.
+
+#### Acceptance Criteria
+- Create estimate directly from plan structure
+- Plan items automatically linked to estimate components
+- Estimate totals visible in planning view
+- Single navigation between plan and estimate views
+- Unified toolbar/actions
+- Option for combined or separate views based on preference
+
+#### Dependencies
+- FF-004 (Create from Plan Items)
+- EstimateLinkModal enhancements
+- Unified data model consideration
+
+#### Effort Estimate
+High (5+ days) - Architectural decision required
+
+---
+
+### FF-016: Deliverable Task Checklists
+
+**Priority:** Medium  
+**Added:** 2025-12-29  
+**Requested By:** Planning Tool Enhancement  
+**Status:** ⏸️ DEFERRED (30 Dec 2025)  
+**Archive:** `docs/archive/FF018-Option-B-Unified-Table/IMPLEMENTATION-PLAN-FF016-FF019-Incremental.md`
+
+#### Description
+Add the ability to create checklist-style tasks within deliverables. These are lightweight work items that can be ticked off as complete, without the governance overhead of milestones/deliverables.
+
+#### User Story
+As a Contributor, I want to add tasks to a deliverable and tick them off as I complete them, so that I can track granular progress without creating formal deliverables.
+
+#### Acceptance Criteria
+- Add/edit/delete tasks within a deliverable
+- Tasks have: name, description (optional), completed (boolean), completed_by, completed_at
+- Tasks display as a checklist on the deliverable detail view
+- Deliverable progress can optionally auto-calculate from task completion %
+- Tasks are visible to all project members
+- No approval workflow on tasks (immediate save)
+- Reorder tasks via drag-and-drop
+- Bulk actions: mark all complete, delete selected
+
+#### Data Model
+Tasks are stored in a new `deliverable_tasks` table with `deliverable_id` FK to deliverables.
+
+> **Note (30 Dec 2025):** Originally planned to use unified `project_structure_items` table (FF-018).
+> Decision made to use standalone table to avoid risk to core milestone/deliverable architecture.
+> See `docs/archive/FF018-Option-B-Unified-Table/README.md` for rationale.
+
+#### Dependencies
+- None (standalone implementation)
+
+#### Effort Estimate
+Low-Medium (2-3 days)
+
+---
+
+### FF-017: Project Types and Workflow Configuration
+
+**Priority:** High  
+**Added:** 2025-12-29  
+**Requested By:** Core System Enhancement
+
+#### Description
+Enable different project types with configurable governance workflows. Not all projects require dual-party sign-off, customer approval of timesheets, or formal variation processes.
+
+#### User Story
+As an Organisation Admin, I want to configure different project types with appropriate workflows, so that internal projects, agile projects, or simple engagements don't require unnecessary governance overhead.
+
+#### Project Types
+
+| Type | Description | Characteristics |
+|------|-------------|-----------------|
+| **Fixed Price (Dual-Party)** | Current default | Customer + Supplier PMs, dual signatures |
+| **T&M (Dual-Party)** | Time & Materials with customer oversight | Customer approves timesheets, simpler sign-off |
+| **Internal Project** | No external customer | Single-party approval, Supplier PM only |
+| **Agile/Iterative** | Sprint-based delivery | Simplified milestones, no formal baseline lock |
+| **Custom** | Fully configurable | Pick and choose governance features |
+
+#### Acceptance Criteria
+- Project settings page allows selecting project type
+- Project type determines:
+  - Whether customer PM role is required
+  - Whether dual signatures are required
+  - Whether timesheets require customer approval
+  - Whether variations process is enabled
+  - Whether milestone certificates are required
+  - Default milestone billing type
+- Existing projects default to "Fixed Price (Dual-Party)"
+- Permission matrix respects project type settings
+- Workflow categories adapt to project type
+
+#### Dependencies
+- FF-018 (Unified Project Structure Model) recommended first
+- Updates to permission hooks
+- Updates to workflow service
+
+#### Effort Estimate
+High (5-7 days) - Touches many areas of the application
+
+---
+
+### FF-018: Unified Project Structure Model
+
+**Priority:** Low (Deferred)  
+**Added:** 2025-12-29  
+**Requested By:** Architecture Enhancement  
+**Status:** ⏸️ DEFERRED — See archived documentation  
+**Archive Location:** `docs/archive/FF018-Option-B-Unified-Table/`
+
+#### Description
+Refactor the data model so that milestones, deliverables, and plan items share a **single underlying table** with different "views" for different contexts.
+
+#### Why Deferred (30 December 2025)
+
+After detailed analysis, the decision was made to defer this work because:
+
+1. **Live System Risk:** Users are actively using milestones, deliverables, variations, and certificates. All are working correctly.
+
+2. **Core Architecture Clarity:** Milestones and deliverables ARE the core architecture:
+   - Milestone progress is COMPUTED from deliverable progress
+   - 12+ tables have FK dependencies on milestones/deliverables
+   - The variation system modifies milestone baselines
+   - The certificate system gates billing
+
+3. **Planning Tool Role:** The `plan_items` table is a VISUAL LAYER for:
+   - Preparing to create milestones/deliverables
+   - Adjusting dates after creation
+   - It creates M/D entries on commit, not replaces them
+
+4. **Risk vs Reward:** Option A (incremental additions) delivers FF-016 and FF-019 with significantly lower risk.
+
+#### What Was Preserved
+
+- Full implementation plan archived for future reference
+- Schema analysis and workflow documentation archived
+- Lessons learned captured and carried forward
+
+#### Reactivation Criteria
+
+Consider reactivating when:
+- Quiet period with no active projects
+- Compelling new requirement justifies the migration risk
+- Time available for thorough testing
+- Clear benefit over incremental approach
+
+#### Original Design (Archived)
+
+See `docs/archive/FF018-Option-B-Unified-Table/IMPLEMENTATION-PLAN-FF018-Unified-Project-Structure.md` for the complete original design.
+
+---
+
+### FF-019: Milestone Billing Types
+
+**Priority:** Medium  
+**Added:** 2025-12-29  
+**Requested By:** Planning Tool Enhancement  
+**Status:** ⏸️ DEFERRED (30 Dec 2025)  
+**Archive:** `docs/archive/FF018-Option-B-Unified-Table/IMPLEMENTATION-PLAN-FF016-FF019-Incremental.md`
+
+#### Description
+When creating a milestone (whether from Planning tool or directly), prompt for the billing type and associated financial information.
+
+#### Billing Types
+
+| Type | Description | Financial Fields |
+|------|-------------|------------------|
+| **Fixed Price** | Pre-agreed payment amount | `billable` (fixed amount) |
+| **T&M Capped** | Time & Materials with ceiling | `billable` (cap), link to estimate |
+| **T&M Uncapped** | Time & Materials, no limit | Link to estimate for tracking |
+| **Non-Billable** | Internal/included work | None |
+
+#### Acceptance Criteria
+- Milestone form includes billing type selector
+- Conditional fields based on type
+- Planning tool conversion flow prompts for billing type
+- Finance Hub respects billing types for reporting
+- Existing milestones default to "Fixed Price" if billable > 0
+
+#### Data Model
+Add `billing_type` column to existing `milestones` table:
+```sql
+ALTER TABLE milestones ADD COLUMN billing_type TEXT 
+CHECK (billing_type IN ('fixed_price', 'tm_capped', 'tm_uncapped', 'non_billable'));
+```
+
+#### Dependencies
+- None (standalone implementation)
+
+#### Effort Estimate
+Low (0.5-1 day)
 
 ---
 
@@ -532,6 +1043,63 @@ Low (1-2 hours)
 
 Items that have been resolved and can be archived for reference.
 
+### COMPLETE-002: TD-001 Entity Permission Hook Consolidation
+
+**Completed:** 28 December 2025  
+**Original Priority:** Medium  
+**Effort:** 1 day (6 phases)
+
+#### Summary
+
+Refactored all entity detail modals to use internal permission hooks instead of receiving permission props from parent pages. This eliminates prop drilling and creates a single source of truth for permissions per entity.
+
+#### Implementation Details
+
+**New Hooks Created (3):**
+- `useExpensePermissions.js` - Expense-specific permissions with ownership, status, and chargeable logic
+- `useRaidPermissions.js` - RAID item permissions with status-based close/reopen logic
+- `useNetworkStandardPermissions.js` - Simple permission hook for network standards
+
+**Existing Hooks Used (3):**
+- `useDeliverablePermissions.js` - Already existed, modal refactored to use exclusively
+- `useTimesheetPermissions.js` - Already existed, modal refactored to use exclusively
+- `useMilestonePermissions.js` - Already existed, certificate modal refactored to use
+
+**Modals Refactored (6):**
+
+| Modal | Props Removed | Hook Used |
+|-------|---------------|----------|
+| `ExpenseDetailModal` | 6 props | `useExpensePermissions` |
+| `RaidDetailModal` | 2 props | `useRaidPermissions` |
+| `TimesheetDetailModal` | 5 props | `useTimesheetPermissions` |
+| `CertificateModal` | 2 props | `useMilestonePermissions` |
+| `NetworkStandardDetailModal` | 1 prop | `useNetworkStandardPermissions` |
+| `DeliverableDetailModal` | 4 props | `useDeliverablePermissions` |
+
+**Parent Pages Updated (7):**
+- `Expenses.jsx` - Removed 6 modal permission props
+- `RaidLog.jsx` - Removed 2 modal permission props
+- `Timesheets.jsx` - Removed 5 modal permission props
+- `MilestonesContent.jsx` - Removed 2 certificate modal props
+- `NetworkStandards.jsx` - Removed 1 modal permission prop
+- `Deliverables.jsx` - Removed 4 modal permission props
+- `DeliverablesContent.jsx` - Removed 4 modal permission props
+
+#### Benefits Achieved
+
+- **Single source of truth**: Each entity has one hook for all permission logic
+- **Self-contained modals**: Modals no longer depend on parent pages for permissions
+- **Reduced prop drilling**: ~20 permission props eliminated across 7 parent pages
+- **Consistent pattern**: All entity modals now follow the same approach
+- **Easier maintenance**: Permission changes only need to be made in one place per entity
+
+#### Related Files
+
+- Implementation Plan: `/docs/IMPLEMENTATION-PLAN-TD-001-Permission-Hook-Consolidation.md`
+- All hooks exported from: `src/hooks/index.js`
+
+---
+
 ### COMPLETE-001: Organisation-Level Multi-Tenancy
 
 **Completed:** 22-23 December 2025  
@@ -650,3 +1218,4 @@ When an item is resolved:
 |---------|------|--------|--------|
 | 1.0 | 16 Dec 2025 | Claude AI | Initial creation |
 | 1.1 | 23 Dec 2025 | Claude AI | Added COMPLETE-001 (Organisation Multi-Tenancy), added Document History section |
+| 1.2 | 28 Dec 2025 | Claude AI | Completed TD-001 (Permission Hook Consolidation), moved to COMPLETE-002 |

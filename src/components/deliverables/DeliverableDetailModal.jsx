@@ -11,9 +11,9 @@
  * - Progress: Supplier PM or Contributor
  * - KPI/QS Links: Supplier PM only
  * 
- * @version 2.5 - Added KPI/QS assessment during customer sign-off
+ * @version 3.0 - TD-001: Uses useDeliverablePermissions hook exclusively
  * @created 4 December 2025
- * @updated 18 December 2025
+ * @updated 28 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -391,10 +391,7 @@ export default function DeliverableDetailModal({
   milestones,
   kpis,
   qualityStandards,
-  canEdit: canEditProp,
-  canSubmit: canSubmitProp,
-  canReview: canReviewProp,
-  canDelete: canDeleteProp,
+  // TD-001: Permission props removed - now uses useDeliverablePermissions hook internally
   onClose,
   onSave,
   onStatusChange,
@@ -455,11 +452,11 @@ export default function DeliverableDetailModal({
   const linkedKPIs = deliverable.deliverable_kpis || [];
   const linkedQS = deliverable.deliverable_quality_standards || [];
 
-  // Workflow state checks (using calculation functions)
+  // Workflow state checks - using permissions from hook (TD-001)
   const isComplete = isDeliverableComplete(deliverable);
-  const showSubmitForReview = canSubmitProp && canSubmitForReview(deliverable);
-  const showReviewActions = canReviewProp && canReviewDeliverable(deliverable);
-  const showMarkDelivered = canReviewProp && canStartDeliverySignOff(deliverable);
+  const showSubmitForReview = permissions.canSubmit;
+  const showReviewActions = permissions.canReview;
+  const showMarkDelivered = permissions.canInitiateSignOff;
   
   // Sign-off state
   const signOffStatus = calculateSignOffStatus(deliverable);
@@ -915,7 +912,7 @@ export default function DeliverableDetailModal({
         {/* Footer Actions */}
         <div className="deliverable-modal-footer" data-testid="deliverable-modal-footer">
           <div className="footer-left">
-            {canDeleteProp && !isEditing && !isComplete && (
+            {permissions.canDelete && !isEditing && !isComplete && (
               <button
                 className="btn btn-danger"
                 onClick={() => { onDelete(deliverable); handleClose(); }}
@@ -980,7 +977,7 @@ export default function DeliverableDetailModal({
                 )}
 
                 {/* Edit Button */}
-                {canEditProp && !isComplete && (
+                {permissions.canEdit && !isComplete && (
                   <button 
                     className="btn btn-primary"
                     onClick={() => setIsEditing(true)}

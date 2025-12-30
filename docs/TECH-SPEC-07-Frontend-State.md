@@ -1,11 +1,22 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 4.0  
+**Document Version:** 5.1  
 **Created:** 11 December 2025  
-**Last Updated:** 24 December 2025  
-**Session:** 1.7 (updated for permission hierarchy fix)  
+**Last Updated:** 28 December 2025  
+**Session:** 1.7.2 (updated for TD-001 Permission Hook Consolidation)  
 **Author:** Claude AI (Anthropic)  
 
+> **Version 5.1 Updates (28 December 2025):**
+> - Updated Section 9.4: Entity-Specific Permission Hooks
+> - Added 3 new hooks: useExpensePermissions, useRaidPermissions, useNetworkStandardPermissions
+> - Added Hook Summary Table documenting all 7 entity permission hooks
+> - Documents TD-001 completion (Permission Hook Consolidation)
+>
+> **Version 5.0 Updates (28 December 2025):**
+> - Added Section 14: Planning & Estimator Tools
+> - Documents Planning.jsx, Estimator.jsx, Benchmarking.jsx pages
+> - Documents PlanningAIAssistant, ResourceTypeSelector components
+> - Documents EstimateGeneratorModal, EstimateLinkModal components
 > **Version 4.0 Updates (24 December 2025):**
 > - Added Section 13: New UI Components (Onboarding, Landing Page, Subscription)
 > - Documents OnboardingWizard, LandingPage, UpgradePrompt, UsageMeter components
@@ -42,6 +53,7 @@
 11. [State Management Patterns](#11-state-management-patterns)
 12. [Page-Specific State Management](#12-page-specific-state-management)
 13. [New UI Components (December 2025)](#13-new-ui-components-december-2025) *(NEW)*
+14. [Planning & Estimator Tools](#14-planning--estimator-tools) *(NEW - December 2025)*
 - [Appendix A: Role Display Configuration](#appendix-a-role-display-configuration)
 - [Appendix B: Context Import Patterns](#appendix-b-context-import-patterns)
 - [Document History](#document-history)
@@ -77,6 +89,479 @@ The AMSF001 Project Tracker uses React Context API for global state management. 
 
 The order is critical - each provider depends on those above it:
 
+```
+
+---
+
+## 14. Planning & Estimator Tools
+
+> **Added:** 28 December 2025
+> 
+> Three new tool pages for project planning and cost estimation.
+
+### 14.1 Planning Page (`/planning`)
+
+**File:** `src/pages/planning/Planning.jsx` (33KB, ~850 lines)
+
+**Purpose:** Excel-like hierarchical grid for Work Breakdown Structure (WBS) management.
+
+**Access Control:**
+- Roles: `admin`, `supplier_pm`, `customer_pm`
+- Route: `<ProtectedRoute requiredRoles={['admin', 'supplier_pm', 'customer_pm']}>`
+
+**State Management:**
+
+```javascript
+const [planItems, setPlanItems] = useState([]);        // All plan items
+const [expandedRows, setExpandedRows] = useState({});  // Expand/collapse state
+const [selectedCell, setSelectedCell] = useState(null); // Active cell {row, col}
+const [editingCell, setEditingCell] = useState(null);  // Cell being edited
+const [isLoading, setIsLoading] = useState(true);
+const [showAIAssistant, setShowAIAssistant] = useState(false);
+const [showEstimateModal, setShowEstimateModal] = useState(false);
+```
+
+**Key Features:**
+
+| Feature | Implementation |
+|---------|----------------|
+| Hierarchical Grid | Nested rows with expand/collapse |
+| Keyboard Navigation | Arrow keys, Tab, Enter, Escape |
+| Inline Editing | Double-click or Enter to edit |
+| Auto-save | Debounced save on cell blur |
+| Drag & Drop | Reorder items within same parent |
+| WBS Numbering | Auto-calculated (1.0, 1.1, 1.1.1) |
+| Progress Tracking | Visual progress bars |
+| Status Colors | Status-based row highlighting |
+
+**Grid Columns:**
+
+```javascript
+const columns = [
+  { key: 'wbs_number', label: 'WBS', width: 80, editable: false },
+  { key: 'name', label: 'Name', width: 250, editable: true },
+  { key: 'item_type', label: 'Type', width: 100, editable: true },
+  { key: 'status', label: 'Status', width: 120, editable: true },
+  { key: 'progress', label: 'Progress', width: 100, editable: true },
+  { key: 'start_date', label: 'Start', width: 110, editable: true },
+  { key: 'end_date', label: 'End', width: 110, editable: true },
+  { key: 'estimated_hours', label: 'Est. Hours', width: 90, editable: true },
+  { key: 'assigned_to', label: 'Assigned', width: 150, editable: true },
+];
+```
+
+**Keyboard Handlers:**
+
+```javascript
+const handleKeyDown = (e) => {
+  switch(e.key) {
+    case 'ArrowUp': moveSelection(-1, 0); break;
+    case 'ArrowDown': moveSelection(1, 0); break;
+    case 'ArrowLeft': moveSelection(0, -1); break;
+    case 'ArrowRight': moveSelection(0, 1); break;
+    case 'Tab': e.shiftKey ? moveSelection(0, -1) : moveSelection(0, 1); break;
+    case 'Enter': editingCell ? saveAndMove() : startEditing(); break;
+    case 'Escape': cancelEditing(); break;
+    case 'Delete': deleteSelectedItem(); break;
+  }
+};
+```
+
+**Service Integration:**
+
+```javascript
+import planItemsService from '../../services/planItems.service';
+
+// Load data
+const items = await planItemsService.getByProject(projectId);
+
+// Save cell edit
+await planItemsService.update(itemId, { [columnKey]: newValue });
+
+// Create new item
+const newItem = await planItemsService.create({ project_id: projectId, ...data });
+
+// Delete item
+await planItemsService.delete(itemId);
+```
+
+---
+
+### 14.2 Planning AI Assistant
+
+**File:** `src/components/planning/PlanningAIAssistant.jsx` (22KB, ~550 lines)
+
+**Purpose:** AI-powered document upload and WBS extraction.
+
+**State Management:**
+
+```javascript
+const [messages, setMessages] = useState([]);          // Conversation history
+const [inputValue, setInputValue] = useState('');      // User input
+const [isLoading, setIsLoading] = useState(false);     // API call in progress
+const [uploadedDocument, setUploadedDocument] = useState(null); // File data
+const [generatedStructure, setGeneratedStructure] = useState(null); // AI output
+```
+
+**Document Upload:**
+
+```javascript
+const handleFileUpload = async (file) => {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const base64 = e.target.result.split(',')[1];
+    setUploadedDocument({
+      data: base64,
+      mediaType: file.type,
+      fileName: file.name
+    });
+  };
+  reader.readAsDataURL(file);
+};
+```
+
+**API Integration:**
+
+```javascript
+const sendMessage = async (content) => {
+  const response = await fetch('/api/planning-ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [...messages, { role: 'user', content }],
+      projectContext: { projectId, projectName },
+      currentStructure: existingPlanItems,
+      document: uploadedDocument
+    })
+  });
+  
+  const result = await response.json();
+  
+  if (result.structure) {
+    setGeneratedStructure(result.structure);
+  }
+};
+```
+
+**Import Generated Structure:**
+
+```javascript
+const importStructure = async () => {
+  await planItemsService.importStructure(projectId, generatedStructure);
+  onImportComplete(); // Callback to refresh Planning grid
+};
+```
+
+---
+
+### 14.3 Estimator Page (`/estimator`)
+
+**File:** `src/pages/estimator/Estimator.jsx` (46KB, ~950 lines)
+
+**Purpose:** Component-based cost estimation with SFIA 8 skills framework.
+
+**Access Control:**
+- Roles: `admin`, `supplier_pm`
+- Route: `<ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>`
+
+**State Management:**
+
+```javascript
+// Estimate data
+const [estimate, setEstimate] = useState(null);           // Current estimate
+const [components, setComponents] = useState([]);          // Estimate components
+const [selectedComponent, setSelectedComponent] = useState(null);
+
+// Tasks & Resources
+const [tasks, setTasks] = useState([]);                   // Tasks in component
+const [resources, setResources] = useState([]);           // Resource allocations
+
+// UI state
+const [isLoading, setIsLoading] = useState(true);
+const [isSaving, setIsSaving] = useState(false);
+const [showResourceSelector, setShowResourceSelector] = useState(false);
+const [showSaveDialog, setShowSaveDialog] = useState(false);
+
+// Rate lookup
+const [rateLookup, setRateLookup] = useState({});         // SFIA rates cache
+```
+
+**Rate Lookup Initialization:**
+
+```javascript
+useEffect(() => {
+  const loadRates = async () => {
+    const rates = await benchmarkRatesService.buildRateLookup();
+    setRateLookup(rates);
+  };
+  loadRates();
+}, []);
+
+// Get rate for resource
+const getRate = (skillId, sfiaLevel, tierId) => {
+  const key = `${skillId}-${sfiaLevel}-${tierId}`;
+  return rateLookup[key] || FALLBACK_RATES[tierId];
+};
+```
+
+**Effort Grid:**
+
+```javascript
+// Month columns (12 months)
+const months = Array.from({ length: 12 }, (_, i) => {
+  const date = new Date(estimate.start_date);
+  date.setMonth(date.getMonth() + i);
+  return { key: `month_${i}`, label: date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) };
+});
+
+// Calculate row total
+const calculateRowTotal = (resource) => {
+  return months.reduce((sum, month) => sum + (resource[month.key] || 0), 0);
+};
+
+// Calculate cost
+const calculateRowCost = (resource) => {
+  const days = calculateRowTotal(resource);
+  const rate = getRate(resource.skill_id, resource.sfia_level, resource.tier_id);
+  return days * rate;
+};
+```
+
+**Component Totals:**
+
+```javascript
+const componentTotal = useMemo(() => {
+  const baseCost = resources.reduce((sum, r) => sum + calculateRowCost(r), 0);
+  const quantity = selectedComponent?.quantity || 1;
+  return baseCost * quantity;
+}, [resources, selectedComponent]);
+```
+
+**Save Estimate:**
+
+```javascript
+const saveEstimate = async () => {
+  setIsSaving(true);
+  try {
+    // Save estimate header
+    const savedEstimate = await estimatesService.save(estimate);
+    
+    // Save components
+    for (const component of components) {
+      await estimatesService.saveComponent(savedEstimate.id, component);
+      
+      // Save tasks
+      for (const task of component.tasks) {
+        await estimatesService.saveTask(component.id, task);
+        
+        // Save resources
+        for (const resource of task.resources) {
+          await estimatesService.saveResource(task.id, resource);
+        }
+      }
+    }
+    
+    toast.success('Estimate saved');
+  } finally {
+    setIsSaving(false);
+  }
+};
+```
+
+---
+
+### 14.4 Resource Type Selector
+
+**File:** `src/components/estimator/ResourceTypeSelector.jsx`
+
+**Purpose:** Hierarchical SFIA 8 skill/level/tier selection.
+
+**Props:**
+
+```javascript
+ResourceTypeSelector.propTypes = {
+  onSelect: PropTypes.func.isRequired,  // Callback with selection
+  initialValue: PropTypes.object,       // Pre-selected values
+  onClose: PropTypes.func.isRequired,   // Close modal
+};
+```
+
+**State:**
+
+```javascript
+const [selectedCategory, setSelectedCategory] = useState(null);
+const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+const [selectedSkill, setSelectedSkill] = useState(null);
+const [selectedLevel, setSelectedLevel] = useState(null);
+const [selectedTier, setSelectedTier] = useState('contractor');
+```
+
+**SFIA 8 Data:**
+
+```javascript
+import { CATEGORIES, SUBCATEGORIES, SKILLS, LEVELS, TIERS } from '../../services/sfia8-reference-data';
+
+// 6 categories, 19 subcategories, 97 skills, 7 levels, 4 tiers
+```
+
+**Selection Flow:**
+
+```
+Category → Subcategory → Skill → Level → Tier
+   ↓           ↓           ↓        ↓       ↓
+Strategy   Enterprise   Business  Level 5   Mid
+  Dev.     Arch.       Analysis
+```
+
+**Output:**
+
+```javascript
+const handleConfirm = () => {
+  onSelect({
+    category_id: selectedCategory.id,
+    subcategory_id: selectedSubcategory.id,
+    skill_id: selectedSkill.id,
+    skill_name: selectedSkill.name,
+    sfia_level: selectedLevel,
+    tier_id: selectedTier,
+    tier_name: TIERS.find(t => t.id === selectedTier).name
+  });
+  onClose();
+};
+```
+
+---
+
+### 14.5 Benchmarking Page (`/benchmarking`)
+
+**File:** `src/pages/benchmarking/Benchmarking.jsx` (19KB, ~450 lines)
+
+**Purpose:** SFIA 8 rate comparison and management.
+
+**Access Control:**
+- Roles: `admin`, `supplier_pm`
+- Route: `<ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>`
+
+**State Management:**
+
+```javascript
+const [rates, setRates] = useState([]);                   // All rates
+const [selectedCategory, setSelectedCategory] = useState(null);
+const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+const [expandedCategories, setExpandedCategories] = useState({});
+const [viewMode, setViewMode] = useState('table');        // 'table' | 'comparison'
+const [isLoading, setIsLoading] = useState(true);
+```
+
+**Rate Display:**
+
+```javascript
+// Tier comparison view
+const tierColumns = [
+  { id: 'contractor', label: 'Contractor', multiplier: 1.0 },
+  { id: 'boutique', label: 'Boutique', multiplier: 1.3 },
+  { id: 'mid', label: 'Mid-Tier', multiplier: 1.5 },
+  { id: 'big4', label: 'Big 4', multiplier: 1.9 },
+];
+
+// Format rate
+const formatRate = (rate) => `£${rate.toLocaleString()}`;
+```
+
+**Service Integration:**
+
+```javascript
+import benchmarkRatesService from '../../services/benchmarkRates.service';
+
+// Load all rates
+const rates = await benchmarkRatesService.getAllRates();
+
+// Get rates by category
+const categoryRates = benchmarkRatesService.getRatesByCategory(categoryId);
+
+// Update rate (admin only)
+await benchmarkRatesService.updateRate(rateId, { day_rate: newRate });
+```
+
+---
+
+### 14.6 Estimate Generator Modal
+
+**File:** `src/components/planning/EstimateGeneratorModal.jsx`
+
+**Purpose:** Generate estimate from plan structure.
+
+**Flow:**
+
+```
+Planning Page → "Generate Estimate" button → Modal
+                                              ↓
+                                    Select plan items
+                                              ↓
+                                    Configure options
+                                              ↓
+                                    Create estimate
+                                              ↓
+                                    Navigate to Estimator
+```
+
+**Props:**
+
+```javascript
+EstimateGeneratorModal.propTypes = {
+  planItems: PropTypes.array.isRequired,  // Items to include
+  projectId: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onGenerate: PropTypes.func.isRequired,  // Callback with estimate ID
+};
+```
+
+---
+
+### 14.7 Estimate Link Modal
+
+**File:** `src/components/planning/EstimateLinkModal.jsx`
+
+**Purpose:** Link/unlink plan items to estimate components.
+
+**Features:**
+- View linked estimate for plan item
+- Link plan item to existing estimate component
+- Unlink plan item from estimate
+- Navigate to linked estimate
+
+---
+
+### 14.8 File Structure Summary
+
+```
+src/
+├── pages/
+│   ├── planning/
+│   │   ├── Planning.jsx              # Main planning page (33KB)
+│   │   └── Planning.css
+│   ├── estimator/
+│   │   ├── Estimator.jsx             # Main estimator page (46KB)
+│   │   └── Estimator.css
+│   └── benchmarking/
+│       ├── Benchmarking.jsx          # Rate comparison (19KB)
+│       └── Benchmarking.css
+│
+├── components/
+│   ├── planning/
+│   │   ├── PlanningAIAssistant.jsx   # AI document analysis (22KB)
+│   │   ├── EstimateGeneratorModal.jsx
+│   │   ├── EstimateLinkModal.jsx
+│   │   └── index.js
+│   └── estimator/
+│       ├── ResourceTypeSelector.jsx   # SFIA 8 selector
+│       └── index.js
+│
+└── services/
+    ├── planItems.service.js          # Plan CRUD operations
+    ├── estimates.service.js          # Estimate CRUD operations
+    ├── benchmarkRates.service.js     # Rate lookup & management
+    └── sfia8-reference-data.js       # SFIA 8 constants
 ```jsx
 // src/App.jsx (Updated December 2025)
 <BrowserRouter>
@@ -1151,6 +1636,22 @@ function MyComponent({ expense }) {
 
 ### 9.4 Entity-Specific Permission Hooks
 
+> **Updated:** 28 December 2025 (TD-001 Complete)
+> 
+> All entity-specific permission hooks now follow a consistent pattern where modals use hooks internally instead of receiving permission props from parent pages.
+
+#### Hook Summary Table
+
+| Hook | Entity | Created | Modal Consumer |
+|------|--------|---------|----------------|
+| `useMilestonePermissions` | Milestones, Certificates | Pre-existing | `CertificateModal` |
+| `useDeliverablePermissions` | Deliverables | Pre-existing | `DeliverableDetailModal` |
+| `useTimesheetPermissions` | Timesheets | Pre-existing | `TimesheetDetailModal` |
+| `useResourcePermissions` | Resources | Pre-existing | `ResourceDetailModal` |
+| `useExpensePermissions` | Expenses | TD-001 | `ExpenseDetailModal` |
+| `useRaidPermissions` | RAID Items | TD-001 | `RaidDetailModal` |
+| `useNetworkStandardPermissions` | Network Standards | TD-001 | `NetworkStandardDetailModal` |
+
 #### useMilestonePermissions
 
 ```javascript
@@ -1227,6 +1728,76 @@ const {
   isOwnResource,
 } = useResourcePermissions(resource);
 ```
+
+#### useExpensePermissions (NEW - TD-001)
+
+**File:** `src/hooks/useExpensePermissions.js`
+
+Provides expense-specific permissions considering ownership, status, and chargeable type.
+
+```javascript
+const {
+  canView,
+  canCreate,
+  canEdit,
+  canDelete,
+  canSubmit,
+  canValidate,
+  canReject,
+  isOwner,
+  isEditable,
+  isComplete,
+} = useExpensePermissions(expense);
+```
+
+**Key Logic:**
+- `canEdit`: Requires ownership (or supplier-side role) AND draft/rejected status
+- `canValidate`: Customer-side for chargeable, supplier-side for non-chargeable
+- `isEditable`: Status is `draft` or `rejected`
+
+#### useRaidPermissions (NEW - TD-001)
+
+**File:** `src/hooks/useRaidPermissions.js`
+
+Provides RAID item permissions with status-based close/reopen logic.
+
+```javascript
+const {
+  canView,
+  canCreate,
+  canEdit,
+  canDelete,
+  canClose,
+  canReopen,
+  isOpen,
+  isClosed,
+} = useRaidPermissions(raidItem);
+```
+
+**Key Logic:**
+- `canClose`: Managers only, item must be open
+- `canReopen`: Managers only, item must be closed
+- `canDelete`: Supplier-side only
+
+#### useNetworkStandardPermissions (NEW - TD-001)
+
+**File:** `src/hooks/useNetworkStandardPermissions.js`
+
+Simple permission hook for network standards (supplier-side management).
+
+```javascript
+const {
+  canView,
+  canCreate,
+  canEdit,
+  canDelete,
+  canManage,
+} = useNetworkStandardPermissions();
+```
+
+**Key Logic:**
+- All management permissions restricted to supplier-side roles
+- No object-level checks (entity-level only)
 
 ---
 
@@ -2053,6 +2624,9 @@ import {
   useDeliverablePermissions,
   useTimesheetPermissions,
   useResourcePermissions,
+  useExpensePermissions,        // NEW - TD-001
+  useRaidPermissions,           // NEW - TD-001
+  useNetworkStandardPermissions, // NEW - TD-001
   useDashboardMetrics,
   useMilestoneMetrics,
   useDeliverableMetrics,
@@ -2084,3 +2658,5 @@ import {
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added OrganisationContext (Section 4), OrganisationSwitcher component, updated Provider Hierarchy, updated ProjectContext to depend on OrganisationContext, added ORG_ROLE_CONFIG |
 | 3.0 | 24 Dec 2025 | Claude AI | **Permission Hierarchy Fix**: Updated ViewAsContext v3.0 (org admin hierarchy), usePermissions v5.0 (isOrgLevelAdmin), updated Role Resolution Flow |
 | 4.0 | 24 Dec 2025 | Claude AI | **New UI Components**: Added Section 13 documenting LandingPage, OnboardingWizard, PendingInvitationCard, UpgradePrompt, UsageMeter, OrganisationUsageWidget |
+| 5.0 | 28 Dec 2025 | Claude AI | **Planning & Estimator Tools**: Added Section 14 documenting Planning.jsx, Estimator.jsx, Benchmarking.jsx pages and PlanningAIAssistant, ResourceTypeSelector components |
+| 5.1 | 28 Dec 2025 | Claude AI | **TD-001 Permission Hook Consolidation**: Updated Section 9.4 with 3 new hooks (useExpensePermissions, useRaidPermissions, useNetworkStandardPermissions), added Hook Summary Table |

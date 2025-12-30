@@ -162,8 +162,7 @@ export default function NetworkStandards() {
     };
   });
 
-  // Can edit check - use effectiveRole from useProjectRole hook
-  const canEdit = effectiveRole === 'admin' || effectiveRole === 'supplier_pm' || effectiveRole === 'contributor';
+  // Note: canEdit removed as NetworkStandardDetailModal now uses useNetworkStandardPermissions hook internally (TD-001)
 
   if (loading || roleLoading) {
     return <LoadingSpinner message="Loading network standards..." size="large" fullPage />;
@@ -357,11 +356,10 @@ export default function NetworkStandards() {
         </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* TD-001: NetworkStandardDetailModal now uses useNetworkStandardPermissions hook internally */}
       <NetworkStandardDetailModal
         isOpen={detailModal.isOpen}
         standard={detailModal.standard}
-        canEdit={canEdit}
         onClose={() => setDetailModal({ isOpen: false, standard: null })}
         onSave={handleSaveFromModal}
       />

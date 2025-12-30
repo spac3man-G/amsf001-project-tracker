@@ -67,6 +67,8 @@ export default function MilestonesContent() {
   const currentUserId = user?.id || null;
   const currentUserName = profile?.full_name || user?.email || 'Unknown';
 
+  // Note: canSignAsSupplier, canSignAsCustomer still used in signCertificate() for safety validation
+  // CertificateModal now also uses useMilestonePermissions hook internally (TD-001)
   const { canCreateMilestone, canEditMilestone, canDeleteMilestone, canSignAsSupplier, canSignAsCustomer } = usePermissions();
 
   // State
@@ -695,14 +697,12 @@ export default function MilestonesContent() {
         />
       )}
 
-      {/* Certificate Modal */}
+      {/* TD-001: CertificateModal now uses useMilestonePermissions hook internally */}
       {showCertificateModal && selectedCertificate && (
         <CertificateModal
           certificate={selectedCertificate}
           onClose={() => setShowCertificateModal(false)}
           onSign={signCertificate}
-          canSignSupplier={canSignAsSupplier}
-          canSignCustomer={canSignAsCustomer}
         />
       )}
 

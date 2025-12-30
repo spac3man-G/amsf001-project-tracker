@@ -1,10 +1,17 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 3.0  
+**Document Version:** 4.0  
 **Created:** 11 December 2025  
-**Updated:** 24 December 2025  
-**Session:** 1.8  
+**Updated:** 28 December 2025  
+**Session:** 1.8.1  
 **Status:** Complete
+
+> **Version 4.0 Updates (28 December 2025):**
+> - Added Section 15: Planning & Estimator Services
+> - Documents planItems.service.js (18 methods)
+> - Documents estimates.service.js (14 methods + nested services)
+> - Documents benchmarkRates.service.js (8 methods + rate lookup)
+> - Updated file structure listing
 
 > **Version 3.0 Updates (24 December 2025):**
 > - Added Section 4.8: Subscription Service (tier limits, usage tracking)
@@ -36,6 +43,7 @@
 12. [Error Handling Patterns](#12-error-handling-patterns)
 13. [Report Builder Services](#13-report-builder-services)
 14. [Document History](#14-document-history)
+15. [Planning & Estimator Services](#15-planning--estimator-services) *(NEW - December 2025)*
 
 ---
 
@@ -2185,3 +2193,371 @@ All services use the singleton pattern and are exported through a barrel file fo
 | 1.1 | 17 Dec 2025 | Claude AI | Added Report Builder Services section |
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added Section 4 (Organisation Services), updated file structure, updated architecture diagram, renumbered sections 5-14 |
 | 3.0 | 24 Dec 2025 | Claude AI | **Subscription & Invitations**: Added Section 4.8 (Subscription Service), Section 4.9 (Invitation Service), updated addMember with skipLimitCheck option |
+| 4.0 | 28 Dec 2025 | Claude AI | **Planning & Estimator Services**: Added Section 15 with planItems.service, estimates.service, benchmarkRates.service documentation |
+
+---
+
+## 15. Planning & Estimator Services
+
+> **Added:** 28 December 2025
+>
+> Services supporting WBS planning, cost estimation, and SFIA 8 rate benchmarking.
+
+### 15.1 Plan Items Service
+
+**File:** `src/services/planItems.service.js`
+
+**Purpose:** CRUD operations for hierarchical Work Breakdown Structure (WBS) items.
+
+**Dependencies:**
+- BaseService (extends)
+- Supabase client
+
+**Table:** `plan_items`
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getByProject` | projectId | Array | Get all items for project |
+| `getByParent` | parentId | Array | Get children of parent |
+| `getHierarchy` | projectId | Array | Get nested tree structure |
+| `create` | data | Object | Create new item |
+| `update` | id, data | Object | Update item |
+| `delete` | id | Boolean | Soft delete item |
+| `deleteWithChildren` | id | Number | Cascade delete with children |
+| `reorder` | id, newPosition, parentId | Boolean | Move item in list |
+| `updateProgress` | id, progress | Object | Update progress % |
+| `updateStatus` | id, status | Object | Update status |
+| `bulkCreate` | items | Array | Create multiple items |
+| `bulkUpdate` | items | Array | Update multiple items |
+| `importStructure` | projectId, structure | Array | Import from AI |
+| `exportStructure` | projectId | Object | Export as JSON |
+| `calculateWBS` | projectId | Array | Recalculate WBS numbers |
+| `getEstimateLinks` | itemId | Array | Get linked estimates |
+| `linkToEstimate` | itemId, componentId | Object | Link to estimate |
+| `unlinkFromEstimate` | itemId | Boolean | Remove estimate link |
+
+#### Import Structure Method
+
+```javascript
+async importStructure(projectId, structure) {
+  const items = [];
+  let sortOrder = 0;
+
+  const processItem = async (item, parentId = null, level = 1) => {
+    const newItem = await this.create({
+      project_id: projectId,
+      parent_id: parentId,
+      name: item.name,
+      description: item.description,
+      item_type: item.item_type,
+      duration_days: item.duration_days,
+      sort_order: sortOrder++,
+      level
+    });
+    items.push(newItem);
+
+    if (item.children?.length) {
+      for (const child of item.children) {
+        await processItem(child, newItem.id, level + 1);
+      }
+    }
+  };
+
+  for (const rootItem of structure) {
+    await processItem(rootItem);
+  }
+
+  await this.calculateWBS(projectId);
+  return items;
+}
+```
+
+#### WBS Calculation
+
+```javascript
+async calculateWBS(projectId) {
+  const items = await this.getByProject(projectId);
+  const updateWBS = (items, prefix = '') => {
+    let counter = 1;
+    return items.map(item => {
+      const wbs = prefix ? `${prefix}.${counter}` : `${counter}`;
+      counter++;
+      const children = items.filter(i => i.parent_id === item.id);
+      return {
+        ...item,
+        wbs_number: wbs,
+        children: updateWBS(children, wbs)
+      };
+    });
+  };
+
+  const rootItems = items.filter(i => !i.parent_id);
+  return updateWBS(rootItems);
+}
+```
+
+---
+
+### 15.2 Estimates Service
+
+**File:** `src/services/estimates.service.js`
+
+**Purpose:** Manage estimates with nested components, tasks, and resource allocations.
+
+**Tables:** `estimates`, `estimate_components`, `estimate_tasks`, `estimate_resources`
+
+#### Main Service Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getAll` | projectId | Array | Get all estimates for project |
+| `getById` | id | Object | Get estimate with children |
+| `create` | data | Object | Create new estimate |
+| `update` | id, data | Object | Update estimate |
+| `delete` | id | Boolean | Cascade delete estimate |
+| `duplicate` | id, newName | Object | Clone estimate |
+| `updateStatus` | id, status | Object | Change status |
+| `calculateTotals` | id | Object | Recalculate all totals |
+| `getByPlanItem` | planItemId | Array | Get estimates linked to plan |
+| `linkToPlanItem` | estimateId, planItemId | Object | Link to plan item |
+| `exportToExcel` | id | Blob | Export as XLSX |
+| `importFromExcel` | projectId, file | Object | Import from XLSX |
+| `applyTemplate` | templateId, estimateId | Object | Apply rate template |
+| `compareVersions` | id1, id2 | Object | Diff two estimates |
+
+#### Nested Service: Estimate Components
+
+```javascript
+estimates.components = {
+  getByEstimate: (estimateId) => Array,
+  create: (estimateId, data) => Object,
+  update: (componentId, data) => Object,
+  delete: (componentId) => Boolean,
+  reorder: (componentId, newPosition) => Boolean,
+  duplicate: (componentId) => Object,
+};
+```
+
+#### Nested Service: Estimate Tasks
+
+```javascript
+estimates.tasks = {
+  getByComponent: (componentId) => Array,
+  create: (componentId, data) => Object,
+  update: (taskId, data) => Object,
+  delete: (taskId) => Boolean,
+  bulkCreate: (componentId, tasks) => Array,
+};
+```
+
+#### Nested Service: Estimate Resources
+
+```javascript
+estimates.resources = {
+  getByTask: (taskId) => Array,
+  create: (taskId, data) => Object,
+  update: (resourceId, data) => Object,
+  delete: (resourceId) => Boolean,
+  bulkUpdate: (resources) => Array,
+  calculateCost: (resourceId) => Number,
+};
+```
+
+#### Totals Calculation
+
+```javascript
+async calculateTotals(estimateId) {
+  const estimate = await this.getById(estimateId);
+  let totalDays = 0;
+  let totalCost = 0;
+
+  for (const component of estimate.components) {
+    let componentDays = 0;
+    let componentCost = 0;
+
+    for (const task of component.tasks) {
+      for (const resource of task.resources) {
+        const days = Object.keys(resource)
+          .filter(k => k.startsWith('month_'))
+          .reduce((sum, k) => sum + (resource[k] || 0), 0);
+        const rate = await benchmarkRatesService.getRate(
+          resource.skill_id,
+          resource.sfia_level,
+          resource.tier_id
+        );
+        componentDays += days;
+        componentCost += days * rate;
+      }
+    }
+
+    // Apply component quantity
+    const quantity = component.quantity || 1;
+    totalDays += componentDays * quantity;
+    totalCost += componentCost * quantity;
+  }
+
+  return this.update(estimateId, {
+    total_days: totalDays,
+    total_cost: totalCost,
+    updated_at: new Date().toISOString()
+  });
+}
+```
+
+---
+
+### 15.3 Benchmark Rates Service
+
+**File:** `src/services/benchmarkRates.service.js`
+
+**Purpose:** SFIA 8 rate management and lookup for estimating.
+
+**Table:** `benchmark_rates`
+
+**Dependencies:**
+- SFIA 8 reference data (`sfia8-reference-data.js`)
+- Supabase client
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getAllRates` | - | Array | Get all benchmark rates |
+| `getRatesByCategory` | categoryId | Array | Get rates for category |
+| `getRatesBySubcategory` | subcategoryId | Array | Get rates for subcategory |
+| `getRate` | skillId, sfiaLevel, tierId | Number | Get specific rate |
+| `updateRate` | rateId, data | Object | Update rate value |
+| `bulkUpdateRates` | rates | Array | Update multiple rates |
+| `buildRateLookup` | - | Object | Build lookup hash map |
+| `getSkillInfo` | skillId | Object | Get skill details |
+
+#### Rate Lookup
+
+```javascript
+async buildRateLookup() {
+  const rates = await this.getAllRates();
+  const lookup = {};
+
+  for (const rate of rates) {
+    const key = `${rate.skill_id}-${rate.sfia_level}-${rate.tier_id}`;
+    lookup[key] = rate.day_rate;
+  }
+
+  return lookup;
+}
+
+// Usage in Estimator
+const rateLookup = await benchmarkRatesService.buildRateLookup();
+const rate = rateLookup['BUAN-5-mid'] || FALLBACK_RATES['mid'];
+```
+
+#### Tier Multipliers
+
+```javascript
+const TIER_MULTIPLIERS = {
+  contractor: 1.0,    // Base rate
+  boutique: 1.3,      // +30%
+  mid: 1.5,           // +50%
+  big4: 1.9,          // +90%
+};
+
+// Rate calculation from base
+function calculateTierRate(baseRate, tierId) {
+  return Math.round(baseRate * TIER_MULTIPLIERS[tierId]);
+}
+```
+
+#### SFIA 8 Reference Data
+
+```javascript
+// sfia8-reference-data.js
+export const CATEGORIES = [
+  { id: 'STGY', name: 'Strategy and architecture', skills: 20 },
+  { id: 'CHNG', name: 'Change and transformation', skills: 13 },
+  { id: 'DVMT', name: 'Development and implementation', skills: 19 },
+  { id: 'DLVR', name: 'Delivery and operation', skills: 16 },
+  { id: 'SKIL', name: 'Skills and quality', skills: 12 },
+  { id: 'RLTN', name: 'Relationships and engagement', skills: 17 },
+];
+
+export const LEVELS = [
+  { id: 1, name: 'Follow', description: 'Learning the basics...' },
+  { id: 2, name: 'Assist', description: 'Works under supervision...' },
+  { id: 3, name: 'Apply', description: 'Works independently...' },
+  { id: 4, name: 'Enable', description: 'Enables others to work...' },
+  { id: 5, name: 'Ensure, advise', description: 'Ensures others work...' },
+  { id: 6, name: 'Initiate, influence', description: 'Strategic influence...' },
+  { id: 7, name: 'Set strategy, inspire', description: 'Sets direction...' },
+];
+
+export const TIERS = [
+  { id: 'contractor', name: 'Contractor', multiplier: 1.0 },
+  { id: 'boutique', name: 'Boutique', multiplier: 1.3 },
+  { id: 'mid', name: 'Mid-Tier', multiplier: 1.5 },
+  { id: 'big4', name: 'Big 4', multiplier: 1.9 },
+];
+
+// Total: 97 skills across 19 subcategories
+```
+
+---
+
+### 15.4 File Structure Update
+
+```
+src/services/
+├── # Planning & Estimator Services (NEW)
+├── planItems.service.js        # WBS plan item management
+├── estimates.service.js        # Cost estimation
+├── benchmarkRates.service.js   # SFIA 8 rate lookup
+├── sfia8-reference-data.js     # SFIA 8 constants
+│
+├── # Existing services...
+├── organisation.service.js
+├── milestones.service.js
+└── ...
+```
+
+---
+
+### 15.5 Service Dependencies
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Planning Page                             │
+│                   (Planning.jsx)                             │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  planItemsService                            │
+│  - getByProject()                                           │
+│  - importStructure()  ◄─── PlanningAIAssistant              │
+│  - calculateWBS()                                           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              │ linkToEstimate()
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  estimatesService                            │
+│  - create(), getById(), calculateTotals()                   │
+│    └── components.create(), tasks.create()                  │
+│        └── resources.create(), resources.calculateCost()    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│               benchmarkRatesService                          │
+│  - buildRateLookup()                                        │
+│  - getRate(skillId, sfiaLevel, tierId)                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    benchmark_rates                           │
+│                  (PostgreSQL table)                          │
+│  ~1,500 rate combinations (97 skills × 7 levels × ~2 tiers) │
+└─────────────────────────────────────────────────────────────┘
+```

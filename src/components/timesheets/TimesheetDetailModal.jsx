@@ -6,9 +6,9 @@
  * 
  * Uses centralised timesheet calculations for status display and workflow.
  * 
- * @version 2.0 - Refactored to use timesheetCalculations.js
+ * @version 3.0 - TD-001: Uses useTimesheetPermissions hook internally
  * @created 3 December 2025
- * @updated 6 December 2025
+ * @updated 28 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -23,17 +23,13 @@ import {
   getStatusConfig,
   getStatusValues
 } from '../../lib/timesheetCalculations';
+import { useTimesheetPermissions } from '../../hooks';
 
 export default function TimesheetDetailModal({
   isOpen,
   timesheet,
   resources,
   milestones,
-  userRole,
-  canSubmitTimesheet,
-  canValidateTimesheet,
-  canEditTimesheet,
-  canDeleteTimesheet,
   onClose,
   onSave,
   onSubmit,
@@ -43,6 +39,9 @@ export default function TimesheetDetailModal({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+
+  // Get permissions from hook - centralised permission logic
+  const permissions = useTimesheetPermissions(timesheet);
 
   useEffect(() => {
     if (timesheet) {
@@ -172,7 +171,7 @@ export default function TimesheetDetailModal({
                     className="form-input"
                     value={editForm.resource_id}
                     onChange={(e) => setEditForm({ ...editForm, resource_id: e.target.value })}
-                    disabled={userRole !== 'admin'}
+                    disabled={!permissions.isAdmin}
                   >
                     {resources?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
@@ -235,7 +234,7 @@ export default function TimesheetDetailModal({
                 />
               </div>
 
-              {userRole === 'admin' && (
+              {permissions.isAdmin && (
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '500', fontSize: '0.875rem' }}>
                     Status
@@ -355,7 +354,7 @@ export default function TimesheetDetailModal({
           backgroundColor: '#f8fafc'
         }}>
           <div>
-            {canDeleteTimesheet(timesheet) && !isEditing && (
+            {permissions.canDelete && !isEditing && (
               <button
                 onClick={() => { onDelete(timesheet); handleClose(); }}
                 className="btn btn-danger"
@@ -378,7 +377,7 @@ export default function TimesheetDetailModal({
               </>
             ) : (
               <>
-                {canSubmitTimesheet(timesheet) && (
+                {permissions.canSubmit && (
                   <button 
                     onClick={() => { onSubmit(timesheet.id); handleClose(); }} 
                     className="btn btn-secondary"
@@ -388,7 +387,7 @@ export default function TimesheetDetailModal({
                     <Send size={16} /> Submit for Validation
                   </button>
                 )}
-                {canValidateTimesheet(timesheet) && (
+                {permissions.canValidate && (
                   <>
                     <button 
                       onClick={() => { onReject(timesheet.id); handleClose(); }} 
@@ -408,7 +407,7 @@ export default function TimesheetDetailModal({
                     </button>
                   </>
                 )}
-                {canEditTimesheet(timesheet) && (
+                {permissions.canEdit && (
                   <button 
                     onClick={() => setIsEditing(true)} 
                     className="btn btn-primary"

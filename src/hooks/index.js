@@ -3,9 +3,9 @@
  * 
  * Central export point for all custom hooks.
  * 
- * @version 1.3
+ * @version 1.4
  * @created 3 December 2025
- * @updated 12 December 2025 - Added useProjectRole for project-scoped permissions
+ * @updated 28 December 2025 - TD-001: Added useExpensePermissions, useRaidPermissions, useNetworkStandardPermissions
  */
 
 // Form handling
@@ -19,6 +19,9 @@ export { useMilestonePermissions } from './useMilestonePermissions';
 export { useDeliverablePermissions } from './useDeliverablePermissions';
 export { useTimesheetPermissions } from './useTimesheetPermissions';
 export { useResourcePermissions } from './useResourcePermissions';
+export { useExpensePermissions } from './useExpensePermissions';
+export { useRaidPermissions } from './useRaidPermissions';
+export { useNetworkStandardPermissions } from './useNetworkStandardPermissions';
 
 // Dashboard
 export { default as useDashboardLayout } from './useDashboardLayout';

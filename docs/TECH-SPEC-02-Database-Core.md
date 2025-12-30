@@ -1,13 +1,21 @@
 # AMSF001 Technical Specification: Database Schema - Core Tables
 
 **Document:** TECH-SPEC-02-Database-Core.md  
-**Version:** 3.0  
+**Version:** 4.0  
 **Created:** 10 December 2025  
-**Updated:** 24 December 2025  
-**Session:** 1.2 (updated post permission hierarchy fix)  
+**Updated:** 28 December 2025  
+**Session:** 1.2.1 (added Tools tables - Planning & Estimator)  
 
 ---
 
+> **📝 Version 4.0 Updates (28 December 2025)**
+> 
+> This document has been updated to include Planning and Estimator tools:
+> - Added `plan_items` table (Section 15.1)
+> - Added `estimates` table hierarchy (Section 15.2-15.5)
+> - Added `plan_items_with_estimates` view (Section 15.6)
+> - Updated Core Tables Summary (Section 1.1)
+> 
 > **📝 Version 3.0 Updates (24 December 2025)**
 > 
 > This document has been updated to reflect the permission hierarchy implementation:
@@ -51,6 +59,11 @@ This document covers the core entity tables that form the foundation of the AMSF
 | `deliverables` | Work products | Per project (~20-100) |
 | `resources` | Team members | Per project (~5-20) |
 | `resource_availability` | Calendar availability | Per project |
+| `plan_items` | Project planning hierarchy | Per project |
+| `estimates` | Cost estimate headers | Per project |
+| `estimate_components` | Estimate component groups | Per estimate |
+| `estimate_tasks` | Work items within components | Per component |
+| `estimate_resources` | Effort allocations | Per task |
 
 ### 1.2 Multi-Tenancy Hierarchy
 
@@ -1172,23 +1185,412 @@ Both milestones and deliverables support dual-signature workflows:
 
 ---
 
-## 14. Session Completion
+## 15. Tools Tables (Planning & Estimator)
 
-### 14.1 Checklist Status
+> **Added:** 28 December 2025
+> 
+> These tables support the Planning and Estimator tools added in v0.9.10.
+> For detailed review, see: `docs/SYSTEMATIC-APPLICATION-REVIEW.md`
 
-- [x] organisations table (NEW)
-- [x] user_organisations table (NEW)
-- [x] organisation_members_with_profiles view (NEW)
-- [x] projects table (updated with organisation_id)
+### 15.1 Plan_Items Table
+
+The `plan_items` table stores hierarchical project planning data with WBS numbering.
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS plan_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES plan_items(id) ON DELETE CASCADE,
+  item_type TEXT NOT NULL CHECK (item_type IN ('task', 'milestone', 'deliverable')),
+  name TEXT NOT NULL,
+  description TEXT,
+  start_date DATE,
+  end_date DATE,
+  duration_days INTEGER,
+  progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+  status TEXT DEFAULT 'not_started' CHECK (status IN (
+    'not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'
+  )),
+  sort_order INTEGER DEFAULT 0,
+  wbs TEXT,
+  indent_level INTEGER DEFAULT 0,
+  milestone_id UUID REFERENCES milestones(id) ON DELETE SET NULL,
+  deliverable_id UUID REFERENCES deliverables(id) ON DELETE SET NULL,
+  assigned_resource_id UUID REFERENCES resources(id) ON DELETE SET NULL,
+  estimate_component_id UUID REFERENCES estimate_components(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id),
+  is_deleted BOOLEAN DEFAULT FALSE
+);
+```
+
+#### Column Reference
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | UUID | No | Primary key |
+| `project_id` | UUID | No | Parent project |
+| `parent_id` | UUID | Yes | Self-reference for hierarchy |
+| `item_type` | TEXT | No | task, milestone, or deliverable |
+| `name` | TEXT | No | Item name |
+| `description` | TEXT | Yes | Detailed description |
+| `start_date` | DATE | Yes | Planned start date |
+| `end_date` | DATE | Yes | Planned end date |
+| `duration_days` | INTEGER | Yes | Duration in days |
+| `progress` | INTEGER | Yes | Completion percentage (0-100) |
+| `status` | TEXT | Yes | Current status |
+| `sort_order` | INTEGER | Yes | Display order within parent |
+| `wbs` | TEXT | Yes | Work breakdown structure code |
+| `indent_level` | INTEGER | Yes | Hierarchy depth (0=root) |
+| `milestone_id` | UUID | Yes | Link to milestone entity |
+| `deliverable_id` | UUID | Yes | Link to deliverable entity |
+| `assigned_resource_id` | UUID | Yes | Assigned team member |
+| `estimate_component_id` | UUID | Yes | Link to estimate component |
+
+#### Indexes
+
+```sql
+CREATE INDEX idx_plan_items_project ON plan_items(project_id);
+CREATE INDEX idx_plan_items_parent ON plan_items(parent_id);
+CREATE INDEX idx_plan_items_milestone ON plan_items(milestone_id);
+CREATE INDEX idx_plan_items_deliverable ON plan_items(deliverable_id);
+CREATE INDEX idx_plan_items_sort ON plan_items(project_id, sort_order);
+CREATE INDEX idx_plan_items_estimate_component ON plan_items(estimate_component_id);
+```
+
+#### Functions
+
+```sql
+-- Recalculate WBS numbering for all items in a project
+CREATE OR REPLACE FUNCTION recalculate_wbs(p_project_id UUID)
+RETURNS VOID AS $ ... $ LANGUAGE plpgsql;
+
+-- Link plan item to estimate component
+CREATE OR REPLACE FUNCTION link_plan_item_to_estimate(
+  p_plan_item_id UUID,
+  p_estimate_component_id UUID
+) RETURNS VOID AS $ ... $ LANGUAGE plpgsql;
+
+-- Unlink plan item from estimate
+CREATE OR REPLACE FUNCTION unlink_plan_item_from_estimate(
+  p_plan_item_id UUID
+) RETURNS VOID AS $ ... $ LANGUAGE plpgsql;
+```
+
+---
+
+### 15.2 Estimates Table
+
+The `estimates` table stores cost estimate headers with status workflow.
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS estimates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  reference_number TEXT,
+  status TEXT DEFAULT 'draft' CHECK (status IN (
+    'draft', 'submitted', 'approved', 'rejected', 'archived'
+  )),
+  total_days DECIMAL(10,2) DEFAULT 0,
+  total_cost DECIMAL(12,2) DEFAULT 0,
+  component_count INTEGER DEFAULT 0,
+  plan_item_id UUID REFERENCES plan_items(id) ON DELETE SET NULL,
+  notes TEXT,
+  assumptions TEXT,
+  exclusions TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id),
+  submitted_at TIMESTAMPTZ,
+  approved_at TIMESTAMPTZ,
+  approved_by UUID REFERENCES auth.users(id),
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES auth.users(id)
+);
+```
+
+#### Status Workflow
+
+| Status | Description |
+|--------|-------------|
+| `draft` | Work in progress |
+| `submitted` | Submitted for review |
+| `approved` | Approved for use |
+| `rejected` | Rejected, needs revision |
+| `archived` | No longer active |
+
+#### Indexes
+
+```sql
+CREATE INDEX idx_estimates_project ON estimates(project_id);
+CREATE INDEX idx_estimates_status ON estimates(status);
+CREATE INDEX idx_estimates_plan_item ON estimates(plan_item_id);
+CREATE INDEX idx_estimates_is_deleted ON estimates(is_deleted);
+```
+
+---
+
+### 15.3 Estimate_Components Table
+
+Component groups within an estimate, with quantity multiplier.
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS estimate_components (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  estimate_id UUID NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  quantity INTEGER DEFAULT 1 CHECK (quantity >= 1),
+  sort_order INTEGER DEFAULT 0,
+  plan_item_id UUID REFERENCES plan_items(id) ON DELETE SET NULL,
+  total_days DECIMAL(10,2) DEFAULT 0,
+  total_cost DECIMAL(12,2) DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### Indexes
+
+```sql
+CREATE INDEX idx_estimate_components_estimate ON estimate_components(estimate_id);
+CREATE INDEX idx_estimate_components_plan_item ON estimate_components(plan_item_id);
+```
+
+---
+
+### 15.4 Estimate_Tasks Table
+
+Work items within estimate components.
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS estimate_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  component_id UUID NOT NULL REFERENCES estimate_components(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  sort_order INTEGER DEFAULT 0,
+  plan_item_id UUID REFERENCES plan_items(id) ON DELETE SET NULL,
+  total_days DECIMAL(10,2) DEFAULT 0,
+  total_cost DECIMAL(12,2) DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### Indexes
+
+```sql
+CREATE INDEX idx_estimate_tasks_component ON estimate_tasks(component_id);
+CREATE INDEX idx_estimate_tasks_plan_item ON estimate_tasks(plan_item_id);
+```
+
+---
+
+### 15.5 Estimate_Resources Table
+
+Effort allocations per task with SFIA 8 skill/level/tier.
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS estimate_resources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id UUID NOT NULL REFERENCES estimate_tasks(id) ON DELETE CASCADE,
+  component_id UUID NOT NULL REFERENCES estimate_components(id) ON DELETE CASCADE,
+  role_id TEXT NOT NULL,
+  skill_id TEXT NOT NULL,
+  sfia_level INTEGER NOT NULL CHECK (sfia_level >= 1 AND sfia_level <= 7),
+  tier TEXT NOT NULL CHECK (tier IN ('contractor', 'boutique', 'mid', 'big4')),
+  day_rate DECIMAL(10,2) NOT NULL,
+  effort_days DECIMAL(10,2) DEFAULT 0,
+  cost DECIMAL(12,2) GENERATED ALWAYS AS (effort_days * day_rate) STORED,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(task_id, role_id, skill_id, sfia_level, tier)
+);
+```
+
+#### Column Reference
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `role_id` | TEXT | Unique identifier for resource type |
+| `skill_id` | TEXT | SFIA 8 skill code (e.g., 'PROG') |
+| `sfia_level` | INTEGER | SFIA level 1-7 |
+| `tier` | TEXT | Supplier tier (contractor, boutique, mid, big4) |
+| `day_rate` | DECIMAL | Rate snapshot at time of estimate |
+| `effort_days` | DECIMAL | Allocated effort in days |
+| `cost` | DECIMAL | Generated: effort_days × day_rate |
+
+#### Indexes
+
+```sql
+CREATE INDEX idx_estimate_resources_task ON estimate_resources(task_id);
+CREATE INDEX idx_estimate_resources_component ON estimate_resources(component_id);
+```
+
+---
+
+### 15.6 Plan_Items_With_Estimates View
+
+Denormalized view joining plan items with linked estimate data.
+
+#### View Definition
+
+```sql
+CREATE OR REPLACE VIEW plan_items_with_estimates AS
+SELECT 
+  pi.*,
+  ec.id as component_id,
+  ec.name as component_name,
+  ec.total_days as component_days,
+  ec.total_cost as component_cost,
+  e.id as estimate_id,
+  e.name as estimate_name,
+  e.status as estimate_status,
+  e.total_days as estimate_total_days,
+  e.total_cost as estimate_total_cost
+FROM plan_items pi
+LEFT JOIN estimate_components ec ON ec.id = pi.estimate_component_id
+LEFT JOIN estimates e ON e.id = ec.estimate_id;
+```
+
+---
+
+### 15.7 Recalculate Estimate Totals Function
+
+```sql
+CREATE OR REPLACE FUNCTION recalculate_estimate_totals(p_estimate_id UUID)
+RETURNS VOID AS $
+BEGIN
+  -- Update task totals from resources
+  UPDATE estimate_tasks t
+  SET total_days = COALESCE(sub.days, 0),
+      total_cost = COALESCE(sub.cost, 0)
+  FROM (
+    SELECT task_id, SUM(effort_days) as days, SUM(cost) as cost
+    FROM estimate_resources
+    GROUP BY task_id
+  ) sub
+  WHERE t.id = sub.task_id
+  AND t.component_id IN (
+    SELECT id FROM estimate_components WHERE estimate_id = p_estimate_id
+  );
+  
+  -- Update component totals from resources (not tasks, for accuracy)
+  UPDATE estimate_components c
+  SET total_days = COALESCE(sub.days, 0),
+      total_cost = COALESCE(sub.cost, 0)
+  FROM (
+    SELECT component_id, SUM(effort_days) as days, SUM(cost) as cost
+    FROM estimate_resources
+    GROUP BY component_id
+  ) sub
+  WHERE c.id = sub.component_id
+  AND c.estimate_id = p_estimate_id;
+  
+  -- Update estimate header with quantity-adjusted totals
+  UPDATE estimates
+  SET total_days = COALESCE((
+        SELECT SUM(total_days * quantity) FROM estimate_components 
+        WHERE estimate_id = p_estimate_id
+      ), 0),
+      total_cost = COALESCE((
+        SELECT SUM(total_cost * quantity) FROM estimate_components 
+        WHERE estimate_id = p_estimate_id
+      ), 0),
+      component_count = (
+        SELECT COUNT(*) FROM estimate_components 
+        WHERE estimate_id = p_estimate_id
+      ),
+      updated_at = NOW()
+  WHERE id = p_estimate_id;
+END;
+$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+---
+
+### 15.8 Estimate Tables ERD
+
+```
+┌─────────────────┐
+│    plan_items     │
+│  ─────────────── │
+│  project_id (FK)  │
+│  parent_id (FK)   │──────────────────────────────────────┐
+│  estimate_comp_id │──────────────────────────────────────┐│
+└─────────────────┘                                      ││
+                                                           ││
+┌─────────────────┐       ┌─────────────────────┐         ││
+│    estimates      │       │ estimate_components │─────────┘│
+│  ─────────────── │       │  ─────────────────── │          │
+│  project_id (FK)  │◄──────┤  estimate_id (FK)   │◄─────────┘
+│  plan_item_id     │  1:M  │  plan_item_id       │
+│  status           │       │  quantity           │
+│  total_days/cost  │       │  total_days/cost    │
+└─────────────────┘       └──────────┬──────────┘
+                                   │ 1:M
+                                   ▼
+                           ┌─────────────────────┐
+                           │   estimate_tasks    │
+                           │  ─────────────────── │
+                           │  component_id (FK)  │
+                           │  plan_item_id       │
+                           │  total_days/cost    │
+                           └──────────┬──────────┘
+                                      │ 1:M
+                                      ▼
+                           ┌─────────────────────┐
+                           │ estimate_resources  │
+                           │  ─────────────────── │
+                           │  task_id (FK)       │
+                           │  component_id (FK)  │
+                           │  skill_id, sfia_lvl │
+                           │  tier, day_rate     │
+                           │  effort_days, cost  │
+                           └─────────────────────┘
+```
+
+---
+
+## 16. Session Completion
+
+### 16.1 Checklist Status
+
+- [x] organisations table
+- [x] user_organisations table
+- [x] organisation_members_with_profiles view
+- [x] projects table (with organisation_id)
 - [x] profiles table
 - [x] user_projects table (multi-tenancy)
 - [x] milestones table
 - [x] deliverables table
 - [x] resources table
 - [x] resource_availability table
+- [x] plan_items table (NEW v4.0)
+- [x] estimates table (NEW v4.0)
+- [x] estimate_components table (NEW v4.0)
+- [x] estimate_tasks table (NEW v4.0)
+- [x] estimate_resources table (NEW v4.0)
+- [x] plan_items_with_estimates view (NEW v4.0)
+- [x] recalculate_estimate_totals function (NEW v4.0)
 - [x] Entity relationships diagram (updated)
 
-### 14.2 Next Session Preview
+### 16.2 Next Session Preview
 
 **Session 1.3: Database Schema - Operational Tables** will document:
 - timesheets table

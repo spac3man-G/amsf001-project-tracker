@@ -7,13 +7,14 @@
  * - Delivered items list
  * - Dual signature workflow (Supplier PM / Customer PM)
  * 
- * @version 1.0
+ * @version 2.0 - TD-001: Uses useMilestonePermissions hook internally
  * @created 1 December 2025
- * @extracted-from Milestones.jsx
+ * @updated 28 December 2025
  */
 
 import React from 'react';
 import { Award, CheckCircle, PenTool, X } from 'lucide-react';
+import { useMilestonePermissions } from '../../hooks';
 
 function getCertificateStatusColor(status) {
   switch (status) {
@@ -28,10 +29,15 @@ function getCertificateStatusColor(status) {
 export default function CertificateModal({
   certificate,
   onClose,
-  onSign,
-  canSignSupplier,
-  canSignCustomer
+  onSign
 }) {
+  // Get permissions from hook - centralised permission logic
+  const permissions = useMilestonePermissions();
+  
+  // Calculate certificate-specific signing permissions
+  const canSignSupplier = permissions.canSignCertificateAsSupplier(certificate);
+  const canSignCustomer = permissions.canSignCertificateAsCustomer(certificate);
+
   if (!certificate) return null;
 
   const statusColors = getCertificateStatusColor(certificate.status);

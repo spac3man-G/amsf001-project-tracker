@@ -38,6 +38,7 @@ export default function Planning() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [collapsedIds, setCollapsedIds] = useState(new Set()); // Collapsed item IDs
   const [activeCell, setActiveCell] = useState(null); // { rowIndex, field }
   const [editingCell, setEditingCell] = useState(null); // { rowIndex, field }
   const [editValue, setEditValue] = useState('');
@@ -179,25 +180,28 @@ export default function Planning() {
     }
   }
 
-  async function handleAddItem(focusName = true) {
+  async function handleAddItem(focusName = true, itemType = 'milestone') {
     try {
       const newItem = await planItemsService.create({
         project_id: projectId,
         name: '',
-        item_type: 'task',
+        item_type: itemType, // Default to milestone for root items
         status: 'not_started',
         progress: 0
       });
-      const newItems = [...items, newItem];
-      setItems(newItems);
+      await fetchItems(); // Refresh to get proper WBS
       if (focusName) {
-        const newRowIndex = newItems.length - 1;
-        setActiveCell({ rowIndex: newRowIndex, field: 'name' });
-        startEditing(newRowIndex, 'name');
+        // Find the new item in refreshed list
+        setTimeout(() => {
+          const newIndex = items.length; // Approximate
+          setActiveCell({ rowIndex: newIndex, field: 'name' });
+          startEditing(newIndex, 'name');
+        }, 100);
       }
       return newItem;
     } catch (error) {
       console.error('Error adding item:', error);
+      showError(error.message || 'Failed to add item');
     }
   }
 
@@ -226,25 +230,72 @@ export default function Planning() {
   }
 
   async function handleIndent(id) {
-    const index = items.findIndex(item => item.id === id);
-    if (index <= 0) return;
-    const parentId = items[index - 1].id;
     try {
-      await planItemsService.indent(id, parentId);
-      fetchItems();
+      await planItemsService.demote(id, items);
+      await fetchItems();
+      showSuccess('Item demoted');
     } catch (error) {
-      console.error('Error indenting item:', error);
+      console.error('Error demoting item:', error);
+      showError(error.message || 'Cannot demote this item');
     }
   }
 
   async function handleOutdent(id) {
     try {
-      await planItemsService.outdent(id);
-      fetchItems();
+      await planItemsService.promote(id, items);
+      await fetchItems();
+      showSuccess('Item promoted');
     } catch (error) {
-      console.error('Error outdenting item:', error);
+      console.error('Error promoting item:', error);
+      showError(error.message || 'Cannot promote this item');
     }
   }
+
+  // Toggle collapse state for an item
+  async function handleToggleCollapse(id) {
+    setCollapsedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  }
+
+  // Expand all items
+  function handleExpandAll() {
+    setCollapsedIds(new Set());
+  }
+
+  // Collapse all items with children
+  function handleCollapseAll() {
+    const idsWithChildren = items
+      .filter(item => items.some(i => i.parent_id === item.id))
+      .map(item => item.id);
+    setCollapsedIds(new Set(idsWithChildren));
+  }
+
+  // Get visible items (respecting collapsed state)
+  const visibleItems = useMemo(() => {
+    const hiddenIds = new Set();
+    
+    // Find all items whose ancestors are collapsed
+    const collectHidden = (parentId) => {
+      items.forEach(item => {
+        if (item.parent_id === parentId) {
+          hiddenIds.add(item.id);
+          collectHidden(item.id); // Children of hidden items are also hidden
+        }
+      });
+    };
+    
+    // Start from collapsed items
+    collapsedIds.forEach(id => collectHidden(id));
+    
+    return items.filter(item => !hiddenIds.has(item.id));
+  }, [items, collapsedIds]);
 
   // Navigate to a cell, creating new row if needed
   async function navigateCell(rowIndex, colIndex) {
@@ -552,19 +603,35 @@ export default function Planning() {
     // Display mode
     switch (field) {
       case 'name':
+        const hasChildren = items.some(i => i.parent_id === item.id);
+        const isCollapsed = collapsedIds.has(item.id);
         return (
           <td 
             className={cellClass}
             onClick={(e) => handleCellClick(rowIndex, field, e)}
             onDoubleClick={(e) => handleCellDoubleClick(rowIndex, field, e)}
           >
-            <div className="plan-name-wrapper" style={{ paddingLeft: `${(item.indent_level || 0) * 20}px` }}>
-              {item.parent_id ? (
-                <ChevronRight size={14} className="indent-icon" />
-              ) : items.some(i => i.parent_id === item.id) ? (
-                <ChevronDown size={14} className="expand-icon" />
-              ) : null}
-              <span className="plan-cell-text">{item.name || <span className="placeholder">Enter task name</span>}</span>
+            <div className="plan-name-wrapper" style={{ paddingLeft: `${(item.indent_level || 0) * 20 + 8}px` }}>
+              {hasChildren ? (
+                <button
+                  className="plan-expand-btn"
+                  onClick={(e) => { e.stopPropagation(); handleToggleCollapse(item.id); }}
+                  title={isCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                </button>
+              ) : (
+                <span className="plan-expand-spacer" />
+              )}
+              {getItemTypeInfo(item.item_type).icon && (
+                <span className={`plan-item-icon ${item.item_type}`}>
+                  {React.createElement(getItemTypeInfo(item.item_type).icon, { size: 14 })}
+                </span>
+              )}
+              <span className="plan-cell-text">{item.name || <span className="placeholder">Enter name</span>}</span>
+              {hasChildren && isCollapsed && (
+                <span className="plan-children-count">({items.filter(i => i.parent_id === item.id).length})</span>
+              )}
             </div>
           </td>
         );
@@ -711,9 +778,15 @@ export default function Planning() {
             <RefreshCw size={16} />
             Refresh
           </button>
-          <button onClick={() => handleAddItem()} className="plan-btn plan-btn-primary">
+          <button onClick={handleExpandAll} className="plan-btn plan-btn-secondary" title="Expand All">
+            <ChevronDown size={16} />
+          </button>
+          <button onClick={handleCollapseAll} className="plan-btn plan-btn-secondary" title="Collapse All">
+            <ChevronRight size={16} />
+          </button>
+          <button onClick={() => handleAddItem(true, 'milestone')} className="plan-btn plan-btn-primary">
             <Plus size={16} />
-            Add Task
+            Add Milestone
           </button>
         </div>
       </div>
@@ -743,11 +816,11 @@ export default function Planning() {
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan="10" className="plan-empty-row">
-                    <p>No tasks yet. Press Enter or click "Add Task" to start.</p>
+                    <p>No items yet. Click "Add Milestone" to start building your plan.</p>
                   </td>
                 </tr>
               ) : (
-                items.map((item, index) => (
+                visibleItems.map((item, index) => (
                   <tr 
                     key={item.id} 
                     className={`plan-row ${activeCell?.rowIndex === index ? 'active-row' : ''} ${item.item_type}`}
@@ -823,9 +896,9 @@ export default function Planning() {
         </div>
         
         {/* Quick add row */}
-        <div className="plan-quick-add" onClick={() => handleAddItem()}>
+        <div className="plan-quick-add" onClick={() => handleAddItem(true, 'milestone')}>
           <Plus size={16} />
-          <span>Click to add a new task (or press Enter from last row)</span>
+          <span>Click to add a new milestone</span>
         </div>
       </div>
 

@@ -374,9 +374,9 @@ export default function App() {
                               <ProtectedRoute><Calendar /></ProtectedRoute>
                             } />
                             
-                            {/* Project Planning */}
+                            {/* Project Planning - Admin, Supplier PM, Customer PM */}
                             <Route path="/planning" element={
-                              <ProtectedRoute><Planning /></ProtectedRoute>
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm', 'customer_pm']}><Planning /></ProtectedRoute>
                             } />
                             
                             {/* Variations - redirect to Milestones tab */}
@@ -403,14 +403,14 @@ export default function App() {
                               <Navigate to="/finance?tab=billing" replace />
                             } />
                             
-                            {/* Benchmarking - SFIA 8 rate comparison */}
+                            {/* Benchmarking - SFIA 8 rate comparison (Admin, Supplier PM only) */}
                             <Route path="/benchmarking" element={
-                              <ProtectedRoute><Benchmarking /></ProtectedRoute>
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}><Benchmarking /></ProtectedRoute>
                             } />
                             
-                            {/* Estimator - Component-based cost estimation */}
+                            {/* Estimator - Component-based cost estimation (Admin, Supplier PM only) */}
                             <Route path="/estimator" element={
-                              <ProtectedRoute><Estimator /></ProtectedRoute>
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}><Estimator /></ProtectedRoute>
                             } />
                             
                             {/* Team Members (project-scoped user management) */}

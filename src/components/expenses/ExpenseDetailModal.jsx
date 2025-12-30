@@ -8,8 +8,8 @@
  * - Full edit form with all fields
  * - Action buttons for workflow (Submit, Validate, Reject)
  * 
- * @version 2.0
- * @updated 5 December 2025
+ * @version 3.0 - TD-001: Uses useExpensePermissions hook internally
+ * @updated 28 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -19,6 +19,7 @@ import {
   Car, Home, Utensils, Receipt, Building2, Briefcase, Calendar,
   User, DollarSign, Clock, Paperclip, Image
 } from 'lucide-react';
+import { useExpensePermissions } from '../../hooks';
 import './ExpenseDetailModal.css';
 
 const CATEGORIES = ['Travel', 'Accommodation', 'Sustenance'];
@@ -189,12 +190,6 @@ export default function ExpenseDetailModal({
   isOpen,
   expense,
   resources,
-  hasRole,
-  canEditChargeable,
-  canSubmitExpense,
-  canValidateExpense,
-  canEditExpense,
-  canDeleteExpense,
   onClose,
   onSave,
   onSubmit,
@@ -205,6 +200,9 @@ export default function ExpenseDetailModal({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+
+  // Get permissions from hook - centralised permission logic
+  const permissions = useExpensePermissions(expense);
 
   useEffect(() => {
     if (expense) {
@@ -327,7 +325,7 @@ export default function ExpenseDetailModal({
               </div>
 
               <div className="form-row">
-                {canEditChargeable() && (
+                {permissions.canEditChargeable && (
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
@@ -337,7 +335,7 @@ export default function ExpenseDetailModal({
                     <span>Chargeable to Customer</span>
                   </label>
                 )}
-                {hasRole(['admin', 'supplier_pm']) && (
+                {permissions.canEditProcurement && (
                   <div className="form-group">
                     <label>Procurement</label>
                     <select
@@ -351,7 +349,7 @@ export default function ExpenseDetailModal({
                 )}
               </div>
 
-              {canValidateExpense(expense) && (
+              {permissions.canValidate && (
                 <div className="form-group">
                   <label>Status</label>
                   <select
@@ -415,7 +413,7 @@ export default function ExpenseDetailModal({
               )}
 
               {/* Procurement - only for certain roles */}
-              {hasRole(['admin', 'supplier_pm']) && (
+              {permissions.canSeeProcurement && (
                 <div className="info-section inline">
                   {(expense.procurement_method || 'supplier') === 'partner' ? (
                     <Building2 size={18} className="icon-purple" />
@@ -451,7 +449,7 @@ export default function ExpenseDetailModal({
         {/* Footer Actions */}
         <footer className="modal-footer">
           <div className="footer-left">
-            {canDeleteExpense(expense) && !isEditing && (
+            {permissions.canDelete && !isEditing && (
               <button
                 onClick={() => { onDelete(expense); handleClose(); }}
                 className="btn btn-danger"
@@ -473,7 +471,7 @@ export default function ExpenseDetailModal({
               </>
             ) : (
               <>
-                {canSubmitExpense(expense) && (
+                {permissions.canSubmit && (
                   <button 
                     onClick={() => { onSubmit(expense); handleClose(); }} 
                     className="btn btn-secondary"
@@ -482,7 +480,7 @@ export default function ExpenseDetailModal({
                     <Send size={16} /> Submit
                   </button>
                 )}
-                {canValidateExpense(expense) && (
+                {permissions.canValidate && (
                   <>
                     <button 
                       onClick={() => { onReject(expense.id); handleClose(); }} 
@@ -500,7 +498,7 @@ export default function ExpenseDetailModal({
                     </button>
                   </>
                 )}
-                {canEditExpense(expense) && (
+                {permissions.canEdit && (
                   <button 
                     onClick={() => setIsEditing(true)} 
                     className="btn btn-primary"

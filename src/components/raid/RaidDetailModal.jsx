@@ -4,8 +4,8 @@
  * View and edit RAID (Risk, Assumption, Issue, Dependency) items.
  * Consistent styling with ExpenseDetailModal.
  * 
- * @version 2.1
- * @updated 18 December 2025 - Fetch teamMembers internally for owner dropdown
+ * @version 3.0 - TD-001: Uses useRaidPermissions hook internally
+ * @updated 28 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useProject } from '../../contexts/ProjectContext';
+import { useRaidPermissions } from '../../hooks';
 import './RaidDetailModal.css';
 
 // Category configuration
@@ -47,8 +48,6 @@ function getStatusClass(status) {
 
 export default function RaidDetailModal({ 
   item, 
-  canEdit, 
-  canDelete,
   onClose, 
   onUpdate, 
   onDelete 
@@ -58,6 +57,9 @@ export default function RaidDetailModal({
   const [editData, setEditData] = useState({ ...item });
   const [saving, setSaving] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
+
+  // Get permissions from hook - centralised permission logic
+  const permissions = useRaidPermissions(item);
 
   // Fetch team members for owner dropdown
   useEffect(() => {
@@ -426,7 +428,7 @@ export default function RaidDetailModal({
         {/* Footer Actions */}
         <footer className="raid-modal-footer">
           <div className="raid-footer-left">
-            {canDelete && !isEditing && (
+            {permissions.canDelete && !isEditing && (
               <button onClick={onDelete} className="raid-btn raid-btn-danger">
                 <Trash2 size={16} /> Delete
               </button>
@@ -451,7 +453,7 @@ export default function RaidDetailModal({
                 <button onClick={onClose} className="raid-btn raid-btn-secondary">
                   Close
                 </button>
-                {canEdit && (
+                {permissions.canEdit && (
                   <button onClick={() => setIsEditing(true)} className="raid-btn raid-btn-primary">
                     <Edit2 size={16} /> Edit
                   </button>

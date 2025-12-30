@@ -401,6 +401,37 @@ export class BenchmarkRatesService extends BaseService {
   async getSummaryStats() {
     return this.getStatistics();
   }
+
+  /**
+   * Build a lookup object of all rates for quick access in Estimator
+   * Key format: `${skill_id}-${sfia_level}-${tier_id}`
+   * @returns {Promise<Object>} Rate lookup dictionary { key: dayRate }
+   * 
+   * @example
+   * const lookup = await benchmarkRatesService.buildRateLookup();
+   * const rate = lookup['PROG-4-contractor']; // 550
+   */
+  async buildRateLookup() {
+    try {
+      const { data, error } = await supabase
+        .from(this.tableName)
+        .select('skill_id, sfia_level, tier_id, day_rate');
+      
+      if (error) throw error;
+      
+      const lookup = {};
+      for (const rate of data || []) {
+        const key = `${rate.skill_id}-${rate.sfia_level}-${rate.tier_id}`;
+        lookup[key] = Number(rate.day_rate);
+      }
+      
+      console.log(`[BenchmarkRatesService] Built rate lookup with ${Object.keys(lookup).length} entries`);
+      return lookup;
+    } catch (error) {
+      console.error('[BenchmarkRatesService] buildRateLookup failed:', error);
+      return {}; // Return empty object, Estimator will use fallback
+    }
+  }
 }
 
 // Export singleton instance

@@ -36,11 +36,10 @@ export default function RaidLog() {
   const { projectId } = useProject();
   const currentUserId = user?.id || null;
   
-  // Permissions
+  // Permissions - canEdit and canDelete still used for page-level Add button logic
+  // Note: RaidDetailModal now uses useRaidPermissions internally (TD-001)
   const { can } = usePermissions();
   const canCreate = can('raid', 'create');
-  const canEdit = can('raid', 'edit');
-  const canDelete = can('raid', 'delete');
 
   // State
   const [items, setItems] = useState([]);
@@ -391,12 +390,10 @@ export default function RaidLog() {
         />
       )}
 
-      {/* Detail Modal */}
+      {/* TD-001: RaidDetailModal now uses useRaidPermissions hook internally */}
       {selectedItem && (
         <RaidDetailModal
           item={selectedItem}
-          canEdit={canEdit}
-          canDelete={canDelete}
           onClose={() => setSelectedItem(null)}
           onUpdate={async (updates) => {
             await raidService.update(selectedItem.id, updates);

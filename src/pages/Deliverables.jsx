@@ -62,7 +62,8 @@ export default function Deliverables() {
   const { showSuccess, showError, showWarning } = useToast();
   const { showTestUsers } = useTestUsers();
   const currentUserId = user?.id || null;
-  const { canEditDeliverable, canSubmitDeliverable, canReviewDeliverable, canDeleteDeliverable, hasRole } = usePermissions();
+  // TD-001: Removed canSubmitDeliverable, canReviewDeliverable, canDeleteDeliverable - modal uses hook internally
+  const { canEditDeliverable, hasRole } = usePermissions();
   const { refreshMetrics } = useMetrics();
 
   const [deliverables, setDeliverables] = useState([]);
@@ -371,10 +372,8 @@ export default function Deliverables() {
   });
 
   const submittedForReview = deliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW).length;
+  // TD-001: canSubmit, canReview, canDelete no longer needed - DeliverableDetailModal uses hook internally
   const canEdit = canEditDeliverable;
-  const canSubmit = canSubmitDeliverable;
-  const canReview = canReviewDeliverable;
-  const canDelete = canDeleteDeliverable;
 
   if (loading) return <LoadingSpinner message="Loading deliverables..." size="large" fullPage />;
 
@@ -610,17 +609,13 @@ export default function Deliverables() {
         </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* TD-001: DeliverableDetailModal now uses useDeliverablePermissions hook internally */}
       <DeliverableDetailModal
         isOpen={detailModal.isOpen}
         deliverable={detailModal.deliverable}
         milestones={milestones}
         kpis={kpis}
         qualityStandards={qualityStandards}
-        canEdit={canEdit}
-        canSubmit={canSubmit}
-        canReview={canReview}
-        canDelete={canDelete}
         onClose={() => setDetailModal({ isOpen: false, deliverable: null })}
         onSave={handleSaveFromModal}
         onStatusChange={handleStatusChange}

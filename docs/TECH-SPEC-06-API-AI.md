@@ -1,9 +1,15 @@
 # AMSF001 Technical Specification - API Layer & AI Integration
 
-**Version:** 1.2  
-**Last Updated:** 24 December 2025  
-**Session:** 1.6  
+**Version:** 1.3  
+**Last Updated:** 28 December 2025  
+**Session:** 1.6.1  
 **Status:** Complete  
+
+> **Version 1.3 Updates (28 December 2025):**
+> - Added `/api/planning-ai` endpoint (AI-powered WBS generation)
+> - Added Section 6.7: Planning AI API
+> - Updated endpoint summary table
+> - Updated architecture diagram  
 
 > **Version 1.2 Updates (24 December 2025):**
 > - Added `/api/create-organisation` endpoint (self-service org creation)
@@ -106,6 +112,7 @@ The AMSF001 Project Tracker uses **Vercel Edge Functions** for its serverless AP
 | `/api/create-user` | POST | Create new user accounts | Admin JWT |
 | `/api/create-project` | POST | Create project (org-aware) | Admin/Org Admin JWT |
 | `/api/create-organisation` | POST | Create new organisation | Yes (JWT) |
+| `/api/planning-ai` | POST | AI-powered WBS generation | Yes (JWT) |
 | `/api/scan-receipt` | POST | AI receipt scanning | Yes (JWT) |
 
 ### 2.2 Vercel Routing Configuration
@@ -616,6 +623,292 @@ Admin Request
          │
          ▼
    Return Success
+```
+
+---
+
+### 6.7 Planning AI API (NEW - December 2025)
+
+**File:** `api/planning-ai.js`
+
+AI-powered Work Breakdown Structure (WBS) generation from natural language descriptions or uploaded documents.
+
+**Endpoint:** `POST /api/planning-ai`
+
+**Configuration:**
+```javascript
+export const config = {
+  maxDuration: 120, // 120 seconds for document processing (Vercel Pro)
+};
+
+const MODEL = 'claude-sonnet-4-5-20250929';
+```
+
+**Request Body:**
+
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Create a plan for building a mobile app" }
+  ],
+  "projectContext": {
+    "projectId": "uuid",
+    "projectName": "Mobile App Project"
+  },
+  "currentStructure": [],
+  "document": {
+    "data": "base64-encoded-data",
+    "mediaType": "application/pdf"
+  }
+}
+```
+
+**Field Details:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `messages` | Yes | Conversation history array |
+| `projectContext` | No | Current project info for context |
+| `currentStructure` | No | Existing plan structure for refinement |
+| `document` | No | Base64-encoded document (PDF/image) |
+
+**Supported Document Types:**
+- `application/pdf` - PDF documents
+- `image/jpeg`, `image/png`, `image/webp`, `image/gif` - Images
+- Maximum size: 10MB
+
+**AI Tools Available:**
+
+The API exposes 3 tools to Claude:
+
+| Tool | Purpose | When Used |
+|------|---------|----------|
+| `generateProjectStructure` | Create new hierarchical WBS | New project descriptions |
+| `refineStructure` | Modify existing structure | User feedback/refinement |
+| `askClarification` | Request more info | Vague descriptions |
+
+**Tool: generateProjectStructure**
+
+```javascript
+{
+  name: "generateProjectStructure",
+  input_schema: {
+    type: "object",
+    properties: {
+      structure: {
+        type: "array",
+        description: "Hierarchical array: Milestones → Deliverables → Tasks",
+        items: {
+          type: "object",
+          properties: {
+            item_type: { enum: ["milestone", "deliverable", "task"] },
+            name: { type: "string" },
+            description: { type: "string" },
+            duration_days: { type: "integer" },
+            children: { type: "array" }  // Nested items
+          },
+          required: ["item_type", "name"]
+        }
+      },
+      summary: { type: "string" },
+      totalDurationDays: { type: "integer" },
+      itemCounts: {
+        type: "object",
+        properties: {
+          milestones: { type: "integer" },
+          deliverables: { type: "integer" },
+          tasks: { type: "integer" }
+        }
+      }
+    },
+    required: ["structure", "summary", "itemCounts"]
+  }
+}
+```
+
+**Response (Structure Generated):**
+
+```json
+{
+  "message": "I've created a project structure with 4 milestones...",
+  "structure": [
+    {
+      "item_type": "milestone",
+      "name": "Phase 1: Discovery",
+      "description": "Requirements gathering and planning",
+      "duration_days": 10,
+      "children": [
+        {
+          "item_type": "deliverable",
+          "name": "Requirements Document",
+          "duration_days": 5,
+          "children": [
+            { "item_type": "task", "name": "Stakeholder interviews", "duration_days": 2 },
+            { "item_type": "task", "name": "Document findings", "duration_days": 3 }
+          ]
+        }
+      ]
+    }
+  ],
+  "action": "generated",
+  "itemCounts": { "milestones": 4, "deliverables": 12, "tasks": 36 },
+  "totalDurationDays": 90,
+  "stopReason": "end_turn"
+}
+```
+
+**Response (Clarification Needed):**
+
+```json
+{
+  "message": "I need more information to create an accurate plan.",
+  "clarificationNeeded": true,
+  "questions": [
+    "What is the target platform (iOS, Android, or both)?",
+    "Do you have an existing backend or need one built?",
+    "What is the expected timeline?"
+  ],
+  "stopReason": "end_turn"
+}
+```
+
+**Response (Structure Refined):**
+
+```json
+{
+  "message": "I've added more detail to the Backend Development phase.",
+  "structure": [...],
+  "action": "refined",
+  "refinementType": "add_detail",
+  "targetArea": "Backend Development",
+  "itemCounts": { "milestones": 4, "deliverables": 15, "tasks": 48 },
+  "stopReason": "end_turn"
+}
+```
+
+**System Prompt Highlights:**
+
+```
+You are a project planning assistant...
+
+## Structure Rules
+- Maximum 3 levels: Milestone → Deliverable → Task
+- Each milestone: 2-5 deliverables
+- Each deliverable: 2-8 tasks
+- Names under 50 characters
+
+## Duration Estimation
+- Tasks: 0.5 to 5 days typically
+- Include buffer for reviews
+- Consider dependencies
+```
+
+**Document Analysis:**
+
+When a document is provided, the system prompt is extended:
+
+```
+## Document Analysis
+
+Analyze the document to:
+1. Identify Project Scope
+2. Extract Phases/Milestones
+3. Find Deliverables
+4. Discover Tasks
+5. Note Timelines
+6. Capture Dependencies
+
+Supported document types:
+- Project Brief → Extract objectives, scope, deliverables
+- Requirements Document → Create deliverables from requirement groups
+- Scope Document → Map scope items to milestones
+- Proposal → Extract work packages and phases
+```
+
+**Token Cost Tracking:**
+
+```javascript
+const TOKEN_COSTS = {
+  input: 3.00,   // per 1M tokens
+  output: 15.00, // per 1M tokens
+};
+
+// Logged per request
+console.log(`Planning AI - Tokens: ${input} in, ${output} out, Cost: ${cost.toFixed(4)}`);
+```
+
+**Error Handling:**
+
+| Error | Cause | Recovery |
+|-------|-------|----------|
+| 400 | Invalid messages array | Fix request body |
+| 400 | Unsupported document type | Use PDF/JPEG/PNG/WebP/GIF |
+| 400 | Document too large | Reduce to <10MB |
+| 500 | AI service not configured | Check ANTHROPIC_API_KEY |
+| 500 | Claude API error | Retry request |
+
+**Workflow Diagram:**
+
+```
+User Input (text/document)
+         │
+         ▼
+┌─────────────────┐
+│ Validate Input  │
+│ - Messages      │
+│ - Document size │
+│ - Document type │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Build System    │
+│ Prompt          │
+│ + Doc Analysis  │
+│ + Current Plan  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Claude API      │
+│ (Sonnet 4.5)    │
+│ + 3 Tools       │
+│ 120s timeout    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Process Tool    │
+│ Response        │
+│ - Structure     │
+│ - Clarification │
+│ - Refinement    │
+└────────┬────────┘
+         │
+         ▼
+    Return JSON
+```
+
+**Integration with Planning Page:**
+
+```javascript
+// PlanningAIAssistant.jsx
+const response = await fetch('/api/planning-ai', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    messages: conversationHistory,
+    projectContext: { projectId, projectName },
+    currentStructure: existingPlanItems,
+    document: uploadedDocument
+  })
+});
+
+const result = await response.json();
+if (result.structure) {
+  // Import generated structure into plan_items table
+  await planItemsService.importStructure(projectId, result.structure);
+}
 ```
 
 ### 6.3 Password Validation
@@ -1167,3 +1460,5 @@ console.log(`[Tool] ${toolName} completed in ${Date.now() - startTime}ms`);
 |---------|------|--------|--------|
 | 1.0 | 11 Dec 2025 | Claude AI | Initial creation |
 | 1.1 | 23 Dec 2025 | Claude AI | Added `/api/create-project` endpoint, Project Creation API section (6.5) for org-aware project creation |
+| 1.2 | 24 Dec 2025 | Claude AI | Added `/api/create-organisation` endpoint (self-service org creation), Section 6.6 |
+| 1.3 | 28 Dec 2025 | Claude AI | Added `/api/planning-ai` endpoint (AI-powered WBS generation), Section 6.7 |

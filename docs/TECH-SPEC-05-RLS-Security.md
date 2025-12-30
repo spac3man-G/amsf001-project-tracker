@@ -1,11 +1,15 @@
 # AMSF001 Technical Specification - RLS Policies & Security
 
-**Document Version:** 3.0  
+**Document Version:** 4.0  
 **Created:** 11 December 2025  
-**Updated:** 24 December 2025  
-**Session:** 1.5  
+**Updated:** 28 December 2025  
+**Session:** 1.5.1  
 **Scope:** Row Level Security, Authentication, Authorization
 
+> **Version 4.0 Updates (28 December 2025):**
+> - Added Planning & Estimator tools RLS policies (Section 5.7)
+> - 22 new policies across 6 tables (plan_items, estimates, estimate_components, estimate_tasks, estimate_resources, benchmark_rates)
+> - Updated Document History
 > **Version 3.0 Updates (24 December 2025):**
 > - Updated all SELECT policies to use `can_access_project()` helper (33 policies)
 > - Simplified organisation roles from 3 to 2 (org_admin, org_member)
@@ -727,6 +731,194 @@ Inherits from parent variation via JOIN.
 
 **Note**: Audit log is read-only for users. Writes happen via service role or triggers.
 
+### 5.7 Planning & Estimator Tools (NEW December 2025)
+
+> **Added:** 28 December 2025
+> 
+> These tables support the Planning and Estimator tools. They follow standard
+> project-scoped patterns with role-based write restrictions.
+
+#### plan_items
+
+| Operation | Allowed Roles |
+|-----------|---------------|
+| SELECT | All project members (via `can_access_project()`) |
+| INSERT | admin, supplier_pm, customer_pm |
+| UPDATE | admin, supplier_pm, customer_pm |
+| DELETE | admin, supplier_pm |
+
+```sql
+CREATE POLICY "plan_items_select" ON plan_items FOR SELECT TO authenticated
+  USING (can_access_project(project_id));
+
+CREATE POLICY "plan_items_insert" ON plan_items FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_projects up
+      WHERE up.project_id = plan_items.project_id
+      AND up.user_id = auth.uid()
+      AND up.role IN ('admin', 'supplier_pm', 'customer_pm')
+    )
+  );
+
+CREATE POLICY "plan_items_update" ON plan_items FOR UPDATE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_projects up
+      WHERE up.project_id = plan_items.project_id
+      AND up.user_id = auth.uid()
+      AND up.role IN ('admin', 'supplier_pm', 'customer_pm')
+    )
+  );
+
+CREATE POLICY "plan_items_delete" ON plan_items FOR DELETE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_projects up
+      WHERE up.project_id = plan_items.project_id
+      AND up.user_id = auth.uid()
+      AND up.role IN ('admin', 'supplier_pm')
+    )
+  );
+```
+
+#### estimates
+
+| Operation | Allowed Roles |
+|-----------|---------------|
+| SELECT | All project members |
+| INSERT | admin, supplier_pm |
+| UPDATE | admin, supplier_pm |
+| DELETE | admin, supplier_pm |
+
+```sql
+CREATE POLICY "estimates_select" ON estimates FOR SELECT TO authenticated
+  USING (can_access_project(project_id));
+
+CREATE POLICY "estimates_insert" ON estimates FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_projects up
+      WHERE up.project_id = estimates.project_id
+      AND up.user_id = auth.uid()
+      AND up.role IN ('admin', 'supplier_pm')
+    )
+  );
+
+CREATE POLICY "estimates_update" ON estimates FOR UPDATE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_projects up
+      WHERE up.project_id = estimates.project_id
+      AND up.user_id = auth.uid()
+      AND up.role IN ('admin', 'supplier_pm')
+    )
+  );
+
+CREATE POLICY "estimates_delete" ON estimates FOR DELETE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_projects up
+      WHERE up.project_id = estimates.project_id
+      AND up.user_id = auth.uid()
+      AND up.role IN ('admin', 'supplier_pm')
+    )
+  );
+```
+
+#### estimate_components
+
+Inherits access from parent `estimates` table:
+
+| Operation | Allowed Roles |
+|-----------|---------------|
+| SELECT | All project members (via estimate) |
+| INSERT | admin, supplier_pm |
+| UPDATE | admin, supplier_pm |
+| DELETE | admin, supplier_pm |
+
+```sql
+CREATE POLICY "estimate_components_select" ON estimate_components FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM estimates e
+      WHERE e.id = estimate_components.estimate_id
+      AND can_access_project(e.project_id)
+    )
+  );
+
+CREATE POLICY "estimate_components_insert" ON estimate_components FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM estimates e
+      JOIN user_projects up ON up.project_id = e.project_id
+      WHERE e.id = estimate_components.estimate_id
+      AND up.user_id = auth.uid()
+      AND up.role IN ('admin', 'supplier_pm')
+    )
+  );
+```
+
+#### estimate_tasks
+
+Inherits access from parent `estimate_components` table:
+
+| Operation | Allowed Roles |
+|-----------|---------------|
+| SELECT | All project members (via component → estimate) |
+| INSERT | admin, supplier_pm |
+| UPDATE | admin, supplier_pm |
+| DELETE | admin, supplier_pm |
+
+#### estimate_resources
+
+Inherits access from parent `estimate_tasks` table:
+
+| Operation | Allowed Roles |
+|-----------|---------------|
+| SELECT | All project members (via task → component → estimate) |
+| INSERT | admin, supplier_pm |
+| UPDATE | admin, supplier_pm |
+| DELETE | admin, supplier_pm |
+
+#### benchmark_rates (GLOBAL)
+
+> **Note:** This is a **global** table - not project-scoped.
+> All authenticated users can read; only system admins can modify.
+
+| Operation | Allowed Roles |
+|-----------|---------------|
+| SELECT | All authenticated users |
+| INSERT | System admin only |
+| UPDATE | System admin only |
+| DELETE | System admin only |
+
+```sql
+-- Global read access for authenticated users
+CREATE POLICY "benchmark_rates_select" ON benchmark_rates FOR SELECT TO authenticated
+  USING (true);
+
+-- Admin-only write access (uses global role check)
+CREATE POLICY "benchmark_rates_admin_all" ON benchmark_rates FOR ALL TO authenticated
+  USING (is_system_admin())
+  WITH CHECK (is_system_admin());
+```
+
+#### Planning & Estimator Permission Matrix
+
+| Action | Admin | Supplier PM | Customer PM | Contributor | Viewer |
+|--------|-------|-------------|-------------|-------------|--------|
+| View plan items | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Create plan items | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Edit plan items | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Delete plan items | ✅ | ✅ | ❌ | ❌ | ❌ |
+| View estimates | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Create estimates | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Edit estimates | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Delete estimates | ✅ | ✅ | ❌ | ❌ | ❌ |
+| View benchmark rates | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Edit benchmark rates | ✅ (system) | ❌ | ❌ | ❌ | ❌ |
+
 ---
 
 ## 6. Role-Based Access Control
@@ -1187,6 +1379,7 @@ EXISTS (
 | 1.1 | 13 Dec 2025 | Claude AI | Added SECURITY DEFINER functions for user_projects policies to fix recursion bug; updated Section 1.3, 2.2, and 4.3 |
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added org-level helper functions, organisation/user_organisations table policies, updated projects/user_projects policies for org-awareness, added profiles_org_members_can_view policy, updated multi-tenancy architecture to three-tier model |
 | 3.0 | 24 Dec 2025 | Claude AI | **Permission Hierarchy Fix**: Updated all SELECT policies to use can_access_project() helper (33 policies); Simplified organisation roles from 3 to 2 (org_admin, org_member); Removed is_org_owner() function; Updated access hierarchy |
+| 4.0 | 28 Dec 2025 | Claude AI | **Planning & Estimator Tools**: Added Section 5.7 with 22 new RLS policies for plan_items, estimates, estimate_components, estimate_tasks, estimate_resources, and benchmark_rates (global) |
 
 ---
 

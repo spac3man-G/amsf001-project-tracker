@@ -4,8 +4,9 @@
  * Full-screen modal for viewing, editing, and managing network standard workflow.
  * Includes view/edit modes and status workflow actions.
  * 
- * @version 1.0
+ * @version 2.0 - TD-001: Uses useNetworkStandardPermissions hook internally
  * @created 3 December 2025
+ * @updated 28 December 2025
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,6 +14,7 @@ import {
   X, Save, Edit2, FileText, Calendar, User, Clock,
   CheckCircle, AlertCircle, ExternalLink, Target
 } from 'lucide-react';
+import { useNetworkStandardPermissions } from '../../hooks';
 
 const STATUS_OPTIONS = [
   'Not Started',
@@ -42,12 +44,14 @@ const CATEGORY_COLORS = {
 export default function NetworkStandardDetailModal({
   isOpen,
   standard,
-  canEdit,
   onClose,
   onSave
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+
+  // Get permissions from hook - centralised permission logic
+  const permissions = useNetworkStandardPermissions(standard);
 
   useEffect(() => {
     if (standard) {
@@ -477,7 +481,7 @@ export default function NetworkStandardDetailModal({
             </>
           ) : (
             <>
-              {canEdit && (
+              {permissions.canEdit && (
                 <button 
                   onClick={() => setIsEditing(true)} 
                   className="btn btn-primary"

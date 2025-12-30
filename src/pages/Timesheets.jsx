@@ -42,13 +42,11 @@ export default function Timesheets() {
   const currentUserId = user?.id || null;
   const currentUserResourceId = linkedResource?.id || null;
 
+  // Note: canEditTimesheet, canDeleteTimesheet, canSubmitTimesheet, canValidateTimesheet removed
+  // as TimesheetDetailModal now uses useTimesheetPermissions hook internally (TD-001)
   const { 
-    userRole, // Project-scoped role for UI checks
+    userRole, // Still needed for page-level checks
     canAddTimesheet, 
-    canEditTimesheet, 
-    canDeleteTimesheet, 
-    canSubmitTimesheet, 
-    canValidateTimesheet, 
     getAvailableResources 
   } = usePermissions();
 
@@ -617,16 +615,12 @@ export default function Timesheets() {
         variant="danger" 
       />
 
+      {/* TD-001: TimesheetDetailModal now uses useTimesheetPermissions hook internally */}
       <TimesheetDetailModal
         isOpen={detailModal.isOpen}
         timesheet={detailModal.timesheet}
         resources={resources}
         milestones={milestones}
-        userRole={userRole}
-        canSubmitTimesheet={canSubmitTimesheet}
-        canValidateTimesheet={canValidateTimesheet}
-        canEditTimesheet={canEditTimesheet}
-        canDeleteTimesheet={canDeleteTimesheet}
         onClose={() => setDetailModal({ isOpen: false, timesheet: null })}
         onSave={handleSave}
         onSubmit={handleSubmit}

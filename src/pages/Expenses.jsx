@@ -51,7 +51,9 @@ export default function Expenses() {
   const { showTestUsers, testUserIds } = useTestUsers();
   const currentUserId = user?.id || null;
 
-  const { canAddExpense, canSubmitExpense, canValidateExpense, canEditExpense, canDeleteExpense, getAvailableResources, hasRole } = usePermissions();
+  // Note: canSubmitExpense, canValidateExpense, canEditExpense, canDeleteExpense removed
+  // as ExpenseDetailModal now uses useExpensePermissions hook internally (TD-001)
+  const { canAddExpense, getAvailableResources, hasRole } = usePermissions();
 
   const [expenses, setExpenses] = useState([]);
   const [resources, setResources] = useState([]);
@@ -290,8 +292,6 @@ export default function Expenses() {
     } catch (error) { console.error('Error downloading file:', error); showError('Failed to download file'); }
   }
 
-  function canEditChargeable() { return hasRole(['admin', 'supplier_pm', 'customer_pm']); }
-
   const filteredExpenses = expenses.filter(e => {
     if (filterCategory !== 'all' && e.category !== filterCategory) return false;
     if (filterResource !== 'all' && e.resource_name !== filterResource) return false;
@@ -445,16 +445,11 @@ export default function Expenses() {
         type="info"
       />
 
+      {/* TD-001: ExpenseDetailModal now uses useExpensePermissions hook internally */}
       <ExpenseDetailModal
         isOpen={detailModal.isOpen}
         expense={detailModal.expense}
         resources={resources}
-        hasRole={hasRole}
-        canEditChargeable={canEditChargeable}
-        canSubmitExpense={canSubmitExpense}
-        canValidateExpense={canValidateExpense}
-        canEditExpense={canEditExpense}
-        canDeleteExpense={canDeleteExpense}
         onClose={() => setDetailModal({ isOpen: false, expense: null })}
         onSave={async (id, formData) => {
           const resourceName = resources.find(r => r.id === formData.resource_id)?.name || formData.resource_name;
