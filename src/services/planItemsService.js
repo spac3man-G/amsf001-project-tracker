@@ -332,7 +332,7 @@ export const planItemsService = {
       .from('plan_items')
       .update({
         parent_id: newParentId,
-        sort_order: newSortOrder,
+        sort_order: Math.round(newSortOrder), // Ensure integer
         indent_level: newIndentLevel,
         item_type: newType
       })

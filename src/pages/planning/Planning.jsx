@@ -963,24 +963,24 @@ export default function Planning() {
         newParentId = targetItem.parent_id;
       }
       
-      // Calculate new sort order
+      // Calculate new sort order (use integers, will be cleaned up by reorder)
       let newSortOrder;
       if (position === 'before') {
-        newSortOrder = targetItem.sort_order - 0.5;
+        newSortOrder = Math.floor(targetItem.sort_order) - 1;
       } else if (position === 'after') {
-        newSortOrder = targetItem.sort_order + 0.5;
+        newSortOrder = Math.floor(targetItem.sort_order) + 1;
       } else {
         // Inside - put at end of children
         const children = items.filter(i => i.parent_id === targetItem.id);
         newSortOrder = children.length > 0 
-          ? Math.max(...children.map(c => c.sort_order)) + 1 
-          : 1;
+          ? Math.max(...children.map(c => c.sort_order)) + 10 
+          : 10;
       }
       
       // Move items
       for (const item of draggedItems) {
         await planItemsService.move(item.id, newParentId, newSortOrder);
-        newSortOrder += 0.001; // Keep relative order
+        newSortOrder += 1; // Keep relative order
       }
       
       // Push to history
@@ -1025,7 +1025,7 @@ export default function Planning() {
       }));
       
       for (const item of selectedItems) {
-        await planItemsService.move(item.id, targetItem.parent_id, targetItem.sort_order - 0.5);
+        await planItemsService.move(item.id, targetItem.parent_id, Math.floor(targetItem.sort_order) - 1);
       }
       
       planningHistory.push('move', {
@@ -1066,7 +1066,7 @@ export default function Planning() {
       }));
       
       for (const item of selectedItems.reverse()) { // Reverse to maintain order
-        await planItemsService.move(item.id, targetItem.parent_id, targetItem.sort_order + 0.5);
+        await planItemsService.move(item.id, targetItem.parent_id, Math.floor(targetItem.sort_order) + 1);
       }
       
       planningHistory.push('move', {
