@@ -150,6 +150,73 @@ const TOOLS = [
     }
   },
   {
+    name: "editPlanItems",
+    description: "Make specific edits to existing plan items. Use this when the user wants to add, remove, rename, copy, or modify specific items in their current plan. This is for editing the EXISTING plan, not generating a new structure.",
+    input_schema: {
+      type: "object",
+      properties: {
+        operations: {
+          type: "array",
+          description: "List of edit operations to perform",
+          items: {
+            type: "object",
+            properties: {
+              operation: {
+                type: "string",
+                enum: ["add", "remove", "rename", "update", "copy", "move"],
+                description: "Type of operation"
+              },
+              targetId: {
+                type: "string",
+                description: "ID of the item to modify (for remove, rename, update, copy, move)"
+              },
+              targetName: {
+                type: "string",
+                description: "Name of the item to modify (alternative to targetId when ID is unknown)"
+              },
+              parentId: {
+                type: "string",
+                description: "ID of parent item (for add operation)"
+              },
+              parentName: {
+                type: "string",
+                description: "Name of parent item (alternative to parentId)"
+              },
+              newValues: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  item_type: { type: "string", enum: ["milestone", "deliverable", "task"] },
+                  start_date: { type: "string" },
+                  end_date: { type: "string" },
+                  duration_days: { type: "integer" },
+                  status: { type: "string", enum: ["not_started", "in_progress", "completed", "on_hold", "cancelled"] },
+                  progress: { type: "integer" }
+                },
+                description: "New values for add, rename, or update operations"
+              },
+              destinationParentId: {
+                type: "string",
+                description: "Destination parent ID for move/copy operations"
+              },
+              destinationParentName: {
+                type: "string",
+                description: "Destination parent name for move/copy operations"
+              }
+            },
+            required: ["operation"]
+          }
+        },
+        summary: {
+          type: "string",
+          description: "Human-readable summary of the changes being made"
+        }
+      },
+      required: ["operations", "summary"]
+    }
+  },
+  {
     name: "askClarification",
     description: "Ask the user for more information when the project description is too vague or missing critical details.",
     input_schema: {
@@ -174,7 +241,7 @@ const TOOLS = [
 // SYSTEM PROMPT
 // ============================================
 
-const SYSTEM_PROMPT = `You are a project planning assistant integrated into a project management tool. Your role is to help users convert natural language project descriptions into structured work breakdown structures.
+const SYSTEM_PROMPT = `You are a project planning assistant integrated into a project management tool. Your role is to help users convert natural language project descriptions into structured work breakdown structures, AND to help them edit and manage their existing plans through natural conversation.
 
 ## Your Capabilities
 
@@ -183,50 +250,68 @@ const SYSTEM_PROMPT = `You are a project planning assistant integrated into a pr
    - **Deliverables**: Tangible outputs under milestones (e.g., "User Research Report", "API Documentation")
    - **Tasks**: Specific work items under deliverables (e.g., "Conduct user interviews", "Write endpoint specs")
 
-2. **Refine Structures**: Modify existing structures based on feedback:
-   - Add more detail to specific areas
-   - Adjust durations
-   - Add or remove items
-   - Restructure hierarchy
+2. **Edit Existing Plans**: Make changes to the user's current plan:
+   - Add new items (milestones, deliverables, tasks)
+   - Remove items
+   - Rename items
+   - Update properties (dates, status, progress, descriptions)
+   - Copy items
+   - Move items to different parents
 
-3. **Ask Clarifying Questions**: When descriptions are vague, ask targeted questions about:
-   - Project scope and objectives
-   - Timeline constraints
-   - Team size and capabilities
-   - Dependencies and constraints
+3. **Refine Generated Structures**: Modify structures you've generated based on feedback
+
+4. **Ask Clarifying Questions**: When descriptions are vague, ask targeted questions
 
 ## Guidelines
 
-### Structure Rules
-- Maximum 3 levels of hierarchy: Milestone → Deliverable → Task
-- Each milestone should have 2-5 deliverables
-- Each deliverable should have 2-8 tasks
-- Use clear, action-oriented names for tasks
-- Keep names concise (under 50 characters)
+### Hierarchy Rules (IMPORTANT)
+- Milestones can only be at root level (no parent)
+- Deliverables MUST be under a Milestone
+- Tasks MUST be under a Deliverable OR another Task
+- Maximum 3 levels: Milestone → Deliverable → Task
 
-### Duration Estimation
-- Tasks: 0.5 to 5 days typically
-- Deliverables: Sum of task durations
-- Milestones: Sum of deliverable durations (some may run in parallel)
-- Be realistic - add buffer for reviews and iterations
+### When to Use Each Tool
+- **generateProjectStructure**: For creating NEW plans from descriptions
+- **editPlanItems**: For modifying EXISTING plan items (add, remove, rename, update, copy, move)
+- **refineStructure**: For modifying a structure you just generated (before it's applied)
+- **askClarification**: When you need more information
+
+### Edit Operations
+When using editPlanItems, you can identify items by either:
+- Their ID (targetId) - most reliable
+- Their name (targetName) - use when ID isn't available
+
+Common edit patterns:
+- "Add a task called X under deliverable Y" → add operation with parentName
+- "Remove Phase 3" → remove operation with targetName
+- "Rename milestone 1 to..." → rename operation
+- "Copy Phase 1 and rename to Phase 2" → copy operation
+- "Change the status of task X to completed" → update operation
+- "Move task X under deliverable Y" → move operation
 
 ### Best Practices
-- Start with the end goal and work backwards
-- Group related work into logical deliverables
-- Include review/approval tasks where appropriate
-- Consider dependencies between items
-- Include testing/QA where relevant
+- Be conversational and confirm what you're doing
+- When editing, always summarize the changes made
+- If unsure which item the user means, ask for clarification
+- Preserve existing data when making edits`;
 
-## Response Format
+// ============================================
+// EXISTING PLAN CONTEXT ADDITION TO SYSTEM PROMPT
+// ============================================
 
-Always use the appropriate tool:
-- Use \`generateProjectStructure\` for new project plans
-- Use \`refineStructure\` when modifying existing plans
-- Use \`askClarification\` when you need more information
+const EXISTING_PLAN_PROMPT = `
 
-Never output raw JSON - always use tools to return structured data.
+## Current Plan Items
 
-Be conversational and helpful. Explain your reasoning when generating structures.`;
+The user has an existing project plan. Here are the current items:
+
+\`\`\`json
+{existingItems}
+\`\`\`
+
+When the user asks to edit, add, remove, rename, or modify items, use the editPlanItems tool.
+Reference items by their ID when possible, or by name if ID is not available.
+Always confirm what changes you're making.`;
 
 // ============================================
 // DOCUMENT ANALYSIS ADDITIONS TO SYSTEM PROMPT
@@ -353,7 +438,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, projectContext, currentStructure, document } = req.body;
+    const { messages, projectContext, currentStructure, document, existingItems } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array required' });
@@ -373,6 +458,23 @@ export default async function handler(req, res) {
     // Add document analysis prompt if document is provided
     if (document) {
       systemPrompt += DOCUMENT_ANALYSIS_PROMPT;
+    }
+    
+    // Add existing plan items if provided
+    if (existingItems && existingItems.length > 0) {
+      // Simplify items for context (remove unnecessary fields)
+      const simplifiedItems = existingItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        item_type: item.item_type,
+        wbs: item.wbs,
+        parent_id: item.parent_id,
+        status: item.status,
+        progress: item.progress,
+        start_date: item.start_date,
+        end_date: item.end_date
+      }));
+      systemPrompt += EXISTING_PLAN_PROMPT.replace('{existingItems}', JSON.stringify(simplifiedItems, null, 2));
     }
     
     if (projectContext) {
@@ -464,6 +566,7 @@ function processClaudeResponse(data) {
     clarificationNeeded: false,
     questions: null,
     itemCounts: null,
+    operations: null,
     stopReason: data.stop_reason
   };
 
@@ -491,6 +594,12 @@ function processClaudeResponse(data) {
           result.message = toolInput.changesSummary;
           result.refinementType = toolInput.action;
           result.targetArea = toolInput.targetArea;
+          break;
+
+        case 'editPlanItems':
+          result.action = 'edit';
+          result.operations = toolInput.operations;
+          result.message = toolInput.summary;
           break;
 
         case 'askClarification':

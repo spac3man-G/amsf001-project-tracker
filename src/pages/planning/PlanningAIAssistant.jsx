@@ -492,7 +492,7 @@ function DocumentUpload({ document, onDocumentChange, onRemove, disabled }) {
 // MAIN COMPONENT
 // ============================================
 
-export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
+export default function PlanningAIAssistant({ onClose, onApplyStructure, existingItems = [], onExecuteOperations }) {
   const { projectId, projectName } = useProject();
   
   const [messages, setMessages] = useState([]);
@@ -571,7 +571,8 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
       const requestPayload = {
         messages: messageHistory,
         projectContext: { projectId, projectName },
-        currentStructure: currentStructure
+        currentStructure: currentStructure,
+        existingItems: existingItems // Pass current plan items for editing
       };
       
       // Add document if present
@@ -602,6 +603,15 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
       } else if (data.clarificationNeeded) {
         addMessage('assistant', data.message);
         setClarificationQuestions(data.questions);
+      } else if (data.operations && onExecuteOperations) {
+        // Handle edit operations
+        addMessage('assistant', data.message);
+        try {
+          await onExecuteOperations(data.operations);
+          addMessage('assistant', '✅ Changes applied successfully.');
+        } catch (opError) {
+          addMessage('assistant', `❌ Failed to apply changes: ${opError.message}`, opError.message);
+        }
       } else if (data.structure) {
         addMessage('assistant', data.message);
         setCurrentStructure(data.structure);
@@ -617,7 +627,7 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure }) {
       setIsLoading(false);
       setIsAnalyzingDocument(false);
     }
-  }, [messages, isLoading, addMessage, projectId, projectName, currentStructure, uploadedDocument]);
+  }, [messages, isLoading, addMessage, projectId, projectName, currentStructure, uploadedDocument, existingItems, onExecuteOperations]);
   
   // Handle form submit
   const handleSubmit = (e) => {

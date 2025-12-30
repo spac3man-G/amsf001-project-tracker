@@ -264,6 +264,129 @@ export default function Planning() {
     }
   }
 
+  // Handle AI edit operations (add, remove, rename, update, copy, move)
+  async function handleAIOperations(operations) {
+    if (!operations || operations.length === 0) return;
+    
+    try {
+      setLoading(true);
+      
+      for (const op of operations) {
+        // Resolve target item by ID or name
+        let targetItem = null;
+        if (op.targetId) {
+          targetItem = items.find(i => i.id === op.targetId);
+        } else if (op.targetName) {
+          targetItem = items.find(i => i.name.toLowerCase() === op.targetName.toLowerCase());
+        }
+        
+        // Resolve parent item by ID or name
+        let parentItem = null;
+        if (op.parentId) {
+          parentItem = items.find(i => i.id === op.parentId);
+        } else if (op.parentName) {
+          parentItem = items.find(i => i.name.toLowerCase() === op.parentName.toLowerCase());
+        }
+        
+        switch (op.operation) {
+          case 'add': {
+            // Add a new item
+            const newItem = {
+              project_id: projectId,
+              name: op.newValues?.name || 'New Item',
+              item_type: op.newValues?.item_type || 'task',
+              description: op.newValues?.description || '',
+              status: op.newValues?.status || 'not_started',
+              progress: op.newValues?.progress || 0,
+              start_date: op.newValues?.start_date || null,
+              end_date: op.newValues?.end_date || null,
+              parent_id: parentItem?.id || null
+            };
+            await planItemsService.create(newItem);
+            break;
+          }
+          
+          case 'remove': {
+            if (targetItem) {
+              await planItemsService.delete(targetItem.id);
+            }
+            break;
+          }
+          
+          case 'rename': {
+            if (targetItem && op.newValues?.name) {
+              await planItemsService.update(targetItem.id, { name: op.newValues.name });
+            }
+            break;
+          }
+          
+          case 'update': {
+            if (targetItem && op.newValues) {
+              await planItemsService.update(targetItem.id, op.newValues);
+            }
+            break;
+          }
+          
+          case 'copy': {
+            if (targetItem) {
+              // Get target and its children
+              const descendants = planItemsService.getDescendants(items, targetItem.id);
+              const allItems = [targetItem, ...descendants];
+              
+              // Resolve destination parent
+              let destParent = null;
+              if (op.destinationParentId) {
+                destParent = items.find(i => i.id === op.destinationParentId);
+              } else if (op.destinationParentName) {
+                destParent = items.find(i => i.name.toLowerCase() === op.destinationParentName.toLowerCase());
+              }
+              
+              // Copy items with new parent
+              const copied = allItems.map(item => ({
+                ...item,
+                id: undefined, // Will be generated
+                name: item.id === targetItem.id ? (op.newValues?.name || `${item.name} (Copy)`) : item.name,
+                parent_id: item.id === targetItem.id ? (destParent?.id || targetItem.parent_id) : item.parent_id
+              }));
+              
+              for (const item of copied) {
+                await planItemsService.create(item);
+              }
+            }
+            break;
+          }
+          
+          case 'move': {
+            if (targetItem) {
+              let destParent = null;
+              if (op.destinationParentId) {
+                destParent = items.find(i => i.id === op.destinationParentId);
+              } else if (op.destinationParentName) {
+                destParent = items.find(i => i.name.toLowerCase() === op.destinationParentName.toLowerCase());
+              }
+              
+              await planItemsService.move(targetItem.id, destParent?.id || null, 999);
+            }
+            break;
+          }
+          
+          default:
+            console.warn('Unknown AI operation:', op.operation);
+        }
+      }
+      
+      await fetchItems(); // Refresh after all operations
+      showSuccess(`Applied ${operations.length} change(s)`);
+      
+    } catch (error) {
+      console.error('Error executing AI operations:', error);
+      showError(error.message || 'Failed to apply changes');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleAddItem(focusName = true, itemType = 'milestone') {
     try {
       const newItem = await planItemsService.create({
@@ -1796,6 +1919,8 @@ export default function Planning() {
         <PlanningAIAssistant
           onClose={() => setShowAIPanel(false)}
           onApplyStructure={handleApplyStructure}
+          existingItems={items}
+          onExecuteOperations={handleAIOperations}
         />
       )}
 
