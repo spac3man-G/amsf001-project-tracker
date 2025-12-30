@@ -55,10 +55,20 @@ import { ROLES } from './permissions';
  * Sections group related nav items under a header
  */
 export const NAV_SECTIONS = {
-  tools: {
-    id: 'tools',
-    label: 'Tools',
-    icon: null // Section headers don't need icons
+  tracker: {
+    id: 'tracker',
+    label: 'Tracker',
+    icon: null
+  },
+  planner: {
+    id: 'planner',
+    label: 'Planner',
+    icon: null
+  },
+  settings: {
+    id: 'settings',
+    label: 'Settings',
+    icon: null
   }
 };
 
@@ -148,7 +158,7 @@ export const NAV_ITEMS = {
     label: 'Benchmarking',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'tools'
+    section: 'planner'
   },
   estimator: {
     id: 'estimator',
@@ -157,7 +167,7 @@ export const NAV_ITEMS = {
     label: 'Estimator',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'tools'
+    section: 'planner'
   },
   // billing is now a tab within Finance
   // partners is now a tab within Organisation Admin
@@ -193,7 +203,7 @@ export const NAV_ITEMS = {
     label: 'Planning',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
     readOnlyRoles: [],
-    section: 'tools'
+    section: 'planner'
   },
   // variations is now a tab within Milestones page
   systemUsers: {
@@ -258,6 +268,7 @@ export const NAV_ITEMS = {
  */
 export const ROLE_NAV_ORDER = {
   [ROLES.ADMIN]: [
+    { section: 'tracker' },
     'dashboard',
     'milestones',
     'deliverables',
@@ -266,14 +277,16 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
-    'settings',
-    'orgSettings',
-    { section: 'tools' },
+    { section: 'planner' },
     'planning',
     'benchmarking',
-    'estimator'
+    'estimator',
+    { section: 'settings' },
+    'settings',
+    'orgSettings'
   ],
   [ROLES.SUPPLIER_PM]: [
+    { section: 'tracker' },
     'dashboard',
     'milestones',
     'deliverables',
@@ -282,14 +295,16 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
-    'settings',
-    'orgSettings',
-    { section: 'tools' },
+    { section: 'planner' },
     'planning',
     'benchmarking',
-    'estimator'
+    'estimator',
+    { section: 'settings' },
+    'settings',
+    'orgSettings'
   ],
   [ROLES.SUPPLIER_FINANCE]: [
+    { section: 'tracker' },
     'dashboard',
     'calendar',
     'timesheets',
@@ -298,6 +313,7 @@ export const ROLE_NAV_ORDER = {
     'deliverables'
   ],
   [ROLES.CUSTOMER_PM]: [
+    { section: 'tracker' },
     'dashboard',
     'milestones',
     'deliverables',
@@ -306,10 +322,11 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
-    { section: 'tools' },
+    { section: 'planner' },
     'planning'
   ],
   [ROLES.CUSTOMER_FINANCE]: [
+    { section: 'tracker' },
     'dashboard',
     'calendar',
     'timesheets',
@@ -318,6 +335,7 @@ export const ROLE_NAV_ORDER = {
     'deliverables'
   ],
   [ROLES.CONTRIBUTOR]: [
+    { section: 'tracker' },
     'dashboard',
     'calendar',
     'timesheets',
@@ -326,6 +344,7 @@ export const ROLE_NAV_ORDER = {
     'deliverables'
   ],
   [ROLES.VIEWER]: [
+    { section: 'tracker' },
     'dashboard',
     'milestones',
     'deliverables',
