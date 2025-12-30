@@ -266,12 +266,12 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
+    'settings',
+    'orgSettings',
     { section: 'tools' },
     'planning',
     'benchmarking',
-    'estimator',
-    'settings',
-    'orgSettings'
+    'estimator'
   ],
   [ROLES.SUPPLIER_PM]: [
     'dashboard',
@@ -282,12 +282,12 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'finance',
+    'settings',
+    'orgSettings',
     { section: 'tools' },
     'planning',
     'benchmarking',
-    'estimator',
-    'settings',
-    'orgSettings'
+    'estimator'
   ],
   [ROLES.SUPPLIER_FINANCE]: [
     'dashboard',
