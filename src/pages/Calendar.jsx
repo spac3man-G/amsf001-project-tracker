@@ -437,7 +437,8 @@ export default function ProjectCalendar() {
   const [periodView, setPeriodView] = useState('week');
   const [weeksAhead, setWeeksAhead] = useState(4);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [filterResource, setFilterResource] = useState('all');
+  const [hiddenResources, setHiddenResources] = useState(new Set()); // Track hidden resource IDs
+  const [showResourcePicker, setShowResourcePicker] = useState(false);
   
   const [availability, setAvailability] = useState([]);
   const [milestones, setMilestones] = useState([]);
@@ -490,7 +491,7 @@ export default function ProjectCalendar() {
         showAvailability: currentViewConfig.showAvailability,
         showMilestones: currentViewConfig.showMilestones,
         showDeliverables: currentViewConfig.showDeliverables,
-        userId: filterResource !== 'all' ? filterResource : null
+        userId: null // Always fetch all, we filter client-side
       });
       
       setAvailability(results.availability);
@@ -514,7 +515,7 @@ export default function ProjectCalendar() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [projectId, dateRange, currentViewConfig, filterResource, showError, showSuccess]);
+  }, [projectId, dateRange, currentViewConfig, showError, showSuccess]);
   
   useEffect(() => { fetchData(); }, [fetchData]);
   
@@ -595,9 +596,25 @@ export default function ProjectCalendar() {
   };
   
   const filteredMembers = useMemo(() => {
-    if (filterResource === 'all') return members;
-    return members.filter(m => m.id === filterResource);
-  }, [members, filterResource]);
+    return members.filter(m => !hiddenResources.has(m.id));
+  }, [members, hiddenResources]);
+  
+  // Toggle resource visibility
+  const toggleResourceVisibility = (resourceId) => {
+    setHiddenResources(prev => {
+      const next = new Set(prev);
+      if (next.has(resourceId)) {
+        next.delete(resourceId);
+      } else {
+        next.add(resourceId);
+      }
+      return next;
+    });
+  };
+  
+  // Show/hide all resources
+  const showAllResources = () => setHiddenResources(new Set());
+  const hideAllResources = () => setHiddenResources(new Set(members.map(m => m.id)));
   
   const deliverablesByWeek = useMemo(() => {
     const weeks = dateUtils.getWeeksAhead(weeksAhead);
@@ -714,10 +731,48 @@ export default function ProjectCalendar() {
             )}
             
             {currentViewConfig.showAvailability && (
-              <select className="cal-filter-select" value={filterResource} onChange={e => setFilterResource(e.target.value)}>
-                <option value="all">All Resources ({members.length})</option>
-                {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
+              <div className="cal-resource-picker">
+                <button 
+                  className="cal-resource-picker-btn"
+                  onClick={() => setShowResourcePicker(!showResourcePicker)}
+                >
+                  <Users size={16} />
+                  <span>
+                    {hiddenResources.size === 0 
+                      ? `All Resources (${members.length})`
+                      : hiddenResources.size === members.length
+                        ? 'No Resources'
+                        : `${members.length - hiddenResources.size} of ${members.length} Resources`
+                    }
+                  </span>
+                  <ChevronRight size={16} className={`cal-picker-chevron ${showResourcePicker ? 'open' : ''}`} />
+                </button>
+                
+                {showResourcePicker && (
+                  <div className="cal-resource-dropdown">
+                    <div className="cal-resource-dropdown-header">
+                      <span>Show/Hide Resources</span>
+                      <div className="cal-resource-dropdown-actions">
+                        <button onClick={showAllResources} className="cal-resource-action-btn">All</button>
+                        <button onClick={hideAllResources} className="cal-resource-action-btn">None</button>
+                      </div>
+                    </div>
+                    <div className="cal-resource-list">
+                      {members.map(m => (
+                        <label key={m.id} className="cal-resource-item">
+                          <input
+                            type="checkbox"
+                            checked={!hiddenResources.has(m.id)}
+                            onChange={() => toggleResourceVisibility(m.id)}
+                          />
+                          <span className="cal-resource-name">{m.name}</span>
+                          <span className="cal-resource-role">{m.role}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

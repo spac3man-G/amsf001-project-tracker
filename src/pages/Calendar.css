@@ -1176,3 +1176,123 @@
   padding: 8px 4px;
   align-items: flex-start;
 }
+
+
+/* Resource Picker Dropdown */
+.cal-resource-picker {
+  position: relative;
+}
+
+.cal-resource-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--color-gray-700);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cal-resource-picker-btn:hover {
+  background: var(--color-gray-50);
+  border-color: var(--color-gray-300);
+}
+
+.cal-picker-chevron {
+  transition: transform 0.2s ease;
+}
+
+.cal-picker-chevron.open {
+  transform: rotate(90deg);
+}
+
+.cal-resource-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 280px;
+  background: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.cal-resource-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-200);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+}
+
+.cal-resource-dropdown-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cal-resource-action-btn {
+  padding: 4px 10px;
+  background: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cal-resource-action-btn:hover {
+  background: var(--color-primary-50);
+  border-color: var(--org-brand-color, var(--color-primary-500));
+  color: var(--org-brand-color, var(--color-primary-600));
+}
+
+.cal-resource-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.cal-resource-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cal-resource-item:hover {
+  background: var(--color-gray-50);
+}
+
+.cal-resource-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--org-brand-color, var(--color-primary-500));
+  cursor: pointer;
+}
+
+.cal-resource-name {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--color-gray-800);
+}
+
+.cal-resource-role {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  background: var(--color-gray-100);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
