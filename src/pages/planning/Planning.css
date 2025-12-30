@@ -1220,3 +1220,32 @@ thead .plan-col-select {
   color: #f59e0b;
   font-style: italic;
 }
+
+
+/* ===========================================================================
+   UNDO/REDO STYLES (Phase 2.4)
+   =========================================================================== */
+
+/* Undo/Redo button group */
+.plan-undo-redo-buttons {
+  display: flex;
+  gap: 2px;
+  padding: 0 8px;
+  border-left: 1px solid var(--gray-200);
+  margin-left: 4px;
+}
+
+.plan-undo-redo-buttons .plan-btn {
+  padding: 6px 8px;
+  min-width: 32px;
+}
+
+.plan-undo-redo-buttons .plan-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.plan-undo-redo-buttons .plan-btn:disabled:hover {
+  background: transparent;
+  border-color: var(--gray-200);
+}

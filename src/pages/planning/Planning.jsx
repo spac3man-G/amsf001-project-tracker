@@ -5,7 +5,8 @@ import {
   ArrowRight, ArrowLeft, Keyboard, Sparkles,
   Calculator, Link2, FileSpreadsheet, List,
   ExternalLink, Copy, Download, Clock,
-  Scissors, Clipboard, ClipboardPaste
+  Scissors, Clipboard, ClipboardPaste,
+  Undo2, Redo2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../../contexts/ProjectContext';
@@ -15,6 +16,7 @@ import { estimatesService, ESTIMATE_STATUS } from '../../services';
 import PlanningAIAssistant from './PlanningAIAssistant';
 import { EstimateLinkModal, EstimateGeneratorModal } from '../../components/planning';
 import planningClipboard from '../../lib/planningClipboard';
+import planningHistory from '../../lib/planningHistory';
 import './Planning.css';
 
 const ITEM_TYPES = [
@@ -46,6 +48,7 @@ export default function Planning() {
   const [selectedIds, setSelectedIds] = useState(new Set()); // Multi-select
   const [lastSelectedId, setLastSelectedId] = useState(null); // For shift-click range
   const [clipboardCount, setClipboardCount] = useState(0); // Track clipboard for UI updates
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false, undoLabel: 'Undo', redoLabel: 'Redo' });
   const [editValue, setEditValue] = useState('');
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [estimateLinkItem, setEstimateLinkItem] = useState(null); // Item to link to estimate
@@ -89,6 +92,12 @@ export default function Planning() {
   useEffect(() => {
     if (projectId) fetchEstimates();
   }, [projectId, fetchEstimates]);
+
+  // Subscribe to history changes
+  useEffect(() => {
+    const unsubscribe = planningHistory.subscribe(setHistoryState);
+    return unsubscribe;
+  }, []);
 
   // Calculate estimate summary stats
   const estimateSummary = useMemo(() => {
@@ -134,6 +143,18 @@ export default function Planning() {
           case 'd':
             e.preventDefault();
             handleDuplicate();
+            return;
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+            return;
+          case 'y':
+            e.preventDefault();
+            handleRedo();
             return;
         }
       }
@@ -232,6 +253,10 @@ export default function Planning() {
         status: 'not_started',
         progress: 0
       });
+      
+      // Push to history for undo
+      planningHistory.push('create', { id: newItem.id });
+      
       await fetchItems(); // Refresh to get proper WBS
       if (focusName) {
         // Find the new item in refreshed list
@@ -250,10 +275,23 @@ export default function Planning() {
 
   async function handleUpdateItem(id, field, value) {
     try {
+      // Store previous value for undo
+      const item = items.find(i => i.id === id);
+      const previousValue = item ? item[field] : undefined;
+      
       setItems(items.map(item => 
         item.id === id ? { ...item, [field]: value } : item
       ));
       await planItemsService.update(id, { [field]: value });
+      
+      // Only push to history if value actually changed
+      if (previousValue !== value) {
+        planningHistory.push('update', { 
+          id, 
+          previousValues: { [field]: previousValue },
+          newValues: { [field]: value }
+        });
+      }
     } catch (error) {
       console.error('Error updating item:', error);
       fetchItems();
@@ -263,8 +301,17 @@ export default function Planning() {
   async function handleDeleteItem(id) {
     if (!confirm('Delete this item?')) return;
     try {
+      // Get item and its descendants for undo
+      const item = items.find(i => i.id === id);
+      const descendants = planItemsService.getDescendants(items, id);
+      const allIds = [id, ...descendants.map(d => d.id)];
+      
       await planItemsService.delete(id);
-      setItems(items.filter(item => item.id !== id));
+      
+      // Push to history for undo
+      planningHistory.push('delete', { ids: allIds });
+      
+      setItems(items.filter(item => !allIds.includes(item.id)));
       setActiveCell(null);
       setEditingCell(null);
     } catch (error) {
@@ -274,8 +321,27 @@ export default function Planning() {
 
   async function handleIndent(id) {
     try {
+      // Store previous state for undo
+      const item = items.find(i => i.id === id);
+      const previousState = {
+        id,
+        previousParentId: item.parent_id,
+        previousType: item.item_type,
+        previousIndent: item.indent_level
+      };
+      
       await planItemsService.demote(id, items);
       await fetchItems();
+      
+      // Get new state for redo
+      const updatedItem = items.find(i => i.id === id) || await planItemsService.getById(id);
+      planningHistory.push('demote', {
+        ...previousState,
+        newParentId: updatedItem?.parent_id,
+        newType: updatedItem?.item_type,
+        newIndent: updatedItem?.indent_level
+      });
+      
       showSuccess('Item demoted');
     } catch (error) {
       console.error('Error demoting item:', error);
@@ -285,8 +351,27 @@ export default function Planning() {
 
   async function handleOutdent(id) {
     try {
+      // Store previous state for undo
+      const item = items.find(i => i.id === id);
+      const previousState = {
+        id,
+        previousParentId: item.parent_id,
+        previousType: item.item_type,
+        previousIndent: item.indent_level
+      };
+      
       await planItemsService.promote(id, items);
       await fetchItems();
+      
+      // Get new state for redo
+      const updatedItem = items.find(i => i.id === id) || await planItemsService.getById(id);
+      planningHistory.push('promote', {
+        ...previousState,
+        newParentId: updatedItem?.parent_id,
+        newType: updatedItem?.item_type,
+        newIndent: updatedItem?.indent_level
+      });
+      
       showSuccess('Item promoted');
     } catch (error) {
       console.error('Error promoting item:', error);
@@ -467,15 +552,22 @@ export default function Planning() {
       }
       
       // Create items in database
-      await planItemsService.createBatchFlat(projectId, prepared);
+      const result = await planItemsService.createBatchFlat(projectId, prepared);
+      const createdIds = result.items?.map(i => i.id) || [];
+      
+      // Track cut items before deleting
+      let cutIds = [];
       
       // If cut operation, delete source items
       if (planningClipboard.isCutOperation()) {
-        const sourceIds = planningClipboard.getSourceIds();
-        await planItemsService.deleteBatch(sourceIds);
+        cutIds = planningClipboard.getSourceIds();
+        await planItemsService.deleteBatch(cutIds);
         planningClipboard.clear();
         setClipboardCount(0);
       }
+      
+      // Push to history for undo
+      planningHistory.push('paste', { createdIds, cutIds });
       
       // Refresh and show success
       await fetchItems();
@@ -501,6 +593,128 @@ export default function Planning() {
     
     // Then paste
     await handlePaste();
+  }
+
+  // ===========================================================================
+  // UNDO/REDO HANDLERS
+  // ===========================================================================
+
+  async function handleUndo() {
+    const action = planningHistory.popUndo();
+    if (!action) return;
+    
+    try {
+      switch (action.type) {
+        case 'create':
+          // Undo create = delete the created item
+          await planItemsService.delete(action.data.id);
+          break;
+          
+        case 'update':
+          // Undo update = restore previous values
+          await planItemsService.update(action.data.id, action.data.previousValues);
+          break;
+          
+        case 'delete':
+          // Undo delete = restore the item (undelete)
+          await supabaseRestore(action.data.ids);
+          break;
+          
+        case 'paste':
+          // Undo paste = delete pasted items
+          if (action.data.createdIds?.length > 0) {
+            await planItemsService.deleteBatch(action.data.createdIds);
+          }
+          // If it was a cut-paste, restore the cut items
+          if (action.data.cutIds?.length > 0) {
+            await supabaseRestore(action.data.cutIds);
+          }
+          break;
+          
+        case 'promote':
+        case 'demote':
+          // Undo promote/demote = restore previous parent and type
+          await planItemsService.update(action.data.id, {
+            parent_id: action.data.previousParentId,
+            item_type: action.data.previousType,
+            indent_level: action.data.previousIndent
+          });
+          break;
+          
+        default:
+          console.warn('Unknown undo action:', action.type);
+      }
+      
+      await fetchItems();
+      showSuccess(`Undid ${action.type}`);
+    } catch (error) {
+      console.error('Undo error:', error);
+      showError('Failed to undo');
+      // Put the action back since undo failed
+      planningHistory.push(action.type, action.data);
+    }
+  }
+
+  async function handleRedo() {
+    const action = planningHistory.popRedo();
+    if (!action) return;
+    
+    try {
+      switch (action.type) {
+        case 'create':
+          // Redo create = recreate the item (restore)
+          await supabaseRestore([action.data.id]);
+          break;
+          
+        case 'update':
+          // Redo update = apply new values again
+          await planItemsService.update(action.data.id, action.data.newValues);
+          break;
+          
+        case 'delete':
+          // Redo delete = delete again
+          await planItemsService.deleteBatch(action.data.ids);
+          break;
+          
+        case 'paste':
+          // Redo paste = restore pasted items
+          if (action.data.createdIds?.length > 0) {
+            await supabaseRestore(action.data.createdIds);
+          }
+          if (action.data.cutIds?.length > 0) {
+            await planItemsService.deleteBatch(action.data.cutIds);
+          }
+          break;
+          
+        case 'promote':
+        case 'demote':
+          // Redo = apply new parent and type
+          await planItemsService.update(action.data.id, {
+            parent_id: action.data.newParentId,
+            item_type: action.data.newType,
+            indent_level: action.data.newIndent
+          });
+          break;
+          
+        default:
+          console.warn('Unknown redo action:', action.type);
+      }
+      
+      await fetchItems();
+      showSuccess(`Redid ${action.type}`);
+    } catch (error) {
+      console.error('Redo error:', error);
+      showError('Failed to redo');
+    }
+  }
+
+  // Helper to restore soft-deleted items
+  async function supabaseRestore(ids) {
+    const { supabase } = await import('../../lib/supabase');
+    await supabase
+      .from('plan_items')
+      .update({ is_deleted: false })
+      .in('id', ids);
   }
 
   // Get visible items (respecting collapsed state)
@@ -1006,6 +1220,25 @@ export default function Planning() {
               <span>Paste ({clipboardCount})</span>
             </button>
           )}
+          {/* Undo/Redo buttons */}
+          <div className="plan-undo-redo-buttons">
+            <button 
+              onClick={handleUndo} 
+              disabled={!historyState.canUndo}
+              className="plan-btn plan-btn-secondary"
+              title={`${historyState.undoLabel} (Ctrl+Z)`}
+            >
+              <Undo2 size={16} />
+            </button>
+            <button 
+              onClick={handleRedo} 
+              disabled={!historyState.canRedo}
+              className="plan-btn plan-btn-secondary"
+              title={`${historyState.redoLabel} (Ctrl+Y)`}
+            >
+              <Redo2 size={16} />
+            </button>
+          </div>
           <div className="plan-keyboard-hint">
             <Keyboard size={14} />
             <span>Tab/Enter to navigate • Type to edit • F2 to edit cell</span>
