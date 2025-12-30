@@ -1655,7 +1655,7 @@ export default function Planning() {
           <table className="plan-table">
             <thead>
               <tr>
-                <th className="plan-col-select">
+                <th className="plan-col-checkbox">
                   <input
                     type="checkbox"
                     className="plan-select-checkbox"
@@ -1705,7 +1705,7 @@ export default function Planning() {
                     onDragEnd={handleDragEnd}
                     onDrop={(e) => handleDrop(e, item)}
                   >
-                    <td className="plan-cell plan-cell-select" onClick={(e) => e.stopPropagation()}>
+                    <td className="plan-cell plan-cell-checkbox" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         className="plan-select-checkbox"

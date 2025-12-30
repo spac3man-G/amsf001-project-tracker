@@ -1051,15 +1051,20 @@
    =========================================================================== */
 
 /* Selection checkbox column */
-.plan-col-select {
-  width: 40px;
+.plan-col-checkbox {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
   text-align: center;
-  padding: 0 8px !important;
+  padding: 0 4px !important;
 }
 
-.plan-cell-select {
+.plan-cell-checkbox {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
   text-align: center;
-  padding: 0 8px !important;
+  padding: 0 4px !important;
 }
 
 .plan-select-checkbox {
@@ -1129,7 +1134,7 @@
 }
 
 /* Checkbox column header alignment */
-thead .plan-col-select {
+thead .plan-col-checkbox {
   vertical-align: middle;
 }
 
@@ -1139,7 +1144,8 @@ thead .plan-col-select {
 }
 
 .plan-row .plan-cell-input,
-.plan-row .plan-cell-select {
+.plan-row .plan-cell-select,
+.plan-row .plan-cell-checkbox {
   user-select: text;
 }
 
