@@ -80,7 +80,7 @@ export const planItemsService = {
       .from('plan_items')
       .select(`
         *,
-        estimate_component:estimate_components(
+        estimate_component:estimate_components!plan_items_estimate_component_id_fkey(
           id, name, total_cost, total_days, quantity,
           estimate:estimates(id, name, status)
         )
