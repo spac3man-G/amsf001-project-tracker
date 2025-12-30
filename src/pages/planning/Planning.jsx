@@ -124,6 +124,19 @@ export default function Planning() {
   // Handle keyboard navigation on table
   useEffect(() => {
     function handleKeyDown(e) {
+      // Check if user is typing in an input field (not table cells)
+      const activeEl = document.activeElement;
+      const isInInputField = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.isContentEditable
+      );
+      
+      // Don't intercept clipboard shortcuts when in input fields
+      if (isInInputField && !editingCell) {
+        return; // Let browser/OS handle normally
+      }
+      
       // Global shortcuts (work even without active cell)
       if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !editingCell) {
         e.preventDefault();
