@@ -279,6 +279,22 @@ export const planItemsService = {
     return { deleted: idsToDelete.length };
   },
 
+  /**
+   * Soft delete multiple items by ID
+   * Does NOT automatically delete children - caller should include them
+   */
+  async deleteBatch(ids) {
+    if (!ids || ids.length === 0) return { deleted: 0 };
+    
+    const { error } = await supabase
+      .from('plan_items')
+      .update({ is_deleted: true })
+      .in('id', ids);
+
+    if (error) throw error;
+    return { deleted: ids.length };
+  },
+
 
   // ===========================================================================
   // HIERARCHY OPERATIONS (Promote/Demote)
@@ -640,6 +656,61 @@ export const planItemsService = {
       if (item.indent_level === 0 && item.duration_days) {
         currentDate = addWorkdays(currentDate, item.duration_days);
       }
+    }
+    
+    await this.recalculateWBS(projectId);
+    
+    return { created: results.length, items: results };
+  },
+
+  /**
+   * Create multiple plan items from a flat, pre-prepared array
+   * Used for paste operations where items already have correct structure
+   * Items should have: id (new UUID), parent_id (mapped), item_type, name, etc.
+   */
+  async createBatchFlat(projectId, items) {
+    const results = [];
+    const idMap = new Map(); // old temp ID -> new real ID
+    
+    // Sort by indent_level to ensure parents are created before children
+    const sorted = [...items].sort((a, b) => (a.indent_level || 0) - (b.indent_level || 0));
+    
+    for (const item of sorted) {
+      // Map parent ID if it was created in this batch
+      let parentId = item.parent_id;
+      if (parentId && idMap.has(parentId)) {
+        parentId = idMap.get(parentId);
+      }
+      
+      const insertData = {
+        project_id: projectId,
+        parent_id: parentId,
+        item_type: item.item_type,
+        name: item.name,
+        description: item.description || null,
+        start_date: item.start_date || null,
+        end_date: item.end_date || null,
+        duration_days: item.duration_days || null,
+        indent_level: item.indent_level || 0,
+        sort_order: item.sort_order || 0,
+        status: item.status || 'not_started',
+        progress: item.progress || 0
+      };
+      
+      const { data, error } = await supabase
+        .from('plan_items')
+        .insert(insertData)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Store mapping for child items
+      if (item.id) {
+        idMap.set(item.id, data.id);
+      }
+      
+      results.push(data);
     }
     
     await this.recalculateWBS(projectId);

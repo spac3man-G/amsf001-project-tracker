@@ -1142,3 +1142,81 @@ thead .plan-col-select {
 .plan-row .plan-cell-select {
   user-select: text;
 }
+
+
+/* ===========================================================================
+   CLIPBOARD STYLES (Phase 2.2)
+   =========================================================================== */
+
+/* Clipboard button group */
+.plan-clipboard-buttons {
+  display: flex;
+  gap: 4px;
+  padding: 0 8px;
+  border-left: 1px solid var(--gray-200);
+  margin-left: 4px;
+}
+
+.plan-clipboard-buttons .plan-btn {
+  padding: 6px 8px;
+  min-width: 32px;
+}
+
+/* Duplicate button with plus indicator */
+.plan-clipboard-buttons .plan-btn .duplicate-plus {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: var(--gray-600);
+  color: white;
+  border-radius: 50%;
+  padding: 1px;
+}
+
+.plan-clipboard-buttons .plan-btn {
+  position: relative;
+}
+
+/* Paste button */
+.plan-btn-paste {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  color: var(--gray-700);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.plan-btn-paste:hover {
+  background: var(--gray-200);
+  border-color: var(--gray-400);
+}
+
+.plan-btn-paste.is-cut {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.plan-btn-paste.is-cut:hover {
+  background: #fde68a;
+}
+
+/* Cut items visual indicator (slightly faded) */
+.plan-row.cut-pending {
+  opacity: 0.6;
+}
+
+.plan-row.cut-pending .plan-cell-name::after {
+  content: '(cutting...)';
+  margin-left: 8px;
+  font-size: 11px;
+  color: #f59e0b;
+  font-style: italic;
+}

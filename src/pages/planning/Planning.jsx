@@ -4,7 +4,8 @@ import {
   Flag, Package, CheckSquare, RefreshCw,
   ArrowRight, ArrowLeft, Keyboard, Sparkles,
   Calculator, Link2, FileSpreadsheet, List,
-  ExternalLink, Copy, Download, Clock
+  ExternalLink, Copy, Download, Clock,
+  Scissors, Clipboard, ClipboardPaste
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../../contexts/ProjectContext';
@@ -13,6 +14,7 @@ import planItemsService from '../../services/planItemsService';
 import { estimatesService, ESTIMATE_STATUS } from '../../services';
 import PlanningAIAssistant from './PlanningAIAssistant';
 import { EstimateLinkModal, EstimateGeneratorModal } from '../../components/planning';
+import planningClipboard from '../../lib/planningClipboard';
 import './Planning.css';
 
 const ITEM_TYPES = [
@@ -43,6 +45,7 @@ export default function Planning() {
   const [editingCell, setEditingCell] = useState(null); // { rowIndex, field }
   const [selectedIds, setSelectedIds] = useState(new Set()); // Multi-select
   const [lastSelectedId, setLastSelectedId] = useState(null); // For shift-click range
+  const [clipboardCount, setClipboardCount] = useState(0); // Track clipboard for UI updates
   const [editValue, setEditValue] = useState('');
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [estimateLinkItem, setEstimateLinkItem] = useState(null); // Item to link to estimate
@@ -111,6 +114,28 @@ export default function Planning() {
         e.preventDefault();
         handleSelectAll();
         return;
+      }
+      
+      // Clipboard shortcuts
+      if ((e.ctrlKey || e.metaKey) && !editingCell) {
+        switch (e.key.toLowerCase()) {
+          case 'c':
+            e.preventDefault();
+            handleCopy();
+            return;
+          case 'x':
+            e.preventDefault();
+            handleCut();
+            return;
+          case 'v':
+            e.preventDefault();
+            handlePaste();
+            return;
+          case 'd':
+            e.preventDefault();
+            handleDuplicate();
+            return;
+        }
       }
       
       if (e.key === 'Escape') {
@@ -372,6 +397,110 @@ export default function Planning() {
     
     selectedIds.forEach(id => collectDescendants(id));
     return result;
+  }
+
+  // ===========================================================================
+  // CLIPBOARD HANDLERS
+  // ===========================================================================
+
+  // Copy selected items to clipboard
+  function handleCopy() {
+    if (selectedIds.size === 0) {
+      showError('No items selected');
+      return;
+    }
+    
+    const selectedItems = items.filter(i => selectedIds.has(i.id));
+    const count = planningClipboard.copy(selectedItems, items, false);
+    setClipboardCount(count);
+    showSuccess(`Copied ${selectedIds.size} item(s)${count > selectedIds.size ? ` (+${count - selectedIds.size} children)` : ''}`);
+  }
+
+  // Cut selected items to clipboard
+  function handleCut() {
+    if (selectedIds.size === 0) {
+      showError('No items selected');
+      return;
+    }
+    
+    const selectedItems = items.filter(i => selectedIds.has(i.id));
+    const count = planningClipboard.copy(selectedItems, items, true);
+    setClipboardCount(count);
+    showSuccess(`Cut ${selectedIds.size} item(s)${count > selectedIds.size ? ` (+${count - selectedIds.size} children)` : ''}`);
+  }
+
+  // Paste items from clipboard
+  async function handlePaste() {
+    if (!planningClipboard.hasData()) {
+      showError('Nothing to paste');
+      return;
+    }
+    
+    try {
+      // Determine paste target
+      let targetItem = null;
+      if (selectedIds.size === 1) {
+        const targetId = Array.from(selectedIds)[0];
+        targetItem = items.find(i => i.id === targetId) || null;
+      }
+      
+      // Validate paste location
+      const validation = planningClipboard.validatePaste(targetItem);
+      if (!validation.valid) {
+        showError(validation.error);
+        return;
+      }
+      
+      // Get max sort_order for insert position
+      const maxOrder = Math.max(...items.map(i => i.sort_order || 0), 0);
+      
+      // Prepare items for paste
+      const prepared = planningClipboard.prepareForPaste(
+        projectId, 
+        targetItem?.id || null,
+        maxOrder + 1
+      );
+      
+      if (!prepared || prepared.length === 0) {
+        showError('Failed to prepare items for paste');
+        return;
+      }
+      
+      // Create items in database
+      await planItemsService.createBatchFlat(projectId, prepared);
+      
+      // If cut operation, delete source items
+      if (planningClipboard.isCutOperation()) {
+        const sourceIds = planningClipboard.getSourceIds();
+        await planItemsService.deleteBatch(sourceIds);
+        planningClipboard.clear();
+        setClipboardCount(0);
+      }
+      
+      // Refresh and show success
+      await fetchItems();
+      clearSelection();
+      showSuccess(`Pasted ${prepared.length} item(s)`);
+      
+    } catch (error) {
+      console.error('Paste error:', error);
+      showError(error.message || 'Failed to paste items');
+    }
+  }
+
+  // Duplicate selected items (copy + paste in one action)
+  async function handleDuplicate() {
+    if (selectedIds.size === 0) {
+      showError('No items selected');
+      return;
+    }
+    
+    // Copy first
+    const selectedItems = items.filter(i => selectedIds.has(i.id));
+    planningClipboard.copy(selectedItems, items, false);
+    
+    // Then paste
+    await handlePaste();
   }
 
   // Get visible items (respecting collapsed state)
@@ -850,6 +979,32 @@ export default function Planning() {
                 ×
               </button>
             </div>
+          )}
+          {/* Clipboard buttons */}
+          {selectedIds.size > 0 && (
+            <div className="plan-clipboard-buttons">
+              <button onClick={handleCopy} className="plan-btn plan-btn-secondary" title="Copy (Ctrl+C)">
+                <Copy size={16} />
+              </button>
+              <button onClick={handleCut} className="plan-btn plan-btn-secondary" title="Cut (Ctrl+X)">
+                <Scissors size={16} />
+              </button>
+              <button onClick={handleDuplicate} className="plan-btn plan-btn-secondary" title="Duplicate (Ctrl+D)">
+                <Copy size={16} />
+                <Plus size={12} className="duplicate-plus" />
+              </button>
+            </div>
+          )}
+          {/* Paste button (when clipboard has data) */}
+          {clipboardCount > 0 && (
+            <button 
+              onClick={handlePaste} 
+              className={`plan-btn plan-btn-paste ${planningClipboard.isCutOperation() ? 'is-cut' : ''}`}
+              title={`Paste ${clipboardCount} item(s) (Ctrl+V)`}
+            >
+              <ClipboardPaste size={16} />
+              <span>Paste ({clipboardCount})</span>
+            </button>
           )}
           <div className="plan-keyboard-hint">
             <Keyboard size={14} />
