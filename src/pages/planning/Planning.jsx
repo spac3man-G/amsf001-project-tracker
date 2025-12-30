@@ -41,6 +41,8 @@ export default function Planning() {
   const [collapsedIds, setCollapsedIds] = useState(new Set()); // Collapsed item IDs
   const [activeCell, setActiveCell] = useState(null); // { rowIndex, field }
   const [editingCell, setEditingCell] = useState(null); // { rowIndex, field }
+  const [selectedIds, setSelectedIds] = useState(new Set()); // Multi-select
+  const [lastSelectedId, setLastSelectedId] = useState(null); // For shift-click range
   const [editValue, setEditValue] = useState('');
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [estimateLinkItem, setEstimateLinkItem] = useState(null); // Item to link to estimate
@@ -104,6 +106,22 @@ export default function Planning() {
   // Handle keyboard navigation on table
   useEffect(() => {
     function handleKeyDown(e) {
+      // Global shortcuts (work even without active cell)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !editingCell) {
+        e.preventDefault();
+        handleSelectAll();
+        return;
+      }
+      
+      if (e.key === 'Escape') {
+        if (editingCell) {
+          cancelEdit();
+        } else if (selectedIds.size > 0) {
+          clearSelection();
+        }
+        return;
+      }
+      
       if (!activeCell || editingCell) return;
       
       const { rowIndex, field } = activeCell;
@@ -275,6 +293,85 @@ export default function Planning() {
       .filter(item => items.some(i => i.parent_id === item.id))
       .map(item => item.id);
     setCollapsedIds(new Set(idsWithChildren));
+  }
+
+  // ===========================================================================
+  // MULTI-SELECT HANDLERS
+  // ===========================================================================
+
+  // Handle row selection with modifier keys
+  function handleRowSelect(item, e) {
+    e.stopPropagation();
+    
+    if (e.shiftKey && lastSelectedId) {
+      // Range select: select all items between lastSelectedId and clicked item
+      const startIdx = visibleItems.findIndex(i => i.id === lastSelectedId);
+      const endIdx = visibleItems.findIndex(i => i.id === item.id);
+      const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+      
+      const rangeIds = visibleItems.slice(from, to + 1).map(i => i.id);
+      setSelectedIds(new Set([...selectedIds, ...rangeIds]));
+    } else if (e.ctrlKey || e.metaKey) {
+      // Toggle select: add/remove from selection
+      const newSet = new Set(selectedIds);
+      if (newSet.has(item.id)) {
+        newSet.delete(item.id);
+      } else {
+        newSet.add(item.id);
+      }
+      setSelectedIds(newSet);
+      setLastSelectedId(item.id);
+    } else {
+      // Single select
+      setSelectedIds(new Set([item.id]));
+      setLastSelectedId(item.id);
+    }
+  }
+
+  // Toggle checkbox selection (doesn't affect lastSelectedId for range)
+  function handleCheckboxToggle(itemId, e) {
+    e.stopPropagation();
+    const newSet = new Set(selectedIds);
+    if (newSet.has(itemId)) {
+      newSet.delete(itemId);
+    } else {
+      newSet.add(itemId);
+    }
+    setSelectedIds(newSet);
+  }
+
+  // Select all visible items
+  function handleSelectAll() {
+    if (selectedIds.size === visibleItems.length) {
+      // All selected, so deselect all
+      setSelectedIds(new Set());
+    } else {
+      // Select all visible
+      setSelectedIds(new Set(visibleItems.map(i => i.id)));
+    }
+  }
+
+  // Clear selection
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setLastSelectedId(null);
+  }
+
+  // Get all selected items including their children (for operations)
+  function getSelectionWithChildren() {
+    const result = new Set(selectedIds);
+    
+    function collectDescendants(parentId) {
+      items.forEach(item => {
+        if (item.parent_id === parentId) {
+          result.add(item.id);
+          collectDescendants(item.id);
+        }
+      });
+    }
+    
+    selectedIds.forEach(id => collectDescendants(id));
+    return result;
   }
 
   // Get visible items (respecting collapsed state)
@@ -709,7 +806,7 @@ export default function Planning() {
   }
 
   return (
-    <div className={`planning-page ${showAIPanel ? 'with-ai-panel' : ''} ${showEstimatesList ? 'with-estimates-panel' : ''}`} onClick={() => { setActiveCell(null); setEditingCell(null); }}>
+    <div className={`planning-page ${showAIPanel ? 'with-ai-panel' : ''} ${showEstimatesList ? 'with-estimates-panel' : ''}`} onClick={() => { setActiveCell(null); setEditingCell(null); clearSelection(); }}>
       <div className="plan-header">
         <div className="plan-header-left">
           <h1>Project Plan</h1>
@@ -745,6 +842,15 @@ export default function Planning() {
         )}
         
         <div className="plan-header-actions">
+          {/* Selection info */}
+          {selectedIds.size > 0 && (
+            <div className="plan-selection-info">
+              <span>{selectedIds.size} selected</span>
+              <button onClick={clearSelection} className="plan-selection-clear" title="Clear selection (Esc)">
+                ×
+              </button>
+            </div>
+          )}
           <div className="plan-keyboard-hint">
             <Keyboard size={14} />
             <span>Tab/Enter to navigate • Type to edit • F2 to edit cell</span>
@@ -796,6 +902,15 @@ export default function Planning() {
           <table className="plan-table">
             <thead>
               <tr>
+                <th className="plan-col-select">
+                  <input
+                    type="checkbox"
+                    className="plan-select-checkbox"
+                    checked={visibleItems.length > 0 && selectedIds.size === visibleItems.length}
+                    onChange={handleSelectAll}
+                    title="Select all"
+                  />
+                </th>
                 <th className="plan-col-grip"></th>
                 <th className="plan-col-wbs">#</th>
                 <th className="plan-col-name">Task Name</th>
@@ -811,11 +926,11 @@ export default function Planning() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="plan-loading">Loading...</td>
+                  <td colSpan="11" className="plan-loading">Loading...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="plan-empty-row">
+                  <td colSpan="11" className="plan-empty-row">
                     <p>No items yet. Click "Add Milestone" to start building your plan.</p>
                   </td>
                 </tr>
@@ -823,8 +938,17 @@ export default function Planning() {
                 visibleItems.map((item, index) => (
                   <tr 
                     key={item.id} 
-                    className={`plan-row ${activeCell?.rowIndex === index ? 'active-row' : ''} ${item.item_type}`}
+                    className={`plan-row ${activeCell?.rowIndex === index ? 'active-row' : ''} ${selectedIds.has(item.id) ? 'selected' : ''} ${item.item_type}`}
+                    onClick={(e) => handleRowSelect(item, e)}
                   >
+                    <td className="plan-cell plan-cell-select" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="plan-select-checkbox"
+                        checked={selectedIds.has(item.id)}
+                        onChange={(e) => handleCheckboxToggle(item.id, e)}
+                      />
+                    </td>
                     <td className="plan-cell plan-cell-grip">
                       <GripVertical size={14} className="grip-icon" />
                     </td>

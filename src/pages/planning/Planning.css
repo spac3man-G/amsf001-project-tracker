@@ -1044,3 +1044,101 @@
 .plan-row.deliverable .plan-cell-wbs {
   color: #3b82f6;
 }
+
+
+/* ===========================================================================
+   MULTI-SELECT STYLES (Phase 2.1)
+   =========================================================================== */
+
+/* Selection checkbox column */
+.plan-col-select {
+  width: 40px;
+  text-align: center;
+  padding: 0 8px !important;
+}
+
+.plan-cell-select {
+  text-align: center;
+  padding: 0 8px !important;
+}
+
+.plan-select-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--org-brand-color, #10b981);
+  border-radius: 3px;
+}
+
+.plan-select-checkbox:focus {
+  outline: 2px solid var(--org-brand-color, #10b981);
+  outline-offset: 2px;
+}
+
+/* Selected row highlight */
+.plan-row.selected {
+  background: color-mix(in srgb, var(--org-brand-color, #10b981) 8%, white) !important;
+}
+
+.plan-row.selected:hover {
+  background: color-mix(in srgb, var(--org-brand-color, #10b981) 12%, white) !important;
+}
+
+.plan-row.selected .plan-cell {
+  border-bottom-color: color-mix(in srgb, var(--org-brand-color, #10b981) 15%, var(--gray-200));
+}
+
+/* Selection info badge in header */
+.plan-selection-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--org-brand-color, #10b981);
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.plan-selection-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  line-height: 1;
+}
+
+.plan-selection-clear:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Checkbox column header alignment */
+thead .plan-col-select {
+  vertical-align: middle;
+}
+
+/* Prevent text selection when shift-clicking */
+.plan-row {
+  user-select: none;
+}
+
+.plan-row .plan-cell-input,
+.plan-row .plan-cell-select {
+  user-select: text;
+}
