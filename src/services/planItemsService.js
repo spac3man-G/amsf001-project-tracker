@@ -295,6 +295,112 @@ export const planItemsService = {
     return { deleted: ids.length };
   },
 
+  /**
+   * Move an item to a new parent and/or position
+   * Recalculates indent_level and item_type based on new parent
+   */
+  async move(id, newParentId, newSortOrder) {
+    const item = await this.getById(id);
+    if (!item) throw new Error('Item not found');
+    
+    // Determine new indent level and type
+    let newIndentLevel = 0;
+    let newType = item.item_type;
+    
+    if (newParentId) {
+      const parent = await this.getById(newParentId);
+      if (!parent) throw new Error('Parent not found');
+      
+      newIndentLevel = (parent.indent_level || 0) + 1;
+      
+      // Update type based on parent (strict hierarchy)
+      if (parent.item_type === 'milestone') {
+        newType = 'deliverable';
+      } else if (parent.item_type === 'deliverable') {
+        newType = 'task';
+      } else if (parent.item_type === 'task') {
+        newType = 'task';
+      }
+    } else {
+      // Moving to root - must be milestone
+      newType = 'milestone';
+      newIndentLevel = 0;
+    }
+    
+    // Update the item
+    const { data, error } = await supabase
+      .from('plan_items')
+      .update({
+        parent_id: newParentId,
+        sort_order: newSortOrder,
+        indent_level: newIndentLevel,
+        item_type: newType
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    // Update children's indent levels recursively
+    await this._updateChildrenIndent(id, newIndentLevel + 1, item.project_id);
+    
+    // Recalculate WBS
+    await this.recalculateWBS(item.project_id);
+    
+    // Reorder siblings to clean up sort_order values
+    await this._reorderSiblings(newParentId, item.project_id);
+    
+    return data;
+  },
+
+  /**
+   * Update indent levels for all descendants
+   */
+  async _updateChildrenIndent(parentId, newIndentLevel, projectId) {
+    const allItems = await this.getAll(projectId);
+    const children = allItems.filter(i => i.parent_id === parentId);
+    
+    for (const child of children) {
+      // Determine type based on current parent
+      let childType = child.item_type;
+      const parent = allItems.find(i => i.id === parentId);
+      if (parent) {
+        if (parent.item_type === 'milestone') childType = 'deliverable';
+        else if (parent.item_type === 'deliverable') childType = 'task';
+        else if (parent.item_type === 'task') childType = 'task';
+      }
+      
+      await supabase
+        .from('plan_items')
+        .update({ 
+          indent_level: newIndentLevel,
+          item_type: childType
+        })
+        .eq('id', child.id);
+      
+      // Recurse for grandchildren
+      await this._updateChildrenIndent(child.id, newIndentLevel + 1, projectId);
+    }
+  },
+
+  /**
+   * Reorder siblings to have clean sequential sort_order values
+   */
+  async _reorderSiblings(parentId, projectId) {
+    const allItems = await this.getAll(projectId);
+    const siblings = allItems
+      .filter(i => i.parent_id === parentId)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    
+    for (let i = 0; i < siblings.length; i++) {
+      await supabase
+        .from('plan_items')
+        .update({ sort_order: (i + 1) * 10 })
+        .eq('id', siblings[i].id);
+    }
+  },
+
 
   // ===========================================================================
   // HIERARCHY OPERATIONS (Promote/Demote)

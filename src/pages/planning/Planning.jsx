@@ -49,6 +49,12 @@ export default function Planning() {
   const [lastSelectedId, setLastSelectedId] = useState(null); // For shift-click range
   const [clipboardCount, setClipboardCount] = useState(0); // Track clipboard for UI updates
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false, undoLabel: 'Undo', redoLabel: 'Redo' });
+  const [dragState, setDragState] = useState({
+    isDragging: false,
+    draggedIds: new Set(),
+    dropTarget: null,      // { id, position: 'before' | 'after' | 'inside' }
+    dropValid: false
+  });
   const [editValue, setEditValue] = useState('');
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [estimateLinkItem, setEstimateLinkItem] = useState(null); // Item to link to estimate
@@ -156,6 +162,20 @@ export default function Planning() {
             e.preventDefault();
             handleRedo();
             return;
+        }
+      }
+      
+      // Keyboard move shortcuts (Ctrl+Arrow)
+      if ((e.ctrlKey || e.metaKey) && selectedIds.size > 0 && !editingCell) {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          handleMoveUp();
+          return;
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          handleMoveDown();
+          return;
         }
       }
       
@@ -641,6 +661,16 @@ export default function Planning() {
           });
           break;
           
+        case 'move':
+          // Undo move = restore previous positions
+          for (const state of action.data.previousStates) {
+            await planItemsService.update(state.id, {
+              parent_id: state.parent_id,
+              sort_order: state.sort_order
+            });
+          }
+          break;
+          
         default:
           console.warn('Unknown undo action:', action.type);
       }
@@ -696,6 +726,17 @@ export default function Planning() {
           });
           break;
           
+        case 'move':
+          // Redo move - apply new positions if stored
+          if (action.data.newParentId !== undefined) {
+            for (const id of action.data.itemIds) {
+              await planItemsService.update(id, {
+                parent_id: action.data.newParentId
+              });
+            }
+          }
+          break;
+          
         default:
           console.warn('Unknown redo action:', action.type);
       }
@@ -715,6 +756,330 @@ export default function Planning() {
       .from('plan_items')
       .update({ is_deleted: false })
       .in('id', ids);
+  }
+
+  // ===========================================================================
+  // DRAG AND DROP HANDLERS
+  // ===========================================================================
+
+  // Get all descendant IDs for an item
+  function getDescendantIds(parentId) {
+    const result = [];
+    const collect = (pid) => {
+      items.forEach(item => {
+        if (item.parent_id === pid) {
+          result.push(item.id);
+          collect(item.id);
+        }
+      });
+    };
+    collect(parentId);
+    return result;
+  }
+
+  // Create drag preview element
+  function createDragPreview(count) {
+    const el = document.createElement('div');
+    el.className = 'plan-drag-preview';
+    el.innerHTML = count > 1 
+      ? `<span>${count} items</span>` 
+      : `<span>1 item</span>`;
+    document.body.appendChild(el);
+    setTimeout(() => document.body.removeChild(el), 0);
+    return el;
+  }
+
+  // Drag start
+  function handleDragStart(e, item) {
+    // Include selected items or just dragged item
+    const draggedIds = selectedIds.has(item.id) && selectedIds.size > 1
+      ? new Set(selectedIds)
+      : new Set([item.id]);
+    
+    // Include children of dragged items
+    const withChildren = new Set(draggedIds);
+    draggedIds.forEach(id => {
+      getDescendantIds(id).forEach(childId => withChildren.add(childId));
+    });
+    
+    setDragState({
+      isDragging: true,
+      draggedIds: withChildren,
+      dropTarget: null,
+      dropValid: false
+    });
+    
+    // Set drag data
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify([...withChildren]));
+    
+    // Custom drag image
+    const dragPreview = createDragPreview(withChildren.size);
+    e.dataTransfer.setDragImage(dragPreview, 0, 0);
+  }
+
+  // Validate drop position
+  function validateDrop(targetId, position) {
+    if (!targetId) return { valid: true };
+    
+    const targetItem = items.find(i => i.id === targetId);
+    if (!targetItem) return { valid: false, reason: 'Invalid target' };
+    
+    // Can't drop on itself
+    if (dragState.draggedIds.has(targetId)) {
+      return { valid: false, reason: 'Cannot drop on itself' };
+    }
+    
+    // Can't drop parent onto descendant
+    for (const draggedId of dragState.draggedIds) {
+      const descendants = getDescendantIds(draggedId);
+      if (descendants.includes(targetId)) {
+        return { valid: false, reason: 'Cannot drop parent onto child' };
+      }
+    }
+    
+    // Get top-level dragged items (not children of other dragged items)
+    const draggedItems = items.filter(i => 
+      dragState.draggedIds.has(i.id) && !dragState.draggedIds.has(i.parent_id)
+    );
+    
+    // Determine new parent based on position
+    let newParentId = null;
+    let newParentType = null;
+    
+    if (position === 'inside') {
+      newParentId = targetId;
+      newParentType = targetItem.item_type;
+    } else {
+      newParentId = targetItem.parent_id;
+      newParentType = newParentId ? items.find(i => i.id === newParentId)?.item_type : null;
+    }
+    
+    // Validate hierarchy for each dragged item
+    for (const draggedItem of draggedItems) {
+      const itemType = draggedItem.item_type;
+      
+      if (newParentId === null) {
+        // Root level - only milestones allowed
+        if (itemType !== 'milestone') {
+          return { valid: false, reason: `${itemType} cannot be at root level` };
+        }
+      } else {
+        // Check hierarchy rules
+        if (newParentType === 'milestone' && itemType !== 'deliverable') {
+          return { valid: false, reason: 'Only deliverables under milestones' };
+        }
+        if (newParentType === 'deliverable' && itemType !== 'task') {
+          return { valid: false, reason: 'Only tasks under deliverables' };
+        }
+        if (newParentType === 'task' && itemType !== 'task') {
+          return { valid: false, reason: 'Only tasks under tasks' };
+        }
+      }
+    }
+    
+    return { valid: true };
+  }
+
+  // Drag over (determines drop position)
+  function handleDragOver(e, item) {
+    e.preventDefault();
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const height = rect.height;
+    
+    let position;
+    if (y < height * 0.25) {
+      position = 'before';
+    } else if (y > height * 0.75) {
+      position = 'after';
+    } else {
+      position = 'inside';
+    }
+    
+    const validation = validateDrop(item.id, position);
+    
+    setDragState(prev => ({
+      ...prev,
+      dropTarget: { id: item.id, position },
+      dropValid: validation.valid
+    }));
+    
+    e.dataTransfer.dropEffect = validation.valid ? 'move' : 'none';
+  }
+
+  // Drag leave
+  function handleDragLeave(e) {
+    // Only clear if leaving the row entirely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragState(prev => ({
+        ...prev,
+        dropTarget: null,
+        dropValid: false
+      }));
+    }
+  }
+
+  // Drag end (cleanup)
+  function handleDragEnd() {
+    setDragState({
+      isDragging: false,
+      draggedIds: new Set(),
+      dropTarget: null,
+      dropValid: false
+    });
+  }
+
+  // Handle drop
+  async function handleDrop(e, targetItem) {
+    e.preventDefault();
+    
+    if (!dragState.dropValid || !dragState.dropTarget) {
+      handleDragEnd();
+      return;
+    }
+    
+    const { position } = dragState.dropTarget;
+    
+    try {
+      // Get top-level dragged items
+      const draggedItems = items.filter(i => 
+        dragState.draggedIds.has(i.id) && !dragState.draggedIds.has(i.parent_id)
+      );
+      
+      // Store previous state for undo
+      const previousStates = draggedItems.map(item => ({
+        id: item.id,
+        parent_id: item.parent_id,
+        sort_order: item.sort_order
+      }));
+      
+      // Determine new parent
+      let newParentId = null;
+      if (position === 'inside') {
+        newParentId = targetItem.id;
+      } else {
+        newParentId = targetItem.parent_id;
+      }
+      
+      // Calculate new sort order
+      let newSortOrder;
+      if (position === 'before') {
+        newSortOrder = targetItem.sort_order - 0.5;
+      } else if (position === 'after') {
+        newSortOrder = targetItem.sort_order + 0.5;
+      } else {
+        // Inside - put at end of children
+        const children = items.filter(i => i.parent_id === targetItem.id);
+        newSortOrder = children.length > 0 
+          ? Math.max(...children.map(c => c.sort_order)) + 1 
+          : 1;
+      }
+      
+      // Move items
+      for (const item of draggedItems) {
+        await planItemsService.move(item.id, newParentId, newSortOrder);
+        newSortOrder += 0.001; // Keep relative order
+      }
+      
+      // Push to history
+      planningHistory.push('move', {
+        itemIds: draggedItems.map(i => i.id),
+        previousStates,
+        newParentId,
+        newSortOrder
+      });
+      
+      await fetchItems();
+      clearSelection();
+      showSuccess(`Moved ${draggedItems.length} item(s)`);
+      
+    } catch (error) {
+      console.error('Drop error:', error);
+      showError(error.message || 'Failed to move items');
+    } finally {
+      handleDragEnd();
+    }
+  }
+
+  // Move selected items up (keyboard shortcut)
+  async function handleMoveUp() {
+    if (selectedIds.size === 0) return;
+    
+    // Get first selected item's index in visible items
+    const firstSelectedIdx = visibleItems.findIndex(i => selectedIds.has(i.id));
+    if (firstSelectedIdx <= 0) return; // Already at top
+    
+    const targetItem = visibleItems[firstSelectedIdx - 1];
+    if (selectedIds.has(targetItem.id)) return; // Target is also selected
+    
+    try {
+      const selectedItems = items.filter(i => selectedIds.has(i.id) && !selectedIds.has(i.parent_id));
+      
+      // Store previous state for undo
+      const previousStates = selectedItems.map(item => ({
+        id: item.id,
+        parent_id: item.parent_id,
+        sort_order: item.sort_order
+      }));
+      
+      for (const item of selectedItems) {
+        await planItemsService.move(item.id, targetItem.parent_id, targetItem.sort_order - 0.5);
+      }
+      
+      planningHistory.push('move', {
+        itemIds: selectedItems.map(i => i.id),
+        previousStates
+      });
+      
+      await fetchItems();
+      showSuccess('Moved up');
+    } catch (error) {
+      console.error('Move up error:', error);
+      showError(error.message || 'Cannot move up');
+    }
+  }
+
+  // Move selected items down (keyboard shortcut)
+  async function handleMoveDown() {
+    if (selectedIds.size === 0) return;
+    
+    // Get last selected item's index in visible items
+    const lastSelectedIdx = visibleItems.map((i, idx) => selectedIds.has(i.id) ? idx : -1)
+      .filter(idx => idx >= 0)
+      .pop();
+    
+    if (lastSelectedIdx >= visibleItems.length - 1) return; // Already at bottom
+    
+    const targetItem = visibleItems[lastSelectedIdx + 1];
+    if (selectedIds.has(targetItem.id)) return; // Target is also selected
+    
+    try {
+      const selectedItems = items.filter(i => selectedIds.has(i.id) && !selectedIds.has(i.parent_id));
+      
+      // Store previous state for undo
+      const previousStates = selectedItems.map(item => ({
+        id: item.id,
+        parent_id: item.parent_id,
+        sort_order: item.sort_order
+      }));
+      
+      for (const item of selectedItems.reverse()) { // Reverse to maintain order
+        await planItemsService.move(item.id, targetItem.parent_id, targetItem.sort_order + 0.5);
+      }
+      
+      planningHistory.push('move', {
+        itemIds: selectedItems.map(i => i.id),
+        previousStates
+      });
+      
+      await fetchItems();
+      showSuccess('Moved down');
+    } catch (error) {
+      console.error('Move down error:', error);
+      showError(error.message || 'Cannot move down');
+    }
   }
 
   // Get visible items (respecting collapsed state)
@@ -1323,11 +1688,22 @@ export default function Planning() {
                   </td>
                 </tr>
               ) : (
-                visibleItems.map((item, index) => (
+                visibleItems.map((item, index) => {
+                  const isDragged = dragState.draggedIds.has(item.id);
+                  const isDropTarget = dragState.dropTarget?.id === item.id;
+                  const dropPosition = isDropTarget ? dragState.dropTarget.position : null;
+                  
+                  return (
                   <tr 
                     key={item.id} 
-                    className={`plan-row ${activeCell?.rowIndex === index ? 'active-row' : ''} ${selectedIds.has(item.id) ? 'selected' : ''} ${item.item_type}`}
+                    className={`plan-row ${activeCell?.rowIndex === index ? 'active-row' : ''} ${selectedIds.has(item.id) ? 'selected' : ''} ${item.item_type} ${isDragged ? 'dragging' : ''} ${isDropTarget ? `drop-target-${dropPosition}` : ''} ${isDropTarget && !dragState.dropValid ? 'drop-invalid' : ''}`}
                     onClick={(e) => handleRowSelect(item, e)}
+                    draggable={!editingCell}
+                    onDragStart={(e) => handleDragStart(e, item)}
+                    onDragOver={(e) => handleDragOver(e, item)}
+                    onDragLeave={handleDragLeave}
+                    onDragEnd={handleDragEnd}
+                    onDrop={(e) => handleDrop(e, item)}
                   >
                     <td className="plan-cell plan-cell-select" onClick={(e) => e.stopPropagation()}>
                       <input
@@ -1401,7 +1777,8 @@ export default function Planning() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

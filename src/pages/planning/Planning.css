@@ -1249,3 +1249,90 @@ thead .plan-col-select {
   background: transparent;
   border-color: var(--gray-200);
 }
+
+
+/* ===========================================================================
+   DRAG AND DROP STYLES (Phase 3)
+   =========================================================================== */
+
+/* Drag handle cursor */
+.plan-cell-grip {
+  cursor: grab;
+}
+
+.plan-cell-grip:active {
+  cursor: grabbing;
+}
+
+/* Dragging state */
+.plan-row.dragging {
+  opacity: 0.4;
+  background: var(--gray-100) !important;
+}
+
+/* Drop target indicators */
+.plan-row {
+  position: relative;
+}
+
+.plan-row.drop-target-before::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--org-brand-color, #10b981);
+  z-index: 10;
+  border-radius: 2px;
+}
+
+.plan-row.drop-target-after::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--org-brand-color, #10b981);
+  z-index: 10;
+  border-radius: 2px;
+}
+
+.plan-row.drop-target-inside {
+  outline: 2px solid var(--org-brand-color, #10b981);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--org-brand-color, #10b981) 10%, white) !important;
+}
+
+/* Invalid drop target */
+.plan-row.drop-invalid.drop-target-before::before,
+.plan-row.drop-invalid.drop-target-after::after {
+  background: #ef4444;
+}
+
+.plan-row.drop-invalid.drop-target-inside {
+  outline-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Drag preview */
+.plan-drag-preview {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  padding: 8px 16px;
+  background: var(--org-brand-color, #10b981);
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Disable text selection during drag */
+.planning-page.is-dragging {
+  user-select: none;
+}
