@@ -350,6 +350,12 @@ If the document is a:
 const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_DOCUMENT_TYPES = [
   'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/msword', // .doc
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  'application/vnd.ms-powerpoint', // .ppt
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel', // .xls
   'image/jpeg',
   'image/png',
   'image/webp',
@@ -366,7 +372,7 @@ function validateDocument(document) {
   if (!ALLOWED_DOCUMENT_TYPES.includes(document.mediaType)) {
     return { 
       valid: false, 
-      error: `Unsupported document type: ${document.mediaType}. Allowed: PDF, JPEG, PNG, WebP, GIF` 
+      error: `Unsupported document type: ${document.mediaType}. Allowed: PDF, Word, PowerPoint, Excel, and images.` 
     };
   }
   
@@ -429,9 +435,20 @@ function buildMessageWithDocuments(userMessage, documents) {
   
   const content = [];
   
+  // Document types that use 'document' type in Claude API
+  const documentTypes = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel'
+  ];
+  
   // Add all documents first
   for (const doc of documents) {
-    if (doc.mediaType === 'application/pdf') {
+    if (documentTypes.includes(doc.mediaType)) {
       content.push({
         type: 'document',
         source: {
