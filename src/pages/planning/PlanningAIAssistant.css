@@ -641,16 +641,44 @@
   font-size: 12px;
 }
 
+/* Document List (multiple files) */
+.document-upload-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
 /* Document Preview (when file is uploaded) */
 .document-upload-preview {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: var(--ai-bg-secondary);
   border: 1px solid var(--ai-border);
   border-radius: var(--ai-radius);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Compact upload zone when documents already added */
+.document-upload-zone.compact {
+  padding: 10px 16px;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.document-upload-zone.compact .document-upload-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.document-upload-zone.compact .document-upload-text {
+  font-size: 12px;
+}
+
+.document-upload-zone.compact .document-upload-hint {
+  display: none;
 }
 
 .document-preview-info {

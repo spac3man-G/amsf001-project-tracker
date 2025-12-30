@@ -421,6 +421,51 @@ function buildMessageWithDocument(userMessage, document) {
   return { role: 'user', content };
 }
 
+function buildMessageWithDocuments(userMessage, documents) {
+  // If no documents, return simple text message
+  if (!documents || documents.length === 0) {
+    return { role: 'user', content: userMessage };
+  }
+  
+  const content = [];
+  
+  // Add all documents first
+  for (const doc of documents) {
+    if (doc.mediaType === 'application/pdf') {
+      content.push({
+        type: 'document',
+        source: {
+          type: 'base64',
+          media_type: doc.mediaType,
+          data: doc.data
+        }
+      });
+    } else {
+      // Image types
+      content.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: doc.mediaType,
+          data: doc.data
+        }
+      });
+    }
+  }
+  
+  // Add text message
+  const defaultText = documents.length > 1 
+    ? 'Please analyze these documents and suggest a project plan structure.'
+    : 'Please analyze this document and suggest a project plan structure.';
+  
+  content.push({
+    type: 'text',
+    text: userMessage || defaultText
+  });
+  
+  return { role: 'user', content };
+}
+
 // ============================================
 // MAIN HANDLER
 // ============================================
@@ -438,15 +483,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, projectContext, currentStructure, document, existingItems } = req.body;
+    const { messages, projectContext, currentStructure, document, documents, existingItems } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array required' });
     }
 
-    // Validate document if provided
-    if (document) {
-      const validation = validateDocument(document);
+    // Support both single document and multiple documents
+    const allDocuments = documents || (document ? [document] : []);
+    
+    // Validate all documents
+    for (const doc of allDocuments) {
+      const validation = validateDocument(doc);
       if (!validation.valid) {
         return res.status(400).json({ error: validation.error });
       }
@@ -455,8 +503,8 @@ export default async function handler(req, res) {
     // Build context-aware system prompt
     let systemPrompt = SYSTEM_PROMPT;
     
-    // Add document analysis prompt if document is provided
-    if (document) {
+    // Add document analysis prompt if documents are provided
+    if (allDocuments.length > 0) {
       systemPrompt += DOCUMENT_ANALYSIS_PROMPT;
     }
     
@@ -493,13 +541,13 @@ ${JSON.stringify(currentStructure, null, 2)}
 When the user asks to modify or add to this structure, use the refineStructure tool and include the complete updated structure.`;
     }
 
-    // Process messages - attach document to the last user message if provided
+    // Process messages - attach documents to the last user message if provided
     let processedMessages = messages;
-    if (document && messages.length > 0) {
+    if (allDocuments.length > 0 && messages.length > 0) {
       processedMessages = messages.map((msg, index) => {
-        // Attach document to the last user message
+        // Attach documents to the last user message
         if (index === messages.length - 1 && msg.role === 'user') {
-          return buildMessageWithDocument(msg.content, document);
+          return buildMessageWithDocuments(msg.content, allDocuments);
         }
         return msg;
       });

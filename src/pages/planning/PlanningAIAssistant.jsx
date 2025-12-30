@@ -316,10 +316,10 @@ function QuickPrompts({ onSelect, disabled, prompts = QUICK_PROMPTS, label = 'Qu
 }
 
 // ============================================
-// DOCUMENT UPLOAD COMPONENT
+// DOCUMENT UPLOAD COMPONENT (Multiple Files)
 // ============================================
 
-function DocumentUpload({ document, onDocumentChange, onRemove, disabled }) {
+function DocumentUpload({ documents = [], onDocumentAdd, onDocumentRemove, disabled, maxFiles = 5 }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isReading, setIsReading] = useState(false);
@@ -334,6 +334,11 @@ function DocumentUpload({ document, onDocumentChange, onRemove, disabled }) {
     // Check file size
     if (file.size > MAX_FILE_SIZE) {
       return { valid: false, error: `File too large. Maximum size is ${formatFileSize(MAX_FILE_SIZE)}.` };
+    }
+    
+    // Check max files
+    if (documents.length >= maxFiles) {
+      return { valid: false, error: `Maximum ${maxFiles} documents allowed.` };
     }
     
     return { valid: true };
@@ -364,7 +369,8 @@ function DocumentUpload({ document, onDocumentChange, onRemove, disabled }) {
     setIsReading(true);
     try {
       const base64Data = await readFileAsBase64(file);
-      onDocumentChange({
+      onDocumentAdd({
+        id: Date.now(), // Unique ID for removal
         filename: file.name,
         mediaType: file.type,
         size: file.size,
@@ -378,10 +384,10 @@ function DocumentUpload({ document, onDocumentChange, onRemove, disabled }) {
     }
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFile(file);
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      await handleFile(file);
     }
     // Reset input so same file can be selected again
     e.target.value = '';
@@ -399,84 +405,97 @@ function DocumentUpload({ document, onDocumentChange, onRemove, disabled }) {
     setIsDragging(false);
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     
     if (disabled) return;
     
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFile(file);
+    const files = Array.from(e.dataTransfer.files || []);
+    for (const file of files) {
+      await handleFile(file);
     }
   };
 
   const handleClick = () => {
-    if (!disabled && !document) {
+    if (!disabled && documents.length < maxFiles) {
       fileInputRef.current?.click();
     }
   };
 
-  // If document is uploaded, show the preview
-  if (document) {
-    const FileIcon = ALLOWED_FILE_TYPES[document.mediaType]?.icon || FileText;
-    return (
-      <div className="document-upload-preview">
-        <div className="document-preview-info">
-          <FileIcon size={20} className="document-preview-icon" />
-          <div className="document-preview-details">
-            <span className="document-preview-name">{document.filename}</span>
-            <span className="document-preview-size">{formatFileSize(document.size)}</span>
-          </div>
-        </div>
-        <button 
-          className="document-preview-remove"
-          onClick={onRemove}
-          disabled={disabled}
-          title="Remove document"
-        >
-          <Trash2 size={16} />
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="document-upload-container">
-      <div 
-        className={`document-upload-zone ${isDragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''}`}
-        onClick={handleClick}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png,.webp,.gif"
-          onChange={handleFileSelect}
-          style={{ display: 'none' }}
-          disabled={disabled}
-        />
+      {/* Show uploaded documents */}
+      {documents.length > 0 && (
+        <div className="document-upload-list">
+          {documents.map((doc) => {
+            const FileIcon = ALLOWED_FILE_TYPES[doc.mediaType]?.icon || FileText;
+            return (
+              <div key={doc.id} className="document-upload-preview">
+                <div className="document-preview-info">
+                  <FileIcon size={18} className="document-preview-icon" />
+                  <div className="document-preview-details">
+                    <span className="document-preview-name">{doc.filename}</span>
+                    <span className="document-preview-size">{formatFileSize(doc.size)}</span>
+                  </div>
+                </div>
+                <button 
+                  className="document-preview-remove"
+                  onClick={() => onDocumentRemove(doc.id)}
+                  disabled={disabled}
+                  title="Remove document"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      
+      {/* Upload zone (show if under limit) */}
+      {documents.length < maxFiles && (
+        <div 
+          className={`document-upload-zone ${isDragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''} ${documents.length > 0 ? 'compact' : ''}`}
+          onClick={handleClick}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.gif"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+            disabled={disabled}
+            multiple
+          />
         
         {isReading ? (
           <div className="document-upload-reading">
-            <Loader2 size={24} className="spinning" />
-            <span>Reading document...</span>
+            <Loader2 size={20} className="spinning" />
+            <span>Reading...</span>
           </div>
+        ) : documents.length > 0 ? (
+          <>
+            <Plus size={18} className="document-upload-icon" />
+            <span className="document-upload-text">Add another document</span>
+          </>
         ) : (
           <>
             <Upload size={24} className="document-upload-icon" />
             <span className="document-upload-text">
-              Drop a document here or click to upload
+              Drop documents here or click to upload
             </span>
             <span className="document-upload-hint">
-              PDF, JPEG, PNG (max 10MB)
+              PDF, JPEG, PNG (max 10MB each, up to {maxFiles} files)
             </span>
           </>
         )}
-      </div>
+        </div>
+      )}
       
       {error && (
         <div className="document-upload-error">
@@ -502,7 +521,7 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
   const [currentStructure, setCurrentStructure] = useState(null);
   const [currentItemCounts, setCurrentItemCounts] = useState(null);
   const [clarificationQuestions, setClarificationQuestions] = useState(null);
-  const [uploadedDocument, setUploadedDocument] = useState(null);
+  const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [isAnalyzingDocument, setIsAnalyzingDocument] = useState(false);
   
   const messagesEndRef = useRef(null);
@@ -532,33 +551,33 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
   // Send message to API
   const sendMessage = useCallback(async (content) => {
     const hasContent = content && content.trim();
-    const hasDocument = !!uploadedDocument;
+    const hasDocuments = uploadedDocuments.length > 0;
     
-    // Must have content or document
-    if (!hasContent && !hasDocument) return;
+    // Must have content or documents
+    if (!hasContent && !hasDocuments) return;
     if (isLoading) return;
     
     // Build user message text
     const messageText = hasContent 
       ? content.trim() 
-      : 'Please analyze this document and create a project plan structure.';
+      : 'Please analyze these documents and create a project plan structure.';
     
-    // Add user message (include document indicator if present)
-    const displayMessage = hasDocument && hasContent
-      ? `📎 ${uploadedDocument.filename}\n\n${content.trim()}`
-      : hasDocument
-        ? `📎 ${uploadedDocument.filename}\n\nAnalyze this document and create a project plan.`
-        : content.trim();
+    // Add user message (include document indicators if present)
+    let displayMessage = content?.trim() || '';
+    if (hasDocuments) {
+      const docList = uploadedDocuments.map(d => `📎 ${d.filename}`).join('\n');
+      displayMessage = docList + (displayMessage ? `\n\n${displayMessage}` : '\n\nAnalyze these documents and create a project plan.');
+    }
     
     addMessage('user', displayMessage);
     setInputValue('');
     setIsLoading(true);
-    setIsAnalyzingDocument(hasDocument);
+    setIsAnalyzingDocument(hasDocuments);
     setClarificationQuestions(null);
     
-    // Store document reference and clear from state
-    const documentToSend = uploadedDocument;
-    setUploadedDocument(null);
+    // Store documents reference and clear from state
+    const documentsToSend = [...uploadedDocuments];
+    setUploadedDocuments([]);
     
     try {
       // Build message history
@@ -575,14 +594,14 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
         existingItems: existingItems // Pass current plan items for editing
       };
       
-      // Add document if present
-      if (documentToSend) {
-        requestPayload.document = {
-          mediaType: documentToSend.mediaType,
-          data: documentToSend.data,
-          filename: documentToSend.filename,
-          size: documentToSend.size
-        };
+      // Add documents if present (support multiple)
+      if (documentsToSend.length > 0) {
+        requestPayload.documents = documentsToSend.map(doc => ({
+          mediaType: doc.mediaType,
+          data: doc.data,
+          filename: doc.filename,
+          size: doc.size
+        }));
       }
       
       const response = await fetch('/api/planning-ai', {
@@ -627,7 +646,7 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
       setIsLoading(false);
       setIsAnalyzingDocument(false);
     }
-  }, [messages, isLoading, addMessage, projectId, projectName, currentStructure, uploadedDocument, existingItems, onExecuteOperations]);
+  }, [messages, isLoading, addMessage, projectId, projectName, currentStructure, uploadedDocuments, existingItems, onExecuteOperations]);
   
   // Handle form submit
   const handleSubmit = (e) => {
@@ -714,7 +733,7 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
         {isLoading && (
           <div className="planning-ai-loading">
             <Loader2 size={20} className="spinning" />
-            <span>{isAnalyzingDocument ? 'Analyzing document...' : 'Thinking...'}</span>
+            <span>{isAnalyzingDocument ? 'Analyzing documents...' : 'Thinking...'}</span>
           </div>
         )}
         
@@ -724,17 +743,18 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
       {/* Document Upload */}
       <div className="planning-ai-upload-section">
         <DocumentUpload
-          document={uploadedDocument}
-          onDocumentChange={setUploadedDocument}
-          onRemove={() => setUploadedDocument(null)}
+          documents={uploadedDocuments}
+          onDocumentAdd={(doc) => setUploadedDocuments(prev => [...prev, doc])}
+          onDocumentRemove={(id) => setUploadedDocuments(prev => prev.filter(d => d.id !== id))}
           disabled={isLoading || isApplying}
+          maxFiles={5}
         />
-        {uploadedDocument && !isLoading && (
+        {uploadedDocuments.length > 0 && !isLoading && (
           <QuickPrompts 
             onSelect={sendMessage} 
             disabled={isLoading} 
             prompts={DOCUMENT_QUICK_PROMPTS}
-            label="With this document:"
+            label={`With ${uploadedDocuments.length === 1 ? 'this document' : 'these documents'}:`}
           />
         )}
       </div>
@@ -746,14 +766,14 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder={uploadedDocument ? "Describe what to do with this document..." : "Describe your project..."}
+          placeholder={uploadedDocuments.length > 0 ? "Describe what to do with these documents..." : "Describe your project..."}
           disabled={isLoading || isApplying}
           className="planning-ai-input"
         />
         <button 
           type="submit" 
           className="planning-ai-send"
-          disabled={(!inputValue.trim() && !uploadedDocument) || isLoading || isApplying}
+          disabled={(!inputValue.trim() && uploadedDocuments.length === 0) || isLoading || isApplying}
         >
           <Send size={18} />
         </button>
