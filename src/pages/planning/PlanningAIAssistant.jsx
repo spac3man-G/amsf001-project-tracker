@@ -605,14 +605,23 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
         }));
       }
       
+      // Create an abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 150000); // 2.5 minute timeout
+      
       const response = await fetch('/api/planning-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload)
+        body: JSON.stringify(requestPayload),
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Planning AI error response:', response.status, errorText);
+        throw new Error(`API error: ${response.status} - ${errorText.substring(0, 100)}`);
       }
       
       const data = await response.json();
@@ -655,7 +664,11 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
       
     } catch (error) {
       console.error('Planning AI error:', error);
-      addMessage('assistant', 'Sorry, I had trouble connecting. Please try again.', error.message);
+      if (error.name === 'AbortError') {
+        addMessage('assistant', 'The request timed out. This might be due to large documents. Try with smaller files or a simpler request.', 'Request timed out after 2.5 minutes');
+      } else {
+        addMessage('assistant', 'Sorry, I had trouble connecting. Please try again.', error.message);
+      }
     } finally {
       setIsLoading(false);
       setIsAnalyzingDocument(false);
