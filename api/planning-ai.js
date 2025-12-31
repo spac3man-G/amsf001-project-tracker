@@ -566,6 +566,8 @@ When the user asks to modify or add to this structure, use the refineStructure t
     }
 
     // Call Claude API
+    console.log(`Planning AI - Calling Claude with ${allDocuments.length} documents, ${messages.length} messages`);
+    
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -575,7 +577,7 @@ When the user asks to modify or add to this structure, use the refineStructure t
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 4096,
+        max_tokens: 8192, // Increased for complex project structures
         system: systemPrompt,
         tools: TOOLS,
         messages: processedMessages
@@ -593,11 +595,19 @@ When the user asks to modify or add to this structure, use the refineStructure t
 
     const data = await response.json();
 
-    // Log token usage
+    // Log token usage and response info
     if (data.usage) {
       const cost = (data.usage.input_tokens * TOKEN_COSTS.input / 1000000) + 
                    (data.usage.output_tokens * TOKEN_COSTS.output / 1000000);
       console.log(`Planning AI - Tokens: ${data.usage.input_tokens} in, ${data.usage.output_tokens} out, Cost: $${cost.toFixed(4)}`);
+    }
+    
+    // Log stop reason and content types for debugging
+    console.log(`Planning AI - Stop reason: ${data.stop_reason}, Content blocks: ${data.content?.length || 0}`);
+    if (data.content) {
+      data.content.forEach((block, i) => {
+        console.log(`  Block ${i}: type=${block.type}${block.type === 'tool_use' ? `, tool=${block.name}` : ''}`);
+      });
     }
 
     // Process response

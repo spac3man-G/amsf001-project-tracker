@@ -617,6 +617,16 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
       
       const data = await response.json();
       
+      // Debug log
+      console.log('Planning AI response:', { 
+        hasError: !!data.error,
+        hasMessage: !!data.message, 
+        hasStructure: !!data.structure,
+        hasClarification: data.clarificationNeeded,
+        hasOperations: !!data.operations,
+        stopReason: data.stopReason
+      });
+      
       // Handle response
       if (data.error) {
         addMessage('assistant', 'Sorry, I encountered an error. Please try again.', data.error);
@@ -633,11 +643,14 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
           addMessage('assistant', `❌ Failed to apply changes: ${opError.message}`, opError.message);
         }
       } else if (data.structure) {
-        addMessage('assistant', data.message);
+        addMessage('assistant', data.message || 'Here\'s the generated project structure:');
         setCurrentStructure(data.structure);
         setCurrentItemCounts(data.itemCounts);
       } else if (data.message) {
         addMessage('assistant', data.message);
+      } else {
+        // Fallback - no recognizable response
+        addMessage('assistant', 'I received your request but couldn\'t generate a structured response. Please try rephrasing your request or provide more details.');
       }
       
     } catch (error) {
