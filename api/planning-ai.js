@@ -348,19 +348,23 @@ If the document is a:
 // ============================================
 
 const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
+
+// Only PDF is supported as a document type in the Claude API
+// Other Office formats require the Analysis Tool which isn't available via API
 const ALLOWED_DOCUMENT_TYPES = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  'application/msword', // .doc
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
-  'application/vnd.ms-powerpoint', // .ppt
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-  'application/vnd.ms-excel', // .xls
+  'application/pdf'
+];
+
+// Image types supported
+const ALLOWED_IMAGE_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif'
 ];
+
+// All allowed types (for validation)
+const ALL_ALLOWED_TYPES = [...ALLOWED_DOCUMENT_TYPES, ...ALLOWED_IMAGE_TYPES];
 
 function validateDocument(document) {
   if (!document) return { valid: true }; // Document is optional
@@ -369,10 +373,10 @@ function validateDocument(document) {
     return { valid: false, error: 'Document must include data and mediaType' };
   }
   
-  if (!ALLOWED_DOCUMENT_TYPES.includes(document.mediaType)) {
+  if (!ALL_ALLOWED_TYPES.includes(document.mediaType)) {
     return { 
       valid: false, 
-      error: `Unsupported document type: ${document.mediaType}. Allowed: PDF, Word, PowerPoint, Excel, and images.` 
+      error: `Unsupported file type: ${document.mediaType}. Currently supported: PDF and images (JPEG, PNG, WebP, GIF). Word, PowerPoint, and Excel files are not yet supported via the API.` 
     };
   }
   
@@ -435,20 +439,10 @@ function buildMessageWithDocuments(userMessage, documents) {
   
   const content = [];
   
-  // Document types that use 'document' type in Claude API
-  const documentTypes = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel'
-  ];
-  
   // Add all documents first
   for (const doc of documents) {
-    if (documentTypes.includes(doc.mediaType)) {
+    if (ALLOWED_DOCUMENT_TYPES.includes(doc.mediaType)) {
+      // PDF - use document type
       content.push({
         type: 'document',
         source: {
@@ -457,8 +451,8 @@ function buildMessageWithDocuments(userMessage, documents) {
           data: doc.data
         }
       });
-    } else {
-      // Image types
+    } else if (ALLOWED_IMAGE_TYPES.includes(doc.mediaType)) {
+      // Images - use image type
       content.push({
         type: 'image',
         source: {
@@ -468,6 +462,7 @@ function buildMessageWithDocuments(userMessage, documents) {
         }
       });
     }
+    // Skip unsupported types (they should be caught by validation)
   }
   
   // Add text message

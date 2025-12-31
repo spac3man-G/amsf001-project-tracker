@@ -87,14 +87,9 @@ const DOCUMENT_QUICK_PROMPTS = [
 ];
 
 // Document upload constants
+// Note: Claude API only supports PDF as document type; Office formats require Analysis Tool
 const ALLOWED_FILE_TYPES = {
   'application/pdf': { icon: FileText, label: 'PDF' },
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { icon: FileText, label: 'Word' },
-  'application/msword': { icon: FileText, label: 'Word' },
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': { icon: FileText, label: 'PowerPoint' },
-  'application/vnd.ms-powerpoint': { icon: FileText, label: 'PowerPoint' },
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { icon: FileText, label: 'Excel' },
-  'application/vnd.ms-excel': { icon: FileText, label: 'Excel' },
   'image/jpeg': { icon: Image, label: 'JPEG' },
   'image/png': { icon: Image, label: 'PNG' },
   'image/webp': { icon: Image, label: 'WebP' },
@@ -334,7 +329,7 @@ function DocumentUpload({ documents = [], onDocumentAdd, onDocumentRemove, disab
   const validateFile = (file) => {
     // Check file type
     if (!ALLOWED_FILE_TYPES[file.type]) {
-      return { valid: false, error: 'Unsupported file type. Please upload PDF, Word, PowerPoint, Excel, or images.' };
+      return { valid: false, error: 'Unsupported file type. Please upload PDF or images (JPEG, PNG, WebP, GIF). Word, PowerPoint, and Excel are not yet supported.' };
     }
     
     // Check file size
@@ -472,7 +467,7 @@ function DocumentUpload({ documents = [], onDocumentAdd, onDocumentRemove, disab
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.gif"
             onChange={handleFileSelect}
             style={{ display: 'none' }}
             disabled={disabled}
@@ -496,7 +491,7 @@ function DocumentUpload({ documents = [], onDocumentAdd, onDocumentRemove, disab
               Drop documents here or click to upload
             </span>
             <span className="document-upload-hint">
-              PDF, Word, PowerPoint, Excel, or images (max 10MB each, up to {maxFiles} files)
+              PDF or images (max 10MB each, up to {maxFiles} files)
             </span>
           </>
         )}
