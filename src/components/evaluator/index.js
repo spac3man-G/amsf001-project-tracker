@@ -8,7 +8,7 @@
  * @phase Phase 2 - Core Infrastructure
  */
 
-// Core components
+// Common components
 export { default as EvaluationSwitcher } from './EvaluationSwitcher';
 
 // Future components (will be added in later phases)
@@ -26,7 +26,6 @@ export { default as EvaluationSwitcher } from './EvaluationSwitcher';
 // Vendors
 // export { default as VendorCard } from './vendors/VendorCard';
 // export { default as VendorPipeline } from './vendors/VendorPipeline';
-// export { default as VendorPortalPreview } from './vendors/VendorPortalPreview';
 
 // Scoring
 // export { default as ScoringInterface } from './scoring/ScoringInterface';
@@ -36,14 +35,3 @@ export { default as EvaluationSwitcher } from './EvaluationSwitcher';
 // Traceability
 // export { default as TraceabilityMatrix } from './traceability/TraceabilityMatrix';
 // export { default as TraceabilityDrilldown } from './traceability/TraceabilityDrilldown';
-// export { default as TraceabilityChain } from './traceability/TraceabilityChain';
-
-// AI
-// export { default as AIAssistantPanel } from './ai/AIAssistantPanel';
-// export { default as GapAnalysisResults } from './ai/GapAnalysisResults';
-// export { default as MarketResearchResults } from './ai/MarketResearchResults';
-
-// Portal
-// export { default as ClientDashboard } from './portal/ClientDashboard';
-// export { default as VendorPortalLayout } from './portal/VendorPortalLayout';
-// export { default as VendorResponseForm } from './portal/VendorResponseForm';

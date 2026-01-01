@@ -136,18 +136,22 @@
   background: var(--color-gray-100); 
   color: var(--color-gray-700); 
 }
+
 .option-status.status-discovery { 
   background: var(--color-blue-100); 
   color: var(--color-blue-700); 
 }
+
 .option-status.status-requirements { 
   background: var(--color-amber-100); 
   color: var(--color-amber-700); 
 }
+
 .option-status.status-evaluation { 
   background: var(--color-purple-100); 
   color: var(--color-purple-700); 
 }
+
 .option-status.status-complete { 
   background: var(--color-green-100); 
   color: var(--color-green-700); 
@@ -166,5 +170,6 @@
   
   .switcher-dropdown {
     min-width: 260px;
+    right: -1rem;
   }
 }
