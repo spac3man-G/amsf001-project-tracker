@@ -80,6 +80,8 @@ const OrganisationAdmin = lazy(() => import('./pages/admin/OrganisationAdmin'));
 
 // Evaluator pages
 const EvaluatorDashboard = lazy(() => import('./pages/evaluator/EvaluatorDashboard'));
+const RequirementsHub = lazy(() => import('./pages/evaluator/RequirementsHub'));
+const RequirementDetail = lazy(() => import('./pages/evaluator/RequirementDetail'));
 
 // Onboarding pages
 const CreateOrganisation = lazy(() => import('./pages/onboarding/CreateOrganisation'));
@@ -479,7 +481,12 @@ export default function App() {
                             {/* Evaluator sub-routes - placeholders for Phase 3+ */}
                             <Route path="/evaluator/requirements" element={
                               <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
-                                <EvaluatorDashboard />
+                                <RequirementsHub />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/requirements/:requirementId" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <RequirementDetail />
                               </ProtectedRoute>
                             } />
                             <Route path="/evaluator/workshops" element={
