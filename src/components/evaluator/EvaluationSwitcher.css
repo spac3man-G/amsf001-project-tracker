@@ -1,0 +1,170 @@
+/**
+ * EvaluationSwitcher.css
+ * Styles for the Evaluation Switcher dropdown
+ */
+
+.evaluation-switcher {
+  position: relative;
+}
+
+.switcher-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.switcher-trigger:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-hover);
+}
+
+.switcher-icon {
+  color: var(--color-text-muted);
+}
+
+.switcher-name {
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switcher-chevron {
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+}
+
+.switcher-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown */
+.switcher-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 280px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.switcher-header {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+}
+
+.switcher-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.switcher-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.switcher-option:hover {
+  background: var(--color-surface-hover);
+}
+
+.switcher-option.selected {
+  background: var(--color-primary-light);
+}
+
+.option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.option-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-client {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.option-status {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  margin-top: 0.25rem;
+}
+
+.option-status.status-setup { 
+  background: var(--color-gray-100); 
+  color: var(--color-gray-700); 
+}
+.option-status.status-discovery { 
+  background: var(--color-blue-100); 
+  color: var(--color-blue-700); 
+}
+.option-status.status-requirements { 
+  background: var(--color-amber-100); 
+  color: var(--color-amber-700); 
+}
+.option-status.status-evaluation { 
+  background: var(--color-purple-100); 
+  color: var(--color-purple-700); 
+}
+.option-status.status-complete { 
+  background: var(--color-green-100); 
+  color: var(--color-green-700); 
+}
+
+.option-check {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .switcher-name {
+    max-width: 150px;
+  }
+  
+  .switcher-dropdown {
+    min-width: 260px;
+  }
+}

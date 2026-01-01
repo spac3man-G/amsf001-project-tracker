@@ -30,6 +30,7 @@ import {
   Award,
   GanttChart,
   ClipboardList,
+  ClipboardCheck,
   Building2,
   History,
   Archive,
@@ -63,6 +64,11 @@ export const NAV_SECTIONS = {
   planner: {
     id: 'planner',
     label: 'Planner',
+    icon: null
+  },
+  evaluator: {
+    id: 'evaluator',
+    label: 'Evaluator',
     icon: null
   },
   settings: {
@@ -168,6 +174,15 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'planner'
+  },
+  evaluator: {
+    id: 'evaluator',
+    path: '/evaluator',
+    icon: ClipboardCheck,
+    label: 'Evaluator',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
   },
   // billing is now a tab within Finance
   // partners is now a tab within Organisation Admin
@@ -281,6 +296,8 @@ export const ROLE_NAV_ORDER = {
     'planning',
     'benchmarking',
     'estimator',
+    { section: 'evaluator' },
+    'evaluator',
     { section: 'settings' },
     'settings',
     'orgSettings'
@@ -299,6 +316,8 @@ export const ROLE_NAV_ORDER = {
     'planning',
     'benchmarking',
     'estimator',
+    { section: 'evaluator' },
+    'evaluator',
     { section: 'settings' },
     'settings',
     'orgSettings'

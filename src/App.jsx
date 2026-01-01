@@ -16,6 +16,7 @@ import { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrganisationProvider, useOrganisation } from './contexts/OrganisationContext';
 import { ProjectProvider } from './contexts/ProjectContext';
+import { EvaluationProvider } from './contexts/EvaluationContext';
 import { ViewAsProvider } from './contexts/ViewAsContext';
 import { TestUserProvider } from './contexts/TestUserContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -76,6 +77,9 @@ const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
 const OrganisationSettings = lazy(() => import('./pages/admin/OrganisationSettings'));
 const OrganisationMembers = lazy(() => import('./pages/admin/OrganisationMembers'));
 const OrganisationAdmin = lazy(() => import('./pages/admin/OrganisationAdmin'));
+
+// Evaluator pages
+const EvaluatorDashboard = lazy(() => import('./pages/evaluator/EvaluatorDashboard'));
 
 // Onboarding pages
 const CreateOrganisation = lazy(() => import('./pages/onboarding/CreateOrganisation'));
@@ -240,6 +244,7 @@ export default function App() {
                 because ProjectProvider filters projects by current organisation */}
             <OrganisationProvider>
               <ProjectProvider>
+                <EvaluationProvider>
                 <ViewAsProvider>
                 <TestUserProvider>
                   <MetricsProvider>
@@ -457,6 +462,57 @@ export default function App() {
                               <Navigate to="/admin/organisation?tab=members" replace />
                             } />
                             
+                            {/* ========================================
+                                EVALUATOR TOOL ROUTES
+                                ======================================== */}
+                            
+                            {/* Evaluator Dashboard */}
+                            <Route path="/evaluator" element={
+                              <Navigate to="/evaluator/dashboard" replace />
+                            } />
+                            <Route path="/evaluator/dashboard" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <EvaluatorDashboard />
+                              </ProtectedRoute>
+                            } />
+                            
+                            {/* Evaluator sub-routes - placeholders for Phase 3+ */}
+                            <Route path="/evaluator/requirements" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <EvaluatorDashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/workshops" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <EvaluatorDashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/vendors" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <EvaluatorDashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/evaluation" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <EvaluatorDashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/traceability" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <EvaluatorDashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/reports" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <EvaluatorDashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/settings" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <EvaluatorDashboard />
+                              </ProtectedRoute>
+                            } />
+                            
                             {/* Catch all */}
                             <Route path="*" element={<Navigate to="/dashboard" replace />} />
                           </Routes>
@@ -477,6 +533,7 @@ export default function App() {
                   </MetricsProvider>
                 </TestUserProvider>
                 </ViewAsProvider>
+                </EvaluationProvider>
               </ProjectProvider>
             </OrganisationProvider>
           </AuthProvider>
