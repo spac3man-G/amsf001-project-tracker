@@ -27,7 +27,8 @@ import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
 import { 
   StakeholderAreasManager, 
   EvaluationCategoriesManager,
-  ScoringScaleManager 
+  ScoringScaleManager,
+  ProjectDetailsManager
 } from '../../components/evaluator/settings';
 import { 
   stakeholderAreasService, 
@@ -165,6 +166,21 @@ export default function EvaluationSettings() {
     await loadData();
   }, [evaluationId, loadData]);
 
+  // Project Details handler
+  const handleSaveProjectDetails = useCallback(async (details) => {
+    const { error } = await supabase
+      .from('evaluation_projects')
+      .update(details)
+      .eq('id', evaluationId);
+
+    if (error) throw error;
+    
+    // Refresh the evaluation in context
+    setToast({ type: 'success', message: 'Project details saved successfully' });
+    // Force reload the page data to reflect changes
+    window.location.reload();
+  }, [evaluationId]);
+
   // Loading state
   if (evaluationLoading || isLoading) {
     return <LoadingSpinner message="Loading settings..." fullPage />;
@@ -224,6 +240,13 @@ export default function EvaluationSettings() {
 
 
       <div className="settings-grid">
+        {/* Project Details */}
+        <ProjectDetailsManager
+          evaluation={currentEvaluation}
+          onSave={handleSaveProjectDetails}
+          isLoading={isLoading}
+        />
+
         {/* Stakeholder Areas */}
         <StakeholderAreasManager
           areas={stakeholderAreas}

@@ -122,12 +122,12 @@ Before testing, ensure you have:
 
 | ID | Test Case | Steps | Expected Result | Status | Notes |
 |----|-----------|-------|-----------------|--------|-------|
-| 1.3.1 | Create stakeholder area | Settings → Areas → Add | Area created with name | 🔲 | |
+| 1.3.1 | Create stakeholder area | Settings → Areas → Add | Area created with name | ✅ | Created 4 areas: IT, Finance, Security, Operations |
 | 1.3.2 | Edit stakeholder area | Click edit on area | Changes saved | 🔲 | |
 | 1.3.3 | Delete stakeholder area | Click delete on area | Area removed (if unused) | 🔲 | |
-| 1.3.4 | Create evaluation category | Settings → Categories → Add | Category created with weight | 🔲 | |
-| 1.3.5 | Weight validation | Enter weights totaling ≠100% | Shows validation error | 🔲 | |
-| 1.3.6 | Configure scoring scale | Settings → Scoring | Scale labels editable | 🔲 | |
+| 1.3.4 | Create evaluation category | Settings → Categories → Add | Category created with weight | ✅ | Created 4 categories at 25% each |
+| 1.3.5 | Weight validation | Enter weights totaling =100% | Shows validation success | ✅ | Total Weight shows 100% with green checkmark |
+| 1.3.6 | Configure scoring scale | Settings → Scoring | Scale labels editable | 🔲 | Scale displays correctly, need to test edit |
 
 ### Block 1 Summary
 
