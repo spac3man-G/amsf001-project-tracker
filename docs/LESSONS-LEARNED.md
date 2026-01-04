@@ -173,6 +173,50 @@ See `/docs/EVALUATOR-TEST-PLAN.md` for a good template.
 
 ---
 
+## React State & Context Patterns
+
+### Lesson 6: Async Context Updates and Stale State
+
+**Date:** 04 January 2026  
+**Issue:** After creating an evaluation project, calling `switchEvaluation(newProject.id)` immediately after `refreshEvaluationAssignments()` caused a React error because the state was stale.
+
+**Symptoms:**
+- React error #130: "Objects are not valid as a React child"
+- Error occurred after successful API call to create project
+- Page crashed when trying to render the new evaluation
+
+**Root Cause:**
+When a callback function captures context state (like `availableEvaluations`), it captures the value at the time of function creation. Even after an async refresh:
+
+```javascript
+// This is problematic:
+await refreshEvaluationAssignments();  // Updates availableEvaluations
+switchEvaluation(newProject.id);        // Still uses OLD availableEvaluations!
+```
+
+The `switchEvaluation` function was created before the refresh and holds a stale reference to `availableEvaluations`.
+
+**Solution:**
+Don't try to manually switch to a new item right after creating it. Instead, let the context's auto-selection logic handle it:
+
+```javascript
+// In the modal:
+await refreshEvaluationAssignments();
+// Don't call switchEvaluation - context will auto-select
+
+// In the context, the auto-selection logic runs:
+if (!selectedEvaluationId && assignments.length > 0) {
+  selectedEvaluationId = assignments[0].evaluation_project_id;
+}
+```
+
+**Pattern to Follow:**
+1. After creating new items in a context, just refresh the list
+2. Let the context's default/auto-selection logic choose the new item
+3. If you MUST switch manually, use a separate `useEffect` that watches for changes to the list
+
+---
+
 ## Adding New Lessons
 
 When you discover a significant issue or pattern, add it here:
