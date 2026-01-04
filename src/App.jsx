@@ -92,6 +92,8 @@ const QuestionsHub = lazy(() => import('./pages/evaluator/QuestionsHub'));
 const VendorPortal = lazy(() => import('./pages/evaluator/VendorPortal'));
 const EvaluationHub = lazy(() => import('./pages/evaluator/EvaluationHub'));
 const TraceabilityView = lazy(() => import('./pages/evaluator/TraceabilityView'));
+const ClientPortal = lazy(() => import('./pages/evaluator/ClientPortal'));
+const ReportsHub = lazy(() => import('./pages/evaluator/ReportsHub'));
 
 // Onboarding pages
 const CreateOrganisation = lazy(() => import('./pages/onboarding/CreateOrganisation'));
@@ -289,6 +291,16 @@ export default function App() {
                               element={
                                 <Suspense fallback={<LoadingSpinner fullPage />}>
                                   <VendorPortal />
+                                </Suspense>
+                              } 
+                            />
+                            
+                            {/* Client Portal - Public route (no auth required, uses access codes) */}
+                            <Route 
+                              path="/client-portal" 
+                              element={
+                                <Suspense fallback={<LoadingSpinner fullPage />}>
+                                  <ClientPortal />
                                 </Suspense>
                               } 
                             />
@@ -551,7 +563,7 @@ export default function App() {
                             } />
                             <Route path="/evaluator/reports" element={
                               <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
-                                <EvaluatorDashboard />
+                                <ReportsHub />
                               </ProtectedRoute>
                             } />
                             <Route path="/evaluator/settings" element={

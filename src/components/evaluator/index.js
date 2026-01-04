@@ -81,3 +81,8 @@ export {
   TraceabilityMatrix,
   TraceabilityDrilldown
 } from './traceability';
+
+// Phase 7B: Client Portal
+export {
+  ClientDashboard
+} from './client';

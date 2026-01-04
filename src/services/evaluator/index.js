@@ -97,3 +97,10 @@ export {
   RAG_STATUS,
   RAG_CONFIG
 } from './traceability.service';
+
+export { 
+  clientPortalService, 
+  ClientPortalService,
+  CLIENT_VIEW_PERMISSIONS,
+  DEFAULT_CLIENT_PERMISSIONS
+} from './clientPortal.service';
