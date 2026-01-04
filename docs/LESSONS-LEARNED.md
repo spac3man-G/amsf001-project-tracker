@@ -217,6 +217,57 @@ if (!selectedEvaluationId && assignments.length > 0) {
 
 ---
 
+### Lesson 7: React Error #130 - Objects as Children
+
+**Date:** 04 January 2026  
+**Issue:** Clicking on Evaluator nav link crashed the page with React error #130.
+
+**Symptoms:**
+- "Minified React error #130: Objects are not valid as a React child"
+- Error occurred when rendering the EvaluatorDashboard
+- Page wouldn't load at all
+
+**Root Cause:**
+The `StatCard` component was receiving a `trend` prop as an object:
+```javascript
+trend={stats.requirements.pending > 0 ? {
+  value: stats.requirements.pending,
+  label: 'pending review',
+  direction: 'neutral'
+} : null}
+```
+
+But the StatCard component expected `trend` to be a simple string ('up' or 'down') and tried to render it directly:
+```javascript
+{trend && trendValue && (
+  <div className={`stat-card-trend ${trend}`}>  // trend object in className!
+    {trend === 'up' ? '↑' : '↓'} {trendValue}   // trend object compared to string!
+  </div>
+)}
+```
+
+**Solution:**
+Updated StatCard to handle both object and string formats for `trend`:
+```javascript
+if (typeof trend === 'object') {
+  trendDirection = trend.direction;
+  trendDisplay = `${trend.value} ${trend.label}`;
+} else {
+  trendDirection = trend;
+  trendDisplay = trendValue;
+}
+```
+
+Also added support for `title`/`label` and `subtitle`/`subtext` prop aliases for consistency.
+
+**Pattern to Follow:**
+1. When components can receive data in multiple formats, document and handle all formats
+2. Always check `typeof` before using props that might be objects vs primitives
+3. Consider adding prop aliases when prop names have evolved over time
+4. Add JSDoc comments that clearly document expected prop types
+
+---
+
 ## Adding New Lessons
 
 When you discover a significant issue or pattern, add it here:
