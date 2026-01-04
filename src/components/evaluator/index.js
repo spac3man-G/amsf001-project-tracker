@@ -86,3 +86,9 @@ export {
 export {
   ClientDashboard
 } from './client';
+
+// Phase 8A: AI Components
+export {
+  ParsedRequirementsReview,
+  GapAnalysisResults
+} from './ai';

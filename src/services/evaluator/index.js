@@ -104,3 +104,12 @@ export {
   CLIENT_VIEW_PERMISSIONS,
   DEFAULT_CLIENT_PERMISSIONS
 } from './clientPortal.service';
+
+// Phase 8A: AI Services
+export { 
+  aiService, 
+  AIService,
+  AI_TASK_TYPES,
+  AI_TASK_STATUS,
+  AI_TASK_STATUS_CONFIG
+} from './ai.service';

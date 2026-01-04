@@ -61,18 +61,4 @@ USING (
   AND has_evaluation_role((storage.foldername(name))[1]::uuid, ARRAY['admin', 'evaluator'])
 );
 
--- ============================================================================
--- COMMENTS
--- ============================================================================
-
-COMMENT ON POLICY "evaluation_documents_select" ON storage.objects IS 
-  'Allow reading evaluation documents for users with evaluation project access';
-
-COMMENT ON POLICY "evaluation_documents_insert" ON storage.objects IS 
-  'Allow uploading evaluation documents for evaluators and admins';
-
-COMMENT ON POLICY "evaluation_documents_update" ON storage.objects IS 
-  'Allow updating evaluation documents for evaluators and admins';
-
-COMMENT ON POLICY "evaluation_documents_delete" ON storage.objects IS 
-  'Allow deleting evaluation documents for evaluators and admins';
+-- Note: Comments on storage.objects policies are not supported by Supabase

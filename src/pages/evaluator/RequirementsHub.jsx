@@ -3,11 +3,12 @@
  * 
  * Main page for requirements management in the Evaluator tool.
  * Shows list of requirements with filtering, CRUD operations, and views.
+ * Includes AI-powered gap analysis for identifying missing requirements.
  * 
- * @version 1.1
+ * @version 1.2
  * @created 01 January 2026
- * @updated 01 January 2026 - Added RequirementForm modal for CRUD
- * @phase Phase 3 - Requirements Module (Tasks 3A.4, 3B.1-3B.4)
+ * @updated 04 January 2026 - Added Gap Analysis (Phase 8A)
+ * @phase Phase 3 - Requirements Module (Tasks 3A.4, 3B.1-3B.4), Phase 8A - AI Features
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -30,7 +31,8 @@ import {
   Clock,
   AlertCircle,
   Send,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 
 import { useEvaluation } from '../../contexts/EvaluationContext';
@@ -47,7 +49,8 @@ import {
 } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
 import { RequirementFilters, RequirementForm, RequirementMatrix } from '../../components/evaluator/requirements';
-import { requirementsService, stakeholderAreasService, evaluationCategoriesService } from '../../services/evaluator';
+import { GapAnalysisResults } from '../../components/evaluator/ai';
+import { requirementsService, stakeholderAreasService, evaluationCategoriesService, aiService } from '../../services/evaluator';
 
 import './RequirementsHub.css';
 
@@ -107,6 +110,11 @@ export default function RequirementsHub() {
     requirement: null,
     action: null // 'submit', 'approve', 'reject', 'returnToDraft'
   });
+
+  // Gap Analysis state (Phase 8A)
+  const [runningGapAnalysis, setRunningGapAnalysis] = useState(false);
+  const [gapAnalysisResults, setGapAnalysisResults] = useState(null);
+  const [showGapAnalysis, setShowGapAnalysis] = useState(false);
 
 
   // Load data
@@ -329,6 +337,64 @@ export default function RequirementsHub() {
       setToastMessage({ type: 'error', message: err.message });
     }
   }, [evaluationId]);
+
+  // Gap Analysis handlers (Phase 8A)
+  const handleRunGapAnalysis = useCallback(async () => {
+    if (!evaluationId || !user?.id) return;
+    
+    if (requirements.length === 0) {
+      setToastMessage({ type: 'warning', message: 'Add some requirements before running gap analysis' });
+      return;
+    }
+    
+    setRunningGapAnalysis(true);
+    try {
+      const results = await aiService.runGapAnalysis(evaluationId, user.id);
+      
+      if (results.success) {
+        setGapAnalysisResults(results);
+        setShowGapAnalysis(true);
+        setToastMessage({ 
+          type: 'success', 
+          message: `Gap analysis complete: ${results.suggested_requirements?.length || 0} suggestions` 
+        });
+      } else {
+        throw new Error(results.error || 'Gap analysis failed');
+      }
+    } catch (err) {
+      console.error('Gap analysis error:', err);
+      setToastMessage({ type: 'error', message: err.message || 'Failed to run gap analysis' });
+    } finally {
+      setRunningGapAnalysis(false);
+    }
+  }, [evaluationId, user?.id, requirements.length]);
+
+  const handleAddGapSuggestions = useCallback(async (suggestions) => {
+    if (!evaluationId || !user?.id) return;
+    
+    try {
+      const result = await aiService.addGapSuggestions(
+        evaluationId,
+        user.id,
+        suggestions,
+        categories
+      );
+      
+      setToastMessage({ 
+        type: 'success', 
+        message: `Added ${result.imported} requirements from gap analysis` 
+      });
+      
+      // Refresh requirements list
+      loadData();
+      
+      return result;
+    } catch (err) {
+      console.error('Add suggestions error:', err);
+      setToastMessage({ type: 'error', message: err.message || 'Failed to add requirements' });
+      throw err;
+    }
+  }, [evaluationId, user?.id, categories, loadData]);
 
   // Get row action menu items based on requirement status
   const getRowActions = useCallback((row) => {
@@ -677,6 +743,17 @@ export default function RequirementsHub() {
             <Download size={16} />
             Export
           </button>
+          {canManageRequirements && (
+            <button 
+              className="btn btn-ai"
+              onClick={handleRunGapAnalysis}
+              disabled={runningGapAnalysis}
+              title="AI Gap Analysis"
+            >
+              <Sparkles size={16} className={runningGapAnalysis ? 'spinning' : ''} />
+              {runningGapAnalysis ? 'Analyzing...' : 'Gap Analysis'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -788,6 +865,18 @@ export default function RequirementsHub() {
           onClose={() => setToastMessage(null)}
         />
       )}
+
+      {/* Gap Analysis Results Modal (Phase 8A) */}
+      <GapAnalysisResults
+        isOpen={showGapAnalysis}
+        onClose={() => {
+          setShowGapAnalysis(false);
+          setGapAnalysisResults(null);
+        }}
+        analysisResults={gapAnalysisResults}
+        categories={categories}
+        onAddRequirements={handleAddGapSuggestions}
+      />
     </div>
   );
 }

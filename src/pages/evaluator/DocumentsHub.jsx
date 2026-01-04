@@ -3,10 +3,12 @@
  * 
  * Main page for managing evaluation documents.
  * Provides document upload, viewing, and management functionality.
+ * Includes AI-powered document parsing for requirements extraction.
  * 
- * @version 1.0
+ * @version 1.1
  * @created 01 January 2026
- * @phase Phase 4 - Input Capture (Session 4C)
+ * @updated 04 January 2026 - Added AI parsing (Phase 8A)
+ * @phase Phase 4 - Input Capture (Session 4C), Phase 8A - AI Features
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,19 +20,23 @@ import {
   Plus,
   AlertCircle,
   Download,
-  CheckCircle
+  CheckCircle,
+  Sparkles
 } from 'lucide-react';
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { 
   evaluationDocumentsService,
-  DOCUMENT_TYPE_CONFIG 
+  DOCUMENT_TYPE_CONFIG,
+  aiService,
+  evaluationCategoriesService
 } from '../../services/evaluator';
 import { 
   DocumentUploader, 
   DocumentList,
-  DocumentViewer 
+  DocumentViewer,
+  ParsedRequirementsReview
 } from '../../components/evaluator';
 import './DocumentsHub.css';
 
@@ -51,6 +57,13 @@ function DocumentsHub() {
   const [viewerDocument, setViewerDocument] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
 
+  // AI Parsing state (Phase 8A)
+  const [parsingDocumentId, setParsingDocumentId] = useState(null);
+  const [parseResults, setParseResults] = useState(null);
+  const [showParseReview, setShowParseReview] = useState(false);
+  const [parseDocumentName, setParseDocumentName] = useState('');
+  const [categories, setCategories] = useState([]);
+
   // --------------------------------------------------------------------------
   // DATA LOADING
   // --------------------------------------------------------------------------
@@ -60,12 +73,14 @@ function DocumentsHub() {
     
     setLoading(true);
     try {
-      const [docs, sum] = await Promise.all([
+      const [docs, sum, cats] = await Promise.all([
         evaluationDocumentsService.getAllWithDetails(evaluationId),
-        evaluationDocumentsService.getSummary(evaluationId)
+        evaluationDocumentsService.getSummary(evaluationId),
+        evaluationCategoriesService.getAll(evaluationId)
       ]);
       setDocuments(docs);
       setSummary(sum);
+      setCategories(cats);
     } catch (error) {
       console.error('Failed to load documents:', error);
       showError('Failed to load documents');
@@ -166,9 +181,58 @@ function DocumentsHub() {
   }, [user?.id, loadDocuments, showSuccess, showError]);
 
   const handleParse = useCallback(async (document) => {
-    // Placeholder for AI parsing - will be implemented in Phase 8
-    showSuccess('AI parsing will be available in a future update');
-  }, [showSuccess]);
+    if (!evaluationId || !user?.id) return;
+    
+    setParsingDocumentId(document.id);
+    setParseDocumentName(document.name);
+    
+    try {
+      const result = await aiService.parseDocument(
+        document.id,
+        evaluationId,
+        user.id,
+        document.name
+      );
+      
+      if (result.success) {
+        setParseResults(result);
+        setShowParseReview(true);
+        showSuccess(`Extracted ${result.requirements?.length || 0} requirements from document`);
+      } else {
+        throw new Error(result.error || 'Failed to parse document');
+      }
+    } catch (error) {
+      console.error('Parse error:', error);
+      showError(error.message || 'Failed to parse document');
+    } finally {
+      setParsingDocumentId(null);
+    }
+  }, [evaluationId, user?.id, showSuccess, showError]);
+
+  const handleImportRequirements = useCallback(async (requirements) => {
+    if (!evaluationId || !user?.id || !parseResults?.documentId) return;
+    
+    try {
+      const result = await aiService.importParsedRequirements(
+        evaluationId,
+        user.id,
+        requirements,
+        parseResults.documentId,
+        categories
+      );
+      
+      showSuccess(`Successfully imported ${result.imported} requirements`);
+      
+      // Refresh documents to update parse status
+      await loadDocuments();
+      
+      return result;
+    } catch (error) {
+      console.error('Import error:', error);
+      showError(error.message || 'Failed to import requirements');
+      throw error;
+    }
+  }, [evaluationId, user?.id, parseResults?.documentId, categories, loadDocuments, showSuccess, showError]);
 
   // --------------------------------------------------------------------------
   // RENDER
@@ -292,6 +356,7 @@ function DocumentsHub() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onParse={handleParse}
+          parsingDocumentId={parsingDocumentId}
           emptyMessage="No documents uploaded yet. Click 'Upload Documents' to add files."
         />
       </div>
@@ -302,6 +367,19 @@ function DocumentsHub() {
         isOpen={viewerOpen}
         onClose={() => setViewerOpen(false)}
         onDownload={handleDownload}
+      />
+
+      {/* AI Parsed Requirements Review Modal */}
+      <ParsedRequirementsReview
+        isOpen={showParseReview}
+        onClose={() => {
+          setShowParseReview(false);
+          setParseResults(null);
+        }}
+        parseResults={parseResults}
+        documentName={parseDocumentName}
+        categories={categories}
+        onImport={handleImportRequirements}
       />
     </div>
   );
