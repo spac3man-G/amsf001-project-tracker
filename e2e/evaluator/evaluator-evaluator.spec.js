@@ -1,4 +1,9 @@
-A.3)
+/**
+ * Evaluator Role E2E Tests
+ * Tests for users with the "evaluator" role in the Evaluator tool
+ * These users can view requirements, score vendors, and access reports
+ * 
+ * @see docs/EVALUATOR-TECHNICAL-ARCHITECTURE.md (Section A.3)
  */
 
 import { test, expect } from '@playwright/test';
