@@ -11,13 +11,11 @@
 import React, { useState } from 'react';
 import { X, Plus, Briefcase } from 'lucide-react';
 import { useOrganisation } from '../../contexts/OrganisationContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useEvaluation } from '../../contexts/EvaluationContext';
-import { evaluationProjectsService } from '../../services/evaluator';
+import { supabase } from '../../lib/supabase';
 
 export default function CreateEvaluationModal({ isOpen, onClose, onSuccess }) {
   const { organisationId } = useOrganisation();
-  const { user } = useAuth();
   const { refreshEvaluationAssignments } = useEvaluation();
   
   const [creating, setCreating] = useState(false);
@@ -46,32 +44,36 @@ export default function CreateEvaluationModal({ isOpen, onClose, onSuccess }) {
       setCreating(true);
       setError(null);
 
-      // Create the evaluation project
-      const newProject = await evaluationProjectsService.create({
-        organisation_id: organisationId,
-        name: formData.name.trim(),
-        client_name: formData.client_name.trim() || null,
-        description: formData.description.trim() || null,
-        target_start_date: formData.target_start_date || null,
-        target_end_date: formData.target_end_date || null,
-        status: 'setup',
-        created_by: user?.id,
-        settings: {
-          requireApproval: true,
-          allowVendorPortal: true,
-          scoringScale: 5,
-          requireEvidence: true,
-          allowAIFeatures: true
-        }
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        setError('Authentication required. Please log in again.');
+        return;
+      }
+
+      // Call the API endpoint (bypasses RLS using service role)
+      const response = await fetch('/api/evaluator/create-evaluation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          client_name: formData.client_name.trim() || null,
+          description: formData.description.trim() || null,
+          target_start_date: formData.target_start_date || null,
+          target_end_date: formData.target_end_date || null,
+          organisation_id: organisationId,
+          adminToken: session.access_token,
+        }),
       });
 
-      // Add current user as admin
-      await evaluationProjectsService.addTeamMember(
-        newProject.id,
-        user.id,
-        'admin',
-        { isDefault: true }
-      );
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create evaluation project');
+      }
 
       // Refresh the evaluation list in context
       await refreshEvaluationAssignments();
@@ -87,7 +89,7 @@ export default function CreateEvaluationModal({ isOpen, onClose, onSuccess }) {
 
       // Call success callback
       if (onSuccess) {
-        onSuccess(newProject);
+        onSuccess(result.evaluation);
       }
 
       onClose();
