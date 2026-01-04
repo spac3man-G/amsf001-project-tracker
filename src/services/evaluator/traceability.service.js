@@ -115,21 +115,21 @@ export class TraceabilityService extends EvaluatorBaseService {
   async getRequirementsWithCategories(evaluationProjectId, options = {}) {
     try {
       let query = supabase
-        .from('evaluation_requirements')
+        .from('requirements')
         .select(`
           id,
-          requirement_id,
-          name,
+          reference_code,
+          title,
           description,
           priority,
           status,
-          mos_cow,
           stakeholder_area_id,
           category_id,
-          criterion_id,
           stakeholder_area:stakeholder_area_id(id, name),
           category:category_id(id, name, weight),
-          criterion:criterion_id(id, name, weight)
+          criteria:requirement_criteria(
+            criterion:evaluation_criteria(id, name, weight)
+          )
         `)
         .eq('evaluation_project_id', evaluationProjectId)
         .eq('is_deleted', false);
@@ -374,11 +374,15 @@ export class TraceabilityService extends EvaluatorBaseService {
 
             // Update vendor totals
             if (cell.averageScore !== null) {
-              const weight = req.criterion?.weight || 1;
+              // Use average weight of linked criteria, default to 1
+              const linkedCriteria = req.criteria?.map(rc => rc.criterion).filter(Boolean) || [];
+              const avgWeight = linkedCriteria.length > 0
+                ? linkedCriteria.reduce((sum, c) => sum + (c.weight || 1), 0) / linkedCriteria.length
+                : 1;
               matrix.vendorTotals[vendor.id].totalScore += cell.averageScore;
-              matrix.vendorTotals[vendor.id].weightedScore += cell.averageScore * weight;
+              matrix.vendorTotals[vendor.id].weightedScore += cell.averageScore * avgWeight;
               matrix.vendorTotals[vendor.id].scoredCount += 1;
-              matrix.vendorTotals[vendor.id].totalWeight += weight;
+              matrix.vendorTotals[vendor.id].totalWeight += avgWeight;
             }
           });
 
@@ -419,12 +423,27 @@ export class TraceabilityService extends EvaluatorBaseService {
    * Build a single matrix cell
    */
   buildMatrixCell(requirement, vendor, scoresIndex, evidenceIndex) {
-    const criterionId = requirement.criterion_id;
+    // Requirements may link to multiple criteria via requirement_criteria junction table
+    const linkedCriteria = requirement.criteria?.map(rc => rc.criterion).filter(Boolean) || [];
+    const criterionIds = linkedCriteria.map(c => c.id);
     const requirementId = requirement.id;
 
-    // Get scores for this vendor/criterion combination
-    const scoreKey = `${vendor.id}_${criterionId}`;
-    const scoreData = criterionId ? scoresIndex[scoreKey] : null;
+    // Collect scores across all linked criteria
+    let allScores = [];
+    let consensusScore = null;
+    
+    criterionIds.forEach(criterionId => {
+      const scoreKey = `${vendor.id}_${criterionId}`;
+      const scoreData = scoresIndex[scoreKey];
+      
+      if (scoreData) {
+        if (scoreData.consensus) {
+          // If any linked criterion has consensus, use it
+          consensusScore = scoreData.consensus.score;
+        }
+        allScores.push(...(scoreData.scores || []));
+      }
+    });
 
     // Get evidence for this vendor/requirement combination
     const evidenceKey = `${vendor.id}_${requirementId}`;
@@ -433,32 +452,28 @@ export class TraceabilityService extends EvaluatorBaseService {
     // Determine cell type and values
     let cellType = CELL_TYPES.NO_SCORE;
     let averageScore = null;
-    let consensusScore = null;
     let ragStatus = RAG_STATUS.NONE;
 
-    if (scoreData) {
-      if (scoreData.consensus) {
-        cellType = CELL_TYPES.CONSENSUS;
-        consensusScore = scoreData.consensus.score;
-        averageScore = consensusScore;
-        ragStatus = this.getRAGStatus(consensusScore);
-      } else if (scoreData.scores.length > 0) {
-        cellType = CELL_TYPES.SCORED;
-        averageScore = scoreData.scores.reduce((sum, s) => sum + s.score, 0) / scoreData.scores.length;
-        ragStatus = this.getRAGStatus(averageScore);
-      }
+    if (consensusScore !== null) {
+      cellType = CELL_TYPES.CONSENSUS;
+      averageScore = consensusScore;
+      ragStatus = this.getRAGStatus(consensusScore);
+    } else if (allScores.length > 0) {
+      cellType = CELL_TYPES.SCORED;
+      averageScore = allScores.reduce((sum, s) => sum + s.score, 0) / allScores.length;
+      ragStatus = this.getRAGStatus(averageScore);
     }
 
     return {
       vendorId: vendor.id,
       requirementId: requirement.id,
-      criterionId: criterionId,
+      criterionIds: criterionIds,
       cellType,
       averageScore,
       consensusScore,
       ragStatus,
       ragConfig: RAG_CONFIG[ragStatus],
-      individualScores: scoreData?.scores || [],
+      individualScores: allScores,
       evidenceCount: evidenceList.length,
       evidence: evidenceList
     };
@@ -548,22 +563,20 @@ export class TraceabilityService extends EvaluatorBaseService {
     try {
       // Get requirement with full details
       const { data: requirement, error: reqError } = await supabase
-        .from('evaluation_requirements')
+        .from('requirements')
         .select(`
           *,
           stakeholder_area:stakeholder_area_id(id, name),
           category:category_id(id, name, weight),
-          criterion:criterion_id(id, name, weight, description),
-          sources:requirement_sources(
-            source_type,
-            source_id,
-            workshop:workshops(id, name, scheduled_date),
-            survey_response:survey_responses(
-              id,
-              survey:survey_id(id, name, survey_type)
-            ),
-            document:evaluation_documents(id, name, document_type)
-          )
+          criteria:requirement_criteria(
+            criterion:evaluation_criteria(id, name, weight, description)
+          ),
+          source_workshop:source_workshop_id(id, name, scheduled_date),
+          source_survey_response:source_survey_response_id(
+            id,
+            survey:survey_id(id, name)
+          ),
+          source_document:source_document_id(id, name, document_type)
         `)
         .eq('id', requirementId)
         .single();
@@ -579,9 +592,12 @@ export class TraceabilityService extends EvaluatorBaseService {
 
       if (vendorError) throw vendorError;
 
-      // Get all scores for this vendor/criterion
+      // Get all scores for this vendor and linked criteria
       let scores = [];
-      if (requirement.criterion_id) {
+      const linkedCriteria = requirement.criteria?.map(rc => rc.criterion).filter(Boolean) || [];
+      const criterionIds = linkedCriteria.map(c => c.id);
+      
+      if (criterionIds.length > 0) {
         const { data: scoreData, error: scoreError } = await supabase
           .from('scores')
           .select(`
@@ -589,7 +605,7 @@ export class TraceabilityService extends EvaluatorBaseService {
             evaluator:evaluator_id(id, full_name, email)
           `)
           .eq('vendor_id', vendorId)
-          .eq('criterion_id', requirement.criterion_id);
+          .in('criterion_id', criterionIds);
 
         if (scoreError) throw scoreError;
         scores = scoreData || [];
@@ -644,7 +660,7 @@ export class TraceabilityService extends EvaluatorBaseService {
       return {
         requirement: {
           ...requirement,
-          sources: this.formatSources(requirement.sources || [])
+          formattedSources: this.formatRequirementSources(requirement)
         },
         vendor,
         scores: this.formatScores(scores),
@@ -659,7 +675,54 @@ export class TraceabilityService extends EvaluatorBaseService {
   }
 
   /**
+   * Format sources from requirement's direct source fields
+   */
+  formatRequirementSources(requirement) {
+    const sources = [];
+    
+    if (requirement.source_workshop) {
+      sources.push({
+        type: 'workshop',
+        id: requirement.source_workshop.id,
+        name: requirement.source_workshop.name,
+        date: requirement.source_workshop.scheduled_date,
+        link: `/evaluator/workshops/${requirement.source_workshop.id}`
+      });
+    }
+    
+    if (requirement.source_survey_response) {
+      sources.push({
+        type: 'survey',
+        id: requirement.source_survey_response.id,
+        name: requirement.source_survey_response.survey?.name,
+        link: `/evaluator/surveys/${requirement.source_survey_response.survey?.id}`
+      });
+    }
+    
+    if (requirement.source_document) {
+      sources.push({
+        type: 'document',
+        id: requirement.source_document.id,
+        name: requirement.source_document.name,
+        documentType: requirement.source_document.document_type,
+        link: `/evaluator/documents`
+      });
+    }
+    
+    // If manual entry with no linked source
+    if (sources.length === 0 && requirement.source_type === 'manual') {
+      sources.push({
+        type: 'manual',
+        name: 'Manual Entry'
+      });
+    }
+    
+    return sources;
+  }
+
+  /**
    * Format sources for display
+   * @deprecated Use formatRequirementSources instead
    */
   formatSources(sources) {
     return sources.map(source => {
@@ -746,7 +809,9 @@ export class TraceabilityService extends EvaluatorBaseService {
       });
     }
 
-    (requirement.sources || []).forEach(source => {
+    // Add sources from requirement's formatted sources
+    const formattedSources = this.formatRequirementSources(requirement);
+    formattedSources.forEach(source => {
       sourceLevel.items.push({
         type: source.type,
         id: source.id,
@@ -764,9 +829,9 @@ export class TraceabilityService extends EvaluatorBaseService {
       items: [{
         type: 'requirement',
         id: requirement.id,
-        label: requirement.name,
+        label: requirement.title,
         priority: requirement.priority,
-        mosCow: requirement.mos_cow
+        referenceCode: requirement.reference_code
       }]
     });
 
