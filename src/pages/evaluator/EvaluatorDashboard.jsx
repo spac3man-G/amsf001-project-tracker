@@ -4,9 +4,9 @@
  * Main dashboard for the Evaluator tool.
  * Shows evaluation project overview, progress metrics, and quick actions.
  * 
- * @version 1.1
+ * @version 1.2
  * @created 01 January 2026
- * @updated 01 January 2026 - Added requirements stats (Task 3C.6)
+ * @updated 04 January 2026 - Added CreateEvaluationModal (BUG-001 fix)
  * @phase Phase 2 - Core Infrastructure, Phase 3 - Requirements Module
  */
 
@@ -34,6 +34,7 @@ import { useEvaluatorPermissions } from '../../hooks/useEvaluatorPermissions';
 import { useEvaluationRole } from '../../hooks/useEvaluationRole';
 import { PageHeader, Card, LoadingSpinner, StatCard } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
+import CreateEvaluationModal from '../../components/evaluator/CreateEvaluationModal';
 import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService } from '../../services/evaluator';
 
 import './EvaluatorDashboard.css';
@@ -44,10 +45,14 @@ export default function EvaluatorDashboard() {
     currentEvaluation, 
     evaluationId,
     hasEvaluations, 
-    isLoading: evaluationLoading 
+    isLoading: evaluationLoading,
+    switchEvaluation
   } = useEvaluation();
   const { effectiveRole, roleDisplayName, roleBadgeColor } = useEvaluationRole();
   const { canEditEvaluation, canManageTeam } = useEvaluatorPermissions();
+
+  // Modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Stats state
   const [stats, setStats] = useState({
@@ -128,7 +133,7 @@ export default function EvaluatorDashboard() {
             {canEditEvaluation && (
               <button 
                 className="btn btn-primary"
-                onClick={() => navigate('/evaluator/new')}
+                onClick={() => setShowCreateModal(true)}
               >
                 <Plus size={16} />
                 Create Evaluation Project
@@ -136,6 +141,16 @@ export default function EvaluatorDashboard() {
             )}
           </div>
         </div>
+        
+        {/* Create Evaluation Modal */}
+        <CreateEvaluationModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={(newProject) => {
+            // Switch to the newly created project
+            switchEvaluation(newProject.id);
+          }}
+        />
       </div>
     );
   }

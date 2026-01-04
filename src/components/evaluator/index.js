@@ -11,6 +11,7 @@
 
 // Common components
 export { default as EvaluationSwitcher } from './EvaluationSwitcher';
+export { default as CreateEvaluationModal } from './CreateEvaluationModal';
 
 // Requirements components (Phase 3)
 export { 
