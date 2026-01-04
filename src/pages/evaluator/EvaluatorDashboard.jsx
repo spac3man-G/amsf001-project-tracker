@@ -45,8 +45,7 @@ export default function EvaluatorDashboard() {
     currentEvaluation, 
     evaluationId,
     hasEvaluations, 
-    isLoading: evaluationLoading,
-    switchEvaluation
+    isLoading: evaluationLoading
   } = useEvaluation();
   const { effectiveRole, roleDisplayName, roleBadgeColor } = useEvaluationRole();
   const { canEditEvaluation, canManageTeam } = useEvaluatorPermissions();
@@ -146,9 +145,10 @@ export default function EvaluatorDashboard() {
         <CreateEvaluationModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
-          onSuccess={(newProject) => {
-            // Switch to the newly created project
-            switchEvaluation(newProject.id);
+          onSuccess={() => {
+            // The modal already calls refreshEvaluationAssignments()
+            // The context will auto-select the new evaluation since it's the only one
+            // or the first one if there were none before
           }}
         />
       </div>
