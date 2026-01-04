@@ -105,8 +105,8 @@ Before testing, ensure you have:
 | 1.1.1 | Navigate to Evaluator | Click "Evaluator" in main nav | Evaluator Dashboard loads | ✅ | Shows empty state with "Create Evaluation Project" button |
 | 1.1.2 | Create new project | Click "Create Evaluation Project", fill form | Project created, dashboard shows | ✅ | Fixed: Created API endpoint + modal. Project "CO PS Form evaluation" created |
 | 1.1.3 | Project appears in list | Check project switcher | New project visible in dropdown | ✅ | Project displays in dashboard header |
-| 1.1.4 | Edit project details | Click settings, modify name | Changes saved | 🔲 | |
-| 1.1.5 | Delete project (soft) | Click delete in settings | Project hidden, can be restored | 🔲 | |
+| 1.1.4 | Edit project details | Click settings, modify name | Changes saved | ✅ | ProjectDetailsManager added - shows name, client, description, dates, status |
+| 1.1.5 | Delete project (soft) | Click delete in settings | Project hidden, can be restored | ⏭️ | Skip - Delete not implemented yet, low priority |
 
 ### 1.2 Navigation & Context
 

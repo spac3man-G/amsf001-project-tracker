@@ -64,7 +64,12 @@ export default function EvaluatorDashboard() {
 
   // Load stats
   const loadStats = useCallback(async () => {
-    if (!evaluationId) return;
+    if (!evaluationId) {
+      console.log('loadStats: No evaluationId, skipping');
+      return;
+    }
+
+    console.log('loadStats: Loading stats for evaluation:', evaluationId);
 
     try {
       const [reqSummary, categories, areas, vendorSummary] = await Promise.all([
@@ -73,6 +78,8 @@ export default function EvaluatorDashboard() {
         stakeholderAreasService.getSummary(evaluationId),
         vendorsService.getSummary(evaluationId)
       ]);
+
+      console.log('loadStats: Categories result:', categories);
 
       setStats({
         requirements: {
