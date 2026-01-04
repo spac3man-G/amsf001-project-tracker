@@ -113,3 +113,18 @@ export {
   AI_TASK_STATUS,
   AI_TASK_STATUS_CONFIG
 } from './ai.service';
+
+// Phase 9: Portal Refinement
+export { 
+  approvalsService, 
+  ApprovalsService,
+  APPROVAL_STATUS,
+  APPROVAL_STATUS_CONFIG
+} from './approvals.service';
+
+export { 
+  commentsService, 
+  CommentsService,
+  COMMENT_USER_TYPE,
+  USER_TYPE_CONFIG
+} from './comments.service';

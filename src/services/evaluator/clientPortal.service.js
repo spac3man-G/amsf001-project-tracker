@@ -65,13 +65,15 @@ export class ClientPortalService extends EvaluatorBaseService {
         requirementStats,
         vendorStats,
         workshopStats,
-        scoringProgress
+        scoringProgress,
+        approvalStats
       ] = await Promise.all([
         this.getProjectInfo(evaluationProjectId),
         this.getRequirementStats(evaluationProjectId),
         this.getVendorStats(evaluationProjectId),
         this.getWorkshopStats(evaluationProjectId),
-        this.getScoringProgress(evaluationProjectId)
+        this.getScoringProgress(evaluationProjectId),
+        this.getApprovalStats(evaluationProjectId)
       ]);
 
       return {
@@ -80,6 +82,7 @@ export class ClientPortalService extends EvaluatorBaseService {
         vendors: vendorStats,
         workshops: workshopStats,
         scoring: scoringProgress,
+        approvals: approvalStats,
         generatedAt: new Date().toISOString()
       };
     } catch (error) {
@@ -99,9 +102,11 @@ export class ClientPortalService extends EvaluatorBaseService {
         name,
         description,
         client_name,
+        client_logo_url,
         status,
-        start_date,
+        target_start_date,
         target_end_date,
+        branding,
         created_at
       `)
       .eq('id', evaluationProjectId)
@@ -116,24 +121,23 @@ export class ClientPortalService extends EvaluatorBaseService {
    */
   async getRequirementStats(evaluationProjectId) {
     const { data, error } = await supabase
-      .from('evaluation_requirements')
-      .select('id, status, priority, mos_cow, stakeholder_area_id')
+      .from('requirements')
+      .select('id, status, priority, stakeholder_area_id')
       .eq('evaluation_project_id', evaluationProjectId)
-      .eq('is_deleted', false);
+      .or('is_deleted.is.null,is_deleted.eq.false');
 
     if (error) throw error;
 
-    const total = data.length;
-    const byStatus = data.reduce((acc, r) => {
+    const requirements = data || [];
+    const total = requirements.length;
+    const byStatus = requirements.reduce((acc, r) => {
       acc[r.status] = (acc[r.status] || 0) + 1;
       return acc;
     }, {});
-    const byPriority = data.reduce((acc, r) => {
-      acc[r.priority] = (acc[r.priority] || 0) + 1;
-      return acc;
-    }, {});
-    const byMosCow = data.reduce((acc, r) => {
-      acc[r.mos_cow] = (acc[r.mos_cow] || 0) + 1;
+    const byPriority = requirements.reduce((acc, r) => {
+      if (r.priority) {
+        acc[r.priority] = (acc[r.priority] || 0) + 1;
+      }
       return acc;
     }, {});
 
@@ -141,11 +145,87 @@ export class ClientPortalService extends EvaluatorBaseService {
       total,
       byStatus,
       byPriority,
-      byMosCow,
       approved: byStatus.approved || 0,
       draft: byStatus.draft || 0,
-      pending: byStatus.pending_review || 0
+      pending: byStatus.under_review || 0
     };
+  }
+
+  /**
+   * Get client approval statistics for requirements
+   */
+  async getApprovalStats(evaluationProjectId) {
+    try {
+      // Get all requirements with their approvals
+      const { data, error } = await supabase
+        .from('requirements')
+        .select(`
+          id,
+          requirement_approvals(id, status)
+        `)
+        .eq('evaluation_project_id', evaluationProjectId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      if (error) throw error;
+
+      const requirements = data || [];
+      const total = requirements.length;
+      
+      let clientApproved = 0;
+      let clientRejected = 0;
+      let clientChangesRequested = 0;
+      let clientPending = 0;
+      let noClientReview = 0;
+
+      requirements.forEach(req => {
+        const approvals = req.requirement_approvals || [];
+        if (approvals.length === 0) {
+          noClientReview++;
+        } else {
+          // Get latest approval
+          const latestApproval = approvals[0];
+          switch (latestApproval.status) {
+            case 'approved':
+              clientApproved++;
+              break;
+            case 'rejected':
+              clientRejected++;
+              break;
+            case 'changes_requested':
+              clientChangesRequested++;
+              break;
+            default:
+              clientPending++;
+          }
+        }
+      });
+
+      return {
+        total,
+        clientApproved,
+        clientRejected,
+        clientChangesRequested,
+        clientPending,
+        noClientReview,
+        reviewedCount: clientApproved + clientRejected + clientChangesRequested,
+        reviewedPercent: total > 0 ? Math.round(((clientApproved + clientRejected + clientChangesRequested) / total) * 100) : 0,
+        approvedPercent: total > 0 ? Math.round((clientApproved / total) * 100) : 0
+      };
+    } catch (error) {
+      console.error('ClientPortalService getApprovalStats failed:', error);
+      // Return default stats if table doesn't exist yet
+      return {
+        total: 0,
+        clientApproved: 0,
+        clientRejected: 0,
+        clientChangesRequested: 0,
+        clientPending: 0,
+        noClientReview: 0,
+        reviewedCount: 0,
+        reviewedPercent: 0,
+        approvedPercent: 0
+      };
+    }
   }
 
   /**
@@ -261,22 +341,22 @@ export class ClientPortalService extends EvaluatorBaseService {
   async getRequirementsSummary(evaluationProjectId, stakeholderAreaId = null) {
     try {
       let query = supabase
-        .from('evaluation_requirements')
+        .from('requirements')
         .select(`
           id,
-          requirement_id,
-          name,
+          reference_code,
+          title,
           description,
           priority,
           status,
-          mos_cow,
-          stakeholder_area:stakeholder_area_id(id, name),
-          category:category_id(id, name),
+          stakeholder_area:stakeholder_areas!stakeholder_area_id(id, name),
+          category:evaluation_categories!category_id(id, name),
+          requirement_approvals(id, status, comments, approved_at),
           created_at
         `)
         .eq('evaluation_project_id', evaluationProjectId)
-        .eq('is_deleted', false)
-        .order('requirement_id', { ascending: true });
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('reference_code', { ascending: true });
 
       // Filter by stakeholder area if specified
       if (stakeholderAreaId) {

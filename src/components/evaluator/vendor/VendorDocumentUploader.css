@@ -1,0 +1,435 @@
+/**
+ * VendorDocumentUploader Styles
+ * 
+ * @created 04 January 2026
+ * @phase Phase 9 - Portal Refinement (Task 9.6)
+ */
+
+/* ============================================================================
+   UPLOADER CONTAINER
+   ============================================================================ */
+
+.vendor-document-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ============================================================================
+   UPLOAD ZONE
+   ============================================================================ */
+
+.upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-zone:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.upload-zone.dragging {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  border-style: solid;
+}
+
+.upload-zone svg {
+  color: #9ca3af;
+}
+
+.upload-zone h4 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.upload-zone p {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ============================================================================
+   UPLOADING LIST
+   ============================================================================ */
+
+.uploading-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.uploading-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #15803d;
+}
+
+.uploading-item span {
+  flex: 1;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-progress {
+  width: 80px;
+  height: 4px;
+  background: #dcfce7;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background: #22c55e;
+  animation: progress-pulse 1.5s ease infinite;
+}
+
+@keyframes progress-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ============================================================================
+   REQUIRED WARNING
+   ============================================================================ */
+
+.required-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  color: #92400e;
+}
+
+.required-warning svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.required-warning strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.required-warning span {
+  font-size: 0.875rem;
+}
+
+/* ============================================================================
+   DOCUMENT CATEGORIES
+   ============================================================================ */
+
+.document-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.document-category {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.required-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.required-badge.fulfilled {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.category-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Category Documents */
+.category-documents {
+  display: flex;
+  flex-direction: column;
+}
+
+.document-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.document-item:last-child {
+  border-bottom: none;
+}
+
+.document-item > svg {
+  color: #6b7280;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.document-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.document-name {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-meta {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.125rem;
+}
+
+.document-notes {
+  font-size: 0.8125rem;
+  color: #4b5563;
+  margin: 0.375rem 0 0 0;
+  line-height: 1.4;
+}
+
+.document-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-btn:hover {
+  background: #f3f4f6;
+}
+
+.action-btn.category-btn:hover {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.action-btn.delete-btn:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+/* Category Empty State */
+.category-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.category-empty p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.upload-btn-small {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.upload-btn-small:hover {
+  background: #1d4ed8;
+}
+
+/* ============================================================================
+   CATEGORY MODAL
+   ============================================================================ */
+
+.category-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.category-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.modal-header button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.modal-header button:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.category-options {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.category-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.875rem 1.25rem;
+  background: white;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.category-option:hover {
+  background: #f9fafb;
+}
+
+.option-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.option-desc {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 640px) {
+  .upload-zone {
+    padding: 1.5rem;
+  }
+
+  .document-item {
+    flex-wrap: wrap;
+  }
+
+  .document-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #f3f4f6;
+  }
+}

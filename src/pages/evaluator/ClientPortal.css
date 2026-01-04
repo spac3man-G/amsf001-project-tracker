@@ -1,9 +1,24 @@
 /**
  * ClientPortal Page Styles
  * 
+ * Supports custom branding through CSS variables
+ * 
  * @created 04 January 2026
- * @phase Phase 7B - Client Dashboard & Reports
+ * @updated 04 January 2026
+ * @phase Phase 9 - Portal Refinement (Task 9.1)
  */
+
+/* ============================================================================
+   CSS VARIABLES (Defaults - overridden by branding)
+   ============================================================================ */
+
+.client-portal {
+  --portal-primary: #2563eb;
+  --portal-secondary: #1e40af;
+  --portal-accent: #3b82f6;
+  --portal-bg: #1e3a5f;
+  --portal-text: #ffffff;
+}
 
 /* ============================================================================
    LOGIN PAGE
@@ -14,7 +29,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+  background: linear-gradient(135deg, var(--portal-bg) 0%, var(--portal-secondary) 100%);
   padding: 2rem;
 }
 
@@ -33,7 +48,14 @@
 }
 
 .client-portal-login-header svg {
-  color: #2563eb;
+  color: var(--portal-primary);
+  margin-bottom: 1rem;
+}
+
+.client-portal-login-header .login-logo {
+  max-height: 60px;
+  max-width: 200px;
+  object-fit: contain;
   margin-bottom: 1rem;
 }
 
@@ -79,7 +101,7 @@
 
 .client-portal-field input:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--portal-primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -101,7 +123,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
-  background: #2563eb;
+  background: var(--portal-primary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -112,12 +134,12 @@
 }
 
 .client-portal-login-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
 .client-portal-login-btn:disabled {
-  background: #93c5fd;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
@@ -166,8 +188,14 @@
   gap: 1rem;
 }
 
+.client-portal-brand .portal-logo {
+  height: 36px;
+  max-width: 150px;
+  object-fit: contain;
+}
+
 .client-portal-brand svg {
-  color: #2563eb;
+  color: var(--portal-primary);
 }
 
 .client-portal-brand h1 {
@@ -242,6 +270,7 @@
   padding: 1rem 2rem;
   background: white;
   border-bottom: 1px solid #e5e7eb;
+  overflow-x: auto;
 }
 
 .client-portal-nav-btn {
@@ -257,6 +286,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .client-portal-nav-btn:hover {
@@ -265,9 +295,9 @@
 }
 
 .client-portal-nav-btn.active {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+  color: var(--portal-primary);
 }
 
 /* Main Content */
@@ -306,7 +336,7 @@
   width: 32px;
   height: 32px;
   border: 3px solid #e5e7eb;
-  border-top-color: #2563eb;
+  border-top-color: var(--portal-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -322,27 +352,78 @@
 }
 
 /* ============================================================================
+   BRANDED PORTAL OVERRIDES
+   ============================================================================ */
+
+.client-portal-branded .client-portal-header {
+  border-bottom-color: rgba(37, 99, 235, 0.1);
+}
+
+.client-portal-branded .client-portal-nav {
+  border-bottom-color: rgba(37, 99, 235, 0.1);
+}
+
+/* ============================================================================
    RESPONSIVE
    ============================================================================ */
 
 @media (max-width: 768px) {
+  .client-portal-login-card {
+    padding: 2rem 1.5rem;
+    margin: 1rem;
+  }
+
   .client-portal-header {
     padding: 1rem;
     flex-direction: column;
     gap: 1rem;
   }
 
+  .client-portal-brand {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .client-portal-brand .portal-logo {
+    height: 30px;
+  }
+
   .client-portal-nav {
     padding: 0.75rem 1rem;
-    overflow-x: auto;
   }
 
   .client-portal-nav-btn {
     padding: 0.5rem 1rem;
-    white-space: nowrap;
+    font-size: 0.8125rem;
   }
 
   .client-portal-main {
     padding: 1rem;
+  }
+
+  .client-portal-footer {
+    padding: 0.75rem 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .client-portal-login {
+    padding: 1rem;
+  }
+
+  .client-portal-login-card {
+    padding: 1.5rem 1rem;
+  }
+
+  .client-portal-login-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .client-portal-nav-btn {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .client-portal-nav-btn span:not(:first-child) {
+    display: none;
   }
 }

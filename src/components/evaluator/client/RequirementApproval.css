@@ -1,0 +1,461 @@
+/**
+ * RequirementApproval Styles
+ * 
+ * @created 04 January 2026
+ * @phase Phase 9 - Portal Refinement (Task 9.2)
+ */
+
+/* ============================================================================
+   APPROVAL SUMMARY
+   ============================================================================ */
+
+.approval-summary {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  flex: 1;
+}
+
+.summary-item.approved {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.summary-item.changes {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.summary-item.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.summary-item.pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.summary-item .count {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.summary-item .label {
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+/* ============================================================================
+   APPROVAL PROGRESS BAR
+   ============================================================================ */
+
+.approval-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.approval-progress .progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+}
+
+.approval-progress .progress-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.approval-progress .progress-segment.approved {
+  background: #10b981;
+}
+
+.approval-progress .progress-segment.changes {
+  background: #8b5cf6;
+}
+
+.approval-progress .progress-segment.rejected {
+  background: #ef4444;
+}
+
+.approval-progress .progress-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   APPROVAL CARD
+   ============================================================================ */
+
+.approval-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.requirement-approval-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.requirement-approval-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.requirement-approval-card.has-approval {
+  border-left: 4px solid #10b981;
+}
+
+/* Card Header */
+.approval-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.approval-card-header:hover {
+  background: #f9fafb;
+}
+
+.approval-req-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.approval-req-code {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.approval-req-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #111827;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.approval-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.approval-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.approval-status-badge.pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+/* Card Content (Expandable) */
+.approval-card-content {
+  padding: 0 1.25rem 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.approval-req-description {
+  padding: 1rem 0;
+}
+
+.approval-req-description p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.approval-req-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+}
+
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.meta-tag.priority-must_have {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.meta-tag.priority-should_have {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.meta-tag.priority-could_have {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.meta-tag.priority-wont_have {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.meta-tag.category {
+  background: #f0fdf4;
+  color: #059669;
+}
+
+.meta-tag.stakeholder {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+/* Approval Actions */
+.approval-actions {
+  padding: 1rem 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.approval-actions h5 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.75rem 0;
+}
+
+.approval-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.approval-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex: 1;
+}
+
+.approval-btn:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.approval-btn.approve:hover,
+.approval-btn.approve.selected {
+  border-color: #10b981;
+  background: #d1fae5;
+  color: #059669;
+}
+
+.approval-btn.changes:hover,
+.approval-btn.changes.selected {
+  border-color: #8b5cf6;
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.approval-btn.reject:hover,
+.approval-btn.reject.selected {
+  border-color: #ef4444;
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Comments */
+.approval-comments {
+  padding: 1rem 0;
+}
+
+.approval-comments label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.approval-comments textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.approval-comments textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Error */
+.approval-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+/* Submit */
+.approval-submit {
+  padding-top: 1rem;
+}
+
+.approval-submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.approval-submit-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.approval-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Spinner */
+.spinner-small {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .approval-summary {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .summary-item {
+    flex: 1 1 45%;
+    min-width: 120px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .summary-item .count {
+    font-size: 1.25rem;
+  }
+
+  .approval-buttons {
+    flex-direction: column;
+  }
+
+  .approval-btn {
+    padding: 0.625rem 1rem;
+  }
+
+  .approval-req-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.375rem;
+  }
+
+  .approval-req-title {
+    white-space: normal;
+  }
+}

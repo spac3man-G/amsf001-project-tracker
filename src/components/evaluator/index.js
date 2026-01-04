@@ -84,7 +84,10 @@ export {
 
 // Phase 7B: Client Portal
 export {
-  ClientDashboard
+  ClientDashboard,
+  RequirementApproval,
+  RequirementApprovalList,
+  RequirementComments
 } from './client';
 
 // Phase 8A: AI Components
@@ -92,3 +95,17 @@ export {
   ParsedRequirementsReview,
   GapAnalysisResults
 } from './ai';
+
+// Phase 9: Vendor Portal Components
+export {
+  ProgressTracker,
+  VendorDocumentUploader,
+  DOCUMENT_CATEGORIES,
+  REQUIRED_DOCUMENTS
+} from './vendor';
+
+// Phase 9: Shared Portal Components
+export {
+  SessionTimeout,
+  useSessionTimeout
+} from './shared';

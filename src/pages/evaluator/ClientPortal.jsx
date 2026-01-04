@@ -3,13 +3,15 @@
  * 
  * Public-facing portal for clients to view evaluation progress and reports.
  * Authentication is done via access codes stored in permissions JSON.
+ * Supports custom branding from evaluation project settings.
  * 
- * @version 1.0
+ * @version 1.1
  * @created 04 January 2026
- * @phase Phase 7B - Client Dashboard & Reports (Task 7B.1-7B.2)
+ * @updated 04 January 2026
+ * @phase Phase 9 - Portal Refinement (Task 9.1, 9.2, 9.3)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Building2,
@@ -26,7 +28,8 @@ import {
   Clock,
   TrendingUp,
   Target,
-  RefreshCw
+  RefreshCw,
+  CheckSquare
 } from 'lucide-react';
 import { clientPortalService } from '../../services/evaluator/clientPortal.service';
 import ClientDashboard from '../../components/evaluator/client/ClientDashboard';
@@ -44,8 +47,18 @@ const PORTAL_STATE = {
 const PORTAL_VIEW = {
   DASHBOARD: 'dashboard',
   REQUIREMENTS: 'requirements',
+  APPROVALS: 'approvals',
   VENDORS: 'vendors',
   REPORTS: 'reports'
+};
+
+// Default branding colors
+const DEFAULT_BRANDING = {
+  primaryColor: '#2563eb',
+  secondaryColor: '#1e40af',
+  accentColor: '#3b82f6',
+  backgroundColor: '#1e3a5f',
+  textColor: '#ffffff'
 };
 
 function ClientPortal() {
@@ -62,6 +75,28 @@ function ClientPortal() {
   const [activeView, setActiveView] = useState(PORTAL_VIEW.DASHBOARD);
   const [isLoading, setIsLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
+
+  // Extract branding from session and dashboard data
+  const branding = useMemo(() => {
+    const projectBranding = dashboardData?.project?.branding || session?.evaluationProject?.branding || {};
+    return {
+      primaryColor: projectBranding.primaryColor || DEFAULT_BRANDING.primaryColor,
+      secondaryColor: projectBranding.secondaryColor || DEFAULT_BRANDING.secondaryColor,
+      accentColor: projectBranding.accentColor || DEFAULT_BRANDING.accentColor,
+      backgroundColor: projectBranding.backgroundColor || DEFAULT_BRANDING.backgroundColor,
+      textColor: projectBranding.textColor || DEFAULT_BRANDING.textColor,
+      logoUrl: projectBranding.logoUrl || dashboardData?.project?.client_logo_url || session?.evaluationProject?.client_logo_url
+    };
+  }, [session, dashboardData]);
+
+  // Generate CSS variables for branding
+  const brandingStyle = useMemo(() => ({
+    '--portal-primary': branding.primaryColor,
+    '--portal-secondary': branding.secondaryColor,
+    '--portal-accent': branding.accentColor,
+    '--portal-bg': branding.backgroundColor,
+    '--portal-text': branding.textColor
+  }), [branding]);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -161,9 +196,11 @@ function ClientPortal() {
     const permissions = session?.client?.permissions || {};
     switch (view) {
       case PORTAL_VIEW.DASHBOARD:
-        return true; // Always show dashboard
+        return true;
       case PORTAL_VIEW.REQUIREMENTS:
         return permissions.canViewRequirements !== false;
+      case PORTAL_VIEW.APPROVALS:
+        return permissions.canApproveRequirements === true;
       case PORTAL_VIEW.VENDORS:
         return permissions.canViewVendors === true;
       case PORTAL_VIEW.REPORTS:
@@ -173,13 +210,27 @@ function ClientPortal() {
     }
   };
 
+  // Client info for approvals/comments
+  const clientInfo = useMemo(() => ({
+    name: session?.client?.name,
+    email: session?.client?.email
+  }), [session]);
+
   // Render login form
   if (portalState === PORTAL_STATE.LOGIN) {
     return (
-      <div className="client-portal client-portal-login">
+      <div className="client-portal client-portal-login" style={brandingStyle}>
         <div className="client-portal-login-card">
           <div className="client-portal-login-header">
-            <Building2 size={40} />
+            {branding.logoUrl ? (
+              <img 
+                src={branding.logoUrl} 
+                alt="Logo" 
+                className="login-logo"
+              />
+            ) : (
+              <Building2 size={40} style={{ color: branding.primaryColor }} />
+            )}
             <h1>Client Portal</h1>
             <p>Enter your access code to view evaluation progress</p>
           </div>
@@ -212,6 +263,7 @@ function ClientPortal() {
               type="submit" 
               className="client-portal-login-btn"
               disabled={isAuthenticating}
+              style={{ backgroundColor: branding.primaryColor }}
             >
               {isAuthenticating ? (
                 <>
@@ -238,11 +290,19 @@ function ClientPortal() {
 
   // Render authenticated portal
   return (
-    <div className="client-portal">
+    <div className="client-portal client-portal-branded" style={brandingStyle}>
       {/* Header */}
       <header className="client-portal-header">
         <div className="client-portal-brand">
-          <Building2 size={24} />
+          {branding.logoUrl ? (
+            <img 
+              src={branding.logoUrl} 
+              alt="Logo" 
+              className="portal-logo"
+            />
+          ) : (
+            <Building2 size={24} style={{ color: branding.primaryColor }} />
+          )}
           <div>
             <h1>{session?.evaluationProject?.name || 'Client Portal'}</h1>
             <p>Welcome, {session?.client?.name}</p>
@@ -269,6 +329,11 @@ function ClientPortal() {
         <button
           className={`client-portal-nav-btn ${activeView === PORTAL_VIEW.DASHBOARD ? 'active' : ''}`}
           onClick={() => setActiveView(PORTAL_VIEW.DASHBOARD)}
+          style={activeView === PORTAL_VIEW.DASHBOARD ? { 
+            backgroundColor: `${branding.primaryColor}15`,
+            borderColor: `${branding.primaryColor}40`,
+            color: branding.primaryColor
+          } : {}}
         >
           <LayoutDashboard size={18} />
           Dashboard
@@ -278,9 +343,29 @@ function ClientPortal() {
           <button
             className={`client-portal-nav-btn ${activeView === PORTAL_VIEW.REQUIREMENTS ? 'active' : ''}`}
             onClick={() => setActiveView(PORTAL_VIEW.REQUIREMENTS)}
+            style={activeView === PORTAL_VIEW.REQUIREMENTS ? { 
+              backgroundColor: `${branding.primaryColor}15`,
+              borderColor: `${branding.primaryColor}40`,
+              color: branding.primaryColor
+            } : {}}
           >
             <FileText size={18} />
             Requirements
+          </button>
+        )}
+
+        {canView(PORTAL_VIEW.APPROVALS) && (
+          <button
+            className={`client-portal-nav-btn ${activeView === PORTAL_VIEW.APPROVALS ? 'active' : ''}`}
+            onClick={() => setActiveView(PORTAL_VIEW.APPROVALS)}
+            style={activeView === PORTAL_VIEW.APPROVALS ? { 
+              backgroundColor: `${branding.primaryColor}15`,
+              borderColor: `${branding.primaryColor}40`,
+              color: branding.primaryColor
+            } : {}}
+          >
+            <CheckSquare size={18} />
+            Approvals
           </button>
         )}
         
@@ -288,6 +373,11 @@ function ClientPortal() {
           <button
             className={`client-portal-nav-btn ${activeView === PORTAL_VIEW.VENDORS ? 'active' : ''}`}
             onClick={() => setActiveView(PORTAL_VIEW.VENDORS)}
+            style={activeView === PORTAL_VIEW.VENDORS ? { 
+              backgroundColor: `${branding.primaryColor}15`,
+              borderColor: `${branding.primaryColor}40`,
+              color: branding.primaryColor
+            } : {}}
           >
             <Users size={18} />
             Vendors
@@ -298,6 +388,11 @@ function ClientPortal() {
           <button
             className={`client-portal-nav-btn ${activeView === PORTAL_VIEW.REPORTS ? 'active' : ''}`}
             onClick={() => setActiveView(PORTAL_VIEW.REPORTS)}
+            style={activeView === PORTAL_VIEW.REPORTS ? { 
+              backgroundColor: `${branding.primaryColor}15`,
+              borderColor: `${branding.primaryColor}40`,
+              color: branding.primaryColor
+            } : {}}
           >
             <BarChart3 size={18} />
             Reports
@@ -309,7 +404,7 @@ function ClientPortal() {
       <main className="client-portal-main">
         {isLoading && !dashboardData ? (
           <div className="client-portal-loading">
-            <div className="spinner" />
+            <div className="spinner" style={{ borderTopColor: branding.primaryColor }} />
             <span>Loading...</span>
           </div>
         ) : (
@@ -318,6 +413,8 @@ function ClientPortal() {
             session={session}
             dashboardData={dashboardData}
             onRefresh={fetchDashboardData}
+            clientInfo={clientInfo}
+            branding={branding}
           />
         )}
       </main>
@@ -325,7 +422,7 @@ function ClientPortal() {
       {/* Footer */}
       <footer className="client-portal-footer">
         <p>
-          {session?.evaluationProject?.clientName} • 
+          {session?.evaluationProject?.clientName || session?.evaluationProject?.client_name} • 
           Last updated: {dashboardData?.generatedAt 
             ? new Date(dashboardData.generatedAt).toLocaleString() 
             : 'N/A'}

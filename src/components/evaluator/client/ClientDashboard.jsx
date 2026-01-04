@@ -27,12 +27,18 @@ import {
   Layers
 } from 'lucide-react';
 import { clientPortalService } from '../../../services/evaluator/clientPortal.service';
+import { approvalsService } from '../../../services/evaluator/approvals.service';
+import { RequirementApprovalList } from './RequirementApproval';
+import RequirementComments from './RequirementComments';
 import './ClientDashboard.css';
+import './RequirementApproval.css';
+import './RequirementComments.css';
 
 // Portal views (must match parent)
 const PORTAL_VIEW = {
   DASHBOARD: 'dashboard',
   REQUIREMENTS: 'requirements',
+  APPROVALS: 'approvals',
   VENDORS: 'vendors',
   REPORTS: 'reports'
 };
@@ -53,11 +59,13 @@ const MOSCOW_CONFIG = {
   wont: { label: 'Won\'t Have', color: '#6b7280', bgColor: '#f9fafb' }
 };
 
-function ClientDashboard({ view, session, dashboardData, onRefresh }) {
+function ClientDashboard({ view, session, dashboardData, onRefresh, clientInfo, branding }) {
   const [requirementsData, setRequirementsData] = useState(null);
   const [vendorData, setVendorData] = useState(null);
+  const [approvalsData, setApprovalsData] = useState(null);
   const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
   const [isLoadingVendors, setIsLoadingVendors] = useState(false);
+  const [isLoadingApprovals, setIsLoadingApprovals] = useState(false);
 
   const evaluationProjectId = session?.evaluationProject?.id;
   const permissions = session?.client?.permissions || {};
@@ -73,6 +81,13 @@ function ClientDashboard({ view, session, dashboardData, onRefresh }) {
   useEffect(() => {
     if (view === PORTAL_VIEW.VENDORS && evaluationProjectId && !vendorData) {
       fetchVendors();
+    }
+  }, [view, evaluationProjectId]);
+
+  // Fetch approvals data when approvals view is active
+  useEffect(() => {
+    if (view === PORTAL_VIEW.APPROVALS && evaluationProjectId && !approvalsData) {
+      fetchApprovals();
     }
   }, [view, evaluationProjectId]);
 
@@ -103,16 +118,64 @@ function ClientDashboard({ view, session, dashboardData, onRefresh }) {
     }
   };
 
+  const fetchApprovals = async () => {
+    try {
+      setIsLoadingApprovals(true);
+      // Fetch requirements with their approvals
+      const [requirementsResult, approvalSummary] = await Promise.all([
+        clientPortalService.getRequirementsSummary(
+          evaluationProjectId,
+          session?.stakeholderArea?.id
+        ),
+        approvalsService.getProjectApprovalSummary(evaluationProjectId)
+      ]);
+      
+      // Fetch approvals for each requirement
+      const requirements = requirementsResult.requirements || [];
+      const approvals = [];
+      for (const req of requirements) {
+        const reqApprovals = await approvalsService.getByRequirement(req.id);
+        approvals.push(...reqApprovals);
+      }
+      
+      setApprovalsData({
+        requirements,
+        approvals,
+        summary: approvalSummary
+      });
+    } catch (err) {
+      console.error('Failed to fetch approvals:', err);
+    } finally {
+      setIsLoadingApprovals(false);
+    }
+  };
+
+  const handleApprovalSubmitted = (requirementId, status) => {
+    // Refresh approvals data after submission
+    fetchApprovals();
+  };
+
   // Render based on active view
   switch (view) {
     case PORTAL_VIEW.DASHBOARD:
-      return <DashboardView data={dashboardData} session={session} />;
+      return <DashboardView data={dashboardData} session={session} branding={branding} />;
     case PORTAL_VIEW.REQUIREMENTS:
       return (
         <RequirementsView 
           data={requirementsData} 
           isLoading={isLoadingRequirements}
           stakeholderArea={session?.stakeholderArea}
+          clientInfo={clientInfo}
+        />
+      );
+    case PORTAL_VIEW.APPROVALS:
+      return (
+        <ApprovalsView 
+          data={approvalsData}
+          isLoading={isLoadingApprovals}
+          clientInfo={clientInfo}
+          onApprovalSubmitted={handleApprovalSubmitted}
+          branding={branding}
         />
       );
     case PORTAL_VIEW.VENDORS:
@@ -121,6 +184,7 @@ function ClientDashboard({ view, session, dashboardData, onRefresh }) {
           data={vendorData} 
           isLoading={isLoadingVendors}
           permissions={permissions}
+          branding={branding}
         />
       );
     case PORTAL_VIEW.REPORTS:
@@ -128,10 +192,11 @@ function ClientDashboard({ view, session, dashboardData, onRefresh }) {
         <ReportsView 
           session={session} 
           dashboardData={dashboardData}
+          branding={branding}
         />
       );
     default:
-      return <DashboardView data={dashboardData} session={session} />;
+      return <DashboardView data={dashboardData} session={session} branding={branding} />;
   }
 }
 
@@ -472,9 +537,85 @@ function RequirementGroup({ title, requirements }) {
 }
 
 /**
+ * Approvals View - Requirement Approval Workflow
+ */
+function ApprovalsView({ data, isLoading, clientInfo, onApprovalSubmitted, branding }) {
+  if (isLoading) {
+    return (
+      <div className="client-dashboard-loading">
+        <div className="spinner" />
+        <span>Loading approvals...</span>
+      </div>
+    );
+  }
+
+  if (!data || !data.requirements || data.requirements.length === 0) {
+    return (
+      <div className="client-dashboard-empty">
+        <CheckCircle size={48} />
+        <h3>No Requirements to Approve</h3>
+        <p>Requirements for approval will appear here.</p>
+      </div>
+    );
+  }
+
+  const { requirements, approvals, summary } = data;
+
+  return (
+    <div className="client-dashboard">
+      <div className="client-dashboard-view-header">
+        <h2>
+          <CheckCircle size={24} />
+          Requirement Approvals
+        </h2>
+        {summary && (
+          <span className="approval-progress-badge">
+            {summary.approvedPercent}% approved
+          </span>
+        )}
+      </div>
+
+      {/* Approval Summary */}
+      {summary && (
+        <div className="approval-stats-bar">
+          <div className="stat-item">
+            <span className="stat-number">{summary.total}</span>
+            <span className="stat-label">Total</span>
+          </div>
+          <div className="stat-item approved">
+            <span className="stat-number">{summary.approved}</span>
+            <span className="stat-label">Approved</span>
+          </div>
+          <div className="stat-item rejected">
+            <span className="stat-number">{summary.rejected}</span>
+            <span className="stat-label">Rejected</span>
+          </div>
+          <div className="stat-item changes">
+            <span className="stat-number">{summary.changesRequested}</span>
+            <span className="stat-label">Changes</span>
+          </div>
+          <div className="stat-item pending">
+            <span className="stat-number">{summary.noApproval + summary.pending}</span>
+            <span className="stat-label">Pending</span>
+          </div>
+        </div>
+      )}
+
+      {/* Approval List */}
+      <RequirementApprovalList
+        requirements={requirements}
+        approvals={approvals}
+        clientInfo={clientInfo}
+        onApprovalSubmitted={onApprovalSubmitted}
+      />
+    </div>
+  );
+}
+
+/**
  * Vendors View - Vendor Comparison
  */
-function VendorsView({ data, isLoading, permissions }) {
+function VendorsView({ data, isLoading, permissions, branding }) {
   if (isLoading) {
     return (
       <div className="client-dashboard-loading">
