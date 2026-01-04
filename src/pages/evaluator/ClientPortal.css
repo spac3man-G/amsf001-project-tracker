@@ -427,3 +427,145 @@
     display: none;
   }
 }
+
+
+/* Enhanced Mobile Responsiveness for Client Portal */
+@media (max-width: 480px) {
+  .client-portal-header-actions {
+    flex-direction: row;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .client-portal-refresh,
+  .client-portal-logout {
+    padding: 0.625rem 1rem;
+  }
+
+  .client-portal-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .client-portal-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .client-portal-nav-btn {
+    flex-shrink: 0;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .client-portal-main {
+    padding: 1.5rem;
+  }
+
+  .client-portal-nav-btn {
+    padding: 0.625rem 1.25rem;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .client-portal-nav-btn,
+  .client-portal-login-btn,
+  .client-portal-refresh,
+  .client-portal-logout {
+    min-height: 44px;
+  }
+}
+
+/* Safe area handling for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .client-portal {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .client-portal-header {
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+
+  .client-portal-footer {
+    padding-bottom: calc(0.875rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Landscape phone adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .client-portal-header {
+    padding: 0.5rem 1rem;
+  }
+
+  .client-portal-nav {
+    padding: 0.5rem 1rem;
+  }
+
+  .client-portal-brand h1 {
+    font-size: 1rem;
+  }
+
+  .client-portal-login-card {
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+}
+
+/* Animations */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Print styles */
+@media print {
+  .client-portal-header,
+  .client-portal-nav,
+  .client-portal-footer,
+  .client-portal-refresh,
+  .client-portal-logout {
+    display: none;
+  }
+
+  .client-portal-main {
+    padding: 0;
+  }
+
+  .client-portal {
+    background: white;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .client-portal-nav-btn {
+    border: 2px solid currentColor;
+  }
+
+  .client-portal-login-btn {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .spinning {
+    animation: none;
+  }
+
+  .spinner,
+  .spinner-small {
+    animation: none;
+    border-top-color: transparent;
+    border-left-color: transparent;
+  }
+}

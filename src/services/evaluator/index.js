@@ -128,3 +128,11 @@ export {
   COMMENT_USER_TYPE,
   USER_TYPE_CONFIG
 } from './comments.service';
+
+
+// Email Notifications (Phase 9)
+export {
+  emailNotificationService,
+  EMAIL_NOTIFICATION_TYPE,
+  EMAIL_TEMPLATES
+} from './emailNotifications.service';
