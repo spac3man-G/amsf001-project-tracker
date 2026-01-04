@@ -50,6 +50,14 @@ export default function EvaluatorDashboard() {
   const { effectiveRole, roleDisplayName, roleBadgeColor } = useEvaluationRole();
   const { canEditEvaluation, canManageTeam } = useEvaluatorPermissions();
 
+  // Debug: Log evaluation context on every render
+  console.log('EvaluatorDashboard render:', { 
+    evaluationId, 
+    hasEvaluations, 
+    evaluationLoading,
+    currentEvaluationName: currentEvaluation?.name 
+  });
+
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
 
