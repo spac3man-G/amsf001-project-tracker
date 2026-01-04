@@ -56,9 +56,9 @@ export default function EvaluatorDashboard() {
   // Stats state
   const [stats, setStats] = useState({
     requirements: { total: 0, approved: 0, pending: 0 },
-    categories: { total: 0, weightValid: false },
+    categories: { total: 0, weightValid: false, weightTotal: 0 },
     stakeholderAreas: { total: 0 },
-    vendors: { total: 0, shortlisted: 0, selected: 0 },
+    vendors: { total: 0, shortlisted: 0, selected: 0, inPipeline: 0 },
     isLoading: true
   });
 
