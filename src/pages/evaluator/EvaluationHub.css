@@ -1,0 +1,140 @@
+.evidence-view-filters select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+}
+
+.evidence-view-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.evidence-view-add-btn:hover {
+  background: #2563eb;
+}
+
+.evidence-view-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  text-align: center;
+}
+
+.evidence-view-empty svg {
+  color: #9ca3af;
+  margin-bottom: 16px;
+}
+
+.evidence-view-empty h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.evidence-view-empty p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 20px 0;
+}
+
+.evidence-view-empty button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.evidence-view-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .evaluation-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .evaluation-evidence-grid,
+  .evidence-view-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reconciliation-view {
+    flex-direction: column;
+  }
+
+  .reconciliation-sidebar {
+    width: 100%;
+  }
+
+  .reconciliation-criteria-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .reconciliation-criterion-btn {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .evaluation-hub {
+    padding: 16px;
+  }
+
+  .evaluation-hub-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .evaluation-hub-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .evaluation-hub-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .evaluation-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluation-vendor-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .evaluation-vendor-progress {
+    width: 100%;
+  }
+}

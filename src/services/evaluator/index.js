@@ -3,10 +3,10 @@
  * 
  * Central export point for all evaluator-related services.
  * 
- * @version 1.1
+ * @version 1.2
  * @created 01 January 2026
  * @updated 01 January 2026
- * @phase Phase 3 - Requirements Module
+ * @phase Phase 4 - Input Capture
  */
 
 // Base service
@@ -20,19 +20,80 @@ export { requirementsService, RequirementsService } from './requirements.service
 export { stakeholderAreasService, StakeholderAreasService } from './stakeholderAreas.service';
 export { evaluationCategoriesService, EvaluationCategoriesService } from './evaluationCategories.service';
 
-// Future services (will be added in later phases)
-// Phase 4: Input Capture
-// export { workshopsService, WorkshopsService } from './workshops.service';
-// export { surveysService, SurveysService } from './surveys.service';
-// export { evaluationDocumentsService, EvaluationDocumentsService } from './evaluationDocuments.service';
+// Input Capture services (Phase 4)
+export { 
+  workshopsService, 
+  WorkshopsService,
+  WORKSHOP_STATUSES,
+  WORKSHOP_STATUS_CONFIG,
+  RSVP_STATUSES,
+  RSVP_STATUS_CONFIG
+} from './workshops.service';
+
+export { 
+  surveysService, 
+  SurveysService,
+  SURVEY_TYPES,
+  SURVEY_TYPE_CONFIG,
+  SURVEY_STATUSES,
+  SURVEY_STATUS_CONFIG,
+  QUESTION_TYPES,
+  QUESTION_TYPE_CONFIG,
+  RESPONSE_STATUSES
+} from './surveys.service';
+
+export { 
+  evaluationDocumentsService, 
+  EvaluationDocumentsService,
+  DOCUMENT_TYPES,
+  DOCUMENT_TYPE_CONFIG,
+  PARSE_STATUSES,
+  PARSE_STATUS_CONFIG,
+  ALLOWED_FILE_TYPES
+} from './evaluationDocuments.service';
 
 // Phase 5: Vendor Management
-// export { vendorsService, VendorsService } from './vendors.service';
-// export { vendorQuestionsService, VendorQuestionsService } from './vendorQuestions.service';
+export { 
+  vendorsService, 
+  VendorsService,
+  VENDOR_STATUSES,
+  VENDOR_STATUS_CONFIG,
+  PIPELINE_STAGES,
+  TERMINAL_STAGES
+} from './vendors.service';
+
+export { 
+  vendorQuestionsService, 
+  VendorQuestionsService,
+  QUESTION_TYPES as VENDOR_QUESTION_TYPES,
+  QUESTION_TYPE_CONFIG as VENDOR_QUESTION_TYPE_CONFIG,
+  QUESTION_SECTIONS,
+  QUESTION_SECTION_CONFIG
+} from './vendorQuestions.service';
 
 // Phase 6: Evaluation & Scoring
-// export { evidenceService, EvidenceService } from './evidence.service';
-// export { scoresService, ScoresService } from './scores.service';
+export { 
+  evidenceService, 
+  EvidenceService,
+  EVIDENCE_TYPES,
+  EVIDENCE_TYPE_CONFIG,
+  EVIDENCE_SENTIMENT,
+  EVIDENCE_SENTIMENT_CONFIG
+} from './evidence.service';
+
+export { 
+  scoresService, 
+  ScoresService,
+  SCORE_STATUS,
+  SCORE_STATUS_CONFIG
+} from './scores.service';
 
 // Phase 7: Traceability & Reports
-// export { traceabilityService, TraceabilityService } from './traceability.service';
+export { 
+  traceabilityService, 
+  TraceabilityService,
+  CELL_TYPES,
+  RAG_THRESHOLDS,
+  RAG_STATUS,
+  RAG_CONFIG
+} from './traceability.service';

@@ -4,12 +4,13 @@
  * Main dashboard for the Evaluator tool.
  * Shows evaluation project overview, progress metrics, and quick actions.
  * 
- * @version 1.0
+ * @version 1.1
  * @created 01 January 2026
- * @phase Phase 2 - Core Infrastructure
+ * @updated 01 January 2026 - Added requirements stats (Task 3C.6)
+ * @phase Phase 2 - Core Infrastructure, Phase 3 - Requirements Module
  */
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -21,7 +22,11 @@ import {
   FileText,
   Settings,
   Plus,
-  ArrowRight
+  ArrowRight,
+  AlertCircle,
+  Clock,
+  CheckCircle,
+  Folder
 } from 'lucide-react';
 
 import { useEvaluation } from '../../contexts/EvaluationContext';
@@ -29,6 +34,7 @@ import { useEvaluatorPermissions } from '../../hooks/useEvaluatorPermissions';
 import { useEvaluationRole } from '../../hooks/useEvaluationRole';
 import { PageHeader, Card, LoadingSpinner, StatCard } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
+import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService } from '../../services/evaluator';
 
 import './EvaluatorDashboard.css';
 
@@ -36,11 +42,66 @@ export default function EvaluatorDashboard() {
   const navigate = useNavigate();
   const { 
     currentEvaluation, 
+    evaluationId,
     hasEvaluations, 
     isLoading: evaluationLoading 
   } = useEvaluation();
   const { effectiveRole, roleDisplayName, roleBadgeColor } = useEvaluationRole();
   const { canEditEvaluation, canManageTeam } = useEvaluatorPermissions();
+
+  // Stats state
+  const [stats, setStats] = useState({
+    requirements: { total: 0, approved: 0, pending: 0 },
+    categories: { total: 0, weightValid: false },
+    stakeholderAreas: { total: 0 },
+    vendors: { total: 0, shortlisted: 0, selected: 0 },
+    isLoading: true
+  });
+
+  // Load stats
+  const loadStats = useCallback(async () => {
+    if (!evaluationId) return;
+
+    try {
+      const [reqSummary, categories, areas, vendorSummary] = await Promise.all([
+        requirementsService.getSummary(evaluationId),
+        evaluationCategoriesService.validateWeights(evaluationId),
+        stakeholderAreasService.getSummary(evaluationId),
+        vendorsService.getSummary(evaluationId)
+      ]);
+
+      setStats({
+        requirements: {
+          total: reqSummary.total,
+          approved: reqSummary.byStatus.approved,
+          pending: reqSummary.byStatus.under_review + reqSummary.byStatus.draft,
+          byPriority: reqSummary.byPriority
+        },
+        categories: {
+          total: categories.categories.length,
+          weightValid: categories.valid,
+          weightTotal: categories.total
+        },
+        stakeholderAreas: {
+          total: areas.totalAreas
+        },
+        vendors: {
+          total: vendorSummary.total,
+          shortlisted: vendorSummary.shortlisted,
+          inPipeline: vendorSummary.inPipeline,
+          selected: vendorSummary.selected
+        },
+        isLoading: false
+      });
+    } catch (err) {
+      console.error('Failed to load dashboard stats:', err);
+      setStats(prev => ({ ...prev, isLoading: false }));
+    }
+  }, [evaluationId]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   if (evaluationLoading) {
     return <LoadingSpinner message="Loading evaluation..." fullPage />;
@@ -112,31 +173,49 @@ export default function EvaluatorDashboard() {
         )}
       </div>
 
-      {/* Quick Stats - Placeholder for now */}
+      {/* Quick Stats */}
       <div className="dashboard-stats">
         <StatCard
           title="Requirements"
-          value="--"
+          value={stats.isLoading ? '--' : stats.requirements.total}
           icon={<ClipboardList size={24} />}
-          subtitle="Coming soon"
+          subtitle={stats.isLoading ? 'Loading...' : `${stats.requirements.approved} approved`}
+          onClick={() => navigate('/evaluator/requirements')}
+          trend={stats.requirements.pending > 0 ? {
+            value: stats.requirements.pending,
+            label: 'pending review',
+            direction: 'neutral'
+          } : null}
         />
         <StatCard
           title="Workshops"
           value="--"
           icon={<Users size={24} />}
-          subtitle="Coming soon"
+          subtitle="Coming in Phase 4"
         />
         <StatCard
           title="Vendors"
-          value="--"
+          value={stats.isLoading ? '--' : stats.vendors.total}
           icon={<Building2 size={24} />}
-          subtitle="Coming soon"
+          subtitle={stats.isLoading ? 'Loading...' : `${stats.vendors.shortlisted} shortlisted`}
+          onClick={() => navigate('/evaluator/vendors')}
+          trend={stats.vendors.inPipeline > 0 ? {
+            value: stats.vendors.inPipeline,
+            label: 'in pipeline',
+            direction: 'neutral'
+          } : null}
         />
         <StatCard
-          title="Criteria"
-          value="--"
+          title="Categories"
+          value={stats.isLoading ? '--' : stats.categories.total}
           icon={<CheckSquare size={24} />}
-          subtitle="Coming soon"
+          subtitle={stats.isLoading ? 'Loading...' : (
+            stats.categories.weightValid 
+              ? 'Weights valid (100%)' 
+              : `Weights: ${stats.categories.weightTotal}%`
+          )}
+          onClick={() => navigate('/evaluator/settings')}
+          status={stats.categories.weightValid ? 'success' : 'warning'}
         />
       </div>
 
@@ -157,10 +236,22 @@ export default function EvaluatorDashboard() {
             onClick={() => navigate('/evaluator/workshops')}
           />
           <QuickActionCard
+            icon={<Folder size={24} />}
+            title="Documents"
+            description="Upload and manage documents"
+            onClick={() => navigate('/evaluator/documents')}
+          />
+          <QuickActionCard
             icon={<Building2 size={24} />}
             title="Vendors"
             description="Manage vendor pipeline"
             onClick={() => navigate('/evaluator/vendors')}
+          />
+          <QuickActionCard
+            icon={<FileText size={24} />}
+            title="Questions"
+            description="Manage vendor RFP questions"
+            onClick={() => navigate('/evaluator/questions')}
           />
           <QuickActionCard
             icon={<CheckSquare size={24} />}

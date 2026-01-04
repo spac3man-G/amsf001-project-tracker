@@ -46,7 +46,7 @@ import {
   Toast
 } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
-import { RequirementFilters, RequirementForm } from '../../components/evaluator/requirements';
+import { RequirementFilters, RequirementForm, RequirementMatrix } from '../../components/evaluator/requirements';
 import { requirementsService, stakeholderAreasService, evaluationCategoriesService } from '../../services/evaluator';
 
 import './RequirementsHub.css';
@@ -735,14 +735,26 @@ export default function RequirementsHub() {
         </Card>
       )}
 
-      {/* Matrix View - Placeholder for Session 3C */}
+      {/* Matrix View */}
       {viewMode === 'matrix' && (
         <Card className="requirements-matrix-card">
-          <div className="matrix-placeholder">
-            <Grid3X3 size={48} />
-            <h3>Matrix View</h3>
-            <p>Matrix view will be implemented in Session 3C</p>
-          </div>
+          <RequirementMatrix
+            requirements={filteredRequirements}
+            categories={categories}
+            stakeholderAreas={stakeholderAreas}
+            onCellClick={(cellData) => {
+              if (cellData) {
+                // Apply filters from cell selection
+                handleFilterChange({
+                  categoryId: cellData.filters.category_id || null,
+                  stakeholderAreaId: cellData.filters.stakeholder_area_id || null,
+                  priority: cellData.filters.priority || null,
+                  status: cellData.filters.status || null
+                });
+              }
+            }}
+            onRequirementClick={(req) => navigate(`/evaluator/requirements/${req.id}`)}
+          />
         </Card>
       )}
 

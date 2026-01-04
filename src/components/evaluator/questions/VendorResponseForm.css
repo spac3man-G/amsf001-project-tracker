@@ -1,0 +1,363 @@
+/**
+ * VendorResponseForm Styles
+ * 
+ * @version 1.0
+ * @created 03 January 2026
+ */
+
+.vendor-response-form {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.vendor-response-form.has-response {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.vendor-response-form.read-only {
+  background: #f9fafb;
+}
+
+.response-form-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.response-type-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.response-required {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #dc2626;
+}
+
+.response-answered {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #059669;
+  margin-left: auto;
+}
+
+.response-form-question {
+  margin-bottom: 16px;
+}
+
+.response-question-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+  line-height: 1.5;
+  margin: 0 0 4px 0;
+}
+
+.response-help-text {
+  font-size: 13px;
+  color: #6b7280;
+  font-style: italic;
+  margin: 0;
+}
+
+.response-form-input {
+  margin-bottom: 16px;
+}
+
+/* Text inputs */
+.response-input,
+.response-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  transition: all 0.15s ease;
+}
+
+.response-input:focus,
+.response-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.response-input:disabled,
+.response-textarea:disabled {
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.response-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.response-input-number {
+  max-width: 200px;
+}
+
+.response-input-date {
+  max-width: 200px;
+}
+
+/* Choice inputs */
+.response-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.response-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.response-choice:hover:not(:has(input:disabled)) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.response-choice:has(input:checked) {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.response-choice input {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.response-choice span {
+  font-size: 14px;
+  color: #374151;
+}
+
+/* Yes/No */
+.response-yesno {
+  display: flex;
+  gap: 12px;
+}
+
+.yesno-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.yesno-option:hover:not(:has(input:disabled)) {
+  background: #f3f4f6;
+}
+
+.yesno-option.selected {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.yesno-option input {
+  display: none;
+}
+
+.yesno-option span {
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.yesno-option.selected span {
+  color: #1d4ed8;
+}
+
+/* Rating */
+.response-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #d1d5db;
+  transition: all 0.15s ease;
+}
+
+.rating-star:hover:not(:disabled) {
+  transform: scale(1.1);
+  color: #fbbf24;
+}
+
+.rating-star.filled {
+  color: #fbbf24;
+}
+
+.rating-star:disabled {
+  cursor: default;
+}
+
+.rating-label {
+  font-size: 14px;
+  color: #6b7280;
+  margin-left: 8px;
+}
+
+/* File upload */
+.response-file {
+  display: flex;
+  align-items: center;
+}
+
+.response-file-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.response-file-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.response-file-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.response-file-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f3f4f6;
+  border-radius: 8px;
+}
+
+.response-file-preview span {
+  font-size: 14px;
+  color: #374151;
+}
+
+.response-file-preview button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.response-file-preview button:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* Error */
+.response-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #dc2626;
+  margin-bottom: 16px;
+}
+
+/* Actions */
+.response-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.response-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.response-save-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.response-save-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

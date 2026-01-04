@@ -1,0 +1,135 @@
+/**
+ * ScoreCard Styles
+ * 
+ * @version 1.0
+ * @created 03 January 2026
+ */
+
+.score-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.score-card:hover {
+  border-color: #d1d5db;
+}
+
+.score-card-compact {
+  padding: 12px;
+  gap: 12px;
+}
+
+.score-card-highlight {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+/* Score Value */
+.score-card-value-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.score-card-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 56px;
+  padding: 8px 12px;
+  border: 2px solid;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.score-card-compact .score-card-value {
+  min-width: 44px;
+  padding: 6px 10px;
+  font-size: 15px;
+}
+
+.score-card-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Content */
+.score-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.score-card-criterion {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 6px 0;
+}
+
+.score-card-compact .score-card-criterion {
+  font-size: 13px;
+}
+
+.score-card-evaluator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.score-card-evaluator svg {
+  flex-shrink: 0;
+}
+
+.score-card-rationale {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+  margin: 0 0 10px 0;
+}
+
+.score-card-rationale svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: #9ca3af;
+}
+
+/* Footer */
+.score-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.score-card-evidence,
+.score-card-date,
+.score-card-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.score-card-evidence {
+  color: #3b82f6;
+}
+
+.score-card-status {
+  margin-left: auto;
+}

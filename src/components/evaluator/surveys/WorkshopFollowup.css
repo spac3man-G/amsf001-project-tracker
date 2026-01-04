@@ -1,0 +1,422 @@
+/**
+ * WorkshopFollowup Component Styles
+ * 
+ * @version 1.0
+ * @created 01 January 2026
+ * @phase Phase 4 - Input Capture (Task 4B.3)
+ */
+
+.workshop-followup {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+/* Error and submitted states */
+.workshop-followup.error-state,
+.workshop-followup.submitted-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  gap: var(--spacing-md);
+}
+
+.workshop-followup .success-icon {
+  color: var(--color-success);
+}
+
+.submitted-state h2 {
+  margin: 0;
+  color: var(--color-success);
+}
+
+.submitted-state p {
+  color: var(--color-text-muted);
+  max-width: 400px;
+}
+
+/* Header */
+.followup-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) 0;
+  margin-bottom: var(--spacing-sm);
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.back-btn:hover {
+  color: var(--color-primary-dark);
+}
+
+.header-content h1 {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 1.5rem;
+  color: var(--color-text);
+}
+
+.header-content p {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.progress-indicator {
+  margin-top: var(--spacing-md);
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--color-background-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  display: block;
+  margin-top: var(--spacing-xs);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* Sections */
+.requirements-section,
+.new-requirements-section,
+.additional-feedback-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.requirements-section h2,
+.new-requirements-section h2,
+.additional-feedback-section h2 {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.new-requirements-section > p {
+  margin: 0 0 var(--spacing-md);
+  color: var(--color-text-muted);
+}
+
+.no-requirements {
+  padding: var(--spacing-lg);
+  text-align: center;
+  background: var(--color-background-subtle);
+  border-radius: var(--border-radius);
+  color: var(--color-text-muted);
+}
+
+/* Requirements list */
+.requirements-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* Requirement validation card */
+.requirement-validation {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.requirement-validation.expanded {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.validation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.validation-header:hover {
+  background: var(--color-background-subtle);
+}
+
+.requirement-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 0;
+}
+
+.reference-code {
+  padding: 2px var(--spacing-xs);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.requirement-title {
+  flex: 1;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rating-indicator {
+  display: flex;
+  gap: 2px;
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--color-background-subtle);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+
+.validation-body {
+  padding: 0 var(--spacing-md) var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.requirement-description {
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-sm);
+  background: var(--color-background-subtle);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.validation-rating {
+  margin: var(--spacing-md) 0;
+}
+
+.validation-rating label {
+  display: block;
+  margin-bottom: var(--spacing-sm);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.validation-comment {
+  margin-top: var(--spacing-md);
+}
+
+.validation-comment label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.validation-comment textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  font-family: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+.validation-comment textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Star rating */
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.star-rating.disabled {
+  opacity: 0.6;
+}
+
+.star-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--color-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.star-btn:not(:disabled):hover,
+.star-btn.filled {
+  color: var(--color-warning);
+  transform: scale(1.1);
+}
+
+.star-btn:disabled {
+  cursor: not-allowed;
+}
+
+.rating-label {
+  margin-left: var(--spacing-sm);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* New requirements */
+.new-requirement-form {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+}
+
+.new-requirement-form .form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.new-requirement-form .form-header span {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.new-requirement-form .remove-btn {
+  padding: 4px var(--spacing-xs);
+  background: none;
+  border: none;
+  color: var(--color-error);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.new-requirement-form .remove-btn:hover {
+  text-decoration: underline;
+}
+
+.new-req-title,
+.new-req-description {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  font-family: inherit;
+  font-size: 0.9375rem;
+}
+
+.new-req-title {
+  margin-bottom: var(--spacing-sm);
+}
+
+.new-req-title:focus,
+.new-req-description:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.add-requirement-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* Additional feedback */
+.additional-feedback-section textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  resize: vertical;
+}
+
+.additional-feedback-section textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Actions */
+.followup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.followup-actions .btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .workshop-followup {
+    padding: var(--spacing-md);
+  }
+
+  .requirement-info {
+    flex-wrap: wrap;
+  }
+
+  .requirement-title {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .followup-actions {
+    flex-direction: column;
+  }
+
+  .followup-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

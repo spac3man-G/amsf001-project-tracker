@@ -334,6 +334,35 @@ export class EvaluationProjectsService {
   }
 
   /**
+   * Get users for an evaluation project (simplified list for dropdowns)
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @returns {Promise<Array>} Array of user profiles
+   */
+  async getUsers(evaluationProjectId) {
+    try {
+      const { data, error } = await supabase
+        .from('evaluation_project_users')
+        .select(`
+          user:profiles!user_id(id, email, full_name, avatar_url)
+        `)
+        .eq('evaluation_project_id', evaluationProjectId);
+
+      if (error) {
+        console.error('EvaluationProjectsService getUsers error:', error);
+        throw error;
+      }
+
+      // Extract just the user profiles
+      return (data || [])
+        .map(d => d.user)
+        .filter(Boolean);
+    } catch (error) {
+      console.error('EvaluationProjectsService getUsers failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Add a user to an evaluation project
    * @param {string} evaluationProjectId - Evaluation Project UUID
    * @param {string} userId - User UUID

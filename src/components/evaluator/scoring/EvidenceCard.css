@@ -1,0 +1,199 @@
+/**
+ * EvidenceCard Styles
+ * 
+ * @version 1.0
+ * @created 03 January 2026
+ */
+
+.evidence-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.evidence-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.evidence-card-compact {
+  padding: 12px;
+}
+
+.evidence-card-selectable {
+  cursor: pointer;
+}
+
+.evidence-card-selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.evidence-card-checkbox {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.evidence-card-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+.evidence-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.evidence-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.evidence-type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.evidence-card-compact .evidence-type-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.evidence-card-title-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.evidence-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 2px 0;
+  line-height: 1.3;
+}
+
+.evidence-card-compact .evidence-card-title {
+  font-size: 13px;
+}
+
+.evidence-type-label {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.evidence-sentiment-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.evidence-card-compact .evidence-sentiment-badge {
+  padding: 4px 6px;
+}
+
+.evidence-card-excerpt {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+  margin: 0 0 10px 0;
+}
+
+.evidence-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.evidence-link-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.evidence-link-badge.requirement {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.evidence-link-badge.criterion {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.evidence-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.evidence-vendor-name {
+  font-weight: 500;
+  color: #374151;
+}
+
+.evidence-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.evidence-source-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #3b82f6;
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.evidence-source-link:hover {
+  text-decoration: underline;
+}
+
+.evidence-card-menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: #9ca3af;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.evidence-card-menu:hover {
+  background: #f3f4f6;
+  color: #4b5563;
+}

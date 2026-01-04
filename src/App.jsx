@@ -82,6 +82,16 @@ const OrganisationAdmin = lazy(() => import('./pages/admin/OrganisationAdmin'));
 const EvaluatorDashboard = lazy(() => import('./pages/evaluator/EvaluatorDashboard'));
 const RequirementsHub = lazy(() => import('./pages/evaluator/RequirementsHub'));
 const RequirementDetail = lazy(() => import('./pages/evaluator/RequirementDetail'));
+const EvaluationSettings = lazy(() => import('./pages/evaluator/EvaluationSettings'));
+const WorkshopsHub = lazy(() => import('./pages/evaluator/WorkshopsHub'));
+const WorkshopDetail = lazy(() => import('./pages/evaluator/WorkshopDetail'));
+const DocumentsHub = lazy(() => import('./pages/evaluator/DocumentsHub'));
+const VendorsHub = lazy(() => import('./pages/evaluator/VendorsHub'));
+const VendorDetail = lazy(() => import('./pages/evaluator/VendorDetail'));
+const QuestionsHub = lazy(() => import('./pages/evaluator/QuestionsHub'));
+const VendorPortal = lazy(() => import('./pages/evaluator/VendorPortal'));
+const EvaluationHub = lazy(() => import('./pages/evaluator/EvaluationHub'));
+const TraceabilityView = lazy(() => import('./pages/evaluator/TraceabilityView'));
 
 // Onboarding pages
 const CreateOrganisation = lazy(() => import('./pages/onboarding/CreateOrganisation'));
@@ -269,6 +279,16 @@ export default function App() {
                               element={
                                 <Suspense fallback={<LoadingSpinner fullPage />}>
                                   <ResetPassword />
+                                </Suspense>
+                              } 
+                            />
+                            
+                            {/* Vendor Portal - Public route (no auth required) */}
+                            <Route 
+                              path="/vendor-portal" 
+                              element={
+                                <Suspense fallback={<LoadingSpinner fullPage />}>
+                                  <VendorPortal />
                                 </Suspense>
                               } 
                             />
@@ -491,22 +511,42 @@ export default function App() {
                             } />
                             <Route path="/evaluator/workshops" element={
                               <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
-                                <EvaluatorDashboard />
+                                <WorkshopsHub />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/workshops/:workshopId" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <WorkshopDetail />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/documents" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <DocumentsHub />
                               </ProtectedRoute>
                             } />
                             <Route path="/evaluator/vendors" element={
                               <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
-                                <EvaluatorDashboard />
+                                <VendorsHub />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/vendors/:vendorId" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <VendorDetail />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/questions" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <QuestionsHub />
                               </ProtectedRoute>
                             } />
                             <Route path="/evaluator/evaluation" element={
                               <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
-                                <EvaluatorDashboard />
+                                <EvaluationHub />
                               </ProtectedRoute>
                             } />
                             <Route path="/evaluator/traceability" element={
                               <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
-                                <EvaluatorDashboard />
+                                <TraceabilityView />
                               </ProtectedRoute>
                             } />
                             <Route path="/evaluator/reports" element={
@@ -516,7 +556,7 @@ export default function App() {
                             } />
                             <Route path="/evaluator/settings" element={
                               <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
-                                <EvaluatorDashboard />
+                                <EvaluationSettings />
                               </ProtectedRoute>
                             } />
                             

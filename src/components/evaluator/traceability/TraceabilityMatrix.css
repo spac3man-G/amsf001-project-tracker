@@ -1,0 +1,364 @@
+/**
+ * TraceabilityMatrix Component Styles
+ * 
+ * @version 1.0
+ * @created 04 January 2026
+ * @phase Phase 7 - Traceability & Reports
+ */
+
+.matrix-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.matrix-empty p {
+  margin-top: 1rem;
+}
+
+/* Matrix Wrapper - enables horizontal scroll */
+.traceability-matrix-wrapper {
+  overflow-x: auto;
+  padding: 1rem;
+}
+
+.traceability-matrix {
+  min-width: max-content;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Matrix Header */
+.matrix-header {
+  display: flex;
+  background: var(--color-bg-tertiary, #f3f4f6);
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-cell {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.requirement-header {
+  min-width: 300px;
+  width: 300px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  background: var(--color-bg-tertiary, #f3f4f6);
+  z-index: 5;
+  border-right: 2px solid var(--color-border, #e5e7eb);
+}
+
+.vendor-header {
+  min-width: 120px;
+  width: 120px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  border-right: 1px solid var(--color-border, #e5e7eb);
+}
+
+.vendor-header:last-child {
+  border-right: none;
+}
+
+.vendor-header .vendor-name {
+  font-size: 0.6875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+/* Matrix Body */
+.matrix-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Category Row */
+.matrix-category-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--color-bg-secondary, #f9fafb);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.matrix-category-row:hover {
+  background: var(--color-bg-tertiary, #f3f4f6);
+}
+
+.category-toggle {
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.category-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text-primary, #111827);
+}
+
+.category-weight {
+  font-size: 0.75rem;
+  color: var(--color-primary, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  margin-left: auto;
+}
+
+/* Matrix Row */
+.matrix-row {
+  display: flex;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.matrix-row:last-child {
+  border-bottom: none;
+}
+
+.matrix-row:hover .requirement-cell {
+  background: var(--color-bg-secondary, #f9fafb);
+}
+
+/* Matrix Cells */
+.matrix-cell {
+  display: flex;
+  align-items: center;
+}
+
+.requirement-cell {
+  min-width: 300px;
+  width: 300px;
+  flex-shrink: 0;
+  padding: 0.625rem 1rem;
+  background: white;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  border-right: 2px solid var(--color-border, #e5e7eb);
+}
+
+.requirement-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.requirement-info svg {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.requirement-name {
+  font-size: 0.8125rem;
+  color: var(--color-text-primary, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+/* Priority & MoSCoW Badges */
+.priority-badge,
+.moscow-badge {
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+
+.priority-badge.critical {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.priority-badge.high {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.priority-badge.medium {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.priority-badge.low {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.moscow-badge.must {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.moscow-badge.should {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.moscow-badge.could {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.moscow-badge.wont {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Score Cells */
+.score-cell {
+  min-width: 120px;
+  width: 120px;
+  justify-content: center;
+  padding: 0.5rem;
+  border-right: 1px solid var(--color-border, #e5e7eb);
+  transition: all 0.15s ease;
+}
+
+.score-cell:last-child {
+  border-right: none;
+}
+
+.score-cell:hover {
+  filter: brightness(0.95);
+}
+
+.score-cell.no-score {
+  background-color: #f9fafb !important;
+}
+
+.no-score-text {
+  color: var(--color-text-tertiary, #9ca3af);
+  font-size: 1.25rem;
+}
+
+.score-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.score-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.score-stars {
+  display: flex;
+  gap: 1px;
+}
+
+.cell-indicators {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.125rem;
+}
+
+.consensus-indicator {
+  opacity: 0.8;
+}
+
+.evidence-count {
+  font-size: 0.625rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* Summary Row */
+.matrix-summary-row {
+  display: flex;
+  border-top: 2px solid var(--color-border, #e5e7eb);
+  background: var(--color-bg-tertiary, #f3f4f6);
+}
+
+.summary-label {
+  min-width: 300px;
+  width: 300px;
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  position: sticky;
+  left: 0;
+  background: var(--color-bg-tertiary, #f3f4f6);
+  z-index: 5;
+  border-right: 2px solid var(--color-border, #e5e7eb);
+  font-size: 0.875rem;
+  color: var(--color-text-primary, #111827);
+}
+
+.summary-cell {
+  min-width: 120px;
+  width: 120px;
+  justify-content: center;
+  padding: 0.75rem;
+  border-right: 1px solid var(--color-border, #e5e7eb);
+}
+
+.summary-cell:last-child {
+  border-right: none;
+}
+
+.summary-score {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .requirement-header,
+  .requirement-cell,
+  .summary-label {
+    min-width: 200px;
+    width: 200px;
+  }
+
+  .requirement-name {
+    max-width: 120px;
+  }
+
+  .vendor-header,
+  .score-cell,
+  .summary-cell {
+    min-width: 80px;
+    width: 80px;
+  }
+
+  .vendor-header .vendor-name {
+    max-width: 70px;
+    font-size: 0.625rem;
+  }
+
+  .score-value {
+    font-size: 0.875rem;
+  }
+
+  .score-stars {
+    display: none;
+  }
+}
