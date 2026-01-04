@@ -1,0 +1,879 @@
+/**
+ * MarketResearchResults Component Styles
+ * 
+ * @version 1.0
+ * @created January 4, 2026
+ * @phase Phase 8B - Market Research & AI Assistant
+ */
+
+/* ============================================================================
+   OVERLAY & MODAL
+   ============================================================================ */
+
+.market-research-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(2px);
+}
+
+.market-research-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 1000px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.market-research-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.market-research-modal .header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.market-research-modal .ai-icon {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+}
+
+.market-research-modal .header-title h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.market-research-modal .subtitle {
+  margin: 0.125rem 0 0;
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+.market-research-modal .btn-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  transition: background 0.2s;
+}
+
+.market-research-modal .btn-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================================
+   TAB BAR
+   ============================================================================ */
+
+.market-research-modal .tab-bar {
+  display: flex;
+  gap: 0;
+  padding: 0 1.5rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.market-research-modal .tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+}
+
+.market-research-modal .tab:hover {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.05);
+}
+
+.market-research-modal .tab.active {
+  color: #7c3aed;
+  border-bottom-color: #7c3aed;
+  background: white;
+}
+
+/* ============================================================================
+   CONTENT AREA
+   ============================================================================ */
+
+.market-research-modal .modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* ============================================================================
+   OVERVIEW TAB
+   ============================================================================ */
+
+.overview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.market-summary {
+  background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.market-summary .summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.market-summary h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #7c3aed;
+}
+
+.market-size-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.market-size-badge.green {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.market-size-badge.blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.market-size-badge.purple {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.market-size-badge.orange {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.summary-text {
+  margin: 0;
+  color: #374151;
+  line-height: 1.6;
+}
+
+/* Stats Row */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.stat-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.stat-card .stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1;
+}
+
+.stat-card .stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.stat-card.leader {
+  background: linear-gradient(135deg, #f3e8ff 0%, #faf5ff 100%);
+  border-color: #d8b4fe;
+}
+
+.stat-card.leader .stat-value { color: #7c3aed; }
+
+.stat-card.challenger {
+  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+  border-color: #93c5fd;
+}
+
+.stat-card.challenger .stat-value { color: #2563eb; }
+
+.stat-card.niche {
+  background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%);
+  border-color: #6ee7b7;
+}
+
+.stat-card.niche .stat-value { color: #059669; }
+
+/* Trends Section */
+.trends-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.trends-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1f2937;
+}
+
+.trends-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.trends-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: #374151;
+}
+
+.trend-marker {
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+  border-radius: 50%;
+  margin-top: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Considerations Section */
+.considerations-section {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.considerations-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #92400e;
+}
+
+.considerations-list {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0;
+  color: #78350f;
+}
+
+.considerations-list li {
+  margin-bottom: 0.5rem;
+}
+
+.considerations-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Recommendations Section */
+.recommendations-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.recommendations-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1f2937;
+}
+
+.recommendations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recommendation-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.rec-number {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.recommendation-item p {
+  margin: 0;
+  color: #374151;
+  flex: 1;
+}
+
+/* Research Suggestions */
+.research-suggestions {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.research-suggestions h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.research-suggestions ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+.research-suggestions li {
+  margin-bottom: 0.375rem;
+}
+
+/* ============================================================================
+   VENDORS TAB
+   ============================================================================ */
+
+.vendors-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.vendors-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+.search-box svg {
+  color: #9ca3af;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+}
+
+.filter-group select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: white;
+  cursor: pointer;
+}
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #7c3aed;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+.btn-text:hover {
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.selected-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.vendors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #9ca3af;
+}
+
+.empty-state svg {
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+/* ============================================================================
+   VENDOR CARD
+   ============================================================================ */
+
+.vendor-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.vendor-card:hover {
+  border-color: #d8b4fe;
+}
+
+.vendor-card.selected {
+  border-color: #7c3aed;
+  background: #faf5ff;
+}
+
+.vendor-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.select-checkbox {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b7280;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.select-checkbox:hover {
+  background: #e5e7eb;
+  color: #7c3aed;
+}
+
+.select-checkbox .checked {
+  color: #7c3aed;
+}
+
+.vendor-card.selected .select-checkbox {
+  background: #7c3aed;
+  color: white;
+}
+
+.vendor-main-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.vendor-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.vendor-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+}
+
+/* Fit Score Gauge */
+.fit-score-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.gauge-circle {
+  width: 44px;
+  height: 44px;
+  position: relative;
+}
+
+.circular-chart {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.circle-bg {
+  fill: none;
+  stroke: #e5e7eb;
+  stroke-width: 3;
+}
+
+.circle-fill {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.circle-fill.excellent { stroke: #059669; }
+.circle-fill.good { stroke: #2563eb; }
+.circle-fill.moderate { stroke: #f59e0b; }
+.circle-fill.limited { stroke: #ef4444; }
+
+.gauge-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.gauge-label {
+  font-size: 0.625rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.vendor-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.vendor-card .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge.position-purple { background: #ede9fe; color: #7c3aed; }
+.badge.position-blue { background: #dbeafe; color: #2563eb; }
+.badge.position-teal { background: #ccfbf1; color: #0d9488; }
+.badge.position-green { background: #d1fae5; color: #059669; }
+
+.badge.target-purple { background: #f3e8ff; color: #9333ea; }
+.badge.target-blue { background: #e0f2fe; color: #0284c7; }
+.badge.target-teal { background: #ccfbf1; color: #0d9488; }
+.badge.target-green { background: #dcfce7; color: #16a34a; }
+
+.vendor-description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.expand-btn:hover {
+  background: #f3f4f6;
+  color: #7c3aed;
+}
+
+/* Vendor Details */
+.vendor-details {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+}
+
+.vendor-website {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #7c3aed;
+  text-decoration: none;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.vendor-website:hover {
+  text-decoration: underline;
+}
+
+.detail-section {
+  margin-bottom: 1rem;
+}
+
+.detail-section label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.detail-section p {
+  margin: 0;
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.fit-section {
+  background: #faf5ff;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border-left: 3px solid #7c3aed;
+}
+
+.detail-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.detail-section ul {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.detail-section ul li {
+  margin-bottom: 0.375rem;
+}
+
+.detail-section.strengths {
+  background: #f0fdf4;
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.detail-section.strengths label { color: #059669; }
+
+.detail-section.considerations {
+  background: #fefce8;
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.detail-section.considerations label { color: #ca8a04; }
+
+.detail-row {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item label {
+  font-size: 0.6875rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.detail-item span {
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+/* ============================================================================
+   FOOTER
+   ============================================================================ */
+
+.market-research-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.btn-secondary {
+  padding: 0.625rem 1.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #f3f4f6;
+}
+
+.btn-primary {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .market-research-modal {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .vendors-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .bulk-actions {
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .detail-columns {
+    grid-template-columns: 1fr;
+  }
+}

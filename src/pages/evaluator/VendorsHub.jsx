@@ -4,10 +4,12 @@
  * Main hub page for vendor management.
  * Displays vendors in pipeline view or list view.
  * Supports CRUD operations and status transitions.
+ * Now includes AI-powered market research (Phase 8B).
  * 
- * @version 1.0
+ * @version 1.1
  * @created 01 January 2026
- * @phase Phase 5 - Vendor Management (Task 5A.2)
+ * @updated 04 January 2026 - Added Market Research (Phase 8B)
+ * @phase Phase 5 - Vendor Management (Task 5A.2), Phase 8B - AI Features
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -27,17 +29,20 @@ import {
   Trash2,
   Edit,
   Key,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   vendorsService, 
+  aiService,
   VENDOR_STATUSES,
   VENDOR_STATUS_CONFIG,
   PIPELINE_STAGES
 } from '../../services/evaluator';
 import { VendorPipeline, VendorCard, VendorForm } from '../../components/evaluator';
+import { MarketResearchResults } from '../../components/evaluator/ai';
 import './VendorsHub.css';
 
 function VendorsHub() {
@@ -62,6 +67,12 @@ function VendorsHub() {
   // Context menu state
   const [menuVendor, setMenuVendor] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  
+  // AI Market Research state (Phase 8B)
+  const [runningResearch, setRunningResearch] = useState(false);
+  const [researchResults, setResearchResults] = useState(null);
+  const [showResearchResults, setShowResearchResults] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Fetch vendors
   const fetchVendors = useCallback(async () => {
@@ -94,6 +105,14 @@ function VendorsHub() {
     setSearchParams({ view: viewMode }, { replace: true });
   }, [viewMode, setSearchParams]);
 
+  // Clear success message after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
   // Handlers
   const handleVendorClick = (vendor) => {
     navigate(`/evaluator/vendors/${vendor.id}`);
@@ -125,6 +144,7 @@ function VendorsHub() {
       }
 
       setShowAddModal(false);
+      setSuccessMessage('Vendor added successfully');
       fetchVendors();
     } catch (err) {
       console.error('Failed to add vendor:', err);
@@ -148,6 +168,7 @@ function VendorsHub() {
       });
 
       setEditingVendor(null);
+      setSuccessMessage('Vendor updated successfully');
       fetchVendors();
     } catch (err) {
       console.error('Failed to update vendor:', err);
@@ -175,6 +196,7 @@ function VendorsHub() {
 
     try {
       await vendorsService.delete(vendor.id, user?.id);
+      setSuccessMessage('Vendor deleted');
       fetchVendors();
     } catch (err) {
       console.error('Failed to delete vendor:', err);
@@ -186,6 +208,7 @@ function VendorsHub() {
   const handleGeneratePortalAccess = async (vendor) => {
     try {
       await vendorsService.generatePortalAccessCode(vendor.id);
+      setSuccessMessage('Portal access enabled');
       fetchVendors();
     } catch (err) {
       console.error('Failed to generate portal access:', err);
@@ -202,6 +225,55 @@ function VendorsHub() {
       y: rect.bottom 
     });
     setMenuVendor(vendor);
+  };
+
+  // AI Market Research handlers (Phase 8B)
+  const handleRunMarketResearch = async () => {
+    if (!currentEvaluation?.id || !user?.id) return;
+    
+    setRunningResearch(true);
+    setError(null);
+    
+    try {
+      const results = await aiService.runMarketResearch(
+        currentEvaluation.id, 
+        user.id,
+        { industry: currentEvaluation.industry_type }
+      );
+      
+      if (results.success) {
+        setResearchResults(results);
+        setShowResearchResults(true);
+      } else {
+        throw new Error(results.error || 'Market research failed');
+      }
+    } catch (err) {
+      console.error('Market research error:', err);
+      setError(err.message || 'Failed to run market research');
+    } finally {
+      setRunningResearch(false);
+    }
+  };
+  
+  const handleAddResearchedVendors = async (selectedVendors) => {
+    if (!currentEvaluation?.id || !user?.id) return;
+    
+    try {
+      const result = await aiService.addResearchedVendors(
+        currentEvaluation.id,
+        user.id,
+        selectedVendors
+      );
+      
+      setSuccessMessage(`Added ${result.imported} vendors from market research`);
+      fetchVendors();
+      
+      return result;
+    } catch (err) {
+      console.error('Add vendors error:', err);
+      setError(err.message || 'Failed to add vendors');
+      throw err;
+    }
   };
 
   // Close menu when clicking outside
@@ -261,6 +333,15 @@ function VendorsHub() {
         </div>
 
         <div className="vendors-hub-actions">
+          <button 
+            className="vendors-hub-btn vendors-hub-btn-ai"
+            onClick={handleRunMarketResearch}
+            disabled={runningResearch}
+            title="AI-powered vendor discovery"
+          >
+            <Sparkles size={16} className={runningResearch ? 'spin' : ''} />
+            {runningResearch ? 'Researching...' : 'Market Research'}
+          </button>
           <button 
             className="vendors-hub-btn vendors-hub-btn-secondary"
             onClick={fetchVendors}
@@ -354,6 +435,16 @@ function VendorsHub() {
         </div>
       </div>
 
+      {/* Success Message */}
+      {successMessage && (
+        <div className="vendors-hub-success">
+          {successMessage}
+          <button onClick={() => setSuccessMessage(null)}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Error Message */}
       {error && (
         <div className="vendors-hub-error">
@@ -390,13 +481,23 @@ function VendorsHub() {
                   }
                 </p>
                 {!searchTerm && statusFilter === 'all' && (
-                  <button 
-                    className="vendors-hub-btn vendors-hub-btn-primary"
-                    onClick={() => setShowAddModal(true)}
-                  >
-                    <Plus size={16} />
-                    Add Vendor
-                  </button>
+                  <div className="vendors-empty-actions">
+                    <button 
+                      className="vendors-hub-btn vendors-hub-btn-primary"
+                      onClick={() => setShowAddModal(true)}
+                    >
+                      <Plus size={16} />
+                      Add Vendor
+                    </button>
+                    <button 
+                      className="vendors-hub-btn vendors-hub-btn-ai"
+                      onClick={handleRunMarketResearch}
+                      disabled={runningResearch}
+                    >
+                      <Sparkles size={16} />
+                      AI Research
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -488,6 +589,14 @@ function VendorsHub() {
           isSubmitting={isSubmitting}
         />
       )}
+      
+      {/* Market Research Results Modal (Phase 8B) */}
+      <MarketResearchResults
+        isOpen={showResearchResults}
+        onClose={() => setShowResearchResults(false)}
+        researchResults={researchResults}
+        onAddVendors={handleAddResearchedVendors}
+      />
     </div>
   );
 }

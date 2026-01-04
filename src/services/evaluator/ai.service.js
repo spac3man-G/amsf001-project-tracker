@@ -4,11 +4,13 @@
  * Handles AI operations for the Evaluator tool including:
  * - Document parsing for requirements extraction
  * - Gap analysis
- * - Requirement suggestions
+ * - Market research for vendor identification
+ * - Requirement improvement suggestions
  * 
- * @version 1.0
+ * @version 2.0
  * @created January 4, 2026
- * @phase Phase 8A - Document Parsing & Gap Analysis
+ * @updated January 4, 2026 - Added Phase 8B features (market research, requirement improvement)
+ * @phase Phase 8A - Document Parsing & Gap Analysis, Phase 8B - Market Research & AI Assistant
  */
 
 import { supabase } from '../../lib/supabase';
@@ -78,6 +80,10 @@ export const AI_TASK_STATUS_CONFIG = {
 // ============================================================================
 
 class AIService {
+  // ============================================================================
+  // DOCUMENT PARSING (Phase 8A)
+  // ============================================================================
+
   /**
    * Parse a document to extract requirements
    * 
@@ -117,6 +123,10 @@ class AIService {
     }
   }
 
+  // ============================================================================
+  // GAP ANALYSIS (Phase 8A)
+  // ============================================================================
+
   /**
    * Perform gap analysis on existing requirements
    * 
@@ -151,6 +161,247 @@ class AIService {
       throw error;
     }
   }
+
+  // ============================================================================
+  // MARKET RESEARCH (Phase 8B)
+  // ============================================================================
+
+  /**
+   * Run market research to identify potential vendors
+   * 
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @param {string} userId - User UUID
+   * @param {Object} additionalContext - Optional context (industry, budget, timeline)
+   * @returns {Promise<Object>} Market research result
+   */
+  async runMarketResearch(evaluationProjectId, userId, additionalContext = {}) {
+    try {
+      const response = await fetch('/api/evaluator/ai-market-research', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          evaluationProjectId,
+          userId,
+          additionalContext
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to run market research');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('AIService.runMarketResearch error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add researched vendors to the vendor list
+   * 
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @param {string} userId - User UUID
+   * @param {Array} vendors - Array of vendor recommendations from research
+   * @returns {Promise<Object>} Import result
+   */
+  async addResearchedVendors(evaluationProjectId, userId, vendors) {
+    try {
+      // Prepare vendors for insertion
+      const toInsert = vendors.map(vendor => ({
+        evaluation_project_id: evaluationProjectId,
+        name: vendor.name,
+        description: vendor.description || null,
+        website: vendor.website || null,
+        status: 'identified',
+        status_changed_at: new Date().toISOString(),
+        status_changed_by: userId,
+        notes: this._formatVendorNotes(vendor),
+        portal_enabled: false
+      }));
+
+      // Insert vendors
+      const { data, error } = await supabase
+        .from('vendors')
+        .insert(toInsert)
+        .select();
+
+      if (error) {
+        console.error('Insert vendors error:', error);
+        throw error;
+      }
+
+      return {
+        total: vendors.length,
+        imported: (data || []).length,
+        vendors: data || []
+      };
+    } catch (error) {
+      console.error('AIService.addResearchedVendors failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Format vendor notes from AI research data
+   * @private
+   */
+  _formatVendorNotes(vendor) {
+    const parts = [];
+    
+    parts.push(`[AI Market Research - ${new Date().toLocaleDateString()}]`);
+    
+    if (vendor.market_position) {
+      parts.push(`Market Position: ${vendor.market_position}`);
+    }
+    
+    if (vendor.target_market) {
+      parts.push(`Target Market: ${vendor.target_market}`);
+    }
+    
+    if (vendor.fit_score) {
+      parts.push(`Fit Score: ${vendor.fit_score}/10`);
+    }
+    
+    if (vendor.fit_rationale) {
+      parts.push(`Fit Rationale: ${vendor.fit_rationale}`);
+    }
+    
+    if (vendor.strengths?.length) {
+      parts.push(`\nStrengths:\n${vendor.strengths.map(s => `• ${s}`).join('\n')}`);
+    }
+    
+    if (vendor.considerations?.length) {
+      parts.push(`\nConsiderations:\n${vendor.considerations.map(c => `• ${c}`).join('\n')}`);
+    }
+    
+    if (vendor.pricing_model) {
+      parts.push(`\nPricing Model: ${vendor.pricing_model}`);
+    }
+    
+    if (vendor.deployment_options?.length) {
+      parts.push(`Deployment Options: ${vendor.deployment_options.join(', ')}`);
+    }
+    
+    return parts.join('\n');
+  }
+
+  // ============================================================================
+  // REQUIREMENT IMPROVEMENT (Phase 8B)
+  // ============================================================================
+
+  /**
+   * Get AI suggestions to improve a requirement
+   * 
+   * @param {string} requirementId - Requirement UUID
+   * @param {string} userId - User UUID
+   * @returns {Promise<Object>} Suggestion result
+   */
+  async improveRequirement(requirementId, userId) {
+    try {
+      const response = await fetch('/api/evaluator/ai-requirement-suggest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          requirementId,
+          userId
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to get requirement suggestions');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('AIService.improveRequirement error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get AI suggestions for a requirement from text (without saving first)
+   * 
+   * @param {Object} requirementText - Requirement text { title, description, priority, category }
+   * @param {string} userId - User UUID
+   * @param {string} evaluationProjectId - Optional project ID for context
+   * @returns {Promise<Object>} Suggestion result
+   */
+  async suggestFromText(requirementText, userId, evaluationProjectId = null) {
+    try {
+      const response = await fetch('/api/evaluator/ai-requirement-suggest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          requirementText: {
+            ...requirementText,
+            evaluationProjectId
+          },
+          userId
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to get requirement suggestions');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('AIService.suggestFromText error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Apply AI suggestion to update a requirement
+   * 
+   * @param {string} requirementId - Requirement UUID
+   * @param {Object} suggestion - The improved_requirement from AI
+   * @returns {Promise<Object>} Updated requirement
+   */
+  async applySuggestion(requirementId, suggestion) {
+    try {
+      const updates = {
+        title: suggestion.title,
+        description: suggestion.description
+      };
+
+      const { data, error } = await supabase
+        .from('requirements')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requirementId)
+        .select();
+
+      if (error) {
+        console.error('Apply suggestion error:', error);
+        throw error;
+      }
+
+      return data?.[0];
+    } catch (error) {
+      console.error('AIService.applySuggestion failed:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // TASK HISTORY & STATISTICS
+  // ============================================================================
 
   /**
    * Get AI task history for an evaluation project
@@ -287,6 +538,10 @@ class AIService {
       throw error;
     }
   }
+
+  // ============================================================================
+  // IMPORT FUNCTIONS
+  // ============================================================================
 
   /**
    * Import requirements from AI-parsed results

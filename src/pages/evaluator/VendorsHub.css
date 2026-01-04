@@ -400,3 +400,71 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ============================================================================
+   AI BUTTON STYLES (Phase 8B)
+   ============================================================================ */
+
+.vendors-hub-btn-ai {
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+}
+
+.vendors-hub-btn-ai:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
+}
+
+.vendors-hub-btn-ai:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vendors-hub-btn-ai .spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Success Message */
+.vendors-hub-success {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  color: #047857;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.vendors-hub-success button {
+  background: none;
+  border: none;
+  color: #047857;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+}
+
+.vendors-hub-success button:hover {
+  color: #065f46;
+}
+
+/* Empty state actions */
+.vendors-empty-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.vendors-empty-actions .vendors-hub-btn-ai {
+  padding: 10px 20px;
+}
