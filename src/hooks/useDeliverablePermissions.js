@@ -10,6 +10,7 @@
  */
 
 import { useAuth } from '../contexts/AuthContext';
+import { useViewAs } from '../contexts/ViewAsContext';
 import { usePermissions } from './usePermissions';
 import {
   canSubmitForReview,
@@ -31,7 +32,8 @@ import {
  * const { canEdit, canSubmit, canReview, canSignAsSupplier } = useDeliverablePermissions(deliverable);
  */
 export function useDeliverablePermissions(deliverable = null) {
-  const { user, role: userRole, profile } = useAuth();
+  const { user, profile } = useAuth();
+  const { effectiveRole } = useViewAs();
   const { 
     canCreateDeliverable,
     canEditDeliverable, 
@@ -42,11 +44,11 @@ export function useDeliverablePermissions(deliverable = null) {
     canSignAsCustomer: canSignCustomerRole
   } = usePermissions();
   
-  // Core role checks
-  const isAdmin = userRole === 'admin';
-  const isSupplierPM = userRole === 'supplier_pm';
-  const isCustomerPM = userRole === 'customer_pm';
-  const isContributor = userRole === 'contributor';
+  // Core role checks - use effectiveRole from ViewAsContext (supports org admin hierarchy)
+  const isAdmin = effectiveRole === 'admin';
+  const isSupplierPM = effectiveRole === 'supplier_pm';
+  const isCustomerPM = effectiveRole === 'customer_pm';
+  const isContributor = effectiveRole === 'contributor';
   
   // User identity
   const currentUserId = user?.id || null;
