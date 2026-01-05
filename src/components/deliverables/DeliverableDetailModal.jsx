@@ -222,6 +222,9 @@ function TasksSection({ tasks, onToggleComplete, canEdit }) {
               {task.owner && (
                 <span className="task-owner">{task.owner}</span>
               )}
+              {task.comment && (
+                <span className="task-comment">{task.comment}</span>
+              )}
             </div>
           </div>
         ))}
@@ -241,9 +244,11 @@ function TasksEditSection({
 }) {
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskOwner, setNewTaskOwner] = useState('');
+  const [newTaskComment, setNewTaskComment] = useState('');
   const [editingTask, setEditingTask] = useState(null);
   const [editName, setEditName] = useState('');
   const [editOwner, setEditOwner] = useState('');
+  const [editComment, setEditComment] = useState('');
 
   const sortedTasks = [...(tasks || [])]
     .filter(t => !t.is_deleted)
@@ -254,10 +259,12 @@ function TasksEditSection({
     try {
       await deliverablesService.createTask(deliverableId, {
         name: newTaskName.trim(),
-        owner: newTaskOwner.trim() || null
+        owner: newTaskOwner.trim() || null,
+        comment: newTaskComment.trim() || null
       });
       setNewTaskName('');
       setNewTaskOwner('');
+      setNewTaskComment('');
       onTasksChange();
     } catch (error) {
       console.error('Error adding task:', error);
@@ -269,7 +276,8 @@ function TasksEditSection({
     try {
       await deliverablesService.updateTask(taskId, {
         name: editName.trim(),
-        owner: editOwner.trim() || null
+        owner: editOwner.trim() || null,
+        comment: editComment.trim() || null
       });
       setEditingTask(null);
       onTasksChange();
@@ -302,12 +310,14 @@ function TasksEditSection({
     setEditingTask(task.id);
     setEditName(task.name);
     setEditOwner(task.owner || '');
+    setEditComment(task.comment || '');
   };
 
   const cancelEditing = () => {
     setEditingTask(null);
     setEditName('');
     setEditOwner('');
+    setEditComment('');
   };
 
   return (
@@ -339,6 +349,13 @@ function TasksEditSection({
                   placeholder="Owner (optional)"
                   className="task-input task-owner-input"
                 />
+                <input
+                  type="text"
+                  value={editComment}
+                  onChange={(e) => setEditComment(e.target.value)}
+                  placeholder="Comment or status (optional)"
+                  className="task-input task-comment-input"
+                />
                 <div className="task-edit-actions">
                   <button
                     type="button"
@@ -369,6 +386,7 @@ function TasksEditSection({
                 <div className="task-content">
                   <span className="task-name">{task.name}</span>
                   {task.owner && <span className="task-owner">{task.owner}</span>}
+                  {task.comment && <span className="task-comment">{task.comment}</span>}
                 </div>
                 {!disabled && (
                   <div className="task-actions">
@@ -413,6 +431,14 @@ function TasksEditSection({
             onChange={(e) => setNewTaskOwner(e.target.value)}
             placeholder="Owner"
             className="task-input task-owner-input"
+            onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+          />
+          <input
+            type="text"
+            value={newTaskComment}
+            onChange={(e) => setNewTaskComment(e.target.value)}
+            placeholder="Comment/status"
+            className="task-input task-comment-input"
             onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
           />
           <button

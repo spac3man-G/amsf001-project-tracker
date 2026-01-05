@@ -364,6 +364,7 @@ export class DeliverablesService extends BaseService {
           deliverable_id: deliverableId,
           name: task.name,
           owner: task.owner || null,
+          comment: task.comment || null,
           is_complete: task.is_complete || false,
           sort_order: nextOrder,
           created_by: userId
@@ -389,6 +390,7 @@ export class DeliverablesService extends BaseService {
         .update({
           name: updates.name,
           owner: updates.owner,
+          comment: updates.comment,
           is_complete: updates.is_complete,
           updated_at: new Date().toISOString()
         })
