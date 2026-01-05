@@ -118,9 +118,13 @@ export default function EvaluatorDashboard() {
     }
   }, [evaluationId]);
 
+  // Load stats when evaluationId changes
   useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+    if (evaluationId) {
+      console.log('useEffect triggered: Loading stats for', evaluationId);
+      loadStats();
+    }
+  }, [evaluationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (evaluationLoading) {
     return <LoadingSpinner message="Loading evaluation..." fullPage />;
