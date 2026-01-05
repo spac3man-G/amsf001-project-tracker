@@ -2270,6 +2270,7 @@ export default function Planning() {
                 </th>
                 <th className="plan-col-grip"></th>
                 <th className="plan-col-wbs">#</th>
+                <th className="plan-col-indicators"></th>
                 <th className="plan-col-name">Task Name</th>
                 <th className="plan-col-type">Type</th>
                 <th className="plan-col-start">Start</th>
@@ -2284,11 +2285,11 @@ export default function Planning() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="12" className="plan-loading">Loading...</td>
+                  <td colSpan="13" className="plan-loading">Loading...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan="12" className="plan-empty-row">
+                  <td colSpan="13" className="plan-empty-row">
                     <p>No items yet. Click "Add Milestone" to start building your plan.</p>
                   </td>
                 </tr>
@@ -2323,6 +2324,11 @@ export default function Planning() {
                     </td>
                     <td className="plan-cell plan-cell-wbs">
                       {item.wbs || index + 1}
+                    </td>
+                    <td className="plan-cell plan-cell-indicators">
+                      <PlanItemIndicators 
+                        item={planningIntegration.enrichedItems.find(i => i.id === item.id) || item}
+                      />
                     </td>
                     {renderCell(item, 'name', index)}
                     {renderCell(item, 'item_type', index)}

@@ -314,6 +314,17 @@
    Visual Indicators for Published/Locked Items
    ========================================================================== */
 
+/* Indicators Column */
+.plan-col-indicators {
+  width: 50px;
+  min-width: 50px;
+}
+
+.plan-cell-indicators {
+  width: 50px;
+  padding: 4px !important;
+}
+
 .planning-row-indicators {
   display: flex;
   gap: 4px;
