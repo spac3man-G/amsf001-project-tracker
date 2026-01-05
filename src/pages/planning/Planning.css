@@ -1718,3 +1718,23 @@ thead .plan-col-checkbox {
     transform: translateY(0);
   }
 }
+
+
+/* Predecessor validation error */
+.predecessor-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin-top: 16px;
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.predecessor-error svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Plus, Trash2, Link2 } from 'lucide-react';
+import { X, Plus, Trash2, Link2, AlertTriangle } from 'lucide-react';
 
 const DEPENDENCY_TYPES = [
   { value: 'FS', label: 'Finish-to-Start', description: 'Task starts when predecessor finishes' },
@@ -47,6 +47,91 @@ export default function PredecessorEditModal({ item, items, onClose, onSave }) {
     );
   }, [items, item.id]);
 
+  // Circular dependency detection
+  const [validationError, setValidationError] = useState(null);
+
+  // Check if adding predecessorId would create a circular dependency
+  const wouldCreateCycle = useMemo(() => {
+    // Build a dependency graph including current predecessors
+    const buildDependencyGraph = () => {
+      const graph = new Map();
+      
+      // Add all existing dependencies from all items
+      items.forEach(i => {
+        if (i.predecessors && i.predecessors.length > 0) {
+          // For each item, its predecessors point TO it (predecessor -> item)
+          i.predecessors.forEach(p => {
+            if (!graph.has(p.id)) graph.set(p.id, new Set());
+            graph.get(p.id).add(i.id);
+          });
+        }
+      });
+      
+      // Remove current item's existing predecessors (we're replacing them)
+      items.forEach(i => {
+        if (i.predecessors) {
+          i.predecessors.forEach(p => {
+            if (graph.has(p.id)) {
+              graph.get(p.id).delete(item.id);
+            }
+          });
+        }
+      });
+      
+      // Add new predecessors we're setting
+      predecessors.forEach(p => {
+        if (!graph.has(p.id)) graph.set(p.id, new Set());
+        graph.get(p.id).add(item.id);
+      });
+      
+      return graph;
+    };
+
+    // DFS to detect cycle
+    const hasCycle = (graph, startId) => {
+      const visited = new Set();
+      const recursionStack = new Set();
+      
+      const dfs = (nodeId) => {
+        visited.add(nodeId);
+        recursionStack.add(nodeId);
+        
+        const neighbors = graph.get(nodeId) || new Set();
+        for (const neighbor of neighbors) {
+          if (!visited.has(neighbor)) {
+            if (dfs(neighbor)) return true;
+          } else if (recursionStack.has(neighbor)) {
+            return true; // Found a cycle
+          }
+        }
+        
+        recursionStack.delete(nodeId);
+        return false;
+      };
+      
+      return dfs(startId);
+    };
+
+    // Check each predecessor
+    const graph = buildDependencyGraph();
+    
+    for (const pred of predecessors) {
+      // Check if there's a path from item back to predecessor
+      // This would mean: pred -> item -> ... -> pred (cycle)
+      if (hasCycle(graph, pred.id)) {
+        const predItem = items.find(i => i.id === pred.id);
+        return `Adding "${predItem?.name || 'this item'}" as a predecessor would create a circular dependency.`;
+      }
+    }
+    
+    return null;
+  }, [items, item.id, predecessors]);
+
+  // Update validation error when cycle detection changes
+  useEffect(() => {
+    setValidationError(wouldCreateCycle);
+  }, [wouldCreateCycle]);
+
   // Handle adding a new predecessor
   const handleAddPredecessor = () => {
     // Find first available item not already selected
@@ -72,6 +157,11 @@ export default function PredecessorEditModal({ item, items, onClose, onSave }) {
 
   // Handle save
   const handleSave = () => {
+    // Check for circular dependencies
+    if (validationError) {
+      return; // Don't save if there's a validation error
+    }
+    
     // Filter out any invalid predecessors
     const validPredecessors = predecessors.filter(p => 
       p.id && availableItems.some(i => i.id === p.id)
@@ -184,6 +274,14 @@ export default function PredecessorEditModal({ item, items, onClose, onSave }) {
               </div>
             )}
           </div>
+
+          {/* Validation Error */}
+          {validationError && (
+            <div className="predecessor-error">
+              <AlertTriangle size={16} />
+              <span>{validationError}</span>
+            </div>
+          )}
 
           <div className="predecessor-help">
             <h4>Dependency Types</h4>
