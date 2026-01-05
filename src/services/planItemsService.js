@@ -4,10 +4,84 @@ import { supabase } from '../lib/supabase';
  * Plan Items Service
  * Handles CRUD operations for project planning items
  * 
- * @version 3.0 - Added hierarchy management (MS Project-style)
- * @updated 29 December 2025
+ * @version 3.1 - Added whitelist filtering for database operations
+ * @updated 5 January 2026
  * @phase 1 - Hierarchy & WBS Foundation
  */
+
+// =============================================================================
+// DATABASE COLUMN WHITELIST
+// =============================================================================
+// This whitelist defines valid columns for the plan_items table.
+// Used to filter out computed/client-only fields before database operations.
+// 
+// IMPORTANT: Update this list when adding new columns to plan_items table.
+// =============================================================================
+
+/**
+ * Valid database columns for plan_items table.
+ * Excludes: id (auto-generated), created_at, updated_at, is_deleted (managed by DB)
+ * 
+ * @see Migration: 202512291000_planning_hierarchy_enhancements.sql
+ */
+const PLAN_ITEMS_DB_COLUMNS = [
+  // Core fields
+  'project_id',
+  'parent_id',
+  'name',
+  'item_type',
+  'description',
+  'status',
+  'progress',
+  'start_date',
+  'end_date',
+  'duration_days',
+  'indent_level',
+  'sort_order',
+  'wbs',
+  'estimate_component_id',
+  
+  // Hierarchy & UI state
+  'is_collapsed',
+  'predecessors',
+  
+  // Publishing
+  'is_published',
+  'published_milestone_id',
+  'published_deliverable_id',
+  
+  // Scheduling
+  'scheduling_mode',
+  'constraint_type',
+  'constraint_date',
+  
+  // Audit (typically set by triggers, but include for completeness)
+  'created_by',
+  'updated_by'
+];
+
+/**
+ * Filter an item object to only include valid database columns.
+ * Removes computed fields, joined data, and unknown properties.
+ * 
+ * Computed fields that are excluded:
+ * - children_count (calculated from parent_id relationships)
+ * - estimate_id, estimate_name, estimate_status (from joined estimate)
+ * - estimate_component_name, estimate_cost, estimate_days, estimate_quantity (from joined component)
+ * - children (tree structure array)
+ * 
+ * @param {Object} item - Item object (may contain computed fields)
+ * @returns {Object} - Object with only valid database columns
+ */
+function filterToDbColumns(item) {
+  const filtered = {};
+  for (const col of PLAN_ITEMS_DB_COLUMNS) {
+    if (Object.prototype.hasOwnProperty.call(item, col) && item[col] !== undefined) {
+      filtered[col] = item[col];
+    }
+  }
+  return filtered;
+}
 
 // =============================================================================
 // HIERARCHY RULES (Strict Enforcement)
@@ -184,16 +258,20 @@ export const planItemsService = {
 
   /**
    * Create a new plan item with hierarchy validation
+   * Filters input to valid database columns only
    */
   async create(item) {
+    // Filter to valid database columns only (removes computed fields like children_count)
+    const dbItem = filterToDbColumns(item);
+    
     // Validate hierarchy if parent specified
-    if (item.parent_id) {
-      const parent = await this.getById(item.parent_id);
+    if (dbItem.parent_id) {
+      const parent = await this.getById(dbItem.parent_id);
       if (!parent) throw new Error('Parent item not found');
-      if (!isValidParent(item.item_type, parent.item_type)) {
-        throw new Error(`Cannot place ${item.item_type} under ${parent.item_type}`);
+      if (!isValidParent(dbItem.item_type, parent.item_type)) {
+        throw new Error(`Cannot place ${dbItem.item_type} under ${parent.item_type}`);
       }
-    } else if (item.item_type !== 'milestone') {
+    } else if (dbItem.item_type !== 'milestone') {
       throw new Error('Only milestones can be at root level');
     }
 
@@ -201,7 +279,7 @@ export const planItemsService = {
     const { data: maxOrder } = await supabase
       .from('plan_items')
       .select('sort_order')
-      .eq('project_id', item.project_id)
+      .eq('project_id', dbItem.project_id)
       .eq('is_deleted', false)
       .order('sort_order', { ascending: false })
       .limit(1)
@@ -210,8 +288,8 @@ export const planItemsService = {
     const { data, error } = await supabase
       .from('plan_items')
       .insert({
-        ...item,
-        sort_order: item.sort_order ?? (maxOrder?.sort_order || 0) + 1
+        ...dbItem,
+        sort_order: dbItem.sort_order ?? (maxOrder?.sort_order || 0) + 1
       })
       .select()
       .single();
@@ -219,7 +297,7 @@ export const planItemsService = {
     if (error) throw error;
     
     // Recalculate WBS
-    await this.recalculateWBS(item.project_id);
+    await this.recalculateWBS(dbItem.project_id);
     
     return data;
   },
@@ -240,11 +318,21 @@ export const planItemsService = {
 
   /**
    * Update a plan item
+   * Filters updates to valid database columns only
    */
   async update(id, updates) {
+    // Filter to valid database columns only
+    const dbUpdates = filterToDbColumns(updates);
+    
+    // Don't update if no valid fields
+    if (Object.keys(dbUpdates).length === 0) {
+      console.warn('update() called with no valid database columns');
+      return await this.getById(id);
+    }
+    
     const { data, error } = await supabase
       .from('plan_items')
-      .update(updates)
+      .update(dbUpdates)
       .eq('id', id)
       .select()
       .single();
@@ -666,6 +754,7 @@ export const planItemsService = {
 
   /**
    * Create multiple plan items from a hierarchical structure (AI generation)
+   * Filters all items to valid database columns only
    */
   async createBatch(projectId, structure, startDate = null) {
     const results = [];
@@ -735,22 +824,25 @@ export const planItemsService = {
       const itemEndDate = item.duration_days ? addWorkdays(itemStartDate, item.duration_days) : null;
       const parentId = item.parentTempId ? idMap[item.parentTempId] : null;
       
+      // Filter to valid database columns only
+      const insertData = filterToDbColumns({
+        project_id: projectId,
+        parent_id: parentId,
+        item_type: item.item_type,
+        name: item.name,
+        description: item.description,
+        start_date: itemStartDate.toISOString().split('T')[0],
+        end_date: itemEndDate?.toISOString().split('T')[0] || null,
+        duration_days: item.duration_days,
+        indent_level: item.indent_level,
+        sort_order: sortOrder,
+        status: 'not_started',
+        progress: 0
+      });
+      
       const { data, error } = await supabase
         .from('plan_items')
-        .insert({
-          project_id: projectId,
-          parent_id: parentId,
-          item_type: item.item_type,
-          name: item.name,
-          description: item.description,
-          start_date: itemStartDate.toISOString().split('T')[0],
-          end_date: itemEndDate?.toISOString().split('T')[0] || null,
-          duration_days: item.duration_days,
-          indent_level: item.indent_level,
-          sort_order: sortOrder,
-          status: 'not_started',
-          progress: 0
-        })
+        .insert(insertData)
         .select()
         .single();
       
@@ -772,6 +864,8 @@ export const planItemsService = {
   /**
    * Create multiple plan items from a flat, pre-prepared array
    * Used for paste operations where items already have correct structure
+   * Filters all items to valid database columns only
+   * 
    * Items should have: id (new UUID), parent_id (mapped), item_type, name, etc.
    */
   async createBatchFlat(projectId, items) {
@@ -788,7 +882,8 @@ export const planItemsService = {
         parentId = idMap.get(parentId);
       }
       
-      const insertData = {
+      // Filter to valid database columns only (removes computed fields like children_count)
+      const insertData = filterToDbColumns({
         project_id: projectId,
         parent_id: parentId,
         item_type: item.item_type,
@@ -800,8 +895,9 @@ export const planItemsService = {
         indent_level: item.indent_level || 0,
         sort_order: item.sort_order || 0,
         status: item.status || 'not_started',
-        progress: item.progress || 0
-      };
+        progress: item.progress || 0,
+        predecessors: item.predecessors || []
+      });
       
       const { data, error } = await supabase
         .from('plan_items')
@@ -861,12 +957,15 @@ export const planItemsService = {
 
   /**
    * Get all plan items with flattened estimate data
+   * NOTE: This adds computed fields that are NOT database columns.
+   * Use filterToDbColumns() before any insert/update operations.
    */
   async getAllWithEstimates(projectId) {
     const items = await this.getAll(projectId);
     
     return items.map(item => ({
       ...item,
+      // These are COMPUTED fields - not in database
       estimate_id: item.estimate_component?.estimate?.id || null,
       estimate_name: item.estimate_component?.estimate?.name || null,
       estimate_status: item.estimate_component?.estimate?.status || null,
@@ -905,4 +1004,9 @@ export const planItemsService = {
   }
 };
 
-export default planItemsService;
+// Export the service and utilities for external use
+export { 
+  planItemsService as default,
+  PLAN_ITEMS_DB_COLUMNS,
+  filterToDbColumns
+};
