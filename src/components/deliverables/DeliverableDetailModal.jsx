@@ -776,15 +776,16 @@ export default function DeliverableDetailModal({
 
   // Task handlers
   async function handleToggleTaskComplete(taskId, isComplete) {
+    console.log('handleToggleTaskComplete called:', { taskId, isComplete });
+    
     // Optimistic update - update UI immediately
     setLocalTasks(prev => prev.map(task => 
       task.id === taskId ? { ...task, is_complete: isComplete } : task
     ));
     
     try {
-      await deliverablesService.toggleTaskComplete(taskId, isComplete);
-      // Don't call onSave - it would trigger a refresh that overwrites our optimistic update
-      // The API call persists the change, and localTasks already shows the correct state
+      const result = await deliverablesService.toggleTaskComplete(taskId, isComplete);
+      console.log('Toggle succeeded:', result);
     } catch (error) {
       console.error('Error toggling task:', error);
       // Revert on error
