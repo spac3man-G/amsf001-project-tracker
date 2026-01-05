@@ -1,3 +1,0 @@
-Test deployment file
-Created: 2026-01-05 10:50 UTC
-Purpose: Verify Git -> GitHub -> Vercel pipeline is working
