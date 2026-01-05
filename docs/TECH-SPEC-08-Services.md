@@ -2300,6 +2300,92 @@ async calculateWBS(projectId) {
 
 ---
 
+### 15.1.1 Plan Commit Service
+
+> **Added:** 5 January 2026
+
+**File:** `src/services/planCommitService.js`
+
+**Purpose:** Manages the commit workflow from Planning tool to Milestone Tracker, including baseline protection and variation creation.
+
+**Dependencies:**
+- Supabase client
+- milestonesService
+- deliverablesService
+- variationsService
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `commitPlan` | projectId, userId | Object | Commits unpublished plan items to Tracker |
+| `detectBaselineChanges` | projectId | Array | Finds changes affecting locked baselines |
+| `getPublishedItems` | projectId | Array | Gets all published items with linked records |
+| `getMilestoneForItem` | item | Object/null | Gets linked milestone (checks baseline lock) |
+| `validatePlanForCommit` | items | Object | Validates plan before commit |
+| `getCommitSummary` | items | Object | Calculates commit statistics |
+
+#### Helper Functions
+
+| Function | Parameters | Returns | Description |
+|----------|------------|---------|-------------|
+| `mapPlanStatusToTracker` | planStatus | String | Maps plan_items status to milestone status |
+| `mapTrackerStatusToPlan` | trackerStatus | String | Maps milestone status to plan_items status |
+
+#### Status Mapping
+
+```javascript
+// plan_items (lowercase) → milestones (Title Case)
+const STATUS_MAP = {
+  'not_started': 'Not Started',
+  'in_progress': 'In Progress',
+  'completed': 'Completed',
+  'on_hold': 'At Risk',
+  'cancelled': 'Cancelled'
+};
+```
+
+#### Commit Plan Method
+
+```javascript
+async commitPlan(projectId, userId) {
+  // 1. Get unpublished milestones and deliverables
+  const unpublished = await this.getUnpublishedItems(projectId);
+  
+  // 2. For each milestone: create in milestones table
+  // 3. For each deliverable: create in deliverables table (with parent milestone)
+  // 4. Update plan_items with published_milestone_id/published_deliverable_id
+  // 5. Set is_published = true, published_at = now()
+  
+  return { 
+    milestones: [...], 
+    deliverables: [...], 
+    count: n 
+  };
+}
+```
+
+#### Baseline Change Detection
+
+```javascript
+async detectBaselineChanges(projectId) {
+  // 1. Get published plan_items that may have been modified
+  // 2. Check if linked milestone has baseline_locked = true
+  // 3. Compare current values with baseline values
+  // 4. Return array of changes needing variations
+  
+  return [{
+    planItemId,
+    milestoneId,
+    field,        // 'start_date', 'end_date', 'cost', etc.
+    oldValue,
+    newValue
+  }];
+}
+```
+
+---
+
 ### 15.2 Estimates Service
 
 **File:** `src/services/estimates.service.js`

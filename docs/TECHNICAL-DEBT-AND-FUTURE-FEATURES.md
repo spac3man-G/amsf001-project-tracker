@@ -1,9 +1,16 @@
 # Technical Debt and Future Features
 
-**Version:** 1.4  
+**Version:** 1.5  
 **Created:** 2025-12-16  
-**Last Updated:** 2025-12-29  
+**Last Updated:** 2026-01-05  
 **Purpose:** Track technical debt items and planned future features for prioritisation
+
+> **Version 1.6 Updates (5 January 2026):**
+> - Added COMPLETE-003: Planner-Tracker Integration
+> - Partial implementation of FF-004 concepts (commit workflow instead of unified model)
+> - New service: planCommitService.js
+> - New hook: usePlanningIntegration
+> - Database migration for project_plans table
 
 > **Version 1.5 Updates (30 December 2025):**
 > - **ALL DEFERRED:** FF-016, FF-018, and FF-019 work deferred
@@ -1042,6 +1049,73 @@ Low (1-2 hours)
 ## Completed Items
 
 Items that have been resolved and can be archived for reference.
+
+### COMPLETE-003: Planner-Tracker Integration
+
+**Completed:** 5 January 2026  
+**Original Priority:** High  
+**Effort:** 1 day  
+**Related Features:** Partial implementation of FF-004 concepts
+
+#### Summary
+
+Implemented integration between Planning tool and Milestone Tracker with baseline protection workflow. This allows users to commit plan items to the Tracker as milestones/deliverables, and protects baselined milestones from direct modification (requiring variations for changes).
+
+#### Implementation Details
+
+**New Service:**
+- `planCommitService.js` - Commits plan items, detects baseline changes, manages publishing
+
+**New Hook:**
+- `usePlanningIntegration` - React hook for baseline protection, commit logic, variation creation
+
+**New Components:**
+- `BaselineProtectionModal` - Modal for editing baseline-protected fields
+- `CommitToTrackerButton` - Toolbar button showing uncommitted count
+- `PlanItemIndicators` - Visual status indicators (✓ published, 🔒 locked)
+- `PendingChangesBanner` - Banner for queued baseline changes
+- `SyncStatusFooter` - Footer with commit stats
+
+**Database Migration:**
+- Added `published_at` column to `plan_items`
+- Created `project_plans` table
+- Added performance indexes
+
+#### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| One-click commit | Commit all unpublished milestones/deliverables to Tracker |
+| Baseline protection | Protected fields (dates, cost) cannot be directly edited on locked milestones |
+| Variation workflow | Modal prompts variation creation when editing baselined fields |
+| Visual indicators | Table rows show published (✓) and locked (🔒) status |
+| Status mapping | Automatic translation between plan_items and milestone status values |
+
+#### Protected Baseline Fields
+- `start_date`, `end_date`, `duration`, `cost`, `billable`
+
+#### Permissions
+- Commit to Tracker: `admin`, `supplier_pm`
+- Create variations: `admin`, `supplier_pm`
+
+#### Relationship to FF-004/FF-005
+
+This implementation takes a different approach than the superseded FF-018 "Unified Project Structure Model":
+- **This implementation:** Creates separate records in `milestones`/`deliverables` tables from `plan_items`, maintaining links
+- **FF-018 approach:** Would have unified all records in a single table with different views
+
+The current approach preserves the existing milestone/deliverable architecture while adding integration capabilities.
+
+#### Related Files
+
+- Service: `src/services/planCommitService.js`
+- Hook: `src/hooks/usePlanningIntegration.js`
+- Components: `src/pages/planning/BaselineProtectionModal.jsx`, `PlanningIntegrationUI.jsx`
+- Styles: `src/pages/planning/PlanningIntegration.css`
+- Migration: `supabase/migrations/202601051000_planner_tracker_integration.sql`
+- Spec: `PLANNER-TRACKER-INTEGRATION-SPEC.md`
+
+---
 
 ### COMPLETE-002: TD-001 Entity Permission Hook Consolidation
 

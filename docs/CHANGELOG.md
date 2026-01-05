@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.12] - 2026-01-05
+
+### Added
+
+#### Planner-Tracker Integration
+Implemented integration between the Planning tool and Milestone Tracker with baseline protection.
+
+**New Service:**
+- `planCommitService.js` - Commits plan items to Tracker, detects baseline changes, manages published items
+
+**New Hook:**
+- `usePlanningIntegration` - React hook providing baseline protection, commit logic, and variation creation
+
+**New Components:**
+- `BaselineProtectionModal` - Modal for editing baseline-protected fields (shows impact, offers variation creation)
+- `CommitToTrackerButton` - Toolbar button showing uncommitted count
+- `PlanItemIndicators` - Visual indicators (✓ published, 🔒 locked) for table rows
+- `PendingChangesBanner` - Banner for queued baseline changes
+- `SyncStatusFooter` - Footer showing commit stats and sync status
+
+**Database Migration:**
+- Added `published_at` column to `plan_items`
+- Created `project_plans` table for tracking plan versions
+- Added indexes for efficient published item queries
+
+**Features:**
+- Commit milestones/deliverables from Planning to Tracker with one click
+- Baseline protection prevents direct edits to locked milestone fields
+- Automatic variation creation workflow when modifying baselined items
+- Visual indicators show published and locked status per row
+- Status mapping between plan_items (lowercase) and milestones (Title Case)
+
+**Protected Baseline Fields:**
+- `start_date`, `end_date`, `duration`, `cost`, `billable`
+
+**Permissions:**
+- Only `admin` and `supplier_pm` roles can commit plans and create variations
+
+---
+
 ## [0.9.11] - 2025-12-28
 
 ### Changed
