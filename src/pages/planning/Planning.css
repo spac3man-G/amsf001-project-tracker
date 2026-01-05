@@ -1738,3 +1738,22 @@ thead .plan-col-checkbox {
   flex-shrink: 0;
   margin-top: 2px;
 }
+
+
+/* Auto Schedule Button */
+.plan-btn-schedule {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+}
+
+.plan-btn-schedule:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+}
+
+.plan-btn-schedule:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+}

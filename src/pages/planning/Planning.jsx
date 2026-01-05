@@ -18,6 +18,7 @@ import PredecessorEditModal from './PredecessorEditModal';
 import { EstimateLinkModal, EstimateGeneratorModal } from '../../components/planning';
 import planningClipboard from '../../lib/planningClipboard';
 import planningHistory from '../../lib/planningHistory';
+import { autoScheduleItems } from '../../lib/planningScheduler';
 import './Planning.css';
 
 const ITEM_TYPES = [
@@ -640,6 +641,38 @@ export default function Planning() {
     
     selectedIds.forEach(id => collectDescendants(id));
     return result;
+  }
+
+  // ===========================================================================
+  // AUTO-SCHEDULE HANDLER
+  // ===========================================================================
+
+  // Auto-schedule all items based on their dependencies
+  async function handleAutoSchedule() {
+    try {
+      // Get schedule updates
+      const updates = autoScheduleItems(items);
+      
+      if (updates.length === 0) {
+        showSuccess('No schedule changes needed');
+        return;
+      }
+      
+      // Apply updates to database
+      for (const update of updates) {
+        await planItemsService.update(update.id, {
+          start_date: update.start_date,
+          end_date: update.end_date
+        });
+      }
+      
+      // Refresh items
+      await fetchItems();
+      showSuccess(`Updated ${updates.length} item${updates.length > 1 ? 's' : ''}`);
+    } catch (error) {
+      console.error('Auto-schedule error:', error);
+      showError('Failed to auto-schedule items');
+    }
   }
 
   // ===========================================================================
@@ -1786,6 +1819,15 @@ export default function Planning() {
           >
             <FileSpreadsheet size={16} />
             Generate Estimate
+          </button>
+          <button 
+            onClick={handleAutoSchedule} 
+            className="plan-btn plan-btn-schedule"
+            title="Auto-schedule based on dependencies"
+            disabled={items.length === 0}
+          >
+            <Clock size={16} />
+            Auto Schedule
           </button>
           <button 
             onClick={() => setShowAIPanel(true)} 
