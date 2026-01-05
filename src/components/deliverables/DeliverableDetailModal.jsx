@@ -783,10 +783,8 @@ export default function DeliverableDetailModal({
     
     try {
       await deliverablesService.toggleTaskComplete(taskId, isComplete);
-      // Background sync - no need to wait for this
-      if (onSave) {
-        onSave(deliverable.id, {}); // Sync parent data
-      }
+      // Don't call onSave - it would trigger a refresh that overwrites our optimistic update
+      // The API call persists the change, and localTasks already shows the correct state
     } catch (error) {
       console.error('Error toggling task:', error);
       // Revert on error
