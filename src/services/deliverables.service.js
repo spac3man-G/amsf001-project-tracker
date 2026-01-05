@@ -408,62 +408,8 @@ export class DeliverablesService extends BaseService {
    * Toggle task completion status
    */
   async toggleTaskComplete(taskId, isComplete) {
-    console.log('=== DEBUG: toggleTaskComplete START ===');
-    console.log('taskId:', taskId);
-    console.log('isComplete:', isComplete);
-    
     try {
-      // Check authentication state
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('Session check:', {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        email: session?.user?.email,
-        sessionError: sessionError?.message
-      });
-      
-      if (!session) {
-        console.error('DEBUG: No active session - user not authenticated');
-        throw new Error('Not authenticated');
-      }
-      
-      // First, let's verify the task exists and we can read it
-      const { data: existingTask, error: readError } = await supabase
-        .from('deliverable_tasks')
-        .select('*, deliverables(id, project_id)')
-        .eq('id', taskId)
-        .single();
-      
-      console.log('Existing task read:', {
-        found: !!existingTask,
-        taskName: existingTask?.name,
-        currentIsComplete: existingTask?.is_complete,
-        deliverableId: existingTask?.deliverable_id,
-        projectId: existingTask?.deliverables?.project_id,
-        readError: readError?.message
-      });
-      
-      if (readError) {
-        console.error('DEBUG: Failed to read task:', readError);
-        throw readError;
-      }
-      
-      // Check user's role in the project
-      const { data: userProjectRole, error: roleError } = await supabase
-        .from('user_projects')
-        .select('role')
-        .eq('project_id', existingTask?.deliverables?.project_id)
-        .eq('user_id', session.user.id)
-        .single();
-      
-      console.log('User project role:', {
-        role: userProjectRole?.role,
-        roleError: roleError?.message
-      });
-      
-      // Now attempt the update
-      console.log('Attempting update...');
-      const { data, error, status, statusText } = await supabase
+      const { data, error } = await supabase
         .from('deliverable_tasks')
         .update({ 
           is_complete: isComplete,
@@ -473,37 +419,7 @@ export class DeliverablesService extends BaseService {
         .select()
         .single();
       
-      console.log('Update result:', {
-        success: !error,
-        data: data,
-        status: status,
-        statusText: statusText,
-        errorMessage: error?.message,
-        errorCode: error?.code,
-        errorDetails: error?.details,
-        errorHint: error?.hint
-      });
-      
-      if (error) {
-        console.error('DEBUG: Update failed with error:', error);
-        throw error;
-      }
-      
-      // Verify the update actually persisted by re-reading
-      const { data: verifyTask, error: verifyError } = await supabase
-        .from('deliverable_tasks')
-        .select('is_complete')
-        .eq('id', taskId)
-        .single();
-      
-      console.log('Verification read:', {
-        expectedIsComplete: isComplete,
-        actualIsComplete: verifyTask?.is_complete,
-        matches: verifyTask?.is_complete === isComplete,
-        verifyError: verifyError?.message
-      });
-      
-      console.log('=== DEBUG: toggleTaskComplete END ===');
+      if (error) throw error;
       return data;
     } catch (error) {
       console.error('DeliverablesService toggleTaskComplete error:', error);

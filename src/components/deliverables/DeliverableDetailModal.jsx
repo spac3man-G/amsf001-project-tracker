@@ -693,8 +693,15 @@ export default function DeliverableDetailModal({
       setAssessmentKPIs(deliverable.deliverable_kpis || []);
       setAssessmentQS(deliverable.deliverable_quality_standards || []);
       
-      // Sync local tasks state
-      setLocalTasks(deliverable.deliverable_tasks || []);
+      // Always fetch fresh tasks from server when modal opens
+      // This ensures we have the latest task completion state
+      deliverablesService.getTasksForDeliverable(deliverable.id)
+        .then(tasks => setLocalTasks(tasks))
+        .catch(err => {
+          console.error('Error fetching tasks:', err);
+          // Fallback to prop data if fetch fails
+          setLocalTasks(deliverable.deliverable_tasks || []);
+        });
     }
   }, [deliverable]);
 
@@ -776,35 +783,22 @@ export default function DeliverableDetailModal({
 
   // Task handlers
   async function handleToggleTaskComplete(taskId, isComplete) {
-    console.log('=== Modal: handleToggleTaskComplete START ===');
-    console.log('taskId:', taskId);
-    console.log('isComplete:', isComplete);
-    
     // Optimistic update - update UI immediately
     setLocalTasks(prev => prev.map(task => 
       task.id === taskId ? { ...task, is_complete: isComplete } : task
     ));
     
     try {
-      const result = await deliverablesService.toggleTaskComplete(taskId, isComplete);
-      console.log('Service call completed:', result);
-      
-      // After successful update, trigger parent refresh so data is fresh on modal reopen
-      // This happens AFTER the API call completes, so the refresh will get updated data
-      if (onSave) {
-        console.log('Triggering parent refresh...');
-        onSave(deliverable.id, {});
-      }
-      
-      console.log('=== Modal: handleToggleTaskComplete SUCCESS ===');
+      await deliverablesService.toggleTaskComplete(taskId, isComplete);
+      // Success! Local state is already updated, and database is now in sync.
+      // Don't call onSave() here - it triggers a full page refresh which is jarring.
+      // The parent will get fresh data when the modal closes or on next navigation.
     } catch (error) {
       console.error('Error toggling task:', error);
-      console.log('Reverting optimistic update...');
       // Revert on error
       setLocalTasks(prev => prev.map(task => 
         task.id === taskId ? { ...task, is_complete: !isComplete } : task
       ));
-      console.log('=== Modal: handleToggleTaskComplete ERROR ===');
     }
   }
 
