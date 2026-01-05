@@ -48,3 +48,9 @@ export {
   useDocumentRenderer,
   useCRDocument
 } from './useDocumentTemplates';
+
+// Planning Integration (Planner-Tracker)
+export {
+  usePlanningIntegration,
+  isBaselineField
+} from './usePlanningIntegration';

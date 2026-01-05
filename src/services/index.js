@@ -172,3 +172,10 @@ export {
   ESTIMATE_STATUS,
   ESTIMATE_STATUS_CONFIG
 } from './estimates.service';
+
+// Plan Commit Service (Planner-Tracker Integration)
+export {
+  planCommitService,
+  mapPlanStatusToTracker,
+  mapTrackerStatusToPlan
+} from './planCommitService';

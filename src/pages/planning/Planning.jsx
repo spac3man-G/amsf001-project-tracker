@@ -6,20 +6,30 @@ import {
   Calculator, Link2, FileSpreadsheet, List,
   ExternalLink, Copy, Download, Clock,
   Scissors, Clipboard, ClipboardPaste,
-  Undo2, Redo2, Unlink, X
+  Undo2, Redo2, Unlink, X, Upload
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import planItemsService from '../../services/planItemsService';
 import { estimatesService, ESTIMATE_STATUS } from '../../services';
+import { usePlanningIntegration } from '../../hooks';
 import PlanningAIAssistant from './PlanningAIAssistant';
 import PredecessorEditModal from './PredecessorEditModal';
+import BaselineProtectionModal from './BaselineProtectionModal';
+import { 
+  CommitToTrackerButton, 
+  PlanItemIndicators, 
+  PendingChangesBanner, 
+  SyncStatusFooter 
+} from './PlanningIntegrationUI';
 import { EstimateLinkModal, EstimateGeneratorModal } from '../../components/planning';
 import planningClipboard from '../../lib/planningClipboard';
 import planningHistory from '../../lib/planningHistory';
 import { autoScheduleItems } from '../../lib/planningScheduler';
 import './Planning.css';
+import './PlanningIntegration.css';
 
 const ITEM_TYPES = [
   { value: 'task', label: 'Task', icon: CheckSquare, color: '#64748b' },
@@ -39,8 +49,9 @@ const STATUS_OPTIONS = [
 const COLUMNS = ['name', 'item_type', 'start_date', 'end_date', 'predecessors', 'progress', 'status'];
 
 export default function Planning() {
-  const { projectId } = useProject();
-  const { showSuccess, showError } = useToast();
+  const { projectId, projectRole } = useProject();
+  const { user } = useAuth();
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +94,20 @@ export default function Planning() {
       setLoading(false);
     }
   }, [projectId, showError]);
+
+  // Planner-Tracker Integration Hook
+  const planningIntegration = usePlanningIntegration({
+    projectId,
+    user,
+    userRole: projectRole,
+    items,
+    setItems,
+    fetchItems,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo
+  });
 
   // Fetch items
   useEffect(() => {
@@ -473,6 +498,16 @@ export default function Planning() {
       console.error('Error updating item:', error);
       fetchItems();
     }
+  }
+
+  // Wrapper that checks baseline protection before updating
+  async function handleUpdateItemWithBaselineCheck(id, field, value) {
+    const actualUpdate = async () => {
+      await handleUpdateItem(id, field, value);
+    };
+    
+    // Use the integration hook's baseline check
+    await planningIntegration.handleUpdateWithBaselineCheck(id, field, value, actualUpdate);
   }
 
   async function handleDeleteItem(id) {
@@ -1601,7 +1636,13 @@ export default function Planning() {
     if (field === 'status') clearValue = 'not_started';
     if (field === 'item_type') clearValue = 'task';
     
-    handleUpdateItem(item.id, field, clearValue);
+    // Use baseline check for protected fields
+    const protectedFields = ['start_date', 'end_date', 'billable', 'cost', 'duration'];
+    if (protectedFields.includes(field)) {
+      handleUpdateItemWithBaselineCheck(item.id, field, clearValue);
+    } else {
+      handleUpdateItem(item.id, field, clearValue);
+    }
   }
 
   function commitEdit() {
@@ -1621,7 +1662,13 @@ export default function Planning() {
       value = value || null;
     }
     
-    handleUpdateItem(item.id, field, value);
+    // Use baseline check for protected fields
+    const protectedFields = ['start_date', 'end_date', 'billable', 'cost', 'duration'];
+    if (protectedFields.includes(field)) {
+      handleUpdateItemWithBaselineCheck(item.id, field, value);
+    } else {
+      handleUpdateItem(item.id, field, value);
+    }
     setEditingCell(null);
   }
 
@@ -2169,6 +2216,13 @@ export default function Planning() {
               </div>
             )}
           </div>
+          {/* Commit to Tracker Button */}
+          <CommitToTrackerButton
+            uncommittedCount={planningIntegration.uncommittedCount}
+            isCommitting={planningIntegration.isCommitting}
+            canCommit={planningIntegration.canCommitPlan}
+            onClick={planningIntegration.handleCommitToTracker}
+          />
           <button 
             onClick={() => setShowAIPanel(true)} 
             className="plan-btn plan-btn-ai"
@@ -2195,6 +2249,12 @@ export default function Planning() {
       </div>
 
       <div className="plan-content" onClick={(e) => e.stopPropagation()}>
+        {/* Pending Changes Banner for Baseline Protection */}
+        <PendingChangesBanner
+          pendingChanges={planningIntegration.pendingChanges}
+          onCreateVariation={planningIntegration.handleCreateVariationFromAllChanges}
+          onDiscardAll={planningIntegration.handleClearPendingChanges}
+        />
         <div className="plan-table-container" ref={tableRef}>
           <table className="plan-table">
             <thead>
@@ -2335,6 +2395,13 @@ export default function Planning() {
           <Plus size={16} />
           <span>Click to add a new milestone</span>
         </div>
+        
+        {/* Sync Status Footer */}
+        <SyncStatusFooter
+          commitSummary={planningIntegration.commitSummary}
+          lastSync={null}
+          isSyncing={planningIntegration.isCommitting}
+        />
       </div>
 
       {/* AI Assistant Panel */}
@@ -2389,6 +2456,18 @@ export default function Planning() {
               showError('Failed to update predecessors');
             }
           }}
+        />
+      )}
+
+      {/* Baseline Protection Modal */}
+      {planningIntegration.showBaselineModal && planningIntegration.pendingChange && (
+        <BaselineProtectionModal
+          item={items.find(i => i.id === planningIntegration.pendingChange.id)}
+          milestone={planningIntegration.baselineMilestone}
+          pendingChange={planningIntegration.pendingChange}
+          onClose={planningIntegration.handleCloseBaselineModal}
+          onCreateVariation={planningIntegration.handleCreateVariationFromChange}
+          onDiscardChanges={planningIntegration.handleDiscardChanges}
         />
       )}
 
