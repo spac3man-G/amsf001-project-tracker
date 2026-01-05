@@ -776,16 +776,13 @@ export default function DeliverableDetailModal({
 
   // Task handlers
   async function handleToggleTaskComplete(taskId, isComplete) {
-    console.log('handleToggleTaskComplete called:', { taskId, isComplete });
-    
     // Optimistic update - update UI immediately
     setLocalTasks(prev => prev.map(task => 
       task.id === taskId ? { ...task, is_complete: isComplete } : task
     ));
     
     try {
-      const result = await deliverablesService.toggleTaskComplete(taskId, isComplete);
-      console.log('Toggle succeeded:', result);
+      await deliverablesService.toggleTaskComplete(taskId, isComplete);
     } catch (error) {
       console.error('Error toggling task:', error);
       // Revert on error

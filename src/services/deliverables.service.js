@@ -409,8 +409,6 @@ export class DeliverablesService extends BaseService {
    */
   async toggleTaskComplete(taskId, isComplete) {
     try {
-      console.log('toggleTaskComplete called:', { taskId, isComplete });
-      
       const { data, error } = await supabase
         .from('deliverable_tasks')
         .update({ 
@@ -421,10 +419,7 @@ export class DeliverablesService extends BaseService {
         .select()
         .single();
       
-      console.log('toggleTaskComplete result:', { data, error });
-      
       if (error) throw error;
-      if (!data) throw new Error('No data returned - update may have been blocked by RLS');
       return data;
     } catch (error) {
       console.error('DeliverablesService toggleTaskComplete error:', error);
