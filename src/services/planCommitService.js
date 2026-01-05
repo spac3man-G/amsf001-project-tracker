@@ -61,12 +61,13 @@ class PlanCommitService {
   async commitPlan(projectId, userId) {
     console.log('[PlanCommitService] Starting commit for project:', projectId);
     
-    // 1. Get all unpublished plan items
+    // 1. Get all unpublished plan items (excluding soft-deleted)
     const { data: items, error: fetchError } = await supabase
       .from('plan_items')
       .select('*')
       .eq('project_id', projectId)
       .eq('is_published', false)
+      .eq('is_deleted', false)  // Exclude soft-deleted items
       .order('sort_order', { ascending: true });
     
     if (fetchError) {
