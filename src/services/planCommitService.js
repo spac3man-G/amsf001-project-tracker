@@ -81,11 +81,30 @@ class PlanCommitService {
     
     console.log(`[PlanCommitService] Found ${items.length} items to process`);
     
-    // 2. Validate structure
-    const validation = this.validatePlanForCommit(items);
-    if (!validation.valid) {
-      throw new Error(`Plan validation failed: ${validation.errors.join(', ')}`);
+    // 2. Filter out invalid items (instead of failing validation)
+    const { validItems, skippedItems } = this.filterValidItems(items);
+    
+    if (skippedItems.length > 0) {
+      console.log(`[PlanCommitService] Skipping ${skippedItems.length} invalid items:`, 
+        skippedItems.map(s => `${s.reason}: ${s.item.name || '(no name)'}`));
     }
+    
+    if (validItems.length === 0) {
+      console.log('[PlanCommitService] No valid items to commit after filtering');
+      return { 
+        milestones: [], 
+        deliverables: [], 
+        tasks: 0, 
+        count: 0, 
+        errors: [],
+        skipped: skippedItems.map(s => ({ name: s.item.name, reason: s.reason }))
+      };
+    }
+    
+    console.log(`[PlanCommitService] Processing ${validItems.length} valid items`);
+    
+    // Use filtered items for the rest of the process
+    const items_to_process = validItems;
     
     // 3. Process items
     const results = {
@@ -99,7 +118,7 @@ class PlanCommitService {
     const deliverableMap = {}; // planItem.id -> deliverable.id
     
     // 4. Create milestones first (item_type = 'milestone')
-    const milestoneItems = items.filter(i => i.item_type === 'milestone');
+    const milestoneItems = items_to_process.filter(i => i.item_type === 'milestone');
     console.log(`[PlanCommitService] Creating ${milestoneItems.length} milestones`);
     
     for (const item of milestoneItems) {
@@ -159,18 +178,18 @@ class PlanCommitService {
     }
     
     // 5. Create deliverables under their milestones (item_type = 'deliverable')
-    const deliverableItems = items.filter(i => i.item_type === 'deliverable');
+    const deliverableItems = items_to_process.filter(i => i.item_type === 'deliverable');
     console.log(`[PlanCommitService] Creating ${deliverableItems.length} deliverables`);
     
     for (const item of deliverableItems) {
       try {
         // Find parent milestone
-        const parentItem = items.find(i => i.id === item.parent_id);
+        const parentItem = items_to_process.find(i => i.id === item.parent_id);
         let milestoneId = milestoneMap[parentItem?.id];
         
         // If parent is also a deliverable, traverse up
         if (!milestoneId && parentItem?.item_type === 'deliverable') {
-          const grandparent = items.find(i => i.id === parentItem.parent_id);
+          const grandparent = items_to_process.find(i => i.id === parentItem.parent_id);
           milestoneId = milestoneMap[grandparent?.id];
         }
         
@@ -179,9 +198,9 @@ class PlanCommitService {
         }
         
         // Collect tasks under this deliverable
-        const taskItems = items.filter(i => 
+        const taskItems = items_to_process.filter(i => 
           i.item_type === 'task' && 
-          this.isDescendantOf(i, item.id, items)
+          this.isDescendantOf(i, item.id, items_to_process)
         );
         
         // Convert tasks to tasks_json format (checklist)
@@ -257,12 +276,14 @@ class PlanCommitService {
     
     // Calculate total count
     results.count = results.milestones.length + results.deliverables.length + results.tasks;
+    results.skipped = skippedItems.map(s => ({ name: s.item.name || '(no name)', reason: s.reason }));
     
     console.log('[PlanCommitService] Commit complete:', {
       milestones: results.milestones.length,
       deliverables: results.deliverables.length,
       tasks: results.tasks,
-      errors: results.errors.length
+      errors: results.errors.length,
+      skipped: results.skipped.length
     });
     
     return results;
@@ -449,6 +470,145 @@ class PlanCommitService {
     }
     
     return milestone;
+  }
+  
+  /**
+   * Filter out invalid items instead of failing validation
+   * Returns valid items and a list of skipped items with reasons
+   * 
+   * @param {Array} items - All plan items
+   * @returns {{validItems: Array, skippedItems: Array<{item: Object, reason: string}>}}
+   */
+  filterValidItems(items) {
+    const validItems = [];
+    const skippedItems = [];
+    
+    // Build a set of valid milestone IDs for parent checking
+    const validMilestoneIds = new Set();
+    
+    // First pass: filter milestones
+    for (const item of items) {
+      if (item.item_type === 'milestone') {
+        // Check required fields
+        if (!item.name?.trim()) {
+          skippedItems.push({ item, reason: 'Milestone has no name' });
+          continue;
+        }
+        if (!item.start_date || !item.end_date) {
+          skippedItems.push({ item, reason: 'Milestone missing start or end date' });
+          continue;
+        }
+        if (new Date(item.start_date) > new Date(item.end_date)) {
+          skippedItems.push({ item, reason: 'Milestone start date after end date' });
+          continue;
+        }
+        
+        // Valid milestone
+        validItems.push(item);
+        validMilestoneIds.add(item.id);
+      }
+    }
+    
+    // Build valid deliverable IDs for task parent checking
+    const validDeliverableIds = new Set();
+    
+    // Second pass: filter deliverables (need valid parent)
+    for (const item of items) {
+      if (item.item_type === 'deliverable') {
+        // Check required fields
+        if (!item.name?.trim()) {
+          skippedItems.push({ item, reason: 'Deliverable has no name' });
+          continue;
+        }
+        
+        // Check for valid parent
+        if (!item.parent_id) {
+          skippedItems.push({ item, reason: 'Deliverable has no parent' });
+          continue;
+        }
+        
+        // Find parent - must lead to a valid milestone
+        let hasValidAncestor = false;
+        let currentParentId = item.parent_id;
+        let iterations = 0;
+        const maxIterations = 100; // Prevent infinite loops
+        
+        while (currentParentId && iterations < maxIterations) {
+          iterations++;
+          if (validMilestoneIds.has(currentParentId)) {
+            hasValidAncestor = true;
+            break;
+          }
+          // Find the parent item
+          const parentItem = items.find(i => i.id === currentParentId);
+          currentParentId = parentItem?.parent_id;
+        }
+        
+        if (!hasValidAncestor) {
+          skippedItems.push({ item, reason: 'Deliverable not under a valid milestone' });
+          continue;
+        }
+        
+        // Valid deliverable
+        validItems.push(item);
+        validDeliverableIds.add(item.id);
+      }
+    }
+    
+    // Third pass: filter tasks (need valid deliverable parent)
+    for (const item of items) {
+      if (item.item_type === 'task') {
+        // Check required fields
+        if (!item.name?.trim()) {
+          skippedItems.push({ item, reason: 'Task has no name' });
+          continue;
+        }
+        
+        // Check for valid parent (must be under a valid deliverable)
+        if (!item.parent_id) {
+          skippedItems.push({ item, reason: 'Task has no parent' });
+          continue;
+        }
+        
+        // Find parent - must lead to a valid deliverable
+        let hasValidAncestor = false;
+        let currentParentId = item.parent_id;
+        let iterations = 0;
+        const maxIterations = 100;
+        
+        while (currentParentId && iterations < maxIterations) {
+          iterations++;
+          if (validDeliverableIds.has(currentParentId)) {
+            hasValidAncestor = true;
+            break;
+          }
+          const parentItem = items.find(i => i.id === currentParentId);
+          currentParentId = parentItem?.parent_id;
+        }
+        
+        if (!hasValidAncestor) {
+          skippedItems.push({ item, reason: 'Task not under a valid deliverable' });
+          continue;
+        }
+        
+        // Valid task
+        validItems.push(item);
+      }
+    }
+    
+    // Handle 'phase' type items - treat like milestones for structure purposes
+    for (const item of items) {
+      if (item.item_type === 'phase') {
+        if (!item.name?.trim()) {
+          skippedItems.push({ item, reason: 'Phase has no name' });
+          continue;
+        }
+        // Phases don't get committed but shouldn't break things
+        // Skip them from commit but don't mark as errors
+      }
+    }
+    
+    return { validItems, skippedItems };
   }
   
   /**

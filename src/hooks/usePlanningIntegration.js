@@ -601,20 +601,37 @@ export function usePlanningIntegration({
     try {
       const result = await planCommitService.commitPlan(projectId, user?.id);
       
+      // Build message parts
+      let message = '';
+      const skippedCount = result.skipped?.length || 0;
+      
       if (result.errors.length > 0) {
         if (showWarning) {
+          message = `Committed ${result.count} items. ${result.errors.length} failed: ${result.errors.map(e => e.item).join(', ')}`;
+          if (skippedCount > 0) {
+            message += `. ${skippedCount} invalid items skipped.`;
+          }
+          showWarning(message);
+        }
+      } else if (result.count === 0 && skippedCount > 0) {
+        if (showWarning) {
           showWarning(
-            `Committed ${result.count - result.errors.length} items. ` +
-            `${result.errors.length} failed: ${result.errors.map(e => e.item).join(', ')}`
+            `No valid items to commit. ${skippedCount} items skipped due to missing data (name, dates, or parent).`
           );
         }
       } else {
         if (showSuccess) {
-          showSuccess(
-            `Successfully committed ${result.count} items to Tracker ` +
-            `(${result.milestones.length} milestones, ${result.deliverables.length} deliverables)`
-          );
+          message = `Successfully committed ${result.count} items to Tracker (${result.milestones.length} milestones, ${result.deliverables.length} deliverables)`;
+          if (skippedCount > 0) {
+            message += `. ${skippedCount} invalid items skipped.`;
+          }
+          showSuccess(message);
         }
+      }
+      
+      // Log skipped items to console for debugging
+      if (skippedCount > 0) {
+        console.log('[usePlanningIntegration] Skipped items:', result.skipped);
       }
       
       // Refresh items to show new published status
