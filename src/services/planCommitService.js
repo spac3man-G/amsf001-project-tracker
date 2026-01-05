@@ -121,10 +121,16 @@ class PlanCommitService {
     const milestoneItems = items_to_process.filter(i => i.item_type === 'milestone');
     console.log(`[PlanCommitService] Creating ${milestoneItems.length} milestones`);
     
+    // Get next milestone ref number
+    let milestoneRefCounter = await this.getNextMilestoneRefNumber(projectId);
+    
     for (const item of milestoneItems) {
       try {
+        const milestoneRef = `M${String(milestoneRefCounter++).padStart(2, '0')}`;
+        
         const milestoneData = {
           project_id: projectId,
+          milestone_ref: milestoneRef,
           name: item.name,
           description: item.description || '',
           start_date: item.start_date,
@@ -181,6 +187,9 @@ class PlanCommitService {
     const deliverableItems = items_to_process.filter(i => i.item_type === 'deliverable');
     console.log(`[PlanCommitService] Creating ${deliverableItems.length} deliverables`);
     
+    // Get next deliverable ref number
+    let deliverableRefCounter = await this.getNextDeliverableRefNumber(projectId);
+    
     for (const item of deliverableItems) {
       try {
         // Find parent milestone
@@ -211,16 +220,17 @@ class PlanCommitService {
           order: index + 1
         }));
         
+        const deliverableRef = `D${String(deliverableRefCounter++).padStart(2, '0')}`;
+        
         const deliverableData = {
           project_id: projectId,
           milestone_id: milestoneId,
+          deliverable_ref: deliverableRef,
           name: item.name,
           description: item.description || '',
           due_date: item.end_date,
-          start_date: item.start_date,
           status: 'Not Started',
           progress: item.progress || 0,
-          tasks_json: tasksJson.length > 0 ? tasksJson : null,
           created_by: userId
         };
         
@@ -470,6 +480,86 @@ class PlanCommitService {
     }
     
     return milestone;
+  }
+  
+  /**
+   * Get the next available milestone reference number for a project
+   * 
+   * @param {string} projectId - Project UUID
+   * @returns {Promise<number>} Next milestone number (e.g., 1, 2, 3...)
+   */
+  async getNextMilestoneRefNumber(projectId) {
+    try {
+      const { data: milestones, error } = await supabase
+        .from('milestones')
+        .select('milestone_ref')
+        .eq('project_id', projectId)
+        .order('milestone_ref', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      
+      if (!milestones || milestones.length === 0) {
+        return 1;
+      }
+      
+      // Find highest number from refs like "M01", "M02", etc.
+      let maxNum = 0;
+      for (const m of milestones) {
+        if (m.milestone_ref) {
+          const match = m.milestone_ref.match(/M(\d+)/i);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        }
+      }
+      
+      return maxNum + 1;
+    } catch (error) {
+      console.error('[PlanCommitService] Error getting next milestone ref:', error);
+      return 1; // Default to 1 if error
+    }
+  }
+  
+  /**
+   * Get the next available deliverable reference number for a project
+   * 
+   * @param {string} projectId - Project UUID
+   * @returns {Promise<number>} Next deliverable number (e.g., 1, 2, 3...)
+   */
+  async getNextDeliverableRefNumber(projectId) {
+    try {
+      const { data: deliverables, error } = await supabase
+        .from('deliverables')
+        .select('deliverable_ref')
+        .eq('project_id', projectId)
+        .order('deliverable_ref', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      
+      if (!deliverables || deliverables.length === 0) {
+        return 1;
+      }
+      
+      // Find highest number from refs like "D01", "D02", etc.
+      let maxNum = 0;
+      for (const d of deliverables) {
+        if (d.deliverable_ref) {
+          const match = d.deliverable_ref.match(/D(\d+)/i);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        }
+      }
+      
+      return maxNum + 1;
+    } catch (error) {
+      console.error('[PlanCommitService] Error getting next deliverable ref:', error);
+      return 1; // Default to 1 if error
+    }
   }
   
   /**
