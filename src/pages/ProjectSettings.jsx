@@ -2,7 +2,7 @@
  * Project Settings Page - Unified tabbed interface
  * Combines: Settings, Audit Log, Deleted Items
  * 
- * @version 1.0 - Created from consolidation of Settings.jsx, AuditLog.jsx, DeletedItems.jsx
+ * @version 1.1 - Fixed missing X icon import and toFixed safety checks
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -32,7 +32,8 @@ import {
   ChevronDown,
   ChevronUp,
   Briefcase,
-  CheckSquare
+  CheckSquare,
+  X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -789,7 +790,7 @@ const DELETED_TABLE_CONFIG = {
     label: 'Expenses',
     icon: DollarSign,
     color: 'bg-green-100 text-green-700',
-    displayField: (item) => `${item.expense_ref || 'Expense'} - £${(item.amount || 0).toFixed(2)}`,
+    displayField: (item) => `${item.expense_ref || 'Expense'} - £${(parseFloat(item.amount) || 0).toFixed(2)}`,
     descriptionField: (item) => item.reason || item.category || 'No description'
   },
   resources: {
@@ -1096,6 +1097,12 @@ function DeletedItemsTab({ projectId, profile, showSuccess, showError }) {
 // RESOURCES TAB
 // ============================================================================
 
+// Helper function to safely format numbers
+const safeToFixed = (value, decimals = 0) => {
+  const num = Number(value);
+  return isNaN(num) ? '0' : num.toFixed(decimals);
+};
+
 function ResourcesTab({ projectId, showSuccess, showError }) {
   const { user } = useAuth();
   const currentUserId = user?.id || null;
@@ -1136,11 +1143,11 @@ function ResourcesTab({ projectId, showSuccess, showError }) {
     setLoading(true);
     try {
       const data = await resourcesService.getAll(projectId, { includePartner: true });
-      setResources(data);
+      setResources(data || []);
 
       const timesheets = await timesheetsService.getAllFiltered(projectId, true);
       const hoursByResource = {};
-      timesheets.forEach(ts => {
+      (timesheets || []).forEach(ts => {
         const countsTowardsCost = timesheetContributesToSpend(ts.status) && !ts.was_rejected;
         if (!countsTowardsCost) return;
         const hours = parseFloat(ts.hours_worked || ts.hours || 0);
@@ -1170,7 +1177,7 @@ function ResourcesTab({ projectId, showSuccess, showError }) {
         resourcesService.getProjectUsersWithoutResources(projectId),
         partnersService.getActive(projectId)
       ]);
-      setEligibleUsers(users);
+      setEligibleUsers(users || []);
       setPartners(partnerList || []);
     } catch (error) {
       console.error('Error fetching form data:', error);
@@ -1480,11 +1487,11 @@ function ResourcesTab({ projectId, showSuccess, showError }) {
             <tbody>
               {filteredResources.map(resource => {
                 const hours = timesheetHours[resource.id] || 0;
-                const days = hoursToDays(hours);
+                const days = Number(hoursToDays(hours)) || 0;
                 const sellRate = parseFloat(resource.sell_price) || 0;
                 const costRate = parseFloat(resource.cost_price) || 0;
-                const value = calculateSellValue(days, sellRate);
-                const margin = calculateMargin(sellRate, costRate);
+                const value = Number(calculateSellValue(days, sellRate)) || 0;
+                const margin = Number(calculateMargin(sellRate, costRate)) || 0;
                 const marginConfig = getMarginConfig(margin);
                 const typeConfig = getResourceTypeConfig(resource.resource_type);
                 
@@ -1509,16 +1516,16 @@ function ResourcesTab({ projectId, showSuccess, showError }) {
                         {sfiaToDisplay(resource.sfia_level)}
                       </span>
                     </td>
-                    <td>£{sellRate.toFixed(0)}</td>
-                    {canSeeCostPrice && <td>£{costRate.toFixed(0)}</td>}
+                    <td>£{safeToFixed(sellRate, 0)}</td>
+                    {canSeeCostPrice && <td>£{safeToFixed(costRate, 0)}</td>}
                     {canSeeMargins && (
                       <td>
                         <span className={`margin-badge ${marginConfig.className}`}>
-                          {margin.toFixed(0)}%
+                          {safeToFixed(margin, 0)}%
                         </span>
                       </td>
                     )}
-                    <td>{days.toFixed(1)}</td>
+                    <td>{safeToFixed(days, 1)}</td>
                     <td>£{value.toLocaleString()}</td>
                     <td>
                       {isAdmin && (
