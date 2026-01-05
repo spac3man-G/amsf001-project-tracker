@@ -207,7 +207,7 @@ export function useDeliverablePermissions(deliverable = null) {
     // User identity
     currentUserId,
     currentUserName,
-    userRole,
+    userRole: effectiveRole,
     
     // Role checks
     isAdmin,
