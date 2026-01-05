@@ -231,6 +231,209 @@ function TasksSection({ tasks, onToggleComplete, canEdit }) {
 }
 
 /**
+ * Tasks Edit Section Component - Full CRUD for edit mode
+ */
+function TasksEditSection({ 
+  tasks, 
+  deliverableId, 
+  onTasksChange, 
+  disabled 
+}) {
+  const [newTaskName, setNewTaskName] = useState('');
+  const [newTaskOwner, setNewTaskOwner] = useState('');
+  const [editingTask, setEditingTask] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editOwner, setEditOwner] = useState('');
+
+  const sortedTasks = [...(tasks || [])]
+    .filter(t => !t.is_deleted)
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+  const handleAddTask = async () => {
+    if (!newTaskName.trim() || disabled) return;
+    try {
+      await deliverablesService.createTask(deliverableId, {
+        name: newTaskName.trim(),
+        owner: newTaskOwner.trim() || null
+      });
+      setNewTaskName('');
+      setNewTaskOwner('');
+      onTasksChange();
+    } catch (error) {
+      console.error('Error adding task:', error);
+    }
+  };
+
+  const handleUpdateTask = async (taskId) => {
+    if (!editName.trim() || disabled) return;
+    try {
+      await deliverablesService.updateTask(taskId, {
+        name: editName.trim(),
+        owner: editOwner.trim() || null
+      });
+      setEditingTask(null);
+      onTasksChange();
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    if (disabled) return;
+    try {
+      await deliverablesService.deleteTask(taskId);
+      onTasksChange();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
+  const handleToggleComplete = async (taskId, isComplete) => {
+    if (disabled) return;
+    try {
+      await deliverablesService.toggleTaskComplete(taskId, isComplete);
+      onTasksChange();
+    } catch (error) {
+      console.error('Error toggling task:', error);
+    }
+  };
+
+  const startEditing = (task) => {
+    setEditingTask(task.id);
+    setEditName(task.name);
+    setEditOwner(task.owner || '');
+  };
+
+  const cancelEditing = () => {
+    setEditingTask(null);
+    setEditName('');
+    setEditOwner('');
+  };
+
+  return (
+    <div className="deliverable-tasks-section edit-mode">
+      <div className="section-header">
+        <CheckSquare size={14} />
+        <span>Tasks</span>
+        <span className="task-count">{sortedTasks.length} task{sortedTasks.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {/* Task List */}
+      <div className="tasks-list">
+        {sortedTasks.map(task => (
+          <div key={task.id} className={`task-item ${task.is_complete ? 'completed' : ''}`}>
+            {editingTask === task.id ? (
+              <div className="task-edit-form">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Task name"
+                  className="task-input"
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  value={editOwner}
+                  onChange={(e) => setEditOwner(e.target.value)}
+                  placeholder="Owner (optional)"
+                  className="task-input task-owner-input"
+                />
+                <div className="task-edit-actions">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={() => handleUpdateTask(task.id)}
+                    disabled={!editName.trim()}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={cancelEditing}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="checkbox"
+                  checked={task.is_complete}
+                  onChange={() => handleToggleComplete(task.id, !task.is_complete)}
+                  className="task-checkbox"
+                  disabled={disabled}
+                />
+                <div className="task-content">
+                  <span className="task-name">{task.name}</span>
+                  {task.owner && <span className="task-owner">{task.owner}</span>}
+                </div>
+                {!disabled && (
+                  <div className="task-actions">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => startEditing(task)}
+                      title="Edit task"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost btn-danger-hover"
+                      onClick={() => handleDeleteTask(task.id)}
+                      title="Delete task"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Add New Task */}
+      {!disabled && (
+        <div className="task-add-form">
+          <input
+            type="text"
+            value={newTaskName}
+            onChange={(e) => setNewTaskName(e.target.value)}
+            placeholder="Add a task..."
+            className="task-input"
+            onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+          />
+          <input
+            type="text"
+            value={newTaskOwner}
+            onChange={(e) => setNewTaskOwner(e.target.value)}
+            placeholder="Owner"
+            className="task-input task-owner-input"
+            onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+          />
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            onClick={handleAddTask}
+            disabled={!newTaskName.trim()}
+          >
+            <Plus size={14} /> Add
+          </button>
+        </div>
+      )}
+
+      {disabled && (
+        <span className="hint">Only Supplier PM can edit tasks</span>
+      )}
+    </div>
+  );
+}
+
+/**
  * Assessment Item Component - for KPI/QS assessment during sign-off
  */
 function AssessmentItem({ item, itemRef, itemName, type, assessment, onAssess, onRemove }) {
@@ -578,6 +781,13 @@ export default function DeliverableDetailModal({
     }
   }
 
+  function handleTasksChange() {
+    // Trigger refresh of deliverable data to reload tasks
+    if (onSave) {
+      onSave(deliverable.id, {}); // Empty update to trigger refresh
+    }
+  }
+
   // Handlers
   async function handleSave() {
     setSaving(true);
@@ -795,6 +1005,14 @@ export default function DeliverableDetailModal({
                 qualityStandards={qualityStandards}
                 selectedIds={editForm.qs_ids}
                 onChange={(ids) => setEditForm({ ...editForm, qs_ids: ids })}
+                disabled={!canEditLinks}
+              />
+
+              {/* Tasks - Supplier PM only */}
+              <TasksEditSection
+                tasks={deliverable.deliverable_tasks || []}
+                deliverableId={deliverable.id}
+                onTasksChange={handleTasksChange}
                 disabled={!canEditLinks}
               />
             </div>

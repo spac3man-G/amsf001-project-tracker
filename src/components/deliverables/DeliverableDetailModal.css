@@ -979,3 +979,88 @@
   font-size: 0.875rem;
   font-style: italic;
 }
+
+
+/* Tasks Edit Mode */
+.deliverable-tasks-section.edit-mode {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.deliverable-tasks-section.edit-mode .section-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.task-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.task-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease;
+}
+
+.task-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.task-owner-input {
+  max-width: 150px;
+}
+
+.task-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.task-actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.task-item:hover .task-actions {
+  opacity: 1;
+}
+
+.task-actions .btn-danger-hover:hover {
+  color: #dc2626;
+}
+
+.task-add-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.task-add-form .task-input {
+  flex: 1;
+}
+
+.task-add-form .task-owner-input {
+  flex: 0 0 120px;
+}
+
+.deliverable-tasks-section .hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
