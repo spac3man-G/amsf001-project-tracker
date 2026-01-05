@@ -22,7 +22,7 @@ import {
   X, Save, Send, CheckCircle, Trash2, Edit2,
   Package, Calendar, FileText, Clock,
   ThumbsUp, RotateCcw, Target, Award, PenTool,
-  Plus, Check
+  Plus, Check, CheckSquare
 } from 'lucide-react';
 
 // Centralised utilities
@@ -41,6 +41,7 @@ import {
 import { formatDate, formatDateTime } from '../../lib/formatters';
 import { useDeliverablePermissions } from '../../hooks/useDeliverablePermissions';
 import { DualSignature, SignatureComplete } from '../common/SignatureBox';
+import { deliverablesService } from '../../services';
 
 import './DeliverableDetailModal.css';
 
@@ -178,6 +179,53 @@ function QSSelector({ qualityStandards, selectedIds, onChange, disabled }) {
       {disabled && (
         <span className="hint">Only Supplier PM can edit Quality Standard links</span>
       )}
+    </div>
+  );
+}
+
+/**
+ * Tasks Section Component - Checklist display for view mode
+ */
+function TasksSection({ tasks, onToggleComplete, canEdit }) {
+  const sortedTasks = [...(tasks || [])]
+    .filter(t => !t.is_deleted)
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const completedCount = sortedTasks.filter(t => t.is_complete).length;
+  
+  // Don't show empty section in view mode
+  if (sortedTasks.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="deliverable-tasks-section">
+      <div className="section-header">
+        <CheckSquare size={14} />
+        <span>Tasks</span>
+        <span className="task-count">
+          {completedCount}/{sortedTasks.length} complete
+        </span>
+      </div>
+      
+      <div className="tasks-list">
+        {sortedTasks.map(task => (
+          <div key={task.id} className={`task-item ${task.is_complete ? 'completed' : ''}`}>
+            <input
+              type="checkbox"
+              checked={task.is_complete}
+              onChange={() => canEdit && onToggleComplete(task.id, !task.is_complete)}
+              className="task-checkbox"
+              disabled={!canEdit}
+            />
+            <div className="task-content">
+              <span className="task-name">{task.name}</span>
+              {task.owner && (
+                <span className="task-owner">{task.owner}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -517,6 +565,19 @@ export default function DeliverableDetailModal({
     });
   }
 
+  // Task handlers
+  async function handleToggleTaskComplete(taskId, isComplete) {
+    try {
+      await deliverablesService.toggleTaskComplete(taskId, isComplete);
+      // Trigger refresh of deliverable data
+      if (onSave) {
+        onSave(deliverable.id, {}); // Empty update to trigger refresh
+      }
+    } catch (error) {
+      console.error('Error toggling task:', error);
+    }
+  }
+
   // Handlers
   async function handleSave() {
     setSaving(true);
@@ -790,6 +851,13 @@ export default function DeliverableDetailModal({
                   {deliverable.description || 'No description provided'}
                 </div>
               </div>
+
+              {/* Tasks Checklist */}
+              <TasksSection 
+                tasks={deliverable.deliverable_tasks || []}
+                onToggleComplete={handleToggleTaskComplete}
+                canEdit={canEditLinks}
+              />
 
               {/* Linked KPIs - Only show if NOT in assessment mode */}
               {linkedKPIs.length > 0 && !showAssessmentSection && (

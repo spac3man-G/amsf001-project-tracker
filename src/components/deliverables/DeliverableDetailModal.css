@@ -879,3 +879,103 @@
 .assessment-incomplete-warning svg {
   flex-shrink: 0;
 }
+
+
+/* ============================================
+   Tasks Section (Checklist)
+   ============================================ */
+
+.deliverable-tasks-section {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.deliverable-tasks-section .section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.75rem;
+}
+
+.deliverable-tasks-section .task-count {
+  margin-left: auto;
+  font-weight: 400;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.15s ease;
+}
+
+.task-item:hover {
+  border-color: #cbd5e1;
+}
+
+.task-item.completed {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.task-item.completed .task-name {
+  text-decoration: line-through;
+  color: #64748b;
+}
+
+.task-checkbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #22c55e;
+}
+
+.task-checkbox:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-name {
+  display: block;
+  font-size: 0.875rem;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+.task-owner {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.125rem;
+}
+
+.no-tasks-message {
+  text-align: center;
+  padding: 1rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  font-style: italic;
+}

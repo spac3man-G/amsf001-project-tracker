@@ -224,7 +224,8 @@ export class DeliverablesService extends BaseService {
           *,
           milestones(milestone_ref, name, forecast_end_date, end_date),
           deliverable_kpis(kpi_id, kpis(kpi_ref, name)),
-          deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name))
+          deliverable_quality_standards(quality_standard_id, quality_standards(qs_ref, name)),
+          deliverable_tasks(id, name, owner, is_complete, sort_order)
         `)
         .eq('project_id', projectId)
         .or('is_deleted.is.null,is_deleted.eq.false')
@@ -313,6 +314,167 @@ export class DeliverablesService extends BaseService {
       return true;
     } catch (error) {
       console.error('DeliverablesService syncQSLinks error:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // DELIVERABLE TASKS (CHECKLIST)
+  // ============================================
+
+  /**
+   * Get all tasks for a deliverable
+   */
+  async getTasksForDeliverable(deliverableId) {
+    try {
+      const { data, error } = await supabase
+        .from('deliverable_tasks')
+        .select('*')
+        .eq('deliverable_id', deliverableId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('sort_order', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('DeliverablesService getTasksForDeliverable error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new task for a deliverable
+   */
+  async createTask(deliverableId, task, userId = null) {
+    try {
+      // Get max sort_order for this deliverable
+      const { data: existing } = await supabase
+        .from('deliverable_tasks')
+        .select('sort_order')
+        .eq('deliverable_id', deliverableId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('sort_order', { ascending: false })
+        .limit(1);
+      
+      const nextOrder = (existing?.[0]?.sort_order || 0) + 1;
+      
+      const { data, error } = await supabase
+        .from('deliverable_tasks')
+        .insert({
+          deliverable_id: deliverableId,
+          name: task.name,
+          owner: task.owner || null,
+          is_complete: task.is_complete || false,
+          sort_order: nextOrder,
+          created_by: userId
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('DeliverablesService createTask error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a task
+   */
+  async updateTask(taskId, updates) {
+    try {
+      const { data, error } = await supabase
+        .from('deliverable_tasks')
+        .update({
+          name: updates.name,
+          owner: updates.owner,
+          is_complete: updates.is_complete,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', taskId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('DeliverablesService updateTask error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle task completion status
+   */
+  async toggleTaskComplete(taskId, isComplete) {
+    try {
+      const { data, error } = await supabase
+        .from('deliverable_tasks')
+        .update({ 
+          is_complete: isComplete,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', taskId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('DeliverablesService toggleTaskComplete error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Soft delete a task
+   */
+  async deleteTask(taskId, userId = null) {
+    try {
+      const { data, error } = await supabase
+        .from('deliverable_tasks')
+        .update({ 
+          is_deleted: true,
+          deleted_at: new Date().toISOString(),
+          deleted_by: userId
+        })
+        .eq('id', taskId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('DeliverablesService deleteTask error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reorder tasks within a deliverable
+   */
+  async reorderTasks(deliverableId, taskIds) {
+    try {
+      const updates = taskIds.map((id, index) => ({
+        id,
+        sort_order: index,
+        updated_at: new Date().toISOString()
+      }));
+
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('deliverable_tasks')
+          .update({ sort_order: update.sort_order, updated_at: update.updated_at })
+          .eq('id', update.id)
+          .eq('deliverable_id', deliverableId);
+        
+        if (error) throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('DeliverablesService reorderTasks error:', error);
       throw error;
     }
   }
