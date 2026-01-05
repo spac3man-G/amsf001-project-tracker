@@ -2111,9 +2111,9 @@ export default function Planning() {
             Auto Schedule
           </button>
           {/* Quick Link Dropdown */}
-          <div className="plan-link-dropdown" ref={linkMenuRef}>
+          <div className="plan-link-dropdown" ref={linkMenuRef} onClick={(e) => e.stopPropagation()}>
             <button 
-              onClick={() => setShowLinkMenu(!showLinkMenu)}
+              onClick={(e) => { e.stopPropagation(); setShowLinkMenu(!showLinkMenu); }}
               className="plan-btn plan-btn-link"
               title="Link selected items (Ctrl+L for chain link)"
               disabled={selectedIds.size < 2}
@@ -2123,10 +2123,10 @@ export default function Planning() {
               <ChevronDown size={14} className={`link-chevron ${showLinkMenu ? 'open' : ''}`} />
             </button>
             {showLinkMenu && (
-              <div className="plan-link-menu">
+              <div className="plan-link-menu" onClick={(e) => e.stopPropagation()}>
                 <button 
                   className="plan-link-menu-item" 
-                  onClick={handleChainLink}
+                  onClick={(e) => { e.stopPropagation(); handleChainLink(); }}
                   disabled={selectedIds.size < 2}
                 >
                   <Link2 size={16} />
@@ -2135,7 +2135,7 @@ export default function Planning() {
                 </button>
                 <button 
                   className="plan-link-menu-item" 
-                  onClick={handleLinkAllToLast}
+                  onClick={(e) => { e.stopPropagation(); handleLinkAllToLast(); }}
                   disabled={selectedIds.size < 2}
                 >
                   <ArrowRight size={16} />
@@ -2143,7 +2143,7 @@ export default function Planning() {
                 </button>
                 <button 
                   className="plan-link-menu-item" 
-                  onClick={handleLinkFirstToAll}
+                  onClick={(e) => { e.stopPropagation(); handleLinkFirstToAll(); }}
                   disabled={selectedIds.size < 2}
                 >
                   <ArrowLeft size={16} />
@@ -2152,7 +2152,7 @@ export default function Planning() {
                 <div className="plan-link-menu-separator" />
                 <button 
                   className="plan-link-menu-item" 
-                  onClick={handleUnlinkSelected}
+                  onClick={(e) => { e.stopPropagation(); handleUnlinkSelected(); }}
                   disabled={selectedIds.size < 2}
                 >
                   <Unlink size={16} />
@@ -2160,7 +2160,7 @@ export default function Planning() {
                 </button>
                 <button 
                   className="plan-link-menu-item danger" 
-                  onClick={handleClearPredecessors}
+                  onClick={(e) => { e.stopPropagation(); handleClearPredecessors(); }}
                   disabled={selectedIds.size === 0}
                 >
                   <X size={16} />
