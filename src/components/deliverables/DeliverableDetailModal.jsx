@@ -654,6 +654,9 @@ export default function DeliverableDetailModal({
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   
+  // Local tasks state for optimistic updates
+  const [localTasks, setLocalTasks] = useState([]);
+  
   // Assessment state for customer sign-off
   const [kpiAssessments, setKpiAssessments] = useState({});
   const [qsAssessments, setQsAssessments] = useState({});
@@ -689,6 +692,9 @@ export default function DeliverableDetailModal({
       setQsAssessments({});
       setAssessmentKPIs(deliverable.deliverable_kpis || []);
       setAssessmentQS(deliverable.deliverable_quality_standards || []);
+      
+      // Sync local tasks state
+      setLocalTasks(deliverable.deliverable_tasks || []);
     }
   }, [deliverable]);
 
@@ -770,21 +776,35 @@ export default function DeliverableDetailModal({
 
   // Task handlers
   async function handleToggleTaskComplete(taskId, isComplete) {
+    // Optimistic update - update UI immediately
+    setLocalTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, is_complete: isComplete } : task
+    ));
+    
     try {
       await deliverablesService.toggleTaskComplete(taskId, isComplete);
-      // Trigger refresh of deliverable data
+      // Background sync - no need to wait for this
       if (onSave) {
-        onSave(deliverable.id, {}); // Empty update to trigger refresh
+        onSave(deliverable.id, {}); // Sync parent data
       }
     } catch (error) {
       console.error('Error toggling task:', error);
+      // Revert on error
+      setLocalTasks(prev => prev.map(task => 
+        task.id === taskId ? { ...task, is_complete: !isComplete } : task
+      ));
     }
   }
 
   function handleTasksChange() {
-    // Trigger refresh of deliverable data to reload tasks
+    // Refresh local tasks from server
+    deliverablesService.getTasksForDeliverable(deliverable.id)
+      .then(tasks => setLocalTasks(tasks))
+      .catch(err => console.error('Error refreshing tasks:', err));
+    
+    // Also trigger parent refresh
     if (onSave) {
-      onSave(deliverable.id, {}); // Empty update to trigger refresh
+      onSave(deliverable.id, {});
     }
   }
 
@@ -1072,7 +1092,7 @@ export default function DeliverableDetailModal({
 
               {/* Tasks Checklist */}
               <TasksSection 
-                tasks={deliverable.deliverable_tasks || []}
+                tasks={localTasks}
                 onToggleComplete={handleToggleTaskComplete}
                 canEdit={canEditLinks}
               />
