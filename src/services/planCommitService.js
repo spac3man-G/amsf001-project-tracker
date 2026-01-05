@@ -135,14 +135,14 @@ class PlanCommitService {
           description: item.description || '',
           start_date: item.start_date,
           end_date: item.end_date,
-          forecast_start_date: item.start_date,
+          // NOTE: forecast_start_date column does not exist in milestones table
           forecast_end_date: item.end_date,
           baseline_start_date: item.start_date,
           baseline_end_date: item.end_date,
           status: mapPlanStatusToTracker(item.status),
           billable: item.billable || item.cost || 0,
           baseline_billable: item.billable || item.cost || 0,
-          completion_percentage: item.progress || 0,
+          percent_complete: item.progress || 0,  // Fixed: was completion_percentage
           created_by: userId
         };
         
