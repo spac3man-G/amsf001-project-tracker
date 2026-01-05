@@ -11,9 +11,9 @@
  * - Date calculation from durations
  * - Hierarchy management (milestone → deliverable → task)
  * 
- * @version 1.2
+ * @version 1.3
  * @created 26 December 2025
- * @updated 26 December 2025 - Converted to Node.js runtime for 60s timeout
+ * @updated 05 January 2026 - Added enhanced logging for debugging
  */
 
 export const config = {
@@ -293,7 +293,14 @@ Common edit patterns:
 - Be conversational and confirm what you're doing
 - When editing, always summarize the changes made
 - If unsure which item the user means, ask for clarification
-- Preserve existing data when making edits`;
+- Preserve existing data when making edits
+
+## CRITICAL: Always Use Tools
+You MUST use one of the provided tools for every response. Do not respond with just text - always call a tool:
+- If the user wants a plan created → use generateProjectStructure
+- If the user wants to edit existing items → use editPlanItems
+- If you need more information → use askClarification
+- If the user wants to modify a generated structure → use refineStructure`;
 
 // ============================================
 // EXISTING PLAN CONTEXT ADDITION TO SYSTEM PROMPT
@@ -341,7 +348,9 @@ If the document is a:
 - **Requirements Document**: Create deliverables from requirement groups, tasks from individual requirements
 - **Scope Document**: Map scope items to milestones and deliverables
 - **Proposal**: Extract work packages, phases, and deliverables
-- **Meeting Notes**: Identify action items and decisions that need planning`;
+- **Meeting Notes**: Identify action items and decisions that need planning
+
+IMPORTANT: After analyzing the document, you MUST call the generateProjectStructure tool to create the plan. Do not respond with just text.`;
 
 // ============================================
 // DOCUMENT VALIDATION
@@ -565,9 +574,26 @@ When the user asks to modify or add to this structure, use the refineStructure t
       });
     }
 
+    // ============================================
+    // ENHANCED LOGGING - REQUEST
+    // ============================================
+    console.log('='.repeat(60));
+    console.log('PLANNING AI REQUEST');
+    console.log('='.repeat(60));
+    console.log(`Timestamp: ${new Date().toISOString()}`);
+    console.log(`Documents: ${allDocuments.length}`);
+    if (allDocuments.length > 0) {
+      allDocuments.forEach((doc, i) => {
+        console.log(`  Doc ${i + 1}: ${doc.filename || 'unnamed'} (${doc.mediaType}, ${Math.round((doc.data?.length || 0) * 3 / 4 / 1024)}KB)`);
+      });
+    }
+    console.log(`Messages: ${messages.length}`);
+    console.log(`Last user message: "${messages[messages.length - 1]?.content?.substring(0, 200)}..."`);
+    console.log(`Has existing items: ${existingItems?.length || 0}`);
+    console.log(`Has current structure: ${currentStructure?.length || 0}`);
+    console.log('-'.repeat(60));
+
     // Call Claude API
-    console.log(`Planning AI - Calling Claude with ${allDocuments.length} documents, ${messages.length} messages`);
-    
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -586,7 +612,12 @@ When the user asks to modify or add to this structure, use the refineStructure t
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Claude API error:', response.status, errorText);
+      console.error('='.repeat(60));
+      console.error('CLAUDE API ERROR');
+      console.error('='.repeat(60));
+      console.error(`Status: ${response.status}`);
+      console.error(`Response: ${errorText}`);
+      console.error('='.repeat(60));
       return res.status(500).json({ 
         error: 'AI service error',
         details: response.status 
@@ -595,28 +626,110 @@ When the user asks to modify or add to this structure, use the refineStructure t
 
     const data = await response.json();
 
-    // Log token usage and response info
+    // ============================================
+    // ENHANCED LOGGING - RESPONSE
+    // ============================================
+    console.log('='.repeat(60));
+    console.log('CLAUDE API RESPONSE');
+    console.log('='.repeat(60));
+    console.log(`Stop reason: ${data.stop_reason}`);
+    console.log(`Model: ${data.model}`);
+    
     if (data.usage) {
       const cost = (data.usage.input_tokens * TOKEN_COSTS.input / 1000000) + 
                    (data.usage.output_tokens * TOKEN_COSTS.output / 1000000);
-      console.log(`Planning AI - Tokens: ${data.usage.input_tokens} in, ${data.usage.output_tokens} out, Cost: $${cost.toFixed(4)}`);
+      console.log(`Tokens: ${data.usage.input_tokens} input, ${data.usage.output_tokens} output`);
+      console.log(`Estimated cost: $${cost.toFixed(4)}`);
     }
     
-    // Log stop reason and content types for debugging
-    console.log(`Planning AI - Stop reason: ${data.stop_reason}, Content blocks: ${data.content?.length || 0}`);
-    if (data.content) {
+    console.log(`Content blocks: ${data.content?.length || 0}`);
+    
+    if (data.content && data.content.length > 0) {
       data.content.forEach((block, i) => {
-        console.log(`  Block ${i}: type=${block.type}${block.type === 'tool_use' ? `, tool=${block.name}` : ''}`);
+        console.log('-'.repeat(40));
+        console.log(`Block ${i}: type=${block.type}`);
+        
+        if (block.type === 'text') {
+          console.log(`Text content (first 500 chars): "${block.text?.substring(0, 500)}${block.text?.length > 500 ? '...' : ''}"`);
+          console.log(`Text length: ${block.text?.length || 0} chars`);
+        } else if (block.type === 'tool_use') {
+          console.log(`Tool name: ${block.name}`);
+          console.log(`Tool ID: ${block.id}`);
+          
+          // Log tool input details
+          const input = block.input;
+          if (input) {
+            if (input.structure) {
+              console.log(`Structure items: ${input.structure.length} top-level items`);
+              // Count nested items
+              let deliverables = 0, tasks = 0;
+              const countNested = (items, depth = 0) => {
+                for (const item of items) {
+                  if (item.item_type === 'deliverable') deliverables++;
+                  if (item.item_type === 'task') tasks++;
+                  if (item.children) countNested(item.children, depth + 1);
+                }
+              };
+              countNested(input.structure);
+              console.log(`Nested counts: ${deliverables} deliverables, ${tasks} tasks`);
+            }
+            if (input.summary) {
+              console.log(`Summary: "${input.summary.substring(0, 200)}${input.summary.length > 200 ? '...' : ''}"`);
+            }
+            if (input.itemCounts) {
+              console.log(`Item counts: ${JSON.stringify(input.itemCounts)}`);
+            }
+            if (input.operations) {
+              console.log(`Operations: ${input.operations.length} operations`);
+              input.operations.forEach((op, j) => {
+                console.log(`  Op ${j}: ${op.operation} - ${op.targetName || op.targetId || 'new item'}`);
+              });
+            }
+            if (input.questions) {
+              console.log(`Questions: ${input.questions.length} questions`);
+              input.questions.forEach((q, j) => console.log(`  Q${j}: ${q}`));
+            }
+          }
+        }
       });
+    } else {
+      console.log('WARNING: No content blocks in response!');
     }
+    
+    console.log('='.repeat(60));
 
     // Process response
     const result = processClaudeResponse(data);
 
+    // ============================================
+    // ENHANCED LOGGING - PROCESSED RESULT
+    // ============================================
+    console.log('PROCESSED RESULT');
+    console.log('-'.repeat(40));
+    console.log(`Action: ${result.action || 'none'}`);
+    console.log(`Has message: ${!!result.message} (${result.message?.length || 0} chars)`);
+    console.log(`Has structure: ${!!result.structure} (${result.structure?.length || 0} items)`);
+    console.log(`Has operations: ${!!result.operations} (${result.operations?.length || 0} ops)`);
+    console.log(`Clarification needed: ${result.clarificationNeeded}`);
+    console.log(`Item counts: ${JSON.stringify(result.itemCounts)}`);
+    
+    if (!result.action && !result.message && !result.clarificationNeeded) {
+      console.log('WARNING: Empty result - no action, message, or clarification!');
+      console.log('Full data.content for debugging:');
+      console.log(JSON.stringify(data.content, null, 2));
+    }
+    
+    console.log('='.repeat(60));
+
     return res.status(200).json(result);
 
   } catch (error) {
-    console.error('Planning AI error:', error);
+    console.error('='.repeat(60));
+    console.error('PLANNING AI EXCEPTION');
+    console.error('='.repeat(60));
+    console.error(`Error: ${error.message}`);
+    console.error(`Stack: ${error.stack}`);
+    console.error('='.repeat(60));
     return res.status(500).json({ 
       error: 'Internal server error',
       message: error.message 
@@ -640,20 +753,35 @@ function processClaudeResponse(data) {
     stopReason: data.stop_reason
   };
 
+  // Check if we have content
+  if (!data.content || data.content.length === 0) {
+    console.log('processClaudeResponse: No content blocks');
+    result.message = 'I received your request but the AI returned an empty response. Please try again.';
+    return result;
+  }
+
   // Process content blocks
   for (const block of data.content) {
     if (block.type === 'text') {
-      result.message = block.text;
+      // Capture text content (might be used as fallback message)
+      if (block.text) {
+        result.message = block.text;
+      }
     } else if (block.type === 'tool_use') {
       const toolName = block.name;
       const toolInput = block.input;
+
+      console.log(`processClaudeResponse: Processing tool_use - ${toolName}`);
 
       switch (toolName) {
         case 'generateProjectStructure':
           result.action = 'generated';
           result.structure = toolInput.structure;
           result.itemCounts = toolInput.itemCounts;
-          result.message = toolInput.summary;
+          // Use summary if provided, otherwise keep any text message
+          if (toolInput.summary) {
+            result.message = toolInput.summary;
+          }
           result.totalDurationDays = toolInput.totalDurationDays;
           break;
 
@@ -661,7 +789,9 @@ function processClaudeResponse(data) {
           result.action = 'refined';
           result.structure = toolInput.structure;
           result.itemCounts = toolInput.itemCounts;
-          result.message = toolInput.changesSummary;
+          if (toolInput.changesSummary) {
+            result.message = toolInput.changesSummary;
+          }
           result.refinementType = toolInput.action;
           result.targetArea = toolInput.targetArea;
           break;
@@ -669,17 +799,27 @@ function processClaudeResponse(data) {
         case 'editPlanItems':
           result.action = 'edit';
           result.operations = toolInput.operations;
-          result.message = toolInput.summary;
+          if (toolInput.summary) {
+            result.message = toolInput.summary;
+          }
           break;
 
         case 'askClarification':
           result.clarificationNeeded = true;
           result.questions = toolInput.questions;
-          result.message = toolInput.reason;
+          if (toolInput.reason) {
+            result.message = toolInput.reason;
+          }
           break;
+          
+        default:
+          console.log(`processClaudeResponse: Unknown tool - ${toolName}`);
       }
     }
   }
+
+  // Log final result state
+  console.log(`processClaudeResponse: Final state - action=${result.action}, hasMessage=${!!result.message}, hasStructure=${!!result.structure}`);
 
   return result;
 }
