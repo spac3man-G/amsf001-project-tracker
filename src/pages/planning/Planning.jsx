@@ -6,7 +6,7 @@ import {
   Calculator, Link2, FileSpreadsheet, List,
   ExternalLink, Copy, Download, Clock,
   Scissors, Clipboard, ClipboardPaste,
-  Undo2, Redo2
+  Undo2, Redo2, Unlink, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../../contexts/ProjectContext';
@@ -64,8 +64,10 @@ export default function Planning() {
   const [showEstimatesList, setShowEstimatesList] = useState(false); // Estimates list panel
   const [estimates, setEstimates] = useState([]); // All project estimates
   const [predecessorEditItem, setPredecessorEditItem] = useState(null); // Item being edited for predecessors
+  const [showLinkMenu, setShowLinkMenu] = useState(false); // Quick Link dropdown menu
   const inputRef = useRef(null);
   const tableRef = useRef(null);
+  const linkMenuRef = useRef(null); // Ref for link dropdown menu
 
   // Fetch items (with estimate data)
   const fetchItems = useCallback(async () => {
@@ -107,6 +109,18 @@ export default function Planning() {
     const unsubscribe = planningHistory.subscribe(setHistoryState);
     return unsubscribe;
   }, []);
+
+  // Click outside handler for link menu
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (showLinkMenu && linkMenuRef.current && !linkMenuRef.current.contains(e.target)) {
+        setShowLinkMenu(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showLinkMenu]);
 
   // Calculate estimate summary stats
   const estimateSummary = useMemo(() => {
@@ -177,6 +191,10 @@ export default function Planning() {
           case 'y':
             e.preventDefault();
             handleRedo();
+            return;
+          case 'l':
+            e.preventDefault();
+            handleChainLink();
             return;
         }
       }
@@ -672,6 +690,269 @@ export default function Planning() {
     } catch (error) {
       console.error('Auto-schedule error:', error);
       showError('Failed to auto-schedule items');
+    }
+  }
+
+  // ===========================================================================
+  // QUICK LINK HANDLERS
+  // ===========================================================================
+
+  // Check if adding a predecessor would create a circular dependency
+  function wouldCreateCycle(itemId, predecessorId, allItems) {
+    // Build a dependency graph
+    const graph = new Map();
+    
+    // Add all existing dependencies
+    allItems.forEach(item => {
+      if (item.predecessors && item.predecessors.length > 0) {
+        item.predecessors.forEach(pred => {
+          if (!graph.has(pred.id)) graph.set(pred.id, new Set());
+          graph.get(pred.id).add(item.id);
+        });
+      }
+    });
+    
+    // Add the proposed new dependency
+    if (!graph.has(predecessorId)) graph.set(predecessorId, new Set());
+    graph.get(predecessorId).add(itemId);
+    
+    // DFS to detect cycle starting from predecessorId
+    const visited = new Set();
+    const recursionStack = new Set();
+    
+    function dfs(nodeId) {
+      visited.add(nodeId);
+      recursionStack.add(nodeId);
+      
+      const neighbors = graph.get(nodeId) || new Set();
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          if (dfs(neighbor)) return true;
+        } else if (recursionStack.has(neighbor)) {
+          return true; // Found a cycle
+        }
+      }
+      
+      recursionStack.delete(nodeId);
+      return false;
+    }
+    
+    return dfs(predecessorId);
+  }
+
+  // Chain link: Create sequential dependencies A→B→C→D
+  async function handleChainLink() {
+    // Get selected items sorted by their position in display order
+    const selectedItems = visibleItems
+      .filter(item => selectedIds.has(item.id))
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    
+    if (selectedItems.length < 2) {
+      showError('Select at least 2 items to link');
+      return;
+    }
+    
+    setShowLinkMenu(false);
+    
+    try {
+      let linkedCount = 0;
+      
+      // Create chain: each item depends on previous
+      for (let i = 1; i < selectedItems.length; i++) {
+        const current = selectedItems[i];
+        const predecessor = selectedItems[i - 1];
+        
+        // Check if already linked
+        const existingPreds = current.predecessors || [];
+        const alreadyLinked = existingPreds.some(p => p.id === predecessor.id);
+        
+        if (alreadyLinked) continue;
+        
+        // Check for circular dependency
+        if (wouldCreateCycle(current.id, predecessor.id, items)) {
+          showError(`Cannot link: would create circular dependency involving "${predecessor.name}"`);
+          continue;
+        }
+        
+        // Add predecessor (don't replace existing ones)
+        const newPreds = [...existingPreds, { id: predecessor.id, type: 'FS', lag: 0 }];
+        await handleUpdateItem(current.id, 'predecessors', newPreds);
+        linkedCount++;
+      }
+      
+      if (linkedCount > 0) {
+        showSuccess(`Linked ${linkedCount + 1} items in chain`);
+      } else {
+        showSuccess('Items were already linked');
+      }
+    } catch (error) {
+      console.error('Chain link error:', error);
+      showError('Failed to link items');
+    }
+  }
+
+  // Fan-in: All selected items become predecessors of the last item
+  async function handleLinkAllToLast() {
+    const selectedItems = visibleItems
+      .filter(item => selectedIds.has(item.id))
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    
+    if (selectedItems.length < 2) {
+      showError('Select at least 2 items to link');
+      return;
+    }
+    
+    setShowLinkMenu(false);
+    
+    try {
+      const lastItem = selectedItems[selectedItems.length - 1];
+      const predecessorItems = selectedItems.slice(0, -1);
+      
+      const existingPreds = lastItem.predecessors || [];
+      const newPreds = [...existingPreds];
+      let addedCount = 0;
+      
+      for (const pred of predecessorItems) {
+        // Check if already linked
+        if (newPreds.some(p => p.id === pred.id)) continue;
+        
+        // Check for circular dependency
+        if (wouldCreateCycle(lastItem.id, pred.id, items)) {
+          showError(`Cannot link "${pred.name}": would create circular dependency`);
+          continue;
+        }
+        
+        newPreds.push({ id: pred.id, type: 'FS', lag: 0 });
+        addedCount++;
+      }
+      
+      if (addedCount > 0) {
+        await handleUpdateItem(lastItem.id, 'predecessors', newPreds);
+        showSuccess(`Linked ${addedCount} item(s) to "${lastItem.name}"`);
+      } else {
+        showSuccess('Items were already linked');
+      }
+    } catch (error) {
+      console.error('Link all to last error:', error);
+      showError('Failed to link items');
+    }
+  }
+
+  // Fan-out: First item becomes predecessor of all other selected items
+  async function handleLinkFirstToAll() {
+    const selectedItems = visibleItems
+      .filter(item => selectedIds.has(item.id))
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    
+    if (selectedItems.length < 2) {
+      showError('Select at least 2 items to link');
+      return;
+    }
+    
+    setShowLinkMenu(false);
+    
+    try {
+      const firstItem = selectedItems[0];
+      const successorItems = selectedItems.slice(1);
+      let linkedCount = 0;
+      
+      for (const successor of successorItems) {
+        const existingPreds = successor.predecessors || [];
+        
+        // Check if already linked
+        if (existingPreds.some(p => p.id === firstItem.id)) continue;
+        
+        // Check for circular dependency
+        if (wouldCreateCycle(successor.id, firstItem.id, items)) {
+          showError(`Cannot link to "${successor.name}": would create circular dependency`);
+          continue;
+        }
+        
+        const newPreds = [...existingPreds, { id: firstItem.id, type: 'FS', lag: 0 }];
+        await handleUpdateItem(successor.id, 'predecessors', newPreds);
+        linkedCount++;
+      }
+      
+      if (linkedCount > 0) {
+        showSuccess(`Linked "${firstItem.name}" to ${linkedCount} item(s)`);
+      } else {
+        showSuccess('Items were already linked');
+      }
+    } catch (error) {
+      console.error('Link first to all error:', error);
+      showError('Failed to link items');
+    }
+  }
+
+  // Unlink: Remove dependencies between selected items only
+  async function handleUnlinkSelected() {
+    const selectedItems = visibleItems.filter(item => selectedIds.has(item.id));
+    const selectedIdSet = new Set(selectedItems.map(i => i.id));
+    
+    if (selectedItems.length < 2) {
+      showError('Select at least 2 items to unlink');
+      return;
+    }
+    
+    setShowLinkMenu(false);
+    
+    try {
+      let unlinkCount = 0;
+      
+      for (const item of selectedItems) {
+        const preds = item.predecessors || [];
+        // Remove any predecessors that are in the selection
+        const filteredPreds = preds.filter(p => !selectedIdSet.has(p.id));
+        
+        if (filteredPreds.length !== preds.length) {
+          await handleUpdateItem(item.id, 'predecessors', filteredPreds);
+          unlinkCount += preds.length - filteredPreds.length;
+        }
+      }
+      
+      if (unlinkCount > 0) {
+        showSuccess(`Removed ${unlinkCount} link${unlinkCount !== 1 ? 's' : ''} between selected items`);
+      } else {
+        showSuccess('No links found between selected items');
+      }
+    } catch (error) {
+      console.error('Unlink error:', error);
+      showError('Failed to unlink items');
+    }
+  }
+
+  // Clear all predecessors from selected items
+  async function handleClearPredecessors() {
+    const selectedItems = visibleItems.filter(item => selectedIds.has(item.id));
+    
+    if (selectedItems.length === 0) {
+      showError('No items selected');
+      return;
+    }
+    
+    // Count items with predecessors
+    const itemsWithPreds = selectedItems.filter(i => i.predecessors && i.predecessors.length > 0);
+    
+    if (itemsWithPreds.length === 0) {
+      showError('Selected items have no predecessors to clear');
+      return;
+    }
+    
+    if (!confirm(`Clear all predecessors from ${itemsWithPreds.length} item(s)?`)) {
+      return;
+    }
+    
+    setShowLinkMenu(false);
+    
+    try {
+      for (const item of itemsWithPreds) {
+        await handleUpdateItem(item.id, 'predecessors', []);
+      }
+      
+      showSuccess(`Cleared predecessors from ${itemsWithPreds.length} item(s)`);
+    } catch (error) {
+      console.error('Clear predecessors error:', error);
+      showError('Failed to clear predecessors');
     }
   }
 
@@ -1829,6 +2110,65 @@ export default function Planning() {
             <Clock size={16} />
             Auto Schedule
           </button>
+          {/* Quick Link Dropdown */}
+          <div className="plan-link-dropdown" ref={linkMenuRef}>
+            <button 
+              onClick={() => setShowLinkMenu(!showLinkMenu)}
+              className="plan-btn plan-btn-link"
+              title="Link selected items (Ctrl+L for chain link)"
+              disabled={selectedIds.size < 2}
+            >
+              <Link2 size={16} />
+              Link
+              <ChevronDown size={14} className={`link-chevron ${showLinkMenu ? 'open' : ''}`} />
+            </button>
+            {showLinkMenu && (
+              <div className="plan-link-menu">
+                <button 
+                  className="plan-link-menu-item" 
+                  onClick={handleChainLink}
+                  disabled={selectedIds.size < 2}
+                >
+                  <Link2 size={16} />
+                  <span>Chain Selected</span>
+                  <span className="shortcut">Ctrl+L</span>
+                </button>
+                <button 
+                  className="plan-link-menu-item" 
+                  onClick={handleLinkAllToLast}
+                  disabled={selectedIds.size < 2}
+                >
+                  <ArrowRight size={16} />
+                  <span>All → Last Selected</span>
+                </button>
+                <button 
+                  className="plan-link-menu-item" 
+                  onClick={handleLinkFirstToAll}
+                  disabled={selectedIds.size < 2}
+                >
+                  <ArrowLeft size={16} />
+                  <span>First → All Selected</span>
+                </button>
+                <div className="plan-link-menu-separator" />
+                <button 
+                  className="plan-link-menu-item" 
+                  onClick={handleUnlinkSelected}
+                  disabled={selectedIds.size < 2}
+                >
+                  <Unlink size={16} />
+                  <span>Unlink Selected</span>
+                </button>
+                <button 
+                  className="plan-link-menu-item danger" 
+                  onClick={handleClearPredecessors}
+                  disabled={selectedIds.size === 0}
+                >
+                  <X size={16} />
+                  <span>Clear All Predecessors</span>
+                </button>
+              </div>
+            )}
+          </div>
           <button 
             onClick={() => setShowAIPanel(true)} 
             className="plan-btn plan-btn-ai"
