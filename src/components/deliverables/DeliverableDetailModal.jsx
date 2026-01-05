@@ -776,19 +776,30 @@ export default function DeliverableDetailModal({
 
   // Task handlers
   async function handleToggleTaskComplete(taskId, isComplete) {
+    console.log('=== Modal: handleToggleTaskComplete START ===');
+    console.log('taskId:', taskId);
+    console.log('isComplete:', isComplete);
+    console.log('localTasks before update:', localTasks.map(t => ({ id: t.id, name: t.name, is_complete: t.is_complete })));
+    
     // Optimistic update - update UI immediately
     setLocalTasks(prev => prev.map(task => 
       task.id === taskId ? { ...task, is_complete: isComplete } : task
     ));
     
+    console.log('Optimistic update applied, calling service...');
+    
     try {
-      await deliverablesService.toggleTaskComplete(taskId, isComplete);
+      const result = await deliverablesService.toggleTaskComplete(taskId, isComplete);
+      console.log('Service call completed:', result);
+      console.log('=== Modal: handleToggleTaskComplete SUCCESS ===');
     } catch (error) {
       console.error('Error toggling task:', error);
+      console.log('Reverting optimistic update...');
       // Revert on error
       setLocalTasks(prev => prev.map(task => 
         task.id === taskId ? { ...task, is_complete: !isComplete } : task
       ));
+      console.log('=== Modal: handleToggleTaskComplete ERROR ===');
     }
   }
 
