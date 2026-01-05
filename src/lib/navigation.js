@@ -1,7 +1,7 @@
 /**
  * AMSF001 Project Tracker - Centralized Navigation Configuration
  * Location: src/lib/navigation.js
- * Version 3.0 - Added getNavigationForUser for org admin support
+ * Version 3.1 - Added projectManagement to sidebar navigation
  * 
  * This file is the SINGLE SOURCE OF TRUTH for navigation items and role-based access.
  * It follows industry best practices for:
@@ -42,7 +42,8 @@ import {
   Building,
   UsersRound,
   Scale,
-  Calculator
+  Calculator,
+  FolderKanban
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -240,8 +241,8 @@ export const NAV_ITEMS = {
   projectManagement: {
     id: 'projectManagement',
     path: '/admin/projects',
-    icon: Building2,
-    label: 'Projects',
+    icon: FolderKanban,
+    label: 'Project Roles',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
@@ -300,6 +301,7 @@ export const ROLE_NAV_ORDER = {
     'evaluator',
     { section: 'settings' },
     'settings',
+    'projectManagement',
     'orgSettings'
   ],
   [ROLES.SUPPLIER_PM]: [
@@ -320,6 +322,7 @@ export const ROLE_NAV_ORDER = {
     'evaluator',
     { section: 'settings' },
     'settings',
+    'projectManagement',
     'orgSettings'
   ],
   [ROLES.SUPPLIER_FINANCE]: [
