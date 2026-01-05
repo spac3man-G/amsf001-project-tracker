@@ -14,6 +14,7 @@ import { useToast } from '../../contexts/ToastContext';
 import planItemsService from '../../services/planItemsService';
 import { estimatesService, ESTIMATE_STATUS } from '../../services';
 import PlanningAIAssistant from './PlanningAIAssistant';
+import PredecessorEditModal from './PredecessorEditModal';
 import { EstimateLinkModal, EstimateGeneratorModal } from '../../components/planning';
 import planningClipboard from '../../lib/planningClipboard';
 import planningHistory from '../../lib/planningHistory';
@@ -34,7 +35,7 @@ const STATUS_OPTIONS = [
 ];
 
 // Editable columns in order
-const COLUMNS = ['name', 'item_type', 'start_date', 'end_date', 'progress', 'status'];
+const COLUMNS = ['name', 'item_type', 'start_date', 'end_date', 'predecessors', 'progress', 'status'];
 
 export default function Planning() {
   const { projectId } = useProject();
@@ -61,6 +62,7 @@ export default function Planning() {
   const [showEstimateGenerator, setShowEstimateGenerator] = useState(false); // Generate estimate modal
   const [showEstimatesList, setShowEstimatesList] = useState(false); // Estimates list panel
   const [estimates, setEstimates] = useState([]); // All project estimates
+  const [predecessorEditItem, setPredecessorEditItem] = useState(null); // Item being edited for predecessors
   const inputRef = useRef(null);
   const tableRef = useRef(null);
 
@@ -1634,6 +1636,30 @@ export default function Planning() {
           </td>
         );
       
+      case 'predecessors':
+        const preds = item.predecessors || [];
+        const predDisplay = preds.map(p => {
+          const predItem = items.find(i => i.id === p.id);
+          const wbs = predItem?.wbs || '?';
+          const type = p.type || 'FS';
+          const lag = p.lag ? (p.lag > 0 ? `+${p.lag}d` : `${p.lag}d`) : '';
+          return type === 'FS' && !lag ? wbs : `${wbs}${type}${lag}`;
+        }).join(', ');
+        return (
+          <td 
+            className={cellClass}
+            onClick={(e) => {
+              e.stopPropagation();
+              setPredecessorEditItem(item);
+            }}
+            title={predDisplay || 'Click to add predecessors'}
+          >
+            <span className={`plan-predecessors-display ${preds.length > 0 ? 'has-predecessors' : ''}`}>
+              {predDisplay || <span className="placeholder">-</span>}
+            </span>
+          </td>
+        );
+      
       default:
         return <td className={cellClass}>{item[field]}</td>;
     }
@@ -1806,6 +1832,7 @@ export default function Planning() {
                 <th className="plan-col-type">Type</th>
                 <th className="plan-col-start">Start</th>
                 <th className="plan-col-end">End</th>
+                <th className="plan-col-predecessors">Pred</th>
                 <th className="plan-col-progress">Progress</th>
                 <th className="plan-col-status">Status</th>
                 <th className="plan-col-estimate">Estimate</th>
@@ -1815,11 +1842,11 @@ export default function Planning() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="11" className="plan-loading">Loading...</td>
+                  <td colSpan="12" className="plan-loading">Loading...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="plan-empty-row">
+                  <td colSpan="12" className="plan-empty-row">
                     <p>No items yet. Click "Add Milestone" to start building your plan.</p>
                   </td>
                 </tr>
@@ -1859,6 +1886,7 @@ export default function Planning() {
                     {renderCell(item, 'item_type', index)}
                     {renderCell(item, 'start_date', index)}
                     {renderCell(item, 'end_date', index)}
+                    {renderCell(item, 'predecessors', index)}
                     {renderCell(item, 'progress', index)}
                     {renderCell(item, 'status', index)}
                     <td className="plan-cell plan-cell-estimate">
@@ -1960,6 +1988,24 @@ export default function Planning() {
             fetchItems();
             fetchEstimates();
             setShowEstimateGenerator(false);
+          }}
+        />
+      )}
+
+      {/* Predecessor Edit Modal */}
+      {predecessorEditItem && (
+        <PredecessorEditModal
+          item={predecessorEditItem}
+          items={items}
+          onClose={() => setPredecessorEditItem(null)}
+          onSave={async (predecessors) => {
+            try {
+              await handleUpdateItem(predecessorEditItem.id, 'predecessors', predecessors);
+              setPredecessorEditItem(null);
+              showSuccess('Predecessors updated');
+            } catch (error) {
+              showError('Failed to update predecessors');
+            }
           }}
         />
       )}
