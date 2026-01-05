@@ -779,18 +779,23 @@ export default function DeliverableDetailModal({
     console.log('=== Modal: handleToggleTaskComplete START ===');
     console.log('taskId:', taskId);
     console.log('isComplete:', isComplete);
-    console.log('localTasks before update:', localTasks.map(t => ({ id: t.id, name: t.name, is_complete: t.is_complete })));
     
     // Optimistic update - update UI immediately
     setLocalTasks(prev => prev.map(task => 
       task.id === taskId ? { ...task, is_complete: isComplete } : task
     ));
     
-    console.log('Optimistic update applied, calling service...');
-    
     try {
       const result = await deliverablesService.toggleTaskComplete(taskId, isComplete);
       console.log('Service call completed:', result);
+      
+      // After successful update, trigger parent refresh so data is fresh on modal reopen
+      // This happens AFTER the API call completes, so the refresh will get updated data
+      if (onSave) {
+        console.log('Triggering parent refresh...');
+        onSave(deliverable.id, {});
+      }
+      
       console.log('=== Modal: handleToggleTaskComplete SUCCESS ===');
     } catch (error) {
       console.error('Error toggling task:', error);
