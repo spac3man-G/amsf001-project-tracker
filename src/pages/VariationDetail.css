@@ -1,7 +1,8 @@
 /* =============================================================================
    AMSF001 Variation Detail Page - Apple Design System
-   Version: 1.0
+   Version: 1.1
    Created: 8 December 2025
+   Updated: 6 January 2026 - Added clickable milestone styles
    ============================================================================= */
 
 .variation-detail-page {
@@ -399,6 +400,26 @@
   background: var(--ds-bg-secondary);
   border-radius: var(--ds-radius-md);
   border-left: 4px solid var(--ds-teal);
+}
+
+.vd-milestone-item.clickable {
+  cursor: pointer;
+  transition: all var(--ds-transition);
+}
+
+.vd-milestone-item.clickable:hover {
+  background: color-mix(in srgb, var(--ds-teal) 8%, var(--ds-bg-secondary));
+  border-left-color: var(--ds-blue);
+  transform: translateX(4px);
+}
+
+.vd-milestone-item.clickable:hover .vd-milestone-ref {
+  text-decoration: underline;
+}
+
+.vd-milestone-item.clickable:focus {
+  outline: 2px solid var(--ds-teal);
+  outline-offset: 2px;
 }
 
 .vd-milestone-header {
