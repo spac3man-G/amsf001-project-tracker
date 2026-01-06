@@ -1,10 +1,14 @@
 # AMSF001 Technical Specification: Architecture & Infrastructure
 
 **Document:** TECH-SPEC-01-Architecture.md  
-**Version:** 2.0  
+**Version:** 2.1  
 **Created:** 10 December 2025  
-**Updated:** 23 December 2025  
-**Session:** 1.1  
+**Updated:** 6 January 2026  
+**Session:** 1.1.1  
+
+> **Version 2.1 Updates (6 January 2026):**
+> - Added Claude Opus 4 to AI Integration table (Planning AI document analysis)
+> - Added useResizableColumns.js and usePlanningIntegration.js to hooks listing
 
 > **Version 2.0 Updates (23 December 2025):**
 > - Updated to three-tier multi-tenancy model (Organisation → Project → Entity)
@@ -67,7 +71,8 @@ Users can belong to multiple organisations with different roles (org_owner, org_
 |------------|---------|
 | Anthropic Claude | AI-powered chat assistant and receipt scanning |
 | Claude Haiku | Fast responses for chat and context building |
-| Claude Sonnet | Complex queries and document analysis |
+| Claude Sonnet 4.5 | Complex queries and document analysis |
+| Claude Opus 4 | Planning AI document analysis (WBS generation) |
 
 ---
 
@@ -126,6 +131,8 @@ amsf001-project-tracker/
 │   │   ├── useFormValidation.js  # Form validation
 │   │   ├── useReadOnly.js        # Read-only mode detection
 │   │   ├── useDocumentTemplates.js # Template management
+│   │   ├── useResizableColumns.js # Table column resize with persistence (NEW)
+│   │   ├── usePlanningIntegration.js # Planner-Tracker integration
 │   │   ├── useMilestonePermissions.js
 │   │   ├── useDeliverablePermissions.js
 │   │   ├── useTimesheetPermissions.js

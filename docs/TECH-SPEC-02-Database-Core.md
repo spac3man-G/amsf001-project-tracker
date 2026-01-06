@@ -1,13 +1,23 @@
 # AMSF001 Technical Specification: Database Schema - Core Tables
 
 **Document:** TECH-SPEC-02-Database-Core.md  
-**Version:** 4.0  
+**Version:** 5.0  
 **Created:** 10 December 2025  
-**Updated:** 28 December 2025  
-**Session:** 1.2.1 (added Tools tables - Planning & Estimator)  
+**Updated:** 6 January 2026  
+**Session:** 1.2.2 (updated plan_items schema)  
 
 ---
 
+> **📝 Version 5.0 Updates (6 January 2026)**
+> 
+> Updated `plan_items` table to reflect current production schema:
+> - Added `component` to item_type CHECK constraint (hierarchy: component → milestone → deliverable → task)
+> - Added `is_collapsed`, `predecessors` columns for UI state
+> - Added `is_published`, `published_milestone_id`, `published_deliverable_id` for Tracker sync
+> - Added `scheduling_mode`, `constraint_type`, `constraint_date` for scheduling
+> - Added `updated_by` audit column
+> - Updated Column Reference table with all columns
+>
 > **📝 Version 4.0 Updates (28 December 2025)**
 > 
 > This document has been updated to include Planning and Estimator tools:
@@ -1203,7 +1213,7 @@ CREATE TABLE IF NOT EXISTS plan_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   parent_id UUID REFERENCES plan_items(id) ON DELETE CASCADE,
-  item_type TEXT NOT NULL CHECK (item_type IN ('task', 'milestone', 'deliverable')),
+  item_type TEXT NOT NULL CHECK (item_type IN ('component', 'milestone', 'deliverable', 'task')),
   name TEXT NOT NULL,
   description TEXT,
   start_date DATE,
@@ -1216,13 +1226,32 @@ CREATE TABLE IF NOT EXISTS plan_items (
   sort_order INTEGER DEFAULT 0,
   wbs TEXT,
   indent_level INTEGER DEFAULT 0,
+  
+  -- Hierarchy & UI state
+  is_collapsed BOOLEAN DEFAULT FALSE,
+  predecessors JSONB DEFAULT '[]',
+  
+  -- Publishing/Commit to Tracker
+  is_published BOOLEAN DEFAULT FALSE,
+  published_milestone_id UUID REFERENCES milestones(id) ON DELETE SET NULL,
+  published_deliverable_id UUID REFERENCES deliverables(id) ON DELETE SET NULL,
+  
+  -- Scheduling constraints
+  scheduling_mode VARCHAR(10) DEFAULT 'auto',
+  constraint_type VARCHAR(20),
+  constraint_date DATE,
+  
+  -- Legacy links (deprecated - use published_* instead)
   milestone_id UUID REFERENCES milestones(id) ON DELETE SET NULL,
   deliverable_id UUID REFERENCES deliverables(id) ON DELETE SET NULL,
   assigned_resource_id UUID REFERENCES resources(id) ON DELETE SET NULL,
   estimate_component_id UUID REFERENCES estimate_components(id) ON DELETE SET NULL,
+  
+  -- Audit
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_by UUID REFERENCES auth.users(id),
+  updated_by UUID REFERENCES auth.users(id),
   is_deleted BOOLEAN DEFAULT FALSE
 );
 ```
@@ -1234,7 +1263,7 @@ CREATE TABLE IF NOT EXISTS plan_items (
 | `id` | UUID | No | Primary key |
 | `project_id` | UUID | No | Parent project |
 | `parent_id` | UUID | Yes | Self-reference for hierarchy |
-| `item_type` | TEXT | No | task, milestone, or deliverable |
+| `item_type` | TEXT | No | component, milestone, deliverable, or task |
 | `name` | TEXT | No | Item name |
 | `description` | TEXT | Yes | Detailed description |
 | `start_date` | DATE | Yes | Planned start date |
@@ -1245,9 +1274,14 @@ CREATE TABLE IF NOT EXISTS plan_items (
 | `sort_order` | INTEGER | Yes | Display order within parent |
 | `wbs` | TEXT | Yes | Work breakdown structure code |
 | `indent_level` | INTEGER | Yes | Hierarchy depth (0=root) |
-| `milestone_id` | UUID | Yes | Link to milestone entity |
-| `deliverable_id` | UUID | Yes | Link to deliverable entity |
-| `assigned_resource_id` | UUID | Yes | Assigned team member |
+| `is_collapsed` | BOOLEAN | Yes | UI state for tree expansion |
+| `predecessors` | JSONB | Yes | Array of {id, type, lag} for dependencies |
+| `is_published` | BOOLEAN | Yes | True if committed to Tracker |
+| `published_milestone_id` | UUID | Yes | Link to committed milestone |
+| `published_deliverable_id` | UUID | Yes | Link to committed deliverable |
+| `scheduling_mode` | VARCHAR | Yes | 'auto' or 'manual' scheduling |
+| `constraint_type` | VARCHAR | Yes | Scheduling constraint type |
+| `constraint_date` | DATE | Yes | Constraint date if applicable |
 | `estimate_component_id` | UUID | Yes | Link to estimate component |
 
 #### Indexes

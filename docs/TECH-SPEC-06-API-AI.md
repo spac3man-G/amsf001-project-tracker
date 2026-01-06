@@ -1,9 +1,17 @@
 # AMSF001 Technical Specification - API Layer & AI Integration
 
-**Version:** 1.3  
-**Last Updated:** 28 December 2025  
-**Session:** 1.6.1  
+**Version:** 1.4  
+**Last Updated:** 6 January 2026  
+**Session:** 1.6.2  
 **Status:** Complete  
+
+> **Version 1.4 Updates (6 January 2026):**
+> - Planning AI: Upgraded from Claude Sonnet 4.5 to Claude Opus 4
+> - Planning AI: Increased MAX_TOKENS from 8192 to 16384
+> - Planning AI: Increased timeout from 120s to 300s (vercel.json)
+> - Planning AI: Added `component` item type to tool schemas
+> - Planning AI: Added `tool_choice` forcing to prevent text-only responses
+> - Updated tool name from `generateProjectStructure` to `generate_wbs`
 
 > **Version 1.3 Updates (28 December 2025):**
 > - Added `/api/planning-ai` endpoint (AI-powered WBS generation)
@@ -627,7 +635,9 @@ Admin Request
 
 ---
 
-### 6.7 Planning AI API (NEW - December 2025)
+### 6.7 Planning AI API
+
+> **Updated:** 6 January 2026 - Upgraded to Claude Opus 4 for improved document analysis
 
 **File:** `api/planning-ai.js`
 
@@ -637,12 +647,31 @@ AI-powered Work Breakdown Structure (WBS) generation from natural language descr
 
 **Configuration:**
 ```javascript
-export const config = {
-  maxDuration: 120, // 120 seconds for document processing (Vercel Pro)
-};
+// vercel.json
+{
+  "functions": {
+    "api/planning-ai.js": {
+      "maxDuration": 300  // 5 minutes for complex documents
+    }
+  }
+}
 
-const MODEL = 'claude-sonnet-4-5-20250929';
+// api/planning-ai.js
+const MODEL = 'claude-opus-4-20250514';  // Upgraded from Sonnet 4.5 for better document analysis
+const MAX_TOKENS = 16384;                // Increased from 8192 for larger structures
 ```
+
+**Frontend Timeout:**
+```javascript
+// AIAssistantPanel.jsx
+const PLANNING_AI_TIMEOUT = 330000; // 5.5 minutes (330 seconds)
+```
+
+**Model Selection Rationale:**
+- Claude Opus 4 provides superior accuracy for complex project documents
+- Better extraction of hierarchical structure from PDFs
+- Improved understanding of technical requirements
+- Cost increase: ~5x ($15/M input, $75/M output vs Sonnet's $3/$15)
 
 **Request Body:**
 
@@ -679,29 +708,34 @@ const MODEL = 'claude-sonnet-4-5-20250929';
 
 **AI Tools Available:**
 
-The API exposes 3 tools to Claude:
+The API exposes 3 tools to Claude with **forced tool usage**:
+
+```javascript
+// Force Claude to use tools (prevents text-only responses)
+tool_choice: { type: 'tool', name: 'generate_wbs' }
+```
 
 | Tool | Purpose | When Used |
 |------|---------|----------|
-| `generateProjectStructure` | Create new hierarchical WBS | New project descriptions |
+| `generate_wbs` | Create new hierarchical WBS | New project descriptions |
 | `refineStructure` | Modify existing structure | User feedback/refinement |
 | `askClarification` | Request more info | Vague descriptions |
 
-**Tool: generateProjectStructure**
+**Tool: generate_wbs**
 
 ```javascript
 {
-  name: "generateProjectStructure",
+  name: "generate_wbs",
   input_schema: {
     type: "object",
     properties: {
       structure: {
         type: "array",
-        description: "Hierarchical array: Milestones → Deliverables → Tasks",
+        description: "Hierarchical array: Components → Milestones → Deliverables → Tasks",
         items: {
           type: "object",
           properties: {
-            item_type: { enum: ["milestone", "deliverable", "task"] },
+            item_type: { enum: ["component", "milestone", "deliverable", "task"] },
             name: { type: "string" },
             description: { type: "string" },
             duration_days: { type: "integer" },
@@ -715,6 +749,7 @@ The API exposes 3 tools to Claude:
       itemCounts: {
         type: "object",
         properties: {
+          components: { type: "integer" },
           milestones: { type: "integer" },
           deliverables: { type: "integer" },
           tasks: { type: "integer" }
@@ -724,6 +759,15 @@ The API exposes 3 tools to Claude:
     required: ["structure", "summary", "itemCounts"]
   }
 }
+```
+
+**Item Type Hierarchy:**
+```
+component (optional top-level grouping, e.g., "Frontend", "Backend")
+  └── milestone (payment milestone / phase)
+        └── deliverable (work product)
+              └── task (individual work item)
+```
 ```
 
 **Response (Structure Generated):**

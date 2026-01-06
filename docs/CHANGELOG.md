@@ -7,6 +7,135 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.13] - 2026-01-06
+
+### Added
+
+#### Component Item Type
+Added `component` as a top-level organizational item type in the Planning hierarchy.
+
+**Database:**
+- Updated `plan_items.item_type` CHECK constraint: `('component', 'milestone', 'deliverable', 'task')`
+- Components serve as grouping containers (e.g., "Frontend", "Backend", "Infrastructure")
+
+**Service Layer:**
+- Updated clipboard validation in `planningClipboard.js`
+- Updated hierarchy rules in `planItemsService.js`
+
+**UI:**
+- Added amber/orange styling for component rows in Planning grid
+- Updated AI Assistant tool schemas to include component generation
+
+#### Tracker-as-Master Sync
+Implemented one-way sync from Tracker to Planner for committed items.
+
+**New Method:**
+- `planItemsService.syncFromTracker(projectId)` - Updates plan_items from Tracker data
+
+**Sync Fields:**
+| Tracker | → | Planner |
+|---------|---|---------|
+| milestone.status | → | plan_item.status (mapped) |
+| milestone.percent_complete | → | plan_item.progress |
+| milestone.start_date | → | plan_item.start_date |
+| milestone.forecast_end_date | → | plan_item.end_date |
+| deliverable.status | → | plan_item.status (mapped) |
+| deliverable.progress | → | plan_item.progress |
+| deliverable.due_date | → | plan_item.end_date |
+
+**Behavior:**
+- Sync runs automatically on Planning page load
+- Committed items are visually distinct (greyed, 🔗 icon)
+- Committed items are read-only (cannot edit, delete, drag, indent)
+- Info toast shown when user attempts to edit committed items
+
+**Safety:**
+- READ-ONLY from milestones and deliverables tables
+- Only updates plan_items table
+- Tracker workflows (timesheets, variations, certificates) untouched
+
+#### Resizable Columns
+Added drag-to-resize columns in Planning grid with localStorage persistence.
+
+**New Hook:**
+- `useResizableColumns.js` - Manages column widths with persistence
+
+**Features:**
+- Drag handles on column headers
+- Minimum widths enforced
+- Purple gradient visual feedback on hover/drag
+- Widths persist across sessions via localStorage
+
+#### Soft-Delete Cleanup
+Added hard delete and purge methods for cleaning up soft-deleted items.
+
+**New Methods:**
+- `planItemsService.hardDelete(id)` - Permanently removes item
+- `planItemsService.purgeSoftDeleted(projectId)` - Removes all soft-deleted items
+
+**Migration:**
+- `migrations/cleanup_soft_deleted_plan_items.sql` - SQL for manual cleanup
+
+### Changed
+
+#### Planning AI Model Upgrade
+Upgraded Planning AI from Claude Sonnet 4.5 to Claude Opus 4.
+
+**Configuration Changes:**
+- Model: `claude-sonnet-4-5-20250929` → `claude-opus-4-20250514`
+- MAX_TOKENS: `8192` → `16384`
+- Backend timeout: `120s` → `300s` (via vercel.json)
+- Frontend timeout: → `5.5 minutes`
+
+**Benefits:**
+- Improved accuracy for complex project documents
+- Better extraction of hierarchical structure from PDFs
+- Cost increase: ~5x (justified by quality improvement)
+
+#### Planning AI Tool Choice
+Added forced tool usage to prevent text-only responses.
+
+```javascript
+tool_choice: { type: 'tool', name: 'generate_wbs' }
+```
+
+#### Default Collapsed View
+Planning grid now defaults to collapsed view on load.
+- All parent items (components, milestones, deliverables with children) start collapsed
+- User can expand individually or use "Expand All" button
+
+### Removed
+
+#### Estimate Column
+Removed Estimate column from Planning grid.
+- Column header removed
+- Cell rendering removed
+- ColSpan updated from 13 to 12
+
+### Fixed
+
+#### Schema Error - deleted_at Column
+Fixed `"Could not find the 'deleted_at' column"` errors.
+
+**Root Cause:** Code attempted to set `deleted_at` and `deleted_by` columns that don't exist.
+
+**Fixed Files:**
+- `planItemsService.js` - delete() method
+- `syncService.js` - syncPlanItemDeleteToTracker(), syncMilestoneDeleteToPlanner(), syncDeliverableDeleteToPlanner()
+
+**Solution:** Now only sets `is_deleted: true` (the actual column)
+
+#### Ghost Uncommitted Count
+Fixed incorrect "56 uncommitted" count despite empty plan.
+
+**Root Cause:** Soft-deleted items (is_deleted=true) still counted.
+
+**Solution:**
+- Updated uncommittedCount filter to exclude is_deleted items
+- Purged 269 soft-deleted items from production database
+
+---
+
 ## [0.9.12] - 2026-01-05
 
 ### Added

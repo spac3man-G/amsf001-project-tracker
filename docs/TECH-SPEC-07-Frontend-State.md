@@ -1,11 +1,16 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.1  
+**Document Version:** 5.2  
 **Created:** 11 December 2025  
-**Last Updated:** 28 December 2025  
-**Session:** 1.7.2 (updated for TD-001 Permission Hook Consolidation)  
+**Last Updated:** 6 January 2026  
+**Session:** 1.7.3  
 **Author:** Claude AI (Anthropic)  
 
+> **Version 5.2 Updates (6 January 2026):**
+> - Added Section 10.3: UI Utility Hooks
+> - Documents useResizableColumns hook for table column resizing
+> - Added localStorage persistence pattern documentation
+>
 > **Version 5.1 Updates (28 December 2025):**
 > - Updated Section 9.4: Entity-Specific Permission Hooks
 > - Added 3 new hooks: useExpensePermissions, useRaidPermissions, useNetworkStandardPermissions
@@ -1936,6 +1941,90 @@ const { isReadOnly, canEdit, role } = useReadOnly();
 
 if (isReadOnly) {
   return <ViewOnlyNotice />;
+}
+```
+
+### 10.3 UI Utility Hooks
+
+> **Added:** 6 January 2026
+
+#### useResizableColumns
+
+Manages resizable table columns with localStorage persistence.
+
+**File:** `src/hooks/useResizableColumns.js`
+
+**Purpose:** Provides drag-to-resize functionality for table columns with automatic persistence.
+
+```javascript
+const {
+  columnWidths,      // Current width values { name: 200, type: 100, ... }
+  getColumnStyle,    // Returns { width, minWidth } for column
+  startResize,       // Start drag: startResize(e, columnKey)
+  isResizing,        // True if currently dragging
+  resetWidths        // Reset to defaults
+} = useResizableColumns({
+  storageKey: 'planning-column-widths',
+  defaultWidths: {
+    name: 250,
+    type: 100,
+    start: 110,
+    end: 110,
+    predecessors: 120,
+    progress: 80,
+    status: 100
+  },
+  minWidths: {
+    name: 150,
+    type: 80,
+    start: 90,
+    end: 90,
+    predecessors: 80,
+    progress: 60,
+    status: 80
+  }
+});
+```
+
+**Usage in Table Headers:**
+
+```jsx
+<th style={getColumnStyle('name')}>
+  Name
+  <div
+    className="column-resize-handle"
+    onMouseDown={(e) => startResize(e, 'name')}
+  />
+</th>
+```
+
+**Features:**
+- Drag handles appear on hover (right edge of column)
+- Purple gradient visual feedback during drag
+- Minimum widths enforced to prevent collapse
+- Widths saved to localStorage on drag end
+- Restored on component mount
+
+**CSS Requirements:**
+
+```css
+.column-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.column-resize-handle:hover {
+  background: linear-gradient(to right, 
+    transparent, 
+    rgba(139, 92, 246, 0.3), 
+    rgba(139, 92, 246, 0.5)
+  );
 }
 ```
 

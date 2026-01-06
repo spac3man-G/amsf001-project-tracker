@@ -1,10 +1,15 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 4.0  
+**Document Version:** 5.0  
 **Created:** 11 December 2025  
-**Updated:** 28 December 2025  
-**Session:** 1.8.1  
+**Updated:** 6 January 2026  
+**Session:** 1.8.2  
 **Status:** Complete
+
+> **Version 5.0 Updates (6 January 2026):**
+> - Added Section 15.1.2: Tracker Sync Methods (syncFromTracker, hardDelete, purgeSoftDeleted)
+> - Documents Tracker-as-Master sync pattern for committed items
+> - Added field sync mapping table (Tracker → Planner)
 
 > **Version 4.0 Updates (28 December 2025):**
 > - Added Section 15: Planning & Estimator Services
@@ -2383,6 +2388,89 @@ async detectBaselineChanges(projectId) {
   }];
 }
 ```
+
+---
+
+### 15.1.2 Tracker Sync Methods
+
+> **Added:** 6 January 2026
+
+**File:** `src/services/planItemsService.js`
+
+**Purpose:** Synchronizes committed plan items with Tracker data (Tracker-as-Master pattern).
+
+#### Sync Pattern
+
+```
+Tracker (milestones, deliverables)   ← SOURCE OF TRUTH
+         ↓ SELECT only
+    syncFromTracker()
+         ↓ UPDATE only
+Planner (plan_items)                  ← UPDATED
+```
+
+**Key Principle:** Once committed, Tracker is the single source of truth. Planner shows read-only view of committed items.
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `syncFromTracker` | projectId | {synced, errors} | Updates plan_items from Tracker data |
+| `hardDelete` | id | Boolean | Permanently removes item (bypasses soft-delete) |
+| `purgeSoftDeleted` | projectId | {deleted: count} | Removes all soft-deleted items |
+
+#### syncFromTracker Implementation
+
+```javascript
+async syncFromTracker(projectId) {
+  // 1. Get all published plan_items
+  const published = await supabase
+    .from('plan_items')
+    .select('id, published_milestone_id, published_deliverable_id')
+    .eq('project_id', projectId)
+    .eq('is_published', true)
+    .eq('is_deleted', false);
+  
+  // 2. Fetch current milestone data (READ-ONLY)
+  const milestones = await supabase
+    .from('milestones')
+    .select('id, status, percent_complete, start_date, forecast_end_date')
+    .in('id', milestoneIds);
+  
+  // 3. Fetch current deliverable data (READ-ONLY)
+  const deliverables = await supabase
+    .from('deliverables')
+    .select('id, status, progress, due_date')
+    .in('id', deliverableIds);
+  
+  // 4. Update plan_items with Tracker values
+  for (const item of published) {
+    if (item.published_milestone_id) {
+      const ms = milestonesMap.get(item.published_milestone_id);
+      await supabase.from('plan_items').update({
+        status: mapTrackerStatusToPlan(ms.status),
+        progress: ms.percent_complete,
+        start_date: ms.start_date,
+        end_date: ms.forecast_end_date
+      }).eq('id', item.id);
+    }
+  }
+  
+  return { synced: count, errors: [] };
+}
+```
+
+#### Fields Synced from Tracker
+
+| Tracker Table | Field | → | Plan Item Field |
+|---------------|-------|---|-----------------|
+| milestones | status | → | status (mapped) |
+| milestones | percent_complete | → | progress |
+| milestones | start_date | → | start_date |
+| milestones | forecast_end_date | → | end_date |
+| deliverables | status | → | status (mapped) |
+| deliverables | progress | → | progress |
+| deliverables | due_date | → | end_date |
 
 ---
 
