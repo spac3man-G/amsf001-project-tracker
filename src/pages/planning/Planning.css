@@ -193,6 +193,30 @@
   color: #92400e;
 }
 
+/* Committed rows (managed in Tracker - read-only) */
+.plan-row.committed {
+  background: rgba(100, 116, 139, 0.04);
+}
+
+.plan-row.committed:hover {
+  background: rgba(100, 116, 139, 0.08);
+}
+
+.plan-row.committed .plan-cell {
+  color: #64748b;
+}
+
+.plan-row.committed .plan-cell-name span {
+  color: #64748b;
+}
+
+.plan-row.committed .plan-cell-name::after {
+  content: '🔗';
+  margin-left: 8px;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
 /* Cells */
 .plan-cell {
   padding: 0;

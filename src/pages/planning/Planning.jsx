@@ -96,6 +96,11 @@ export default function Planning() {
     if (!projectId) return;
     try {
       setLoading(true);
+      
+      // Sync committed items from Tracker first (Tracker is master)
+      await planItemsService.syncFromTracker(projectId);
+      
+      // Then fetch all items with updated data
       const data = await planItemsService.getAllWithEstimates(projectId);
       setItems(data);
       
@@ -526,10 +531,16 @@ export default function Planning() {
   }
 
   async function handleDeleteItem(id) {
+    // Check if item is committed (managed in Tracker)
+    const item = items.find(i => i.id === id);
+    if (item?.is_published) {
+      showInfo('This item is managed in Tracker. Delete it there instead.');
+      return;
+    }
+    
     if (!confirm('Delete this item?')) return;
     try {
       // Get item and its descendants for undo
-      const item = items.find(i => i.id === id);
       const descendants = planItemsService.getDescendants(items, id);
       const allIds = [id, ...descendants.map(d => d.id)];
       
@@ -548,8 +559,14 @@ export default function Planning() {
 
   async function handleIndent(id) {
     try {
-      // Store previous state for undo
+      // Check if item is committed (managed in Tracker)
       const item = items.find(i => i.id === id);
+      if (item?.is_published) {
+        showInfo('This item is managed in Tracker. Changes must be made there.');
+        return;
+      }
+      
+      // Store previous state for undo
       const previousState = {
         id,
         previousParentId: item.parent_id,
@@ -578,8 +595,14 @@ export default function Planning() {
 
   async function handleOutdent(id) {
     try {
-      // Store previous state for undo
+      // Check if item is committed (managed in Tracker)
       const item = items.find(i => i.id === id);
+      if (item?.is_published) {
+        showInfo('This item is managed in Tracker. Changes must be made there.');
+        return;
+      }
+      
+      // Store previous state for undo
       const previousState = {
         id,
         previousParentId: item.parent_id,
@@ -1633,6 +1656,12 @@ export default function Planning() {
     const item = items[rowIndex];
     if (!item) return;
     
+    // Block editing for committed items (Tracker is master)
+    if (item.is_published) {
+      showInfo('This item is managed in Tracker. Changes must be made there.');
+      return;
+    }
+    
     let value = item[field] || '';
     if (initialChar !== null) {
       value = initialChar; // Replace with typed character
@@ -1645,6 +1674,12 @@ export default function Planning() {
   function clearCell(rowIndex, field) {
     const item = items[rowIndex];
     if (!item) return;
+    
+    // Block clearing for committed items (Tracker is master)
+    if (item.is_published) {
+      showInfo('This item is managed in Tracker. Changes must be made there.');
+      return;
+    }
     
     let clearValue = '';
     if (field === 'progress') clearValue = 0;
@@ -2372,9 +2407,9 @@ export default function Planning() {
                   return (
                   <tr 
                     key={item.id} 
-                    className={`plan-row ${activeCell?.rowIndex === index ? 'active-row' : ''} ${selectedIds.has(item.id) ? 'selected' : ''} ${item.item_type} ${isDragged ? 'dragging' : ''} ${isDropTarget ? `drop-target-${dropPosition}` : ''} ${isDropTarget && !dragState.dropValid ? 'drop-invalid' : ''}`}
+                    className={`plan-row ${activeCell?.rowIndex === index ? 'active-row' : ''} ${selectedIds.has(item.id) ? 'selected' : ''} ${item.item_type} ${item.is_published ? 'committed' : ''} ${isDragged ? 'dragging' : ''} ${isDropTarget ? `drop-target-${dropPosition}` : ''} ${isDropTarget && !dragState.dropValid ? 'drop-invalid' : ''}`}
                     onClick={(e) => handleRowSelect(item, e)}
-                    draggable={!editingCell}
+                    draggable={!editingCell && !item.is_published}
                     onDragStart={(e) => handleDragStart(e, item)}
                     onDragOver={(e) => handleDragOver(e, item)}
                     onDragLeave={handleDragLeave}

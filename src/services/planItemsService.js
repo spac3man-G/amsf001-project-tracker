@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { syncService } from './syncService';
+import { mapTrackerStatusToPlan } from './planCommitService';
 
 /**
  * Plan Items Service
@@ -1055,6 +1056,140 @@ export const planItemsService = {
 
     if (error) throw error;
     return data;
+  },
+
+  // ===========================================================================
+  // SYNC FROM TRACKER (READ-ONLY - Tracker is Master for committed items)
+  // ===========================================================================
+
+  /**
+   * Sync committed plan items from Tracker data.
+   * This is READ-ONLY from Tracker - we only SELECT from milestones/deliverables
+   * and UPDATE plan_items. Never modifies Tracker tables.
+   * 
+   * @param {string} projectId - Project UUID
+   * @returns {Promise<{synced: number, errors: Array}>}
+   */
+  async syncFromTracker(projectId) {
+    const results = { synced: 0, errors: [] };
+    
+    try {
+      // 1. Get all published plan items
+      const { data: publishedItems, error: fetchError } = await supabase
+        .from('plan_items')
+        .select('id, published_milestone_id, published_deliverable_id')
+        .eq('project_id', projectId)
+        .eq('is_published', true)
+        .eq('is_deleted', false);
+      
+      if (fetchError) {
+        console.error('[PlanItemsService] Error fetching published items:', fetchError);
+        return results;
+      }
+      
+      if (!publishedItems || publishedItems.length === 0) {
+        return results;
+      }
+      
+      // 2. Get unique milestone IDs
+      const milestoneIds = [...new Set(
+        publishedItems
+          .filter(i => i.published_milestone_id)
+          .map(i => i.published_milestone_id)
+      )];
+      
+      // 3. Get unique deliverable IDs
+      const deliverableIds = [...new Set(
+        publishedItems
+          .filter(i => i.published_deliverable_id)
+          .map(i => i.published_deliverable_id)
+      )];
+      
+      // 4. Fetch milestones from Tracker (READ-ONLY)
+      let milestonesMap = new Map();
+      if (milestoneIds.length > 0) {
+        const { data: milestones, error: msError } = await supabase
+          .from('milestones')
+          .select('id, status, percent_complete, start_date, forecast_end_date, end_date')
+          .in('id', milestoneIds)
+          .or('is_deleted.is.null,is_deleted.eq.false');
+        
+        if (msError) {
+          console.error('[PlanItemsService] Error fetching milestones:', msError);
+        } else if (milestones) {
+          milestones.forEach(m => milestonesMap.set(m.id, m));
+        }
+      }
+      
+      // 5. Fetch deliverables from Tracker (READ-ONLY)
+      let deliverablesMap = new Map();
+      if (deliverableIds.length > 0) {
+        const { data: deliverables, error: delError } = await supabase
+          .from('deliverables')
+          .select('id, status, progress, due_date')
+          .in('id', deliverableIds)
+          .or('is_deleted.is.null,is_deleted.eq.false');
+        
+        if (delError) {
+          console.error('[PlanItemsService] Error fetching deliverables:', delError);
+        } else if (deliverables) {
+          deliverables.forEach(d => deliverablesMap.set(d.id, d));
+        }
+      }
+      
+      // 6. Update plan_items with Tracker data
+      for (const item of publishedItems) {
+        try {
+          let updateData = null;
+          
+          if (item.published_milestone_id) {
+            const milestone = milestonesMap.get(item.published_milestone_id);
+            if (milestone) {
+              updateData = {
+                status: mapTrackerStatusToPlan(milestone.status),
+                progress: milestone.percent_complete || 0,
+                start_date: milestone.start_date,
+                end_date: milestone.forecast_end_date || milestone.end_date
+              };
+            }
+          } else if (item.published_deliverable_id) {
+            const deliverable = deliverablesMap.get(item.published_deliverable_id);
+            if (deliverable) {
+              updateData = {
+                status: mapTrackerStatusToPlan(deliverable.status),
+                progress: deliverable.progress || 0,
+                end_date: deliverable.due_date
+              };
+            }
+          }
+          
+          if (updateData) {
+            const { error: updateError } = await supabase
+              .from('plan_items')
+              .update(updateData)
+              .eq('id', item.id);
+            
+            if (updateError) {
+              results.errors.push({ id: item.id, error: updateError.message });
+            } else {
+              results.synced++;
+            }
+          }
+        } catch (itemError) {
+          results.errors.push({ id: item.id, error: itemError.message });
+        }
+      }
+      
+      if (results.synced > 0) {
+        console.log(`[PlanItemsService] Synced ${results.synced} items from Tracker`);
+      }
+      
+    } catch (error) {
+      console.error('[PlanItemsService] syncFromTracker error:', error);
+      results.errors.push({ error: error.message });
+    }
+    
+    return results;
   },
 
   /**
