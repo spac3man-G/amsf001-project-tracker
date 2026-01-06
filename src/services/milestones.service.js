@@ -12,6 +12,7 @@
 import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
 import { hoursToDays } from '../config/metricsConfig';
+import { syncService } from './syncService';
 
 export class MilestonesService extends BaseService {
   constructor() {
@@ -19,6 +20,32 @@ export class MilestonesService extends BaseService {
       supportsSoftDelete: true,
       sanitizeConfig: 'milestone'
     });
+  }
+
+  /**
+   * Override delete to check baseline protection and sync to Planner
+   * 
+   * @param {string} id - Milestone UUID
+   * @param {string} userId - User performing the delete
+   * @returns {Promise<boolean>} Success status
+   * @throws {Error} If milestone has locked baseline
+   */
+  async delete(id, userId = null) {
+    // Check baseline protection and sync to planner
+    const { allowed, reason, synced } = await syncService.syncMilestoneDeleteToPlanner(id, userId);
+    
+    if (!allowed) {
+      throw new Error(reason);
+    }
+    
+    // Proceed with soft delete using parent method
+    const result = await super.delete(id, userId);
+    
+    if (synced) {
+      console.log(`[MilestonesService] Deleted milestone ${id} and synced to planner`);
+    }
+    
+    return result;
   }
 
   /**

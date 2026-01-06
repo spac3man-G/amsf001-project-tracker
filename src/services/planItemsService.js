@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { syncService } from './syncService';
 
 /**
  * Plan Items Service
@@ -343,20 +344,44 @@ export const planItemsService = {
 
   /**
    * Soft delete an item and all its descendants
+   * Checks baseline protection and syncs to Tracker if published
+   * 
+   * @param {string} id - Plan item UUID
+   * @param {string} userId - User performing the delete (for audit trail)
+   * @returns {Promise<{deleted: number, synced?: boolean}>}
+   * @throws {Error} If item is linked to a baselined milestone
    */
-  async delete(id) {
+  async delete(id, userId = null) {
     const item = await this.getById(id);
     if (!item) throw new Error('Item not found');
+    
+    // Check baseline protection before deleting
+    const { allowed, reason } = await syncService.syncPlannerDeleteToTracker(id, userId);
+    if (!allowed) {
+      throw new Error(reason);
+    }
     
     // Get all descendants
     const allItems = await this.getAll(item.project_id);
     const descendants = this.getDescendants(allItems, id);
     const idsToDelete = [id, ...descendants.map(d => d.id)];
     
-    // Soft delete all
+    // Check baseline protection for all descendants too
+    for (const descendantId of descendants.map(d => d.id)) {
+      const descResult = await syncService.syncPlannerDeleteToTracker(descendantId, userId);
+      if (!descResult.allowed) {
+        throw new Error(descResult.reason);
+      }
+    }
+    
+    // Soft delete all plan items
     const { error } = await supabase
       .from('plan_items')
-      .update({ is_deleted: true })
+      .update({ 
+        is_deleted: true,
+        deleted_at: new Date().toISOString(),
+        deleted_by: userId
+      })
       .in('id', idsToDelete);
 
     if (error) throw error;
@@ -364,7 +389,7 @@ export const planItemsService = {
     // Recalculate WBS
     await this.recalculateWBS(item.project_id);
     
-    return { deleted: idsToDelete.length };
+    return { deleted: idsToDelete.length, synced: true };
   },
 
   /**

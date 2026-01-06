@@ -179,3 +179,8 @@ export {
   mapPlanStatusToTracker,
   mapTrackerStatusToPlan
 } from './planCommitService';
+
+// Sync Service (Bi-directional sync with baseline protection)
+export {
+  syncService
+} from './syncService';

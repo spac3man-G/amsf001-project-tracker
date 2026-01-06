@@ -10,6 +10,7 @@
 
 import { BaseService } from './base.service';
 import { supabase } from '../lib/supabase';
+import { syncService } from './syncService';
 
 export class DeliverablesService extends BaseService {
   constructor() {
@@ -17,6 +18,32 @@ export class DeliverablesService extends BaseService {
       supportsSoftDelete: true,
       sanitizeConfig: 'deliverable'
     });
+  }
+
+  /**
+   * Override delete to check baseline protection and sync to Planner
+   * 
+   * @param {string} id - Deliverable UUID
+   * @param {string} userId - User performing the delete
+   * @returns {Promise<boolean>} Success status
+   * @throws {Error} If parent milestone has locked baseline
+   */
+  async delete(id, userId = null) {
+    // Check baseline protection and sync to planner
+    const { allowed, reason, synced } = await syncService.syncDeliverableDeleteToPlanner(id, userId);
+    
+    if (!allowed) {
+      throw new Error(reason);
+    }
+    
+    // Proceed with soft delete using parent method
+    const result = await super.delete(id, userId);
+    
+    if (synced) {
+      console.log(`[DeliverablesService] Deleted deliverable ${id} and synced to planner`);
+    }
+    
+    return result;
   }
 
   /**
