@@ -832,10 +832,24 @@ export const planItemsService = {
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         // Determine correct type based on hierarchy
+        // Respect component type from AI, otherwise infer from hierarchy
         let itemType = item.item_type || 'task';
-        if (indentLevel === 0) itemType = 'milestone';
-        else if (indentLevel === 1 && parentType === 'milestone') itemType = 'deliverable';
-        else itemType = 'task';
+        if (itemType === 'component') {
+          // Components stay as components (only valid at root)
+          itemType = 'component';
+        } else if (indentLevel === 0) {
+          // Root level without component = milestone
+          itemType = item.item_type === 'milestone' ? 'milestone' : 'milestone';
+        } else if (parentType === 'component') {
+          // Under component = milestone
+          itemType = 'milestone';
+        } else if (parentType === 'milestone') {
+          // Under milestone = deliverable
+          itemType = 'deliverable';
+        } else {
+          // Everything else = task
+          itemType = 'task';
+        }
         
         flat.push({
           tempId,

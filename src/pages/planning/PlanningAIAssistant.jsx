@@ -21,6 +21,7 @@ import {
   Flag,
   Package,
   CheckSquare,
+  Layers,
   ChevronDown,
   ChevronRight,
   Plus,
@@ -105,12 +106,14 @@ function formatFileSize(bytes) {
 }
 
 const ITEM_ICONS = {
+  component: Layers,
   milestone: Flag,
   deliverable: Package,
   task: CheckSquare
 };
 
 const ITEM_COLORS = {
+  component: '#f59e0b',
   milestone: '#8b5cf6',
   deliverable: '#3b82f6',
   task: '#64748b'
@@ -226,7 +229,8 @@ function StructurePreview({ structure, itemCounts, onApply, onRefine, isApplying
     }));
   };
   
-  const totalItems = (itemCounts?.milestones || 0) + 
+  const totalItems = (itemCounts?.components || 0) +
+                     (itemCounts?.milestones || 0) + 
                      (itemCounts?.deliverables || 0) + 
                      (itemCounts?.tasks || 0);
   
@@ -235,6 +239,11 @@ function StructurePreview({ structure, itemCounts, onApply, onRefine, isApplying
       <div className="planning-ai-preview-header">
         <h4>Generated Structure</h4>
         <div className="planning-ai-preview-counts">
+          {(itemCounts?.components || 0) > 0 && (
+            <span className="count-badge component">
+              <Layers size={12} /> {itemCounts?.components || 0}
+            </span>
+          )}
           <span className="count-badge milestone">
             <Flag size={12} /> {itemCounts?.milestones || 0}
           </span>

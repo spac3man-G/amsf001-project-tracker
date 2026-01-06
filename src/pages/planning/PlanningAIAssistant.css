@@ -27,6 +27,7 @@
   --ai-assistant-bg: #f5f5f7;
   --ai-assistant-text: #1d1d1f;
   
+  --ai-component: #f59e0b;
   --ai-milestone: #8b5cf6;
   --ai-deliverable: #3b82f6;
   --ai-task: #64748b;
@@ -287,6 +288,11 @@
   font-weight: 500;
   padding: 4px 8px;
   border-radius: 12px;
+}
+
+.count-badge.component {
+  background: color-mix(in srgb, var(--ai-component) 15%, transparent);
+  color: var(--ai-component);
 }
 
 .count-badge.milestone {

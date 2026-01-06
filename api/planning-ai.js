@@ -36,20 +36,20 @@ const TOKEN_COSTS = {
 const TOOLS = [
   {
     name: "generateProjectStructure",
-    description: "Generate a hierarchical project structure with milestones, deliverables, and tasks from a project description. Use this when the user describes a new project or wants to create a plan from scratch.",
+    description: "Generate a hierarchical project structure with components, milestones, deliverables, and tasks from a project description. Use this when the user describes a new project or wants to create a plan from scratch. Use components to group related work (e.g., different sites, modules, or logical groupings).",
     input_schema: {
       type: "object",
       properties: {
         structure: {
           type: "array",
-          description: "Hierarchical array of project items. Milestones at top level, deliverables nested under milestones, tasks nested under deliverables.",
+          description: "Hierarchical array of project items. Components and milestones at top level, milestones under components, deliverables under milestones, tasks under deliverables.",
           items: {
             type: "object",
             properties: {
               item_type: {
                 type: "string",
-                enum: ["milestone", "deliverable", "task"],
-                description: "Type of item: milestone (phase/checkpoint), deliverable (tangible output), task (work item)"
+                enum: ["component", "milestone", "deliverable", "task"],
+                description: "Type of item: component (organizational grouping), milestone (phase/checkpoint), deliverable (tangible output), task (work item)"
               },
               name: {
                 type: "string",
@@ -65,11 +65,11 @@ const TOOLS = [
               },
               children: {
                 type: "array",
-                description: "Nested child items (deliverables under milestones, tasks under deliverables)",
+                description: "Nested child items (milestones under components, deliverables under milestones, tasks under deliverables)",
                 items: {
                   type: "object",
                   properties: {
-                    item_type: { type: "string", enum: ["milestone", "deliverable", "task"] },
+                    item_type: { type: "string", enum: ["component", "milestone", "deliverable", "task"] },
                     name: { type: "string" },
                     description: { type: "string" },
                     duration_days: { type: "integer" },
@@ -93,6 +93,7 @@ const TOOLS = [
         itemCounts: {
           type: "object",
           properties: {
+            components: { type: "integer" },
             milestones: { type: "integer" },
             deliverables: { type: "integer" },
             tasks: { type: "integer" }
@@ -124,7 +125,7 @@ const TOOLS = [
           items: {
             type: "object",
             properties: {
-              item_type: { type: "string", enum: ["milestone", "deliverable", "task"] },
+              item_type: { type: "string", enum: ["component", "milestone", "deliverable", "task"] },
               name: { type: "string" },
               description: { type: "string" },
               duration_days: { type: "integer" },
@@ -140,6 +141,7 @@ const TOOLS = [
         itemCounts: {
           type: "object",
           properties: {
+            components: { type: "integer" },
             milestones: { type: "integer" },
             deliverables: { type: "integer" },
             tasks: { type: "integer" }
@@ -187,7 +189,7 @@ const TOOLS = [
                 properties: {
                   name: { type: "string" },
                   description: { type: "string" },
-                  item_type: { type: "string", enum: ["milestone", "deliverable", "task"] },
+                  item_type: { type: "string", enum: ["component", "milestone", "deliverable", "task"] },
                   start_date: { type: "string" },
                   end_date: { type: "string" },
                   duration_days: { type: "integer" },
@@ -246,12 +248,13 @@ const SYSTEM_PROMPT = `You are a project planning assistant integrated into a pr
 ## Your Capabilities
 
 1. **Generate Project Structures**: Convert project descriptions into hierarchical plans with:
-   - **Milestones**: Major phases or checkpoints (e.g., "Phase 1: Discovery", "MVP Launch")
+   - **Components**: Organizational containers to group related work (e.g., "LRS Site", "VIC Site", "Backend Module")
+   - **Milestones**: Major phases or checkpoints under components or at root (e.g., "Phase 1: Discovery", "MVP Launch")
    - **Deliverables**: Tangible outputs under milestones (e.g., "User Research Report", "API Documentation")
    - **Tasks**: Specific work items under deliverables (e.g., "Conduct user interviews", "Write endpoint specs")
 
 2. **Edit Existing Plans**: Make changes to the user's current plan:
-   - Add new items (milestones, deliverables, tasks)
+   - Add new items (components, milestones, deliverables, tasks)
    - Remove items
    - Rename items
    - Update properties (dates, status, progress, descriptions)
@@ -265,10 +268,20 @@ const SYSTEM_PROMPT = `You are a project planning assistant integrated into a pr
 ## Guidelines
 
 ### Hierarchy Rules (IMPORTANT)
-- Milestones can only be at root level (no parent)
+- Components can ONLY be at root level (organizational grouping, does NOT commit to Tracker)
+- Milestones can be at root level OR under a Component
 - Deliverables MUST be under a Milestone
 - Tasks MUST be under a Deliverable OR another Task
-- Maximum 3 levels: Milestone → Deliverable → Task
+- Maximum 4 levels: Component → Milestone → Deliverable → Task
+
+### When to Use Components
+Use components to organize work when:
+- There are multiple sites, locations, or schools in the same project
+- Work can be logically grouped (e.g., "Frontend", "Backend", "Infrastructure")
+- The user wants to copy a structure for multiple instances
+- The user explicitly asks for organizational grouping
+
+Components are ORGANIZATIONAL ONLY - they help structure the plan but do NOT commit to the Tracker. Only milestones and deliverables commit to the Tracker for billing/tracking.
 
 ### When to Use Each Tool
 - **generateProjectStructure**: For creating NEW plans from descriptions
