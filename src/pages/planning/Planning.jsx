@@ -28,6 +28,7 @@ import { EstimateLinkModal, EstimateGeneratorModal } from '../../components/plan
 import planningClipboard from '../../lib/planningClipboard';
 import planningHistory from '../../lib/planningHistory';
 import { autoScheduleItems } from '../../lib/planningScheduler';
+import useResizableColumns from '../../hooks/useResizableColumns';
 import './Planning.css';
 import './PlanningIntegration.css';
 
@@ -80,6 +81,15 @@ export default function Planning() {
   const inputRef = useRef(null);
   const tableRef = useRef(null);
   const linkMenuRef = useRef(null); // Ref for link dropdown menu
+
+  // Resizable columns hook
+  const { 
+    columnWidths, 
+    startResize, 
+    isResizable, 
+    getColumnStyle, 
+    isResizing 
+  } = useResizableColumns();
 
   // Fetch items (with estimate data)
   const fetchItems = useCallback(async () => {
@@ -2270,16 +2280,80 @@ export default function Planning() {
                   />
                 </th>
                 <th className="plan-col-grip"></th>
-                <th className="plan-col-wbs">#</th>
+                <th className="plan-col-wbs" style={getColumnStyle('wbs')}>#</th>
                 <th className="plan-col-indicators"></th>
-                <th className="plan-col-name">Task Name</th>
-                <th className="plan-col-type">Type</th>
-                <th className="plan-col-start">Start</th>
-                <th className="plan-col-end">End</th>
-                <th className="plan-col-predecessors">Pred</th>
-                <th className="plan-col-progress">Progress</th>
-                <th className="plan-col-status">Status</th>
-                <th className="plan-col-estimate">Estimate</th>
+                <th className="plan-col-name" style={getColumnStyle('name')}>
+                  Task Name
+                  {isResizable('name') && (
+                    <div 
+                      className="column-resize-handle" 
+                      onMouseDown={(e) => startResize('name', e)}
+                    />
+                  )}
+                </th>
+                <th className="plan-col-type" style={getColumnStyle('type')}>
+                  Type
+                  {isResizable('type') && (
+                    <div 
+                      className="column-resize-handle" 
+                      onMouseDown={(e) => startResize('type', e)}
+                    />
+                  )}
+                </th>
+                <th className="plan-col-start" style={getColumnStyle('start')}>
+                  Start
+                  {isResizable('start') && (
+                    <div 
+                      className="column-resize-handle" 
+                      onMouseDown={(e) => startResize('start', e)}
+                    />
+                  )}
+                </th>
+                <th className="plan-col-end" style={getColumnStyle('end')}>
+                  End
+                  {isResizable('end') && (
+                    <div 
+                      className="column-resize-handle" 
+                      onMouseDown={(e) => startResize('end', e)}
+                    />
+                  )}
+                </th>
+                <th className="plan-col-predecessors" style={getColumnStyle('predecessors')}>
+                  Pred
+                  {isResizable('predecessors') && (
+                    <div 
+                      className="column-resize-handle" 
+                      onMouseDown={(e) => startResize('predecessors', e)}
+                    />
+                  )}
+                </th>
+                <th className="plan-col-progress" style={getColumnStyle('progress')}>
+                  Progress
+                  {isResizable('progress') && (
+                    <div 
+                      className="column-resize-handle" 
+                      onMouseDown={(e) => startResize('progress', e)}
+                    />
+                  )}
+                </th>
+                <th className="plan-col-status" style={getColumnStyle('status')}>
+                  Status
+                  {isResizable('status') && (
+                    <div 
+                      className="column-resize-handle" 
+                      onMouseDown={(e) => startResize('status', e)}
+                    />
+                  )}
+                </th>
+                <th className="plan-col-estimate" style={getColumnStyle('estimate')}>
+                  Estimate
+                  {isResizable('estimate') && (
+                    <div 
+                      className="column-resize-handle" 
+                      onMouseDown={(e) => startResize('estimate', e)}
+                    />
+                  )}
+                </th>
                 <th className="plan-col-actions"></th>
               </tr>
             </thead>

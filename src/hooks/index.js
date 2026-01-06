@@ -54,3 +54,6 @@ export {
   usePlanningIntegration,
   isBaselineField
 } from './usePlanningIntegration';
+
+// UI Utilities
+export { default as useResizableColumns } from './useResizableColumns';
