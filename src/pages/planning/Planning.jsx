@@ -98,6 +98,10 @@ export default function Planning() {
       setLoading(true);
       const data = await planItemsService.getAllWithEstimates(projectId);
       setItems(data);
+      
+      // Default to collapsed view - collapse all items that have children
+      const parentIds = new Set(data.filter(item => item.parent_id).map(item => item.parent_id));
+      setCollapsedIds(parentIds);
     } catch (error) {
       console.error('Error fetching items:', error);
       showError('Failed to load plan items');
