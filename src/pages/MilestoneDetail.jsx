@@ -10,8 +10,8 @@
  * - Acceptance certificate workflow (dual signature)
  * - Edit milestone (including reference) with delete capability
  * 
- * @version 4.5 - Added reference editing and soft delete with undo
- * @updated 18 December 2025
+ * @version 4.6 - Fixed Original Commitment display to show true pre-variation values
+ * @updated 6 January 2026
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -51,6 +51,7 @@ export default function MilestoneDetail() {
   const [deliverables, setDeliverables] = useState([]);
   const [certificate, setCertificate] = useState(null);
   const [baselineHistory, setBaselineHistory] = useState([]);
+  const [firstVariationOriginal, setFirstVariationOriginal] = useState(null); // True original values from first applied variation
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -116,6 +117,10 @@ export default function MilestoneDetail() {
       // Fetch baseline history
       const historyData = await variationsService.getMilestoneBaselineHistory(id);
       setBaselineHistory(historyData || []);
+
+      // Fetch first applied variation's original values (true pre-variation baseline)
+      const originalData = await variationsService.getFirstVariationOriginal(id);
+      setFirstVariationOriginal(originalData);
     } catch (error) {
       console.error('Error fetching milestone data:', error);
       showError('Failed to load milestone data');
@@ -728,16 +733,23 @@ export default function MilestoneDetail() {
             </span>
           </div>
 
-          {/* Original Baseline Values - from v1 if available, otherwise current milestone */}
+          {/* Original Baseline Values - use firstVariationOriginal if available */}
           {(() => {
-            const originalBaseline = baselineHistory.find(v => v.version === 1 && !v.variation_id);
+            // Get variations that have been applied (have entries in baselineHistory)
             const variationAmendments = baselineHistory.filter(v => v.variation_id);
             const hasVariations = variationAmendments.length > 0;
             
-            // Use original baseline if available, otherwise use current milestone values
-            const displayStartDate = originalBaseline?.baseline_start_date || milestone.baseline_start_date;
-            const displayEndDate = originalBaseline?.baseline_end_date || milestone.baseline_end_date;
-            const displayBillable = originalBaseline?.baseline_billable ?? baselineBillable;
+            // Use true original values from first variation if available
+            // This captures what the baseline was BEFORE any variations were applied
+            const displayStartDate = firstVariationOriginal?.original_baseline_start 
+              || baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_start_date 
+              || milestone.baseline_start_date;
+            const displayEndDate = firstVariationOriginal?.original_baseline_end 
+              || baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_end_date 
+              || milestone.baseline_end_date;
+            const displayBillable = firstVariationOriginal?.original_baseline_cost 
+              ?? baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_billable 
+              ?? baselineBillable;
             
             return (
               <>
@@ -775,7 +787,7 @@ export default function MilestoneDetail() {
                     <div className="amendments-list">
                       {variationAmendments.map((version, index) => {
                         const prevVersion = index === 0 
-                          ? originalBaseline || { baseline_billable: displayBillable }
+                          ? { baseline_billable: displayBillable }
                           : variationAmendments[index - 1];
                         const costChange = (version.baseline_billable || 0) - (prevVersion.baseline_billable || 0);
                         
