@@ -8,9 +8,9 @@
  * - Dual-signature approval workflow
  * - Certificate generation
  * 
- * @version 1.3
+ * @version 1.4
  * @created 8 December 2025
- * @updated 6 January 2026 - Fixed baseline versioning to properly capture original values
+ * @updated 6 January 2026 - Fixed getFirstVariationOriginal query to properly order by applied_at
  */
 
 import { BaseService } from './base.service';
@@ -681,21 +681,36 @@ export class VariationsService extends BaseService {
    */
   async getFirstVariationOriginal(milestoneId) {
     try {
-      const { data, error } = await supabase
+      // First get all variation_milestones for this milestone with their variation's applied_at
+      const { data: vmData, error: vmError } = await supabase
         .from('variation_milestones')
         .select(`
           original_baseline_start,
           original_baseline_end,
           original_baseline_cost,
-          variation:variations!inner(status, applied_at)
+          variations!inner(id, status, applied_at)
         `)
         .eq('milestone_id', milestoneId)
-        .eq('variations.status', 'applied')
-        .order('variations(applied_at)', { ascending: true })
-        .limit(1);
+        .eq('variations.status', 'applied');
 
-      if (error) throw error;
-      return data?.[0] || null;
+      if (vmError) {
+        console.error('getFirstVariationOriginal query error:', vmError);
+        return null;
+      }
+      
+      if (!vmData || vmData.length === 0) {
+        return null;
+      }
+
+      // Sort by applied_at to get the earliest applied variation
+      const sorted = vmData.sort((a, b) => {
+        const dateA = new Date(a.variations?.applied_at || '9999-12-31');
+        const dateB = new Date(b.variations?.applied_at || '9999-12-31');
+        return dateA - dateB;
+      });
+
+      // Return the first one (earliest applied)
+      return sorted[0] || null;
     } catch (error) {
       console.error('VariationsService getFirstVariationOriginal error:', error);
       return null;
