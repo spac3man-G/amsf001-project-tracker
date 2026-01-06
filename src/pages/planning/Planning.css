@@ -154,6 +154,19 @@
   background: rgba(59, 130, 246, 0.02);
 }
 
+.plan-row.component {
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.plan-row.component:hover {
+  background: rgba(245, 158, 11, 0.10);
+}
+
+.plan-row.component .plan-cell-name span {
+  font-weight: 600;
+  color: #92400e;
+}
+
 /* Cells */
 .plan-cell {
   padding: 0;
@@ -269,6 +282,11 @@
 .plan-type-badge.deliverable {
   background: rgba(59, 130, 246, 0.1);
   color: #2563eb;
+}
+
+.plan-type-badge.component {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
 }
 
 /* Date cells */
