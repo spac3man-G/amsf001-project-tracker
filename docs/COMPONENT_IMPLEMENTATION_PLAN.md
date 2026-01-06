@@ -410,7 +410,7 @@ validatePaste(targetItem = null) {
 | 4. UI Item Types | ✅ Done | b570bc4e | 2026-01-06 | Layers icon, amber color |
 | 5. Clipboard | ✅ Done | 9534cd6e | 2026-01-06 | Paste validation updated |
 | 6. Integration Test | ⬜ Pending | | | Manual testing needed |
-| 7. CSS Polish | ⬜ Optional | | | |
+| 7. CSS Polish | ✅ Done | 5314d69f | 2026-01-06 | Amber row/badge styling |
 
 ---
 
