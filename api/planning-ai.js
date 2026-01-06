@@ -616,7 +616,7 @@ When the user asks to modify or add to this structure, use the refineStructure t
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 8192, // Increased for complex project structures
+        max_tokens: 16384, // Increased for large multi-component structures
         system: systemPrompt,
         tools: TOOLS,
         tool_choice: { type: "any" }, // Force tool use - don't allow text-only responses
@@ -770,6 +770,13 @@ function processClaudeResponse(data) {
     stopReason: data.stop_reason
   };
 
+  // Check for truncated response (hit max_tokens)
+  if (data.stop_reason === 'max_tokens') {
+    console.log('processClaudeResponse: Response was truncated due to max_tokens!');
+    result.message = 'The project structure was too large to generate in one request. Try asking for just one school/component at a time, or a simpler structure.';
+    return result;
+  }
+
   // Check if we have content
   if (!data.content || data.content.length === 0) {
     console.log('processClaudeResponse: No content blocks');
@@ -789,6 +796,13 @@ function processClaudeResponse(data) {
       const toolInput = block.input;
 
       console.log(`processClaudeResponse: Processing tool_use - ${toolName}`);
+      
+      // Check for malformed tool input
+      if (!toolInput) {
+        console.log('WARNING: tool_use block has no input!');
+        console.log('Block:', JSON.stringify(block, null, 2));
+        continue;
+      }
 
       switch (toolName) {
         case 'generateProjectStructure':
