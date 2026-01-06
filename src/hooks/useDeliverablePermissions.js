@@ -5,8 +5,9 @@
  * and dual-signature sign-off. This hook centralises all permission
  * logic for deliverable-related actions.
  * 
- * @version 1.0
+ * @version 1.1 - Allow Contributors to edit without assignment requirement
  * @created 6 December 2025
+ * @updated 6 January 2026
  */
 
 import { useAuth } from '../contexts/AuthContext';
@@ -77,13 +78,18 @@ export function useDeliverablePermissions(deliverable = null) {
   /**
    * Can the user edit this deliverable's core fields?
    * - Admin and Supplier PM can always edit (if not locked)
-   * - Contributors can edit if assigned to them and not locked
+   * - Contributors can edit progress/description on any deliverable (if not locked)
+   * 
+   * Note: Field-level restrictions (name, milestone, KPI links) are enforced
+   * in DeliverableDetailModal via canEditName, canEditMilestone, canEditLinks
    */
   const canEdit = (() => {
     if (isComplete) return false;
     if (!isEditable) return false;
     if (isAdmin || isSupplierPM) return true;
-    if (isContributor && deliverable?.assigned_to === currentUserName) return true;
+    // Contributors can edit any deliverable (progress, description)
+    // They don't need to be specifically assigned
+    if (isContributor) return true;
     return false;
   })();
   
@@ -104,13 +110,14 @@ export function useDeliverablePermissions(deliverable = null) {
    * Can the user submit this deliverable for review?
    * - Must be in correct workflow state (In Progress or Returned for More Work)
    * - Admin, Supplier PM can submit
-   * - Contributors can submit if assigned to them
+   * - Contributors can submit any deliverable they're working on
    */
   const canSubmit = (() => {
     if (!deliverable) return false;
     if (!canSubmitForReview(deliverable)) return false;
     if (isAdmin || isSupplierPM) return true;
-    if (isContributor && deliverable?.assigned_to === currentUserName) return true;
+    // Contributors can submit deliverables for review
+    if (isContributor) return true;
     return false;
   })();
   
