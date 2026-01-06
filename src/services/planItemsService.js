@@ -87,14 +87,19 @@ function filterToDbColumns(item) {
 // =============================================================================
 // HIERARCHY RULES (Strict Enforcement)
 // =============================================================================
-// Milestone → Can only be at root (no parent)
+// Component → Root only, contains Milestones (organizational grouping)
+// Milestone → Root or under Component
 // Deliverable → Must be under a Milestone
 // Task → Must be under a Deliverable or another Task
 // =============================================================================
 
 const HIERARCHY_RULES = {
+  component: {
+    allowedParents: [null],        // Root only
+    allowedChildren: ['milestone'] // Contains milestones
+  },
   milestone: {
-    allowedParents: [null], // Root only
+    allowedParents: [null, 'component'], // Root OR under component
     allowedChildren: ['deliverable']
   },
   deliverable: {
@@ -125,6 +130,8 @@ function isValidParent(itemType, parentType) {
  * Get what type an item should become when demoted
  */
 function getDemotedType(currentType, newParentType) {
+  if (currentType === 'component') return 'component'; // Components can't be demoted
+  if (currentType === 'milestone' && newParentType === 'component') return 'milestone'; // Stay milestone under component
   if (currentType === 'milestone' && newParentType === 'milestone') return 'deliverable';
   if (currentType === 'deliverable' && newParentType === 'deliverable') return 'task';
   if (currentType === 'task') return 'task'; // Tasks stay tasks
@@ -135,7 +142,12 @@ function getDemotedType(currentType, newParentType) {
  * Get what type an item should become when promoted
  */
 function getPromotedType(currentType, newParentType) {
-  if (newParentType === null) return 'milestone'; // Promoting to root = milestone
+  if (newParentType === null) {
+    // Promoting to root - could be component or milestone
+    if (currentType === 'component') return 'component'; // Stay component
+    return 'milestone'; // Default to milestone for others
+  }
+  if (newParentType === 'component') return 'milestone';
   if (newParentType === 'milestone') return 'deliverable';
   if (newParentType === 'deliverable' || newParentType === 'task') return 'task';
   return currentType;
@@ -272,8 +284,8 @@ export const planItemsService = {
       if (!isValidParent(dbItem.item_type, parent.item_type)) {
         throw new Error(`Cannot place ${dbItem.item_type} under ${parent.item_type}`);
       }
-    } else if (dbItem.item_type !== 'milestone') {
-      throw new Error('Only milestones can be at root level');
+    } else if (dbItem.item_type !== 'milestone' && dbItem.item_type !== 'component') {
+      throw new Error('Only milestones and components can be at root level');
     }
 
     // Get max sort_order
@@ -427,7 +439,9 @@ export const planItemsService = {
       newIndentLevel = (parent.indent_level || 0) + 1;
       
       // Update type based on parent (strict hierarchy)
-      if (parent.item_type === 'milestone') {
+      if (parent.item_type === 'component') {
+        newType = 'milestone';
+      } else if (parent.item_type === 'milestone') {
         newType = 'deliverable';
       } else if (parent.item_type === 'deliverable') {
         newType = 'task';
@@ -435,8 +449,12 @@ export const planItemsService = {
         newType = 'task';
       }
     } else {
-      // Moving to root - must be milestone
-      newType = 'milestone';
+      // Moving to root - keep component as component, otherwise milestone
+      if (item.item_type === 'component') {
+        newType = 'component';
+      } else {
+        newType = 'milestone';
+      }
       newIndentLevel = 0;
     }
     
@@ -479,7 +497,8 @@ export const planItemsService = {
       let childType = child.item_type;
       const parent = allItems.find(i => i.id === parentId);
       if (parent) {
-        if (parent.item_type === 'milestone') childType = 'deliverable';
+        if (parent.item_type === 'component') childType = 'milestone';
+        else if (parent.item_type === 'milestone') childType = 'deliverable';
         else if (parent.item_type === 'deliverable') childType = 'task';
         else if (parent.item_type === 'task') childType = 'task';
       }
@@ -737,7 +756,9 @@ export const planItemsService = {
       newParentType = newParent.item_type;
       
       // Adjust type if needed
-      if (newParentType === 'milestone' && item.item_type === 'milestone') {
+      if (newParentType === 'component' && item.item_type !== 'milestone') {
+        newType = 'milestone';
+      } else if (newParentType === 'milestone' && item.item_type === 'milestone') {
         newType = 'deliverable';
       } else if (newParentType === 'deliverable' && item.item_type !== 'task') {
         newType = 'task';
@@ -745,8 +766,12 @@ export const planItemsService = {
         newType = 'task';
       }
     } else {
-      // Moving to root
-      newType = 'milestone';
+      // Moving to root - keep component as component, otherwise milestone
+      if (item.item_type === 'component') {
+        newType = 'component';
+      } else {
+        newType = 'milestone';
+      }
     }
     
     // Validate
