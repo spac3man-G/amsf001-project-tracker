@@ -619,6 +619,7 @@ When the user asks to modify or add to this structure, use the refineStructure t
         max_tokens: 8192, // Increased for complex project structures
         system: systemPrompt,
         tools: TOOLS,
+        tool_choice: { type: "any" }, // Force tool use - don't allow text-only responses
         messages: processedMessages
       })
     });
