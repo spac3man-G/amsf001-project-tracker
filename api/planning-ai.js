@@ -731,6 +731,9 @@ When the user asks to modify or add to this structure, use the refineStructure t
       console.log('WARNING: Empty result - no action, message, or clarification!');
       console.log('Full data.content for debugging:');
       console.log(JSON.stringify(data.content, null, 2));
+      
+      // Set a fallback message so the frontend doesn't show generic error
+      result.message = 'The AI processed your request but did not generate a structured response. This may be due to the document complexity. Please try again or simplify your request.';
     }
     
     console.log('='.repeat(60));
@@ -797,6 +800,12 @@ function processClaudeResponse(data) {
             result.message = toolInput.summary;
           }
           result.totalDurationDays = toolInput.totalDurationDays;
+          
+          // Debug: Log if structure is missing
+          if (!toolInput.structure || toolInput.structure.length === 0) {
+            console.log('WARNING: generateProjectStructure called but structure is empty!');
+            console.log('Full toolInput:', JSON.stringify(toolInput, null, 2));
+          }
           break;
 
         case 'refineStructure':

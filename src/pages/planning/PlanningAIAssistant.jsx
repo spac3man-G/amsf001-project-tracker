@@ -667,7 +667,8 @@ export default function PlanningAIAssistant({ onClose, onApplyStructure, existin
       } else if (data.message) {
         addMessage('assistant', data.message);
       } else {
-        // Fallback - no recognizable response
+        // Fallback - no recognizable response - log full data for debugging
+        console.error('Planning AI fallback - full response:', JSON.stringify(data, null, 2));
         addMessage('assistant', 'I received your request but couldn\'t generate a structured response. Please try rephrasing your request or provide more details.');
       }
       
