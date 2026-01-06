@@ -1,6 +1,8 @@
 /**
  * Finance Summary Content Styles
  * Replicates dashboard FinanceWidget styling
+ * 
+ * @version 2.1 - Added expenses estimate bar styles
  */
 
 .finance-summary-widget {
@@ -109,6 +111,8 @@
   letter-spacing: 0.5px;
   color: #64748b;
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
 }
 
 /* Rows */
@@ -203,6 +207,14 @@
   text-align: right;
 }
 
+.fsw-value.positive {
+  color: #10b981;
+}
+
+.fsw-value.negative {
+  color: #dc2626;
+}
+
 /* Expenses Grid */
 .fsw-expenses-grid {
   display: grid;
@@ -274,6 +286,26 @@
   background: linear-gradient(90deg, #3b82f6, #8b5cf6);
   border-radius: 4px;
   transition: width 0.3s ease;
+}
+
+/* Expenses Estimate Bar */
+.fsw-expenses-bar {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.fsw-expenses-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.fsw-expenses-bar-fill.over-budget {
+  background: linear-gradient(90deg, #dc2626, #b91c1c);
 }
 
 /* Responsive */
