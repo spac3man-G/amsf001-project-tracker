@@ -99,10 +99,11 @@ export function usePlanningIntegration({
   // COMPUTED VALUES
   // =========================================================================
   
-  // Count of uncommitted items (milestones + deliverables only)
+  // Count of uncommitted items (milestones + deliverables only, excluding deleted)
   const uncommittedCount = useMemo(() => {
     return items.filter(i => 
       !i.is_published && 
+      !i.is_deleted &&
       (i.item_type === 'milestone' || i.item_type === 'deliverable')
     ).length;
   }, [items]);

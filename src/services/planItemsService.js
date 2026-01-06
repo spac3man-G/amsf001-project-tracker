@@ -419,6 +419,46 @@ export const planItemsService = {
   },
 
   /**
+   * Hard delete (permanently remove) items by ID
+   * Use with caution - this cannot be undone
+   */
+  async hardDelete(ids) {
+    if (!ids || ids.length === 0) return { deleted: 0 };
+    
+    const { error } = await supabase
+      .from('plan_items')
+      .delete()
+      .in('id', ids);
+
+    if (error) throw error;
+    return { deleted: ids.length };
+  },
+
+  /**
+   * Permanently remove all soft-deleted items for a project
+   * This cleans up the database
+   */
+  async purgeSoftDeleted(projectId) {
+    const { data, error: selectError } = await supabase
+      .from('plan_items')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('is_deleted', true);
+    
+    if (selectError) throw selectError;
+    if (!data || data.length === 0) return { purged: 0 };
+    
+    const ids = data.map(d => d.id);
+    const { error } = await supabase
+      .from('plan_items')
+      .delete()
+      .in('id', ids);
+
+    if (error) throw error;
+    return { purged: ids.length };
+  },
+
+  /**
    * Move an item to a new parent and/or position
    * Recalculates indent_level and item_type based on new parent
    */
