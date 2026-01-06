@@ -577,6 +577,17 @@ class PlanCommitService {
     // Build a set of valid milestone IDs for parent checking
     const validMilestoneIds = new Set();
     
+    // Track component IDs (organizational only - don't commit but allow as ancestors)
+    const componentIds = new Set();
+    
+    // Zero pass: identify components (they don't commit but we track them for ancestry)
+    for (const item of items) {
+      if (item.item_type === 'component') {
+        componentIds.add(item.id);
+        // Components never go to validItems - organizational only
+      }
+    }
+    
     // First pass: filter milestones
     for (const item of items) {
       if (item.item_type === 'milestone') {
@@ -591,6 +602,12 @@ class PlanCommitService {
         }
         if (new Date(item.start_date) > new Date(item.end_date)) {
           skippedItems.push({ item, reason: 'Milestone start date after end date' });
+          continue;
+        }
+        
+        // Parent can be null (root) or a component - both are valid
+        if (item.parent_id && !componentIds.has(item.parent_id)) {
+          skippedItems.push({ item, reason: 'Milestone parent must be a component or root' });
           continue;
         }
         
@@ -687,7 +704,7 @@ class PlanCommitService {
       }
     }
     
-    // Handle 'phase' type items - treat like milestones for structure purposes
+    // Handle 'phase' and 'component' type items - organizational only, don't commit
     for (const item of items) {
       if (item.item_type === 'phase') {
         if (!item.name?.trim()) {
@@ -696,6 +713,10 @@ class PlanCommitService {
         }
         // Phases don't get committed but shouldn't break things
         // Skip them from commit but don't mark as errors
+      }
+      if (item.item_type === 'component') {
+        // Components are organizational containers - they don't commit to Tracker
+        // Already handled in zero pass, nothing to do here
       }
     }
     
