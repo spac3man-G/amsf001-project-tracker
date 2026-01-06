@@ -390,9 +390,7 @@ export const planItemsService = {
     const { error } = await supabase
       .from('plan_items')
       .update({ 
-        is_deleted: true,
-        deleted_at: new Date().toISOString(),
-        deleted_by: userId
+        is_deleted: true
       })
       .in('id', idsToDelete);
 

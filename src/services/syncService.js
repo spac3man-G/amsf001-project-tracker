@@ -147,9 +147,7 @@ export const syncService = {
       const { error } = await supabase
         .from('milestones')
         .update({
-          is_deleted: true,
-          deleted_at: new Date().toISOString(),
-          deleted_by: userId
+          is_deleted: true
         })
         .eq('id', planItem.published_milestone_id);
       
@@ -164,9 +162,7 @@ export const syncService = {
       const { error } = await supabase
         .from('deliverables')
         .update({
-          is_deleted: true,
-          deleted_at: new Date().toISOString(),
-          deleted_by: userId
+          is_deleted: true
         })
         .eq('id', planItem.published_deliverable_id);
       
@@ -216,9 +212,7 @@ export const syncService = {
     const { error: deleteError } = await supabase
       .from('plan_items')
       .update({
-        is_deleted: true,
-        deleted_at: new Date().toISOString(),
-        deleted_by: userId
+        is_deleted: true
       })
       .in('id', ids);
     
@@ -263,9 +257,7 @@ export const syncService = {
     const { error: deleteError } = await supabase
       .from('plan_items')
       .update({
-        is_deleted: true,
-        deleted_at: new Date().toISOString(),
-        deleted_by: userId
+        is_deleted: true
       })
       .in('id', ids);
     
