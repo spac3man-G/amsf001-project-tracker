@@ -2,7 +2,7 @@
  * Project Settings Page - Unified tabbed interface
  * Combines: Settings, Audit Log, Deleted Items
  * 
- * @version 1.1 - Fixed missing X icon import and toFixed safety checks
+ * @version 1.2 - Added expenses_budget field
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -181,7 +181,8 @@ function SettingsTab({ projectId, refreshProject }) {
     name: '',
     reference: '',
     total_budget: 0,
-    pmo_threshold: 15
+    pmo_threshold: 15,
+    expenses_budget: 0
   });
   const [originalSettings, setOriginalSettings] = useState(null);
   const [milestones, setMilestones] = useState([]);
@@ -206,7 +207,8 @@ function SettingsTab({ projectId, refreshProject }) {
           name: project.name || '',
           reference: project.reference || '',
           total_budget: project.total_budget || 0,
-          pmo_threshold: project.pmo_threshold || 15
+          pmo_threshold: project.pmo_threshold || 15,
+          expenses_budget: project.expenses_budget || 0
         };
         setSettings(settingsData);
         setOriginalSettings(settingsData);
@@ -235,7 +237,8 @@ function SettingsTab({ projectId, refreshProject }) {
         .update({
           name: settings.name,
           total_budget: parseFloat(settings.total_budget) || 0,
-          pmo_threshold: parseInt(settings.pmo_threshold) || 15
+          pmo_threshold: parseInt(settings.pmo_threshold) || 15,
+          expenses_budget: parseFloat(settings.expenses_budget) || 0
         })
         .eq('id', projectId)
         .select();
@@ -359,6 +362,18 @@ function SettingsTab({ projectId, refreshProject }) {
             />
             <span className="form-hint">Percentage of budget allocated to PMO overhead</span>
           </div>
+          <div className="form-group">
+            <label className="form-label">Expenses Estimate (£)</label>
+            <input 
+              className="form-input" 
+              type="number"
+              min="0"
+              step="0.01"
+              value={settings.expenses_budget}
+              onChange={(e) => setSettings({ ...settings, expenses_budget: e.target.value })}
+            />
+            <span className="form-hint">Rough order of magnitude for chargeable project expenses</span>
+          </div>
         </div>
       </div>
 
@@ -443,6 +458,7 @@ function SettingsTab({ projectId, refreshProject }) {
           <li>The <strong>Total Budget</strong> is used to calculate overall project progress on the Dashboard</li>
           <li><strong>Milestone billable amounts</strong> determine invoice values when milestones are completed and certificates are signed</li>
           <li>The <strong>PMO Threshold</strong> helps separate management costs from delivery costs on the Dashboard</li>
+          <li>The <strong>Expenses Estimate</strong> is tracked on the Finance page against actual chargeable expenses</li>
           <li>Milestone budget changes are saved automatically when you change the value</li>
         </ul>
       </div>
