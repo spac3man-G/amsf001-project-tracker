@@ -5,16 +5,17 @@
  * - Total billable from milestones
  * - Timesheet values (pending/validated) with gap calculation
  * - Expenses breakdown by status and chargeability
+ * - Expenses estimate tracking (chargeable only)
  * - PMO overhead percentage
  * 
- * @version 2.0 - Replicated dashboard widget layout
- * @updated 25 December 2025
+ * @version 2.1 - Added expenses estimate tracking section
+ * @updated 06 January 2026
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   PoundSterling, TrendingUp, TrendingDown, Clock, CheckCircle,
-  RefreshCw
+  RefreshCw, Target
 } from 'lucide-react';
 import { milestonesService, timesheetsService, expensesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
@@ -43,21 +44,35 @@ export default function FinanceSummaryContent() {
     expensesTotalChargeable: 0,
     expensesTotalNonChargeable: 0,
     pmoTimesheets: 0,
-    pmoPercentage: 0
+    pmoPercentage: 0,
+    expensesEstimate: 0,
+    expensesChargeableSpent: 0,
+    expensesRemaining: 0,
+    expensesPercentSpent: 0
   });
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
     
     try {
-      // 1. Get total billable from milestones
+      // 1. Get project expenses_budget
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('expenses_budget')
+        .eq('id', projectId)
+        .single();
+      
+      if (projectError) throw projectError;
+      const expensesEstimate = parseFloat(project?.expenses_budget) || 0;
+
+      // 2. Get total billable from milestones
       const milestones = await milestonesService.getAll(projectId, {
         select: 'id, billable'
       });
       const totalBillable = (milestones || [])
         .reduce((sum, m) => sum + (parseFloat(m.billable) || 0), 0);
 
-      // 2. Get timesheets with resource data (including role for PMO check)
+      // 3. Get timesheets with resource data (including role for PMO check)
       const timesheets = await timesheetsService.getAll(projectId, {
         select: `
           id, hours_worked, hours, status, is_deleted,
@@ -97,7 +112,7 @@ export default function FinanceSummaryContent() {
         ? (pmoTimesheets / timesheetsTotal) * 100 
         : 0;
 
-      // 3. Get expenses with chargeability
+      // 4. Get expenses with chargeability
       const expenses = await expensesService.getAll(projectId, {
         select: 'id, amount, status, chargeable_to_customer, is_deleted'
       });
@@ -133,6 +148,13 @@ export default function FinanceSummaryContent() {
         }
       });
 
+      // Calculate expenses estimate tracking (only validated chargeable counts as "spent")
+      const expensesChargeableSpent = expensesValidatedChargeable;
+      const expensesRemaining = expensesEstimate - expensesChargeableSpent;
+      const expensesPercentSpent = expensesEstimate > 0 
+        ? (expensesChargeableSpent / expensesEstimate) * 100 
+        : 0;
+
       setStats({
         totalBillable,
         timesheetsPending,
@@ -148,7 +170,11 @@ export default function FinanceSummaryContent() {
         expensesTotalChargeable: expensesPendingChargeable + expensesValidatedChargeable,
         expensesTotalNonChargeable: expensesPendingNonChargeable + expensesValidatedNonChargeable,
         pmoTimesheets,
-        pmoPercentage
+        pmoPercentage,
+        expensesEstimate,
+        expensesChargeableSpent,
+        expensesRemaining,
+        expensesPercentSpent
       });
     } catch (error) {
       console.error('Error fetching finance data:', error);
@@ -178,6 +204,7 @@ export default function FinanceSummaryContent() {
   }
 
   const isNegativeGap = stats.gap < 0;
+  const isOverBudget = stats.expensesRemaining < 0;
 
   return (
     <div className="finance-summary-widget">
@@ -269,6 +296,42 @@ export default function FinanceSummaryContent() {
             </div>
           </div>
         </div>
+
+        {/* Expenses Estimate Tracking */}
+        {stats.expensesEstimate > 0 && (
+          <div className="fsw-section">
+            <div className="fsw-section-header">
+              <Target size={14} style={{ marginRight: '6px' }} />
+              Expenses vs Estimate
+            </div>
+            <div className="fsw-row">
+              <span className="fsw-label">Estimate</span>
+              <span className="fsw-value">{formatCurrency(stats.expensesEstimate)}</span>
+            </div>
+            <div className="fsw-row">
+              <span className="fsw-label">Chargeable Spent (Validated)</span>
+              <span className="fsw-value">{formatCurrency(stats.expensesChargeableSpent)}</span>
+            </div>
+            <div className={`fsw-row ${isOverBudget ? 'fsw-row-gap negative' : ''}`}>
+              <span className="fsw-label">Remaining</span>
+              <span className={`fsw-value ${isOverBudget ? 'negative' : 'positive'}`}>
+                {formatCurrency(stats.expensesRemaining)}
+              </span>
+            </div>
+            <div className="fsw-row">
+              <span className="fsw-label">% Spent</span>
+              <span className={`fsw-value ${stats.expensesPercentSpent > 100 ? 'negative' : ''}`}>
+                {stats.expensesPercentSpent.toFixed(1)}%
+              </span>
+            </div>
+            <div className="fsw-expenses-bar">
+              <div 
+                className={`fsw-expenses-bar-fill ${isOverBudget ? 'over-budget' : ''}`}
+                style={{ width: `${Math.min(stats.expensesPercentSpent, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* PMO Overhead */}
         <div className="fsw-section">
