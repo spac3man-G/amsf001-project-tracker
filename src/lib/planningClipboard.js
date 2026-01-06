@@ -224,11 +224,11 @@ export const planningClipboard = {
     // Check hierarchy rules
     for (const item of rootItems) {
       if (targetItem === null) {
-        // Pasting at root - only milestones allowed
-        if (item.item_type !== 'milestone') {
+        // Pasting at root - components and milestones allowed
+        if (item.item_type !== 'milestone' && item.item_type !== 'component') {
           return { 
             valid: false, 
-            error: `Cannot paste ${item.item_type} at root level. Only milestones can be at root.`
+            error: `Cannot paste ${item.item_type} at root level. Only milestones and components can be at root.`
           };
         }
       } else {
@@ -236,7 +236,21 @@ export const planningClipboard = {
         const targetType = targetItem.item_type;
         const itemType = item.item_type;
         
-        // Validate hierarchy: M->D->T
+        // Components can only be at root
+        if (itemType === 'component') {
+          return { 
+            valid: false, 
+            error: 'Components can only be pasted at root level.'
+          };
+        }
+        
+        // Validate hierarchy: Component->M->D->T
+        if (targetType === 'component' && itemType !== 'milestone') {
+          return { 
+            valid: false, 
+            error: `Cannot paste ${itemType} under component. Only milestones allowed.`
+          };
+        }
         if (targetType === 'milestone' && itemType !== 'deliverable') {
           return { 
             valid: false, 
