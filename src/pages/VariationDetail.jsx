@@ -8,8 +8,8 @@
  * - Sign/reject variations
  * - View/download certificates
  * 
- * @version 1.2
- * @updated 17 December 2025 - Added data-testid attributes for E2E testing
+ * @version 1.3
+ * @updated 6 January 2026 - Added clickable milestone navigation
  */
 
 import React, { useState, useEffect } from 'react';
@@ -418,7 +418,14 @@ export default function VariationDetail() {
                 ) : (
                   <div className="vd-milestones-list">
                     {variation.affected_milestones.map(vm => (
-                      <div key={vm.id} className="vd-milestone-item">
+                      <div 
+                        key={vm.id} 
+                        className={`vd-milestone-item ${vm.milestone_id ? 'clickable' : ''}`}
+                        onClick={() => vm.milestone_id && navigate(`/milestones/${vm.milestone_id}`)}
+                        role={vm.milestone_id ? 'button' : undefined}
+                        tabIndex={vm.milestone_id ? 0 : undefined}
+                        onKeyDown={(e) => vm.milestone_id && e.key === 'Enter' && navigate(`/milestones/${vm.milestone_id}`)}
+                      >
                         <div className="vd-milestone-header">
                           <span className="vd-milestone-ref">
                             {vm.milestone?.milestone_ref || 'New Milestone'}
