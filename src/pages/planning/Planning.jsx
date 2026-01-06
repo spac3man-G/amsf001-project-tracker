@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Plus, Trash2, ChevronRight, ChevronDown, GripVertical,
-  Flag, Package, CheckSquare, RefreshCw,
+  Flag, Package, CheckSquare, RefreshCw, Layers,
   ArrowRight, ArrowLeft, Keyboard, Sparkles,
   Calculator, Link2, FileSpreadsheet, List,
   ExternalLink, Copy, Download, Clock,
@@ -32,9 +32,10 @@ import './Planning.css';
 import './PlanningIntegration.css';
 
 const ITEM_TYPES = [
-  { value: 'task', label: 'Task', icon: CheckSquare, color: '#64748b' },
+  { value: 'component', label: 'Component', icon: Layers, color: '#f59e0b' },
   { value: 'milestone', label: 'Milestone', icon: Flag, color: '#8b5cf6' },
-  { value: 'deliverable', label: 'Deliverable', icon: Package, color: '#3b82f6' }
+  { value: 'deliverable', label: 'Deliverable', icon: Package, color: '#3b82f6' },
+  { value: 'task', label: 'Task', icon: CheckSquare, color: '#64748b' }
 ];
 
 const STATUS_OPTIONS = [
