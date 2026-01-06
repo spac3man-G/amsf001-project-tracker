@@ -10,7 +10,7 @@
  * - Acceptance certificate workflow (dual signature)
  * - Edit milestone (including reference) with delete capability
  * 
- * @version 4.7 - Fixed Baseline History to show true pre-variation original values
+ * @version 4.8 - Fixed Baseline History detection to compare dates not just variation_id
  * @updated 6 January 2026
  */
 
@@ -415,6 +415,20 @@ export default function MilestoneDetail() {
   const certStatusInfo = certificate ? getCertificateStatusInfo(certificate.status) : null;
   const isCertFullySigned = isCertificateFullySigned(certificate);
 
+  // Helper to check if dates are different (comparing date strings)
+  const datesAreDifferent = (date1, date2) => {
+    if (!date1 || !date2) return false;
+    const d1 = date1.substring(0, 10); // Get YYYY-MM-DD part
+    const d2 = date2.substring(0, 10);
+    return d1 !== d2;
+  };
+
+  // Determine if we need to show the true original (firstVariationOriginal has different dates than v1)
+  const needsSyntheticOriginal = firstVariationOriginal && baselineHistory.length > 0 && (
+    datesAreDifferent(firstVariationOriginal.original_baseline_end, baselineHistory[0]?.baseline_end_date) ||
+    datesAreDifferent(firstVariationOriginal.original_baseline_start, baselineHistory[0]?.baseline_start_date)
+  );
+
   return (
     <div className="milestone-detail-page">
       {/* Header */}
@@ -505,7 +519,7 @@ export default function MilestoneDetail() {
                 Baseline
                 {baselineHistory.length > 0 && (
                   <span className="baseline-version-indicator" data-testid="baseline-version-indicator">
-                    v{firstVariationOriginal ? baselineHistory.length + 1 : baselineHistory.length}
+                    v{needsSyntheticOriginal ? baselineHistory.length + 1 : baselineHistory.length}
                     {(() => {
                       const latestVersion = baselineHistory[baselineHistory.length - 1];
                       if (latestVersion?.variation) {
@@ -581,7 +595,7 @@ export default function MilestoneDetail() {
               <h3 className="section-title">
                 <History size={18} />
                 Baseline History
-                <span className="history-version-badge">v{firstVariationOriginal ? baselineHistory.length + 1 : baselineHistory.length}</span>
+                <span className="history-version-badge">v{needsSyntheticOriginal ? baselineHistory.length + 1 : baselineHistory.length}</span>
               </h3>
               {historyExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </button>
@@ -590,13 +604,11 @@ export default function MilestoneDetail() {
               <div className="baseline-history-content">
                 <div className="history-timeline">
                   {(() => {
-                    // Build corrected history: if first entry has variation_id but we have firstVariationOriginal,
-                    // insert a synthetic "true original" entry and relabel subsequent entries
+                    // Build corrected history: if firstVariationOriginal has DIFFERENT dates than v1,
+                    // the v1 record is corrupted - insert synthetic original with true values
                     let displayHistory = [...baselineHistory];
-                    const firstHasVariation = baselineHistory[0]?.variation_id;
-                    const needsOriginalInsert = firstHasVariation && firstVariationOriginal;
                     
-                    if (needsOriginalInsert) {
+                    if (needsSyntheticOriginal) {
                       // Create synthetic original entry with true pre-variation values
                       const syntheticOriginal = {
                         id: 'synthetic-original',
@@ -616,7 +628,7 @@ export default function MilestoneDetail() {
                     }
                     
                     return displayHistory.map((version, index) => {
-                      const isOriginal = index === 0 && (!version.variation_id);
+                      const isOriginal = index === 0 && (!version.variation_id || version.id === 'synthetic-original');
                       const isLatest = index === displayHistory.length - 1;
                       
                       return (
@@ -762,21 +774,21 @@ export default function MilestoneDetail() {
 
           {/* Original Baseline Values - use firstVariationOriginal if available */}
           {(() => {
-            // Get variations that have been applied (have entries in baselineHistory)
+            // Get variations that have been applied (have entries in baselineHistory with variation_id)
             const variationAmendments = baselineHistory.filter(v => v.variation_id);
             const hasVariations = variationAmendments.length > 0;
             
-            // Use true original values from first variation if available
+            // Use true original values from first variation if available AND dates differ
             // This captures what the baseline was BEFORE any variations were applied
-            const displayStartDate = firstVariationOriginal?.original_baseline_start 
-              || baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_start_date 
-              || milestone.baseline_start_date;
-            const displayEndDate = firstVariationOriginal?.original_baseline_end 
-              || baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_end_date 
-              || milestone.baseline_end_date;
-            const displayBillable = firstVariationOriginal?.original_baseline_cost 
-              ?? baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_billable 
-              ?? baselineBillable;
+            const displayStartDate = needsSyntheticOriginal 
+              ? firstVariationOriginal.original_baseline_start
+              : (baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_start_date || milestone.baseline_start_date);
+            const displayEndDate = needsSyntheticOriginal
+              ? firstVariationOriginal.original_baseline_end
+              : (baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_end_date || milestone.baseline_end_date);
+            const displayBillable = needsSyntheticOriginal
+              ? firstVariationOriginal.original_baseline_cost
+              : (baselineHistory.find(v => v.version === 1 && !v.variation_id)?.baseline_billable ?? baselineBillable);
             
             return (
               <>
@@ -813,10 +825,10 @@ export default function MilestoneDetail() {
                     </div>
                     <div className="amendments-list">
                       {variationAmendments.map((version, index) => {
-                        const prevVersion = index === 0 
-                          ? { baseline_billable: displayBillable }
-                          : variationAmendments[index - 1];
-                        const costChange = (version.baseline_billable || 0) - (prevVersion.baseline_billable || 0);
+                        const prevBillable = index === 0 
+                          ? displayBillable
+                          : variationAmendments[index - 1].baseline_billable;
+                        const costChange = (version.baseline_billable || 0) - (prevBillable || 0);
                         
                         return (
                           <div key={version.id} className="amendment-item" data-testid={`variation-amendment-${version.version}`}>
