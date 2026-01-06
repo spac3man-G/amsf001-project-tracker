@@ -404,12 +404,12 @@ validatePaste(targetItem = null) {
 
 | Checkpoint | Status | Commit Hash | Date | Notes |
 |------------|--------|-------------|------|-------|
-| 1. DB Migration | ⬜ Pending | | | |
-| 2. Hierarchy Rules | ⬜ Pending | | | |
-| 3. Commit Service | ⬜ Pending | | | |
-| 4. UI Item Types | ⬜ Pending | | | |
-| 5. Clipboard | ⬜ Pending | | | |
-| 6. Integration Test | ⬜ Pending | | | |
+| 1. DB Migration | ✅ Done | 4ed22232 | 2026-01-06 | CHECK constraint updated |
+| 2. Hierarchy Rules | ✅ Done | eac5ca15 | 2026-01-06 | planItemsService.js |
+| 3. Commit Service | ✅ Done | 91b0eac8 | 2026-01-06 | Components skip commit |
+| 4. UI Item Types | ✅ Done | b570bc4e | 2026-01-06 | Layers icon, amber color |
+| 5. Clipboard | ✅ Done | 9534cd6e | 2026-01-06 | Paste validation updated |
+| 6. Integration Test | ⬜ Pending | | | Manual testing needed |
 | 7. CSS Polish | ⬜ Optional | | | |
 
 ---
