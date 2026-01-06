@@ -8,9 +8,9 @@
  * - Dual-signature approval workflow
  * - Certificate generation
  * 
- * @version 1.2
+ * @version 1.3
  * @created 8 December 2025
- * @updated 17 December 2025 - Fixed applyVariation to update baseline_billable, forecast fields, and billable amount
+ * @updated 6 January 2026 - Fixed baseline versioning to properly capture original values
  */
 
 import { BaseService } from './base.service';
@@ -540,13 +540,45 @@ export class VariationsService extends BaseService {
 
           if (updateError) throw updateError;
 
-          // Create new baseline version record
+          // Get current baseline version
           const currentVersion = await this.getCurrentBaselineVersion(vm.milestone_id);
+          let versionBefore = currentVersion;
+          let versionAfter = currentVersion + 1;
+
+          // If no baseline version exists yet, create v1 first with ORIGINAL values
+          // This preserves the true pre-variation baseline in the version history
+          if (currentVersion === 0) {
+            const { error: originalVersionError } = await supabase
+              .from('milestone_baseline_versions')
+              .insert({
+                milestone_id: vm.milestone_id,
+                version: 1,
+                variation_id: null, // No variation - this is the original locked baseline
+                baseline_start_date: vm.original_baseline_start,
+                baseline_end_date: vm.original_baseline_end,
+                baseline_billable: vm.original_baseline_cost,
+                // Use the variation signatures since this is being created at apply time
+                supplier_signed_by: variation.supplier_signed_by,
+                supplier_signed_at: variation.supplier_signed_at,
+                customer_signed_by: variation.customer_signed_by,
+                customer_signed_at: variation.customer_signed_at
+              });
+
+            if (originalVersionError) {
+              console.warn('Warning: Could not create original baseline version:', originalVersionError);
+              // Continue anyway - don't fail the whole operation
+            }
+            
+            versionBefore = 1;
+            versionAfter = 2;
+          }
+
+          // Create new baseline version record for the variation
           const { error: versionError } = await supabase
             .from('milestone_baseline_versions')
             .insert({
               milestone_id: vm.milestone_id,
-              version: currentVersion + 1,
+              version: versionAfter,
               variation_id: variationId,
               baseline_start_date: vm.new_baseline_start,
               baseline_end_date: vm.new_baseline_end,
@@ -561,8 +593,8 @@ export class VariationsService extends BaseService {
 
           // Update variation_milestone with version numbers
           await this.updateAffectedMilestone(vm.id, {
-            baseline_version_before: currentVersion || 1,
-            baseline_version_after: currentVersion + 1
+            baseline_version_before: versionBefore,
+            baseline_version_after: versionAfter
           });
         }
       }
@@ -639,6 +671,34 @@ export class VariationsService extends BaseService {
     } catch (error) {
       console.error('VariationsService getMilestoneBaselineHistory error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get the true original baseline values from the first applied variation
+   * This returns what the baseline was BEFORE any variations were applied
+   * Used to show the actual "Original Commitment" in the UI
+   */
+  async getFirstVariationOriginal(milestoneId) {
+    try {
+      const { data, error } = await supabase
+        .from('variation_milestones')
+        .select(`
+          original_baseline_start,
+          original_baseline_end,
+          original_baseline_cost,
+          variation:variations!inner(status, applied_at)
+        `)
+        .eq('milestone_id', milestoneId)
+        .eq('variations.status', 'applied')
+        .order('variations(applied_at)', { ascending: true })
+        .limit(1);
+
+      if (error) throw error;
+      return data?.[0] || null;
+    } catch (error) {
+      console.error('VariationsService getFirstVariationOriginal error:', error);
+      return null;
     }
   }
 
