@@ -2349,26 +2349,17 @@ export default function Planning() {
                     />
                   )}
                 </th>
-                <th className="plan-col-estimate" style={getColumnStyle('estimate')}>
-                  Estimate
-                  {isResizable('estimate') && (
-                    <div 
-                      className="column-resize-handle" 
-                      onMouseDown={(e) => startResize('estimate', e)}
-                    />
-                  )}
-                </th>
                 <th className="plan-col-actions"></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="13" className="plan-loading">Loading...</td>
+                  <td colSpan="12" className="plan-loading">Loading...</td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan="13" className="plan-empty-row">
+                  <td colSpan="12" className="plan-empty-row">
                     <p>No items yet. Click "Add Milestone" to start building your plan.</p>
                   </td>
                 </tr>
@@ -2416,32 +2407,6 @@ export default function Planning() {
                     {renderCell(item, 'predecessors', index)}
                     {renderCell(item, 'progress', index)}
                     {renderCell(item, 'status', index)}
-                    <td className="plan-cell plan-cell-estimate">
-                      {item.estimate_component_id ? (
-                        <button
-                          className="plan-estimate-badge"
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setEstimateLinkItem(item);
-                          }}
-                          title={`${item.estimate_name || 'Estimate'}: ${item.estimate_component_name}`}
-                        >
-                          <Calculator size={12} />
-                          <span>£{Math.round((item.estimate_cost || 0) / 1000)}k</span>
-                        </button>
-                      ) : (
-                        <button
-                          className="plan-estimate-link-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEstimateLinkItem(item);
-                          }}
-                          title="Link to estimate"
-                        >
-                          <Link2 size={12} />
-                        </button>
-                      )}
-                    </td>
                     <td className="plan-cell plan-cell-actions">
                       <div className="plan-actions">
                         <button 
