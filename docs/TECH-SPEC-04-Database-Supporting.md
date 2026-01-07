@@ -1,12 +1,18 @@
 # AMSF001 Technical Specification - Database Supporting Tables
 
 **Document:** TECH-SPEC-04-Database-Supporting.md  
-**Version:** 1.2  
+**Version:** 1.3  
 **Date:** 10 December 2025  
-**Updated:** 28 December 2025  
-**Session:** 1.4.1  
+**Updated:** 7 January 2026  
+**Session:** Documentation Review Phase 4  
 **Status:** Complete  
 
+> **Version 1.3 Updates (7 January 2026):**
+> - Added `dashboard_layouts` table documentation
+> - Added Chat Aggregate Views (7 views for AI chat context)
+> - Updated Supporting Views section with complete view inventory
+> - See TECH-SPEC-11-Evaluator.md for Evaluator module documentation
+>
 > **Version 1.2 Updates (28 December 2025):**
 > - Added `benchmark_rates` table (Section 11) - SFIA 8 rate card
 > - This is **global data** (not project-scoped)
@@ -34,8 +40,12 @@
 7. [Audit Log Table](#audit-log-table)
 8. [Soft Delete Infrastructure](#soft-delete-infrastructure)
 9. [Supporting Views](#supporting-views)
-10. [Relationships and Dependencies](#relationships-and-dependencies)
-11. [Benchmark Rates Table (Global)](#benchmark-rates-table-global)
+   - [Active Record Views](#active-record-views)
+   - [Deleted Items Summary View](#deleted-items-summary-view)
+   - [Chat Aggregate Views](#chat-aggregate-views-december-2025)
+10. [Dashboard Layouts Table](#dashboard-layouts-table-december-2025)
+11. [Relationships and Dependencies](#relationships-and-dependencies)
+12. [Benchmark Rates Table (Global)](#benchmark-rates-table-global)
 
 ---
 
@@ -1482,6 +1492,227 @@ SELECT 'deliverables', id, deleted_at, deleted_by,
   (SELECT email FROM auth.users WHERE id = deleted_by)
 FROM deliverables WHERE is_deleted = TRUE
 ORDER BY deleted_at DESC;
+```
+
+### Chat Aggregate Views (December 2025)
+
+Pre-computed summary views for efficient AI chat context retrieval:
+
+```sql
+-- Budget summary per project
+CREATE VIEW project_budget_summary AS
+SELECT 
+  p.id as project_id,
+  p.name as project_name,
+  p.total_budget as project_budget,
+  COALESCE(SUM(m.billable), 0) as milestone_billable_total,
+  COALESCE(SUM(m.actual_spend), 0) as actual_spend_total,
+  COALESCE(SUM(m.billable), 0) - COALESCE(SUM(m.actual_spend), 0) as variance,
+  CASE 
+    WHEN COALESCE(SUM(m.billable), 0) > 0 
+    THEN ROUND((COALESCE(SUM(m.actual_spend), 0) / SUM(m.billable)) * 100, 1)
+    ELSE 0 
+  END as percent_used
+FROM projects p
+LEFT JOIN milestones m ON m.project_id = p.id 
+  AND (m.is_deleted IS NULL OR m.is_deleted = false)
+GROUP BY p.id, p.name, p.total_budget;
+
+-- Milestone status counts per project
+CREATE VIEW milestone_status_summary AS
+SELECT 
+  project_id,
+  COUNT(*) as total,
+  COUNT(*) FILTER (WHERE status = 'Completed') as completed,
+  COUNT(*) FILTER (WHERE status = 'In Progress') as in_progress,
+  COUNT(*) FILTER (WHERE status = 'Not Started') as not_started,
+  COUNT(*) FILTER (WHERE status = 'At Risk') as at_risk
+FROM milestones
+WHERE is_deleted IS NULL OR is_deleted = false
+GROUP BY project_id;
+
+-- Deliverable status counts per project
+CREATE VIEW deliverable_status_summary AS
+SELECT 
+  project_id,
+  COUNT(*) as total,
+  COUNT(*) FILTER (WHERE status = 'Delivered') as delivered,
+  COUNT(*) FILTER (WHERE status = 'In Progress') as in_progress,
+  COUNT(*) FILTER (WHERE status = 'Not Started') as not_started
+FROM deliverables
+WHERE is_deleted IS NULL OR is_deleted = false
+GROUP BY project_id;
+
+-- Timesheet aggregates per project
+CREATE VIEW timesheet_summary AS
+SELECT 
+  project_id,
+  COUNT(*) as total_entries,
+  COALESCE(SUM(hours_worked), 0) as total_hours,
+  COUNT(*) FILTER (WHERE status = 'Submitted') as submitted_count,
+  COUNT(*) FILTER (WHERE status = 'Approved') as approved_count
+FROM timesheets
+WHERE is_deleted IS NULL OR is_deleted = false
+GROUP BY project_id;
+
+-- Expense aggregates per project
+CREATE VIEW expense_summary AS
+SELECT 
+  project_id,
+  COUNT(*) as total_entries,
+  COALESCE(SUM(amount), 0) as total_amount,
+  COALESCE(SUM(amount) FILTER (WHERE is_chargeable = true), 0) as chargeable_amount
+FROM expenses
+WHERE is_deleted IS NULL OR is_deleted = false
+GROUP BY project_id;
+
+-- Pending action counts per project
+CREATE VIEW pending_actions_summary AS
+SELECT 
+  project_id,
+  (SELECT COUNT(*) FROM timesheets t 
+   WHERE t.project_id = p.project_id 
+   AND t.status = 'Submitted') as timesheets_awaiting_validation,
+  (SELECT COUNT(*) FROM expenses e 
+   WHERE e.project_id = p.project_id 
+   AND e.status = 'Submitted') as expenses_awaiting_validation,
+  (SELECT COUNT(*) FROM deliverables d 
+   WHERE d.project_id = p.project_id 
+   AND d.status = 'Awaiting Review') as deliverables_awaiting_review
+FROM (SELECT DISTINCT project_id FROM projects) p;
+
+-- Combined context summary (used by chat-context API)
+CREATE VIEW chat_context_summary AS
+SELECT 
+  p.id as project_id,
+  p.name as project_name,
+  -- Budget metrics
+  COALESCE(b.project_budget, 0) as budget_total,
+  COALESCE(b.actual_spend_total, 0) as budget_actual_spend,
+  COALESCE(b.variance, 0) as budget_variance,
+  -- Milestone metrics
+  COALESCE(m.total, 0) as milestones_total,
+  COALESCE(m.completed, 0) as milestones_completed,
+  COALESCE(m.at_risk, 0) as milestones_at_risk,
+  -- Deliverable metrics
+  COALESCE(d.total, 0) as deliverables_total,
+  COALESCE(d.delivered, 0) as deliverables_delivered,
+  -- Pending actions
+  COALESCE(pa.timesheets_awaiting_validation, 0) as pending_timesheets,
+  COALESCE(pa.expenses_awaiting_validation, 0) as pending_expenses
+FROM projects p
+LEFT JOIN project_budget_summary b ON b.project_id = p.id
+LEFT JOIN milestone_status_summary m ON m.project_id = p.id
+LEFT JOIN deliverable_status_summary d ON d.project_id = p.id
+LEFT JOIN pending_actions_summary pa ON pa.project_id = p.id;
+```
+
+**Chat Aggregate Views Summary:**
+
+| View | Purpose | Used By |
+|------|---------|---------|
+| `project_budget_summary` | Budget totals and variance | chat-context API |
+| `milestone_status_summary` | Milestone counts by status | chat-context API |
+| `deliverable_status_summary` | Deliverable counts by status | chat-context API |
+| `timesheet_summary` | Timesheet hours and counts | chat-context API |
+| `expense_summary` | Expense totals | chat-context API |
+| `pending_actions_summary` | Items awaiting action | chat-context API |
+| `chat_context_summary` | Combined summary for AI | chat-context API |
+
+---
+
+## Dashboard Layouts Table (December 2025)
+
+User-specific dashboard customization preferences per project.
+
+### Schema Definition
+
+```sql
+CREATE TABLE dashboard_layouts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  layout_config JSONB NOT NULL DEFAULT '{
+    "version": "1.0",
+    "widgets": {
+      "progress-hero": {"visible": true},
+      "budget-summary": {"visible": true},
+      "pmo-tracking": {"visible": true},
+      "stats-grid": {"visible": true},
+      "certificates": {"visible": true},
+      "milestones-list": {"visible": true},
+      "kpis-category": {"visible": true},
+      "quality-standards": {"visible": true}
+    }
+  }'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, project_id)
+);
+```
+
+### Column Reference
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | UUID | No | Primary key |
+| `user_id` | UUID | No | User who owns this layout |
+| `project_id` | UUID | No | Project the layout applies to |
+| `layout_config` | JSONB | No | Widget visibility configuration |
+| `created_at` | TIMESTAMPTZ | No | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | No | Last modification timestamp |
+
+### Layout Config Structure
+
+```json
+{
+  "version": "1.0",
+  "widgets": {
+    "progress-hero": {"visible": true},
+    "budget-summary": {"visible": true},
+    "pmo-tracking": {"visible": true},
+    "stats-grid": {"visible": true},
+    "certificates": {"visible": true},
+    "milestones-list": {"visible": true},
+    "kpis-category": {"visible": true},
+    "quality-standards": {"visible": true}
+  }
+}
+```
+
+### RLS Policies
+
+```sql
+-- Users can only manage their own layouts
+CREATE POLICY "Users can view own layouts"
+ON dashboard_layouts FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own layouts"
+ON dashboard_layouts FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own layouts"
+ON dashboard_layouts FOR UPDATE
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own layouts"
+ON dashboard_layouts FOR DELETE
+USING (auth.uid() = user_id);
+```
+
+### Usage Pattern
+
+The `useDashboardLayout` hook manages these layouts:
+
+```javascript
+const { layout, updateWidget, resetLayout } = useDashboardLayout(projectId);
+
+// Toggle widget visibility
+updateWidget('budget-summary', { visible: false });
+
+// Reset to defaults
+resetLayout();
 ```
 
 ---

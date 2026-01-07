@@ -1,10 +1,19 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 5.0  
+**Document Version:** 5.2  
 **Created:** 11 December 2025  
-**Updated:** 6 January 2026  
-**Session:** 1.8.2  
+**Updated:** 7 January 2026  
+**Session:** 1.8.3  
 **Status:** Complete
+
+> **Version 5.2 Updates (7 January 2026):**
+> - Added Section 17: Workflow System (consolidated from WORKFLOW-SYSTEM-DOCUMENTATION.md)
+> - Documents 13 workflow categories, role permissions, service API, deep linking
+>
+> **Version 5.1 Updates (7 January 2026):**
+> - Added Section 16: Evaluator Services (cross-reference to TECH-SPEC-11)
+> - Updated Section 1.3 file structure to include evaluator/ subfolder
+> - Reference to TECH-SPEC-11-Evaluator.md for comprehensive Evaluator documentation
 
 > **Version 5.0 Updates (6 January 2026):**
 > - Added Section 15.1.2: Tracker Sync Methods (syncFromTracker, hardDelete, purgeSoftDeleted)
@@ -49,6 +58,8 @@
 13. [Report Builder Services](#13-report-builder-services)
 14. [Document History](#14-document-history)
 15. [Planning & Estimator Services](#15-planning--estimator-services) *(NEW - December 2025)*
+16. [Evaluator Services](#16-evaluator-services) *(NEW - January 2026)*
+17. [Workflow System](#17-workflow-system) *(NEW - January 2026)*
 
 ---
 
@@ -122,6 +133,10 @@ src/services/
 ├── qualityStandards.service.js
 ├── raid.service.js
 ├── variations.service.js
+├── standards.service.js        # Network standards
+├── workflow.service.js         # Workflow management
+├── email.service.js            # Email sending
+├── syncService.js              # Data sync utilities
 │
 ├── # Aggregation Services
 ├── metrics.service.js
@@ -133,8 +148,34 @@ src/services/
 ├── documentTemplates.service.js
 ├── documentRenderer.service.js
 │
-└── # Smart Feature Services
-    └── receiptScanner.service.js
+├── # Smart Feature Services
+├── receiptScanner.service.js
+│
+├── # Planning & Estimator Services (NEW - December 2025)
+├── planItems.service.js
+├── estimates.service.js
+├── benchmarkRates.service.js
+│
+└── evaluator/                  # Evaluator Services (NEW - January 2026)
+    ├── index.js                # Barrel exports
+    ├── base.evaluator.service.js
+    ├── ai.service.js
+    ├── approvals.service.js
+    ├── clientPortal.service.js
+    ├── comments.service.js
+    ├── emailNotifications.service.js
+    ├── evaluationCategories.service.js
+    ├── evaluationDocuments.service.js
+    ├── evaluationProjects.service.js
+    ├── evidence.service.js
+    ├── requirements.service.js
+    ├── scores.service.js
+    ├── stakeholderAreas.service.js
+    ├── surveys.service.js
+    ├── traceability.service.js
+    ├── vendorQuestions.service.js
+    ├── vendors.service.js
+    └── workshops.service.js
 ```
 
 ---
@@ -2199,6 +2240,8 @@ All services use the singleton pattern and are exported through a barrel file fo
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added Section 4 (Organisation Services), updated file structure, updated architecture diagram, renumbered sections 5-14 |
 | 3.0 | 24 Dec 2025 | Claude AI | **Subscription & Invitations**: Added Section 4.8 (Subscription Service), Section 4.9 (Invitation Service), updated addMember with skipLimitCheck option |
 | 4.0 | 28 Dec 2025 | Claude AI | **Planning & Estimator Services**: Added Section 15 with planItems.service, estimates.service, benchmarkRates.service documentation |
+| 5.0 | 6 Jan 2026 | Claude AI | **Tracker Sync Methods**: Added Section 15.1.2 documenting syncFromTracker, hardDelete, purgeSoftDeleted methods |
+| 5.1 | 7 Jan 2026 | Claude AI | **Evaluator Services Reference**: Added Section 16 with cross-reference to TECH-SPEC-11-Evaluator.md, updated file structure to include evaluator/ subfolder |
 
 ---
 
@@ -2735,3 +2778,208 @@ src/services/
 │  ~1,500 rate combinations (97 skills × 7 levels × ~2 tiers) │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 16. Evaluator Services
+
+> **Added:** 7 January 2026
+>
+> **Reference:** See **TECH-SPEC-11-Evaluator.md Section 5** for comprehensive documentation.
+
+The Evaluator module has 18 dedicated services in `src/services/evaluator/` for vendor evaluation and selection.
+
+### 16.1 Service Summary
+
+| Service | File | Purpose |
+|---------|------|---------|
+| Base | `base.evaluator.service.js` | Extended BaseService for evaluator entities |
+| AI | `ai.service.js` | AI-powered document parsing, gap analysis, suggestions |
+| Approvals | `approvals.service.js` | Workflow approval management |
+| Client Portal | `clientPortal.service.js` | External client portal operations |
+| Comments | `comments.service.js` | Evaluation comments and discussions |
+| Email | `emailNotifications.service.js` | Evaluation email notifications |
+| Categories | `evaluationCategories.service.js` | Requirement category management |
+| Documents | `evaluationDocuments.service.js` | Evaluation document management |
+| Projects | `evaluationProjects.service.js` | Core evaluation project CRUD |
+| Evidence | `evidence.service.js` | Vendor evidence attachment |
+| Requirements | `requirements.service.js` | Evaluation requirements management |
+| Scores | `scores.service.js` | Vendor scoring operations |
+| Stakeholders | `stakeholderAreas.service.js` | Stakeholder area management |
+| Surveys | `surveys.service.js` | Stakeholder survey management |
+| Traceability | `traceability.service.js` | Requirements traceability matrix |
+| Vendor Questions | `vendorQuestions.service.js` | RFI question management |
+| Vendors | `vendors.service.js` | Vendor profile management |
+| Workshops | `workshops.service.js` | Workshop/demo scheduling |
+
+### 16.2 Import Pattern
+
+```javascript
+// Import from evaluator barrel export
+import { 
+  evaluationProjectsService,
+  requirementsService,
+  vendorsService,
+  scoresService
+} from '../services/evaluator';
+
+// Usage
+const evaluation = await evaluationProjectsService.getById(evaluationId);
+const requirements = await requirementsService.getByEvaluation(evaluationId);
+```
+
+### 16.3 Base Evaluator Service
+
+Extends the core BaseService with evaluation-specific functionality:
+
+```javascript
+class BaseEvaluatorService extends BaseService {
+  constructor(tableName) {
+    super(tableName);
+  }
+  
+  // Evaluator-specific: filter by evaluation_id instead of project_id
+  async getByEvaluation(evaluationId) {
+    return this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('evaluation_id', evaluationId)
+      .eq('is_deleted', false);
+  }
+}
+```
+
+### 16.4 Cross-References
+
+- **Frontend Pages:** See TECH-SPEC-07-Frontend-State.md Section 15
+- **API Endpoints:** See TECH-SPEC-06-API-AI.md Section 10
+- **Database Tables:** See TECH-SPEC-11-Evaluator.md Section 3
+- **Full Service Documentation:** See TECH-SPEC-11-Evaluator.md Section 5
+
+---
+
+## 17. Workflow System
+
+> **Added:** 7 January 2026
+>
+> Consolidated from WORKFLOW-SYSTEM-DOCUMENTATION.md
+
+The Workflow System provides centralised tracking and management of pending actions across all entity types, enabling role-based filtering, timestamp tracking, and deep linking.
+
+### 17.1 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Workflow System                               │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐    ┌──────────────────────┐                │
+│  │  WorkflowService │◄───│  NotificationContext │                │
+│  └────────┬────────┘    └──────────┬───────────┘                │
+│           │                        │                             │
+│           ▼                        ▼                             │
+│  ┌────────────────┐       ┌────────────────┐                    │
+│  │ WorkflowSummary│       │NotificationBell│                    │
+│  │     Page       │       │   Component    │                    │
+│  └────────────────┘       └────────────────┘                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `WorkflowService` | `src/services/workflow.service.js` | Centralised data fetching and business logic |
+| `NotificationContext` | `src/contexts/NotificationContext.jsx` | React context for notification state |
+| `WorkflowSummary` | `src/pages/WorkflowSummary.jsx` | Full workflow dashboard page |
+| `NotificationBell` | `src/components/NotificationBell.jsx` | Header notification dropdown |
+
+### 17.2 Workflow Categories
+
+The system tracks **13 workflow categories** across **7 entity types**:
+
+| Category ID | Label | Entity | Database Condition | Actionable By |
+|-------------|-------|--------|-------------------|---------------|
+| `timesheet` | Timesheet Approval | timesheets | `status = 'Submitted'` | Customer PM |
+| `expense_chargeable` | Expense Validation (Chargeable) | expenses | `status = 'Submitted' AND chargeable_to_customer = true` | Customer PM |
+| `expense_non_chargeable` | Expense Validation (Non-Chargeable) | expenses | `status = 'Submitted' AND chargeable_to_customer = false` | Supplier PM |
+| `deliverable_review` | Deliverable Review | deliverables | `status = 'Submitted for Review'` | Customer PM |
+| `deliverable_sign_supplier` | Deliverable Sign-off (Supplier) | deliverables | `status = 'Review Complete' AND supplier_pm_signed_at IS NULL` | Supplier PM |
+| `deliverable_sign_customer` | Deliverable Sign-off (Customer) | deliverables | `status = 'Review Complete' AND customer_pm_signed_at IS NULL` | Customer PM |
+| `variation_submitted` | Variation Submitted | variations | `status = 'submitted'` | Customer PM |
+| `variation_awaiting_supplier` | Variation Awaiting Supplier | variations | `status = 'awaiting_supplier'` | Supplier PM |
+| `variation_awaiting_customer` | Variation Awaiting Customer | variations | `status = 'awaiting_customer'` | Customer PM |
+| `certificate_pending_supplier` | Certificate Pending Supplier | milestone_certificates | `status = 'Pending Supplier Signature'` | Supplier PM |
+| `certificate_pending_customer` | Certificate Pending Customer | milestone_certificates | `status IN ('Pending Customer Signature', 'Submitted')` | Customer PM |
+| `baseline_awaiting_supplier` | Baseline Awaiting Supplier | milestones | `baseline_locked = false AND baseline_supplier_pm_signed_at IS NULL` | Supplier PM |
+| `baseline_awaiting_customer` | Baseline Awaiting Customer | milestones | `baseline_locked = false AND baseline_customer_pm_signed_at IS NULL AND baseline_supplier_pm_signed_at IS NOT NULL` | Customer PM |
+
+### 17.3 Role Permission Matrix
+
+| Category | Customer PM | Supplier PM | Admin |
+|----------|-------------|-------------|-------|
+| `timesheet` | ✅ Act | ❌ View | ✅ Act |
+| `expense_chargeable` | ✅ Act | ❌ View | ✅ Act |
+| `expense_non_chargeable` | ❌ View | ✅ Act | ✅ Act |
+| `deliverable_review` | ✅ Act | ❌ View | ✅ Act |
+| `deliverable_sign_supplier` | ❌ View | ✅ Act | ✅ Act |
+| `deliverable_sign_customer` | ✅ Act | ❌ View | ✅ Act |
+| `variation_*` | Role-dependent | Role-dependent | ✅ Act |
+| `certificate_*` | Role-dependent | Role-dependent | ✅ Act |
+| `baseline_*` | Role-dependent | Role-dependent | ✅ Act |
+
+### 17.4 WorkflowService API
+
+**File:** `src/services/workflow.service.js`
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getAllPendingItems` | `projectId, options` | `WorkflowItem[]` | All pending items with optional role filtering |
+| `getItemsForRole` | `projectId, role` | `WorkflowItem[]` | Items actionable by specified role |
+| `getItemsVisibleToRole` | `projectId, role` | `WorkflowItem[]` | All items visible to role (actionable + info) |
+| `getCountsByCategory` | `projectId` | `CategoryCounts` | Counts per category for stat cards |
+| `getUrgentItems` | `projectId, daysThreshold` | `WorkflowItem[]` | Items pending longer than threshold |
+
+#### WorkflowItem Structure
+
+```javascript
+{
+  id: 'uuid',
+  type: 'timesheet',           // Category type
+  category: 'timesheet',
+  title: 'Week of 2025-12-09 - John Smith',
+  subtitle: 'Submitted 2025-12-10',
+  status: 'Submitted',
+  submitted_at: '2025-12-10T14:30:00Z',
+  daysPending: 6,
+  action_url: '/timesheets?highlight=uuid',
+  canAct: true,                // Can current user act?
+  isUrgent: true,              // > 5 days pending
+  entity: { /* full entity data */ }
+}
+```
+
+### 17.5 Deep Linking
+
+The workflow system supports deep linking via URL query parameters:
+
+| Entity | URL Pattern |
+|--------|-------------|
+| Timesheet | `/timesheets?highlight={uuid}` |
+| Expense | `/expenses?highlight={uuid}` |
+| Deliverable | `/deliverables?highlight={uuid}` |
+| Variation | `/variations?highlight={uuid}` |
+| Milestone/Certificate | `/milestones/{uuid}` |
+
+### 17.6 Visual Indicators
+
+| Condition | Badge Color | Background |
+|-----------|-------------|------------|
+| Urgent + Actionable | Red (#dc2626) | Light red |
+| Actionable | Green (#22c55e) | Light green (`bg-green-50`) |
+| Urgent + Info Only | Amber (#f59e0b) | Light amber |
+| Info Only | Blue (#3b82f6) | Default white |
+
+### 17.7 Cross-References
+
+- **NotificationContext:** See TECH-SPEC-07-Frontend-State.md Section 8
+- **WorkflowSummary Page:** See TECH-SPEC-07-Frontend-State.md Section 10

@@ -1,11 +1,16 @@
 # AMSF001 Technical Specification - RLS Policies & Security
 
-**Document Version:** 4.0  
+**Document Version:** 4.1  
 **Created:** 11 December 2025  
-**Updated:** 28 December 2025  
-**Session:** 1.5.1  
+**Updated:** 7 January 2026  
+**Session:** Documentation Review Phase 4  
 **Scope:** Row Level Security, Authentication, Authorization
 
+> **Version 4.1 Updates (7 January 2026):**
+> - Added reference to TECH-SPEC-11 for Evaluator module RLS (Section 5.8)
+> - Added `supplier_finance` and `customer_finance` to Role Definitions table (Section 6.1)
+> - Clarified `org_owner` role status in organisation role documentation
+>
 > **Version 4.0 Updates (28 December 2025):**
 > - Added Planning & Estimator tools RLS policies (Section 5.7)
 > - 22 new policies across 6 tables (plan_items, estimates, estimate_components, estimate_tasks, estimate_resources, benchmark_rates)
@@ -921,6 +926,32 @@ CREATE POLICY "benchmark_rates_admin_all" ON benchmark_rates FOR ALL TO authenti
 
 ---
 
+### 5.8 Evaluator Module (January 2026)
+
+The Evaluator module adds 17+ tables with comprehensive RLS policies for vendor evaluation workflows. Due to the size of this module, its RLS policies are documented separately.
+
+**See:** [TECH-SPEC-11-Evaluator.md](./TECH-SPEC-11-Evaluator.md) for complete Evaluator RLS documentation.
+
+**Key Evaluator Tables with RLS:**
+- `evaluation_projects` - Project-level evaluation containers
+- `evaluation_project_users` - User access to evaluations
+- `stakeholder_areas` - Stakeholder groupings
+- `evaluation_categories` - Category definitions
+- `requirements` - Evaluation requirements
+- `vendors` - Vendor profiles
+- `vendor_questions`, `vendor_responses` - Vendor interaction
+- `scores`, `consensus_scores` - Scoring data
+- `workshops`, `workshop_attendees` - Workshop management
+- `surveys`, `survey_responses` - Survey system
+- `evaluation_documents`, `evidence` - Document management
+
+**RLS Pattern Summary:**
+- All Evaluator tables use project-based isolation via `evaluation_project_id`
+- Policies check user membership in `evaluation_project_users`
+- Admin roles have elevated permissions for configuration tables
+
+---
+
 ## 6. Role-Based Access Control
 
 ### 6.1 Role Definitions
@@ -929,13 +960,13 @@ CREATE POLICY "benchmark_rates_admin_all" ON benchmark_rates FOR ALL TO authenti
 |------|-------|-------------|
 | **admin** | Global & Project | Full system access, user management, project creation |
 | **supplier_pm** | Project | Supplier-side project manager, full project control |
-| **supplier_finance** | Project | Supplier-side financial management (timesheets, expenses, deliverables) |
+| **supplier_finance** | Project | Supplier-side financial management (timesheets, expenses, invoicing) |
 | **customer_pm** | Project | Customer-side project manager, validation and signing |
-| **customer_finance** | Project | Customer-side financial management (timesheets, expenses, deliverables) |
+| **customer_finance** | Project | Customer-side financial validation (timesheets, expenses approval) |
 | **contributor** | Project | Team member, can submit timesheets/expenses, update deliverables |
 | **viewer** | Project | Read-only access to project data |
 
-> **Note:** `supplier_finance` and `customer_finance` were added in December 2025 to support dedicated financial roles with contributor-level permissions focused on financial workflows.
+> **Note (December 2025):** `supplier_finance` and `customer_finance` roles provide contributor-level base permissions plus financial workflow capabilities. They can validate/approve financial transactions relevant to their side (supplier or customer).
 
 ### 6.2 Complete Permission Matrix
 

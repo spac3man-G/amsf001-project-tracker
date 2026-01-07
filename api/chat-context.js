@@ -156,6 +156,8 @@ async function fetchWithMultipleQueries(supabase, projectId, userContext) {
     timesheetSummary: null,
     expenseSummary: null,
     pendingActions: null,
+    raidSummary: null,
+    qualityStandardsSummary: null,
     fetchedAt: new Date().toISOString(),
     source: 'multiple_queries',
   };
@@ -227,6 +229,25 @@ async function fetchWithMultipleQueries(supabase, projectId, userContext) {
         .eq('project_id', projectId)
         .eq('status', 'Submitted')
     ) : Promise.resolve({ count: 0 }),
+    
+    // 8. RAID summary (Segment 11)
+    withTimeout(
+      supabase
+        .from('raid_items')
+        .select('id, type, status, priority')
+        .eq('project_id', projectId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .in('status', ['Open', 'In Progress'])
+    ),
+    
+    // 9. Quality Standards summary (Segment 11)
+    withTimeout(
+      supabase
+        .from('quality_standards')
+        .select('id, status')
+        .eq('project_id', projectId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+    ),
   ]);
 
   // Process project info
@@ -322,6 +343,39 @@ async function fetchWithMultipleQueries(supabase, projectId, userContext) {
     awaitingValidation,
     hasPending: draftTimesheets > 0 || awaitingValidation > 0,
   };
+
+  // Process RAID summary (Segment 11)
+  if (queries[7].status === 'fulfilled' && queries[7].value.data) {
+    const items = queries[7].value.data;
+    results.raidSummary = {
+      total: items.length,
+      openRisks: items.filter(i => i.type === 'Risk' && i.status === 'Open').length,
+      openIssues: items.filter(i => i.type === 'Issue' && i.status === 'Open').length,
+      highPriority: items.filter(i => i.priority === 'High').length,
+      byType: {
+        Risk: items.filter(i => i.type === 'Risk').length,
+        Issue: items.filter(i => i.type === 'Issue').length,
+        Assumption: items.filter(i => i.type === 'Assumption').length,
+        Dependency: items.filter(i => i.type === 'Dependency').length,
+      }
+    };
+  }
+
+  // Process Quality Standards summary (Segment 11)
+  if (queries[8].status === 'fulfilled' && queries[8].value.data) {
+    const items = queries[8].value.data;
+    results.qualityStandardsSummary = {
+      total: items.length,
+      compliant: items.filter(i => i.status === 'Compliant').length,
+      partiallyCompliant: items.filter(i => i.status === 'Partially Compliant').length,
+      nonCompliant: items.filter(i => i.status === 'Non-Compliant').length,
+      notAssessed: items.filter(i => i.status === 'Not Assessed' || !i.status).length,
+      needsAttention: items.filter(i => ['Non-Compliant', 'Partially Compliant'].includes(i.status)).length,
+      complianceRate: items.length > 0 
+        ? Math.round((items.filter(i => i.status === 'Compliant').length / items.length) * 100)
+        : 0,
+    };
+  }
 
   return results;
 }

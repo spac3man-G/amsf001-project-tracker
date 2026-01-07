@@ -1,10 +1,25 @@
 # AMSF001 Technical Specification: Architecture & Infrastructure
 
 **Document:** TECH-SPEC-01-Architecture.md  
-**Version:** 2.1  
+**Version:** 2.3  
 **Created:** 10 December 2025  
-**Updated:** 6 January 2026  
-**Session:** 1.1.1  
+**Updated:** 7 January 2026  
+**Session:** Documentation Review Phase 4  
+
+> **Version 2.3 Updates (7 January 2026):**
+> - Added EvaluationContext, ReportBuilderContext to contexts listing
+> - Added 19 Evaluator services in evaluator/ subfolder
+> - Added 13 missing services to root services listing
+> - Added Evaluator pages (14 pages in evaluator/ subfolder)
+> - Added Planning, Admin, Onboarding page folders
+> - Added Hub.jsx to pages listing
+> - Added 8 Evaluator API endpoints in evaluator/ subfolder
+> - Added missing API endpoints (planning-ai, report-ai, manage-project-users, etc.)
+
+> **Version 2.2 Updates (7 January 2026):**
+> - Updated database table count from 28 to 60+ (reflects Evaluator module addition)
+> - See TECH-SPEC-11-Evaluator.md for Evaluator module documentation
+> - See TECH-SPEC-02 for detailed core table schemas
 
 > **Version 2.1 Updates (6 January 2026):**
 > - Added Claude Opus 4 to AI Integration table (Planning AI document analysis)
@@ -85,7 +100,21 @@ amsf001-project-tracker/
 │   ├── chat-stream.js            # Alternative streaming implementation
 │   ├── chat-context.js           # Context retrieval for AI
 │   ├── create-user.js            # Admin user creation endpoint
-│   └── scan-receipt.js           # Receipt OCR with Claude Vision
+│   ├── create-organisation.js    # Organisation creation (NEW)
+│   ├── create-project.js         # Project creation (NEW)
+│   ├── manage-project-users.js   # User-project management (NEW)
+│   ├── planning-ai.js            # Planning AI document analysis (NEW)
+│   ├── report-ai.js              # Report AI generation (NEW)
+│   ├── scan-receipt.js           # Receipt OCR with Claude Vision
+│   └── evaluator/                # Evaluator module APIs (NEW)
+│       ├── ai-document-parse.js  # Document parsing
+│       ├── ai-gap-analysis.js    # Gap analysis AI
+│       ├── ai-market-research.js # Market research AI
+│       ├── ai-requirement-suggest.js # Requirement suggestions
+│       ├── client-portal-auth.js # Client portal authentication
+│       ├── create-evaluation.js  # Create evaluation project
+│       ├── generate-report.js    # Report generation
+│       └── vendor-portal-auth.js # Vendor portal authentication
 │
 ├── src/                          # Frontend Source Code
 │   ├── App.jsx                   # Root application component
@@ -117,6 +146,8 @@ amsf001-project-tracker/
 │   │   ├── ProjectContext.jsx    # Current project (depends on org)
 │   │   ├── ViewAsContext.jsx     # Role impersonation
 │   │   ├── ChatContext.jsx       # AI chat state
+│   │   ├── EvaluationContext.jsx # Evaluator module state (NEW)
+│   │   ├── ReportBuilderContext.jsx # Report builder state (NEW)
 │   │   ├── MetricsContext.jsx    # Dashboard metrics cache
 │   │   ├── ToastContext.jsx      # Notification toasts
 │   │   ├── NotificationContext.jsx # System notifications
@@ -158,7 +189,38 @@ amsf001-project-tracker/
 │   │   ├── documentTemplates.service.js
 │   │   ├── documentRenderer.service.js
 │   │   ├── receiptScanner.service.js
-│   │   └── standards.service.js
+│   │   ├── standards.service.js
+│   │   ├── invitation.service.js     # Org invitations (NEW)
+│   │   ├── subscription.service.js   # Subscription management (NEW)
+│   │   ├── planItemsService.js       # Planning tool (NEW)
+│   │   ├── planCommitService.js      # Planner-Tracker sync (NEW)
+│   │   ├── syncService.js            # Generic sync utilities (NEW)
+│   │   ├── benchmarkRates.service.js # SFIA 8 rates (NEW)
+│   │   ├── estimates.service.js      # Cost estimator (NEW)
+│   │   ├── reportTemplates.service.js # Report templates (NEW)
+│   │   ├── reportDataFetcher.service.js # Report data (NEW)
+│   │   ├── reportRenderer.service.js # Report rendering (NEW)
+│   │   ├── workflow.service.js       # Workflow engine (NEW)
+│   │   ├── email.service.js          # Email notifications (NEW)
+│   │   └── evaluator/                # Evaluator module services (NEW)
+│   │       ├── ai.service.js
+│   │       ├── approvals.service.js
+│   │       ├── base.evaluator.service.js
+│   │       ├── clientPortal.service.js
+│   │       ├── comments.service.js
+│   │       ├── emailNotifications.service.js
+│   │       ├── evaluationCategories.service.js
+│   │       ├── evaluationDocuments.service.js
+│   │       ├── evaluationProjects.service.js
+│   │       ├── evidence.service.js
+│   │       ├── requirements.service.js
+│   │       ├── scores.service.js
+│   │       ├── stakeholderAreas.service.js
+│   │       ├── surveys.service.js
+│   │       ├── traceability.service.js
+│   │       ├── vendorQuestions.service.js
+│   │       ├── vendors.service.js
+│   │       └── workshops.service.js
 │   │
 │   ├── pages/                    # Page Components (Routes)
 │   │   ├── Login.jsx             # Authentication page
@@ -184,7 +246,36 @@ amsf001-project-tracker/
 │   │   ├── DeletedItems.jsx      # Soft delete recovery
 │   │   ├── Users.jsx             # User management
 │   │   ├── Settings.jsx          # Project settings
-│   │   └── AccountSettings.jsx   # User preferences
+│   │   ├── AccountSettings.jsx   # User preferences
+│   │   ├── Hub.jsx               # Organisation hub (NEW)
+│   │   ├── planning/             # Planning Tool pages (NEW)
+│   │   │   ├── Planning.jsx      # WBS planning
+│   │   │   ├── Estimator.jsx     # Cost estimator
+│   │   │   ├── Benchmarking.jsx  # SFIA 8 rates
+│   │   │   └── ...
+│   │   ├── admin/                # Admin pages (NEW)
+│   │   │   ├── AdminHome.jsx     # Admin dashboard
+│   │   │   ├── UsersManagement.jsx
+│   │   │   └── ...
+│   │   ├── onboarding/           # Onboarding pages (NEW)
+│   │   │   ├── OnboardingWizard.jsx
+│   │   │   ├── LandingPage.jsx
+│   │   │   └── ...
+│   │   └── evaluator/            # Evaluator module pages (NEW)
+│   │       ├── EvaluatorDashboard.jsx
+│   │       ├── Requirements.jsx
+│   │       ├── Vendors.jsx
+│   │       ├── VendorDetail.jsx
+│   │       ├── Workshops.jsx
+│   │       ├── Surveys.jsx
+│   │       ├── Scoring.jsx
+│   │       ├── ConsensusScoring.jsx
+│   │       ├── Evidence.jsx
+│   │       ├── Reports.jsx
+│   │       ├── Traceability.jsx
+│   │       ├── Settings.jsx
+│   │       ├── ClientPortal.jsx
+│   │       └── VendorPortal.jsx
 │   │
 │   ├── lib/                      # Utility Libraries
 │   │   ├── supabase.js           # Supabase client initialisation
@@ -336,7 +427,7 @@ dist/
 | Authentication | User login, sessions, password management |
 | Row Level Security | Multi-tenant data isolation |
 | Real-time | Not currently used (future consideration) |
-| Storage | Not currently used |
+| Storage | Used for expense_files (receipts) and evaluation_documents (Evaluator module) |
 
 **Connection:** Via `@supabase/supabase-js` client library
 
@@ -394,7 +485,7 @@ dist/
 │  ┌──────────────┐  │     │     │  ┌──────────────────────────┐  │
 │  │ Claude Haiku │  │     │     │  │      PostgreSQL          │  │
 │  │ Claude Sonnet│  │     │     │  │  ┌──────────────────┐   │  │
-│  └──────────────┘  │     │     │  │  │    28 Tables     │   │  │
+│  └──────────────┘  │     │     │  │  │    60+ Tables    │   │  │
 │                    │     │     │  │  │   + RLS Policies │   │  │
 └────────────────────┘     │     │  │  └──────────────────┘   │  │
                            │     │  │                          │  │
@@ -576,3 +667,5 @@ Viewer → Read-only access
 |---------|------|--------|--------|
 | 1.0 | 10 Dec 2025 | Claude AI | Initial creation |
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Updated to three-tier model, added OrganisationContext/OrganisationSwitcher, updated Multi-Tenancy Architecture section |
+| 2.1 | 6 Jan 2026 | Claude AI | Added Claude Opus 4, useResizableColumns, usePlanningIntegration |
+| 2.2 | 7 Jan 2026 | Claude AI | **Table count update**: 28 → 60+ tables (Evaluator module, Planning enhancements) |

@@ -229,6 +229,36 @@ function getUserFriendlyError(error, toolName) {
     getBudgetSummary: 'calculate budget summary',
     getResources: 'retrieve resource list',
     getKPIs: 'fetch KPI data',
+    getRaidItems: 'retrieve RAID log items',
+    getRaidSummary: 'fetch RAID summary',
+    getQualityStandards: 'retrieve quality standards',
+    getQualityStandardsSummary: 'fetch quality standards summary',
+    getPlanItems: 'retrieve plan items',
+    getPlanSummary: 'fetch plan summary',
+    getEstimates: 'retrieve cost estimates',
+    getBenchmarkRates: 'fetch benchmark rates',
+    getVariations: 'retrieve variations',
+    getVariationsSummary: 'fetch variations summary',
+    getDeliverableTasks: 'retrieve deliverable tasks',
+    getMilestoneCertificates: 'fetch milestone certificates',
+    // Segment 7: Partner & Invoicing
+    getPartners: 'retrieve partner information',
+    getPartnerInvoices: 'fetch partner invoices',
+    // Segment 8: Resource & Availability
+    getResourceAvailability: 'fetch resource availability',
+    // Segment 9: Evaluator (Part 1)
+    getEvaluationProjects: 'retrieve evaluation projects',
+    getRequirements: 'fetch evaluation requirements',
+    getVendors: 'retrieve vendor information',
+    // Segment 10: Evaluator (Part 2)
+    getScores: 'fetch vendor scores',
+    getWorkshops: 'retrieve workshop information',
+    getStakeholderAreas: 'fetch stakeholder areas',
+    // Segment 12: Admin Tools
+    getAuditLog: 'retrieve audit log entries',
+    getOrganisationSummary: 'fetch organisation summary',
+    // Segment 13: Feature Guide
+    getFeatureGuide: 'retrieve feature guide',
   };
   
   const action = toolContext[toolName] || 'complete your request';
@@ -570,6 +600,519 @@ const TOOLS = [
         }
       },
       required: []
+    }
+  },
+  {
+    name: "getRaidItems",
+    description: "Query RAID log items (Risks, Assumptions, Issues, Dependencies). Returns items with status, owner, priority, and dates.",
+    input_schema: {
+      type: "object",
+      properties: {
+        type: {
+          type: "string",
+          enum: ["Risk", "Assumption", "Issue", "Dependency", "all"],
+          description: "Filter by RAID type"
+        },
+        status: {
+          type: "string",
+          enum: ["Open", "In Progress", "Mitigated", "Closed", "all"],
+          description: "Filter by status"
+        },
+        priority: {
+          type: "string",
+          enum: ["High", "Medium", "Low", "all"],
+          description: "Filter by priority"
+        },
+        ownerName: {
+          type: "string",
+          description: "Filter by owner name"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getRaidSummary",
+    description: "Get aggregated RAID statistics. Counts by type, status, and priority.",
+    input_schema: {
+      type: "object",
+      properties: {
+        groupBy: {
+          type: "string",
+          enum: ["type", "status", "priority", "owner"],
+          description: "How to group the summary"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getQualityStandards",
+    description: "Query quality standards with compliance status and assessments.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["Compliant", "Partially Compliant", "Non-Compliant", "Not Assessed", "all"],
+          description: "Filter by compliance status"
+        },
+        category: {
+          type: "string",
+          description: "Filter by quality standard category"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getQualityStandardsSummary",
+    description: "Get aggregated quality standards compliance statistics.",
+    input_schema: {
+      type: "object",
+      properties: {
+        groupBy: {
+          type: "string",
+          enum: ["status", "category"],
+          description: "How to group the summary"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getPlanItems",
+    description: "Query Work Breakdown Structure (WBS) plan items. Returns hierarchical project plan with milestones, deliverables, and tasks.",
+    input_schema: {
+      type: "object",
+      properties: {
+        itemType: {
+          type: "string",
+          enum: ["component", "milestone", "deliverable", "task", "all"],
+          description: "Filter by item type in the WBS hierarchy"
+        },
+        status: {
+          type: "string",
+          enum: ["Not Started", "In Progress", "Complete", "On Hold", "Cancelled", "all"],
+          description: "Filter by status"
+        },
+        assignedTo: {
+          type: "string",
+          description: "Filter by assigned resource name"
+        },
+        parentId: {
+          type: "string",
+          description: "Get children of a specific parent item"
+        },
+        overdueOnly: {
+          type: "boolean",
+          description: "Only return items past their end date that aren't complete"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getPlanSummary",
+    description: "Get aggregated planning statistics including item counts, progress, and timeline overview.",
+    input_schema: {
+      type: "object",
+      properties: {
+        groupBy: {
+          type: "string",
+          enum: ["type", "status", "assignee", "month"],
+          description: "How to group the summary"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getEstimates",
+    description: "Query project cost estimates with components, tasks, and resource allocations.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["Draft", "In Review", "Approved", "Rejected", "all"],
+          description: "Filter by estimate status"
+        },
+        linkedPlanItemId: {
+          type: "string",
+          description: "Get estimate linked to a specific plan item"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getBenchmarkRates",
+    description: "Query SFIA 8 benchmark day rates by skill, level, and tier. Use this to look up rates for resource types.",
+    input_schema: {
+      type: "object",
+      properties: {
+        categoryId: {
+          type: "string",
+          description: "SFIA 8 category ID (e.g., 'STGY' for Strategy)"
+        },
+        skillId: {
+          type: "string",
+          description: "SFIA 8 skill ID (e.g., 'ARCH' for Solution Architecture)"
+        },
+        sfiaLevel: {
+          type: "integer",
+          description: "SFIA level (1-7)"
+        },
+        tier: {
+          type: "string",
+          enum: ["contractor", "boutique", "mid", "big4"],
+          description: "Supplier tier"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getVariations",
+    description: "Query project variations (change requests). Returns variations with status, cost impact, and approval workflow.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["Draft", "Submitted", "Under Review", "Approved", "Rejected", "Implemented", "all"],
+          description: "Filter by variation status"
+        },
+        type: {
+          type: "string",
+          enum: ["Scope Change", "Timeline Change", "Budget Change", "Resource Change", "all"],
+          description: "Filter by variation type"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getVariationsSummary",
+    description: "Get aggregated variation statistics including total cost impact and approval rates.",
+    input_schema: {
+      type: "object",
+      properties: {
+        includeImplemented: {
+          type: "boolean",
+          description: "Include implemented variations in totals"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getDeliverableTasks",
+    description: "Query tasks within deliverables. Returns task breakdown with status, assignees, and completion.",
+    input_schema: {
+      type: "object",
+      properties: {
+        deliverableId: {
+          type: "string",
+          description: "Filter by specific deliverable"
+        },
+        status: {
+          type: "string",
+          enum: ["Not Started", "In Progress", "Complete", "Blocked", "all"],
+          description: "Filter by task status"
+        },
+        assignedTo: {
+          type: "string",
+          description: "Filter by assigned resource"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getMilestoneCertificates",
+    description: "Query milestone payment certificates with approval status and amounts.",
+    input_schema: {
+      type: "object",
+      properties: {
+        milestoneId: {
+          type: "string",
+          description: "Filter by specific milestone"
+        },
+        status: {
+          type: "string",
+          enum: ["Draft", "Submitted", "Approved", "Paid", "all"],
+          description: "Filter by certificate status"
+        }
+      },
+      required: []
+    }
+  },
+  // ============================================
+  // SEGMENT 7: Partner & Invoicing Tools
+  // ============================================
+  {
+    name: "getPartners",
+    description: "Query project partners with contact details, resource counts, and spend totals.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["Active", "Inactive", "all"],
+          description: "Filter by partner status"
+        },
+        withResources: {
+          type: "boolean",
+          description: "Include resource count for each partner"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getPartnerInvoices",
+    description: "Query partner invoices with line items, amounts, and payment status.",
+    input_schema: {
+      type: "object",
+      properties: {
+        partnerId: {
+          type: "string",
+          description: "Filter by specific partner"
+        },
+        status: {
+          type: "string",
+          enum: ["Draft", "Sent", "Paid", "Overdue", "Cancelled", "all"],
+          description: "Filter by invoice status"
+        },
+        dateRange: {
+          type: "string",
+          enum: ["thisMonth", "lastMonth", "thisQuarter", "thisYear", "all"],
+          description: "Filter by invoice date range"
+        }
+      },
+      required: []
+    }
+  },
+  // ============================================
+  // SEGMENT 8: Resource & Availability Tools
+  // ============================================
+  {
+    name: "getResourceAvailability",
+    description: "Query resource availability and capacity allocation over time.",
+    input_schema: {
+      type: "object",
+      properties: {
+        resourceId: {
+          type: "string",
+          description: "Filter by specific resource"
+        },
+        dateRange: {
+          type: "string",
+          enum: ["thisWeek", "nextWeek", "thisMonth", "nextMonth", "thisQuarter", "all"],
+          description: "Time period for availability"
+        },
+        availableOnly: {
+          type: "boolean",
+          description: "Only show resources with available capacity"
+        }
+      },
+      required: []
+    }
+  },
+  // ============================================
+  // SEGMENT 9: Evaluator Tools (Part 1 - Core)
+  // ============================================
+  {
+    name: "getEvaluationProjects",
+    description: "Query software evaluation projects with status and summary metrics.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["Planning", "Requirements", "Vendor Selection", "Scoring", "Complete", "all"],
+          description: "Filter by evaluation status"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getRequirements",
+    description: "Query evaluation requirements with priority, category, and approval status.",
+    input_schema: {
+      type: "object",
+      properties: {
+        evaluationId: {
+          type: "string",
+          description: "Filter by evaluation project (required for most queries)"
+        },
+        priority: {
+          type: "string",
+          enum: ["Must Have", "Should Have", "Could Have", "Won't Have", "all"],
+          description: "Filter by MoSCoW priority"
+        },
+        status: {
+          type: "string",
+          enum: ["Draft", "Pending Approval", "Approved", "Rejected", "all"],
+          description: "Filter by approval status"
+        },
+        categoryId: {
+          type: "string",
+          description: "Filter by requirement category"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getVendors",
+    description: "Query vendors in an evaluation with response status and scores.",
+    input_schema: {
+      type: "object",
+      properties: {
+        evaluationId: {
+          type: "string",
+          description: "Filter by evaluation project (required)"
+        },
+        status: {
+          type: "string",
+          enum: ["Invited", "Responding", "Submitted", "Under Review", "Shortlisted", "Rejected", "all"],
+          description: "Filter by vendor status"
+        }
+      },
+      required: []
+    }
+  },
+  // ============================================
+  // SEGMENT 10: Evaluator Tools (Part 2 - Extended)
+  // ============================================
+  {
+    name: "getScores",
+    description: "Query vendor scores for requirements with individual and consensus scores.",
+    input_schema: {
+      type: "object",
+      properties: {
+        evaluationId: {
+          type: "string",
+          description: "Filter by evaluation project (required)"
+        },
+        vendorId: {
+          type: "string",
+          description: "Filter by specific vendor"
+        },
+        requirementId: {
+          type: "string",
+          description: "Filter by specific requirement"
+        },
+        consensusOnly: {
+          type: "boolean",
+          description: "Only return consensus scores"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getWorkshops",
+    description: "Query evaluation workshops with attendees and survey responses.",
+    input_schema: {
+      type: "object",
+      properties: {
+        evaluationId: {
+          type: "string",
+          description: "Filter by evaluation project"
+        },
+        status: {
+          type: "string",
+          enum: ["Scheduled", "In Progress", "Completed", "Cancelled", "all"],
+          description: "Filter by workshop status"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getStakeholderAreas",
+    description: "Query stakeholder areas/departments for an evaluation.",
+    input_schema: {
+      type: "object",
+      properties: {
+        evaluationId: {
+          type: "string",
+          description: "Filter by evaluation project"
+        }
+      },
+      required: []
+    }
+  },
+  // ============================================
+  // SEGMENT 12: Admin Tools
+  // ============================================
+  {
+    name: "getAuditLog",
+    description: "Query audit log entries. Admin only. Shows who did what and when.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["create", "update", "delete", "login", "all"],
+          description: "Filter by action type"
+        },
+        entityType: {
+          type: "string",
+          description: "Filter by entity type (e.g., 'milestone', 'timesheet')"
+        },
+        userId: {
+          type: "string",
+          description: "Filter by user ID"
+        },
+        dateRange: {
+          type: "string",
+          enum: ["today", "thisWeek", "thisMonth", "all"],
+          description: "Filter by date range"
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "getOrganisationSummary",
+    description: "Get organisation overview with user counts and project counts. Admin only.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: []
+    }
+  },
+  // ============================================
+  // SEGMENT 13: Feature Guide Tool
+  // ============================================
+  {
+    name: "getFeatureGuide",
+    description: "Get detailed how-to guide for an application feature. Use when users ask how to do something, what fields mean, how workflows work, or what they can do with their role. Always use this for procedural questions rather than guessing.",
+    input_schema: {
+      type: "object",
+      properties: {
+        feature: {
+          type: "string",
+          description: "Feature to get guide for (e.g., 'timesheets', 'variations', 'evaluator', 'raid', 'milestones')"
+        },
+        section: {
+          type: "string",
+          enum: ["overview", "howTo", "fields", "workflow", "permissions", "faq", "all"],
+          description: "Specific section to retrieve. Default returns contextually relevant sections."
+        },
+        action: {
+          type: "string",
+          enum: ["create", "edit", "delete", "submit", "approve", "view", "configure"],
+          description: "Specific action the user wants to perform"
+        }
+      },
+      required: ["feature"]
     }
   }
 ];
@@ -1353,6 +1896,1108 @@ async function executeGetKPIs(params, context) {
   };
 }
 
+async function executeGetRaidItems(params, context) {
+  const { projectId } = context;
+  
+  let query = supabase
+    .from('raid_items')
+    .select(`
+      id, reference, type, title, description, status, priority,
+      probability, impact, risk_score, mitigation_strategy,
+      owner_user_id, owner_name, raised_date, target_date, closed_date,
+      created_at, updated_at
+    `)
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('priority', { ascending: true })
+    .order('created_at', { ascending: false });
+
+  if (params.type && params.type !== 'all') {
+    query = query.eq('type', params.type);
+  }
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.priority && params.priority !== 'all') {
+    query = query.eq('priority', params.priority);
+  }
+  if (params.ownerName) {
+    query = query.ilike('owner_name', `%${params.ownerName}%`);
+  }
+
+  const { data, error } = await query.limit(50);
+  if (error) throw error;
+  
+  return {
+    items: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+async function executeGetRaidSummary(params, context) {
+  const { projectId } = context;
+  
+  const { data, error } = await supabase
+    .from('raid_items')
+    .select('id, type, status, priority, owner_name')
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false');
+
+  if (error) throw error;
+  
+  const items = data || [];
+  const groupBy = params.groupBy || 'type';
+  
+  const summary = {
+    total: items.length,
+    byType: {
+      Risk: items.filter(i => i.type === 'Risk').length,
+      Assumption: items.filter(i => i.type === 'Assumption').length,
+      Issue: items.filter(i => i.type === 'Issue').length,
+      Dependency: items.filter(i => i.type === 'Dependency').length,
+    },
+    byStatus: {
+      Open: items.filter(i => i.status === 'Open').length,
+      'In Progress': items.filter(i => i.status === 'In Progress').length,
+      Mitigated: items.filter(i => i.status === 'Mitigated').length,
+      Closed: items.filter(i => i.status === 'Closed').length,
+    },
+    byPriority: {
+      High: items.filter(i => i.priority === 'High').length,
+      Medium: items.filter(i => i.priority === 'Medium').length,
+      Low: items.filter(i => i.priority === 'Low').length,
+    },
+    openHighPriority: items.filter(i => i.status === 'Open' && i.priority === 'High').length,
+  };
+  
+  return summary;
+}
+
+async function executeGetQualityStandards(params, context) {
+  const { projectId } = context;
+  
+  let query = supabase
+    .from('quality_standards')
+    .select(`
+      id, reference, name, description, category, status,
+      compliance_notes, owner, review_date,
+      created_at, updated_at
+    `)
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('category')
+    .order('name');
+
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.category) {
+    query = query.ilike('category', `%${params.category}%`);
+  }
+
+  const { data, error } = await query.limit(50);
+  if (error) throw error;
+  
+  return {
+    standards: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+async function executeGetQualityStandardsSummary(params, context) {
+  const { projectId } = context;
+  
+  const { data, error } = await supabase
+    .from('quality_standards')
+    .select('id, status, category')
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false');
+
+  if (error) throw error;
+  
+  const items = data || [];
+  
+  // Get unique categories
+  const categories = [...new Set(items.map(i => i.category).filter(Boolean))];
+  
+  const summary = {
+    total: items.length,
+    byStatus: {
+      Compliant: items.filter(i => i.status === 'Compliant').length,
+      'Partially Compliant': items.filter(i => i.status === 'Partially Compliant').length,
+      'Non-Compliant': items.filter(i => i.status === 'Non-Compliant').length,
+      'Not Assessed': items.filter(i => i.status === 'Not Assessed' || !i.status).length,
+    },
+    categories: categories,
+    complianceRate: items.length > 0 
+      ? Math.round((items.filter(i => i.status === 'Compliant').length / items.length) * 100)
+      : 0,
+    needsAttention: items.filter(i => i.status === 'Non-Compliant' || i.status === 'Partially Compliant').length,
+  };
+  
+  return summary;
+}
+
+async function executeGetPlanItems(params, context) {
+  const { projectId } = context;
+  
+  let query = supabase
+    .from('plan_items')
+    .select(`
+      id, wbs_number, name, description, item_type, status, progress,
+      start_date, end_date, duration_days, estimated_hours, actual_hours,
+      assigned_to, parent_id, sort_order, is_baseline_locked,
+      linked_milestone_id, linked_deliverable_id, linked_estimate_id,
+      created_at, updated_at
+    `)
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('sort_order', { ascending: true });
+
+  if (params.itemType && params.itemType !== 'all') {
+    query = query.eq('item_type', params.itemType);
+  }
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.assignedTo) {
+    query = query.ilike('assigned_to', `%${params.assignedTo}%`);
+  }
+  if (params.parentId) {
+    query = query.eq('parent_id', params.parentId);
+  }
+  if (params.overdueOnly) {
+    const today = new Date().toISOString().split('T')[0];
+    query = query.lt('end_date', today).neq('status', 'Complete');
+  }
+
+  const { data, error } = await query.limit(100);
+  if (error) throw error;
+  
+  return {
+    items: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+async function executeGetPlanSummary(params, context) {
+  const { projectId } = context;
+  
+  const { data, error } = await supabase
+    .from('plan_items')
+    .select('id, item_type, status, progress, assigned_to, start_date, end_date, estimated_hours, actual_hours')
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false');
+
+  if (error) throw error;
+  
+  const items = data || [];
+  const today = new Date().toISOString().split('T')[0];
+  
+  const summary = {
+    total: items.length,
+    byType: {
+      component: items.filter(i => i.item_type === 'component').length,
+      milestone: items.filter(i => i.item_type === 'milestone').length,
+      deliverable: items.filter(i => i.item_type === 'deliverable').length,
+      task: items.filter(i => i.item_type === 'task').length,
+    },
+    byStatus: {
+      'Not Started': items.filter(i => i.status === 'Not Started').length,
+      'In Progress': items.filter(i => i.status === 'In Progress').length,
+      'Complete': items.filter(i => i.status === 'Complete').length,
+      'On Hold': items.filter(i => i.status === 'On Hold').length,
+    },
+    overdue: items.filter(i => i.end_date < today && i.status !== 'Complete').length,
+    averageProgress: items.length > 0 
+      ? Math.round(items.reduce((sum, i) => sum + (i.progress || 0), 0) / items.length)
+      : 0,
+    totalEstimatedHours: items.reduce((sum, i) => sum + (i.estimated_hours || 0), 0),
+    totalActualHours: items.reduce((sum, i) => sum + (i.actual_hours || 0), 0),
+  };
+  
+  return summary;
+}
+
+async function executeGetEstimates(params, context) {
+  const { projectId } = context;
+  
+  let query = supabase
+    .from('estimates')
+    .select(`
+      id, name, description, status, version,
+      total_days, total_cost, contingency_percent,
+      linked_plan_item_id, approved_by, approved_at,
+      created_at, updated_at,
+      estimate_components (
+        id, name, quantity, component_total_days, component_total_cost
+      )
+    `)
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('created_at', { ascending: false });
+
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.linkedPlanItemId) {
+    query = query.eq('linked_plan_item_id', params.linkedPlanItemId);
+  }
+
+  const { data, error } = await query.limit(20);
+  if (error) throw error;
+  
+  return {
+    estimates: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+async function executeGetBenchmarkRates(params, context) {
+  let query = supabase
+    .from('benchmark_rates')
+    .select(`
+      id, category_id, category_name, subcategory_id, subcategory_name,
+      skill_id, skill_name, sfia_level, tier, day_rate,
+      description
+    `)
+    .order('category_name')
+    .order('skill_name')
+    .order('sfia_level');
+
+  if (params.categoryId) {
+    query = query.eq('category_id', params.categoryId);
+  }
+  if (params.skillId) {
+    query = query.eq('skill_id', params.skillId);
+  }
+  if (params.sfiaLevel) {
+    query = query.eq('sfia_level', params.sfiaLevel);
+  }
+  if (params.tier) {
+    query = query.eq('tier', params.tier);
+  }
+
+  const { data, error } = await query.limit(100);
+  if (error) throw error;
+  
+  return {
+    rates: data || [],
+    count: data?.length || 0,
+    filters: params,
+    note: "Rates are daily rates in GBP"
+  };
+}
+
+async function executeGetVariations(params, context) {
+  const { projectId } = context;
+  
+  let query = supabase
+    .from('variations')
+    .select(`
+      id, reference, title, description, type, status,
+      cost_impact, timeline_impact_days, justification,
+      requested_by, requested_date, approved_by, approved_date,
+      created_at, updated_at
+    `)
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('created_at', { ascending: false });
+
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.type && params.type !== 'all') {
+    query = query.eq('type', params.type);
+  }
+
+  const { data, error } = await query.limit(50);
+  if (error) throw error;
+  
+  return {
+    variations: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+async function executeGetVariationsSummary(params, context) {
+  const { projectId } = context;
+  
+  const { data, error } = await supabase
+    .from('variations')
+    .select('id, status, type, cost_impact, timeline_impact_days')
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false');
+
+  if (error) throw error;
+  
+  const items = data || [];
+  const includeImpl = params.includeImplemented !== false;
+  
+  const relevantItems = includeImpl 
+    ? items 
+    : items.filter(i => i.status !== 'Implemented');
+  
+  const approved = items.filter(i => ['Approved', 'Implemented'].includes(i.status));
+  
+  const summary = {
+    total: items.length,
+    byStatus: {
+      Draft: items.filter(i => i.status === 'Draft').length,
+      Submitted: items.filter(i => i.status === 'Submitted').length,
+      'Under Review': items.filter(i => i.status === 'Under Review').length,
+      Approved: items.filter(i => i.status === 'Approved').length,
+      Rejected: items.filter(i => i.status === 'Rejected').length,
+      Implemented: items.filter(i => i.status === 'Implemented').length,
+    },
+    byType: {
+      'Scope Change': items.filter(i => i.type === 'Scope Change').length,
+      'Timeline Change': items.filter(i => i.type === 'Timeline Change').length,
+      'Budget Change': items.filter(i => i.type === 'Budget Change').length,
+      'Resource Change': items.filter(i => i.type === 'Resource Change').length,
+    },
+    totalCostImpact: relevantItems.reduce((sum, i) => sum + (i.cost_impact || 0), 0),
+    approvedCostImpact: approved.reduce((sum, i) => sum + (i.cost_impact || 0), 0),
+    totalTimelineImpact: relevantItems.reduce((sum, i) => sum + (i.timeline_impact_days || 0), 0),
+    pendingCount: items.filter(i => ['Submitted', 'Under Review'].includes(i.status)).length,
+  };
+  
+  return summary;
+}
+
+async function executeGetDeliverableTasks(params, context) {
+  const { projectId } = context;
+  
+  let query = supabase
+    .from('deliverable_tasks')
+    .select(`
+      id, name, description, status, progress,
+      assigned_to, estimated_hours, actual_hours,
+      start_date, due_date, completed_date, comment,
+      deliverable_id, sort_order,
+      deliverables!inner (id, name, project_id)
+    `)
+    .eq('deliverables.project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('sort_order');
+
+  if (params.deliverableId) {
+    query = query.eq('deliverable_id', params.deliverableId);
+  }
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.assignedTo) {
+    query = query.ilike('assigned_to', `%${params.assignedTo}%`);
+  }
+
+  const { data, error } = await query.limit(100);
+  if (error) throw error;
+  
+  return {
+    tasks: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+async function executeGetMilestoneCertificates(params, context) {
+  const { projectId } = context;
+  
+  let query = supabase
+    .from('milestone_certificates')
+    .select(`
+      id, certificate_number, status, amount, currency,
+      issued_date, approved_date, paid_date,
+      approved_by, notes,
+      milestone_id,
+      milestones!inner (id, name, project_id)
+    `)
+    .eq('milestones.project_id', projectId)
+    .order('issued_date', { ascending: false });
+
+  if (params.milestoneId) {
+    query = query.eq('milestone_id', params.milestoneId);
+  }
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+
+  const { data, error } = await query.limit(50);
+  if (error) throw error;
+  
+  const totalAmount = (data || []).reduce((sum, c) => sum + (c.amount || 0), 0);
+  const paidAmount = (data || []).filter(c => c.status === 'Paid').reduce((sum, c) => sum + (c.amount || 0), 0);
+  
+  return {
+    certificates: data || [],
+    count: data?.length || 0,
+    totalAmount,
+    paidAmount,
+    outstandingAmount: totalAmount - paidAmount,
+    filters: params
+  };
+}
+
+
+// ============================================
+// SEGMENT 7: Partner & Invoicing Tool Functions
+// ============================================
+
+async function executeGetPartners(params, context) {
+  const { projectId, userContext } = context;
+  
+  let query = supabase
+    .from('partners')
+    .select(`
+      id, name, contact_name, contact_email, contact_phone,
+      address, status, payment_terms, notes,
+      created_at, updated_at,
+      resources (id)
+    `)
+    .eq('project_id', projectId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('name');
+
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  
+  const partners = (data || []).map(p => ({
+    ...p,
+    resourceCount: p.resources?.length || 0,
+    resources: undefined // Remove nested array from response
+  }));
+  
+  return {
+    partners,
+    count: partners.length,
+    filters: params
+  };
+}
+
+async function executeGetPartnerInvoices(params, context) {
+  const { projectId, userContext } = context;
+  
+  let query = supabase
+    .from('partner_invoices')
+    .select(`
+      id, invoice_number, status, invoice_date, due_date, paid_date,
+      subtotal, tax_amount, total_amount, currency, notes,
+      partner_id,
+      partners!inner (id, name, project_id),
+      partner_invoice_lines (id, description, quantity, unit_price, line_total)
+    `)
+    .eq('partners.project_id', projectId)
+    .order('invoice_date', { ascending: false });
+
+  if (params.partnerId) {
+    query = query.eq('partner_id', params.partnerId);
+  }
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.dateRange && params.dateRange !== 'all') {
+    const range = getDateRange(params.dateRange);
+    if (range) {
+      query = query.gte('invoice_date', range.start).lte('invoice_date', range.end);
+    }
+  }
+
+  const { data, error } = await query.limit(50);
+  if (error) throw error;
+  
+  const totalAmount = (data || []).reduce((sum, i) => sum + (i.total_amount || 0), 0);
+  const paidAmount = (data || []).filter(i => i.status === 'Paid').reduce((sum, i) => sum + (i.total_amount || 0), 0);
+  
+  return {
+    invoices: data || [],
+    count: data?.length || 0,
+    totalAmount,
+    paidAmount,
+    outstandingAmount: totalAmount - paidAmount,
+    filters: params
+  };
+}
+
+// ============================================
+// SEGMENT 8: Resource & Availability Tool Functions
+// ============================================
+
+async function executeGetResourceAvailability(params, context) {
+  const { projectId, userContext } = context;
+  
+  let query = supabase
+    .from('resource_availability')
+    .select(`
+      id, resource_id, week_start, available_hours, allocated_hours,
+      notes,
+      resources!inner (id, name, project_id, sell_price)
+    `)
+    .eq('resources.project_id', projectId)
+    .order('week_start', { ascending: true });
+
+  if (params.resourceId) {
+    query = query.eq('resource_id', params.resourceId);
+  }
+  if (params.dateRange && params.dateRange !== 'all') {
+    const range = getDateRange(params.dateRange);
+    if (range) {
+      query = query.gte('week_start', range.start).lte('week_start', range.end);
+    }
+  }
+
+  const { data, error } = await query.limit(200);
+  if (error) throw error;
+  
+  let availability = data || [];
+  
+  if (params.availableOnly) {
+    availability = availability.filter(a => 
+      (a.available_hours || 0) > (a.allocated_hours || 0)
+    );
+  }
+  
+  // Calculate summary
+  const totalAvailable = availability.reduce((sum, a) => sum + (a.available_hours || 0), 0);
+  const totalAllocated = availability.reduce((sum, a) => sum + (a.allocated_hours || 0), 0);
+  
+  return {
+    availability,
+    count: availability.length,
+    totalAvailable,
+    totalAllocated,
+    utilisation: totalAvailable > 0 ? Math.round((totalAllocated / totalAvailable) * 100) : 0,
+    filters: params
+  };
+}
+
+// ============================================
+// SEGMENT 9: Evaluator Tool Functions (Part 1 - Core)
+// ============================================
+
+async function executeGetEvaluationProjects(params, context) {
+  const { userContext } = context;
+  
+  // Note: Evaluations may be linked to an organisation, not just a project
+  let query = supabase
+    .from('evaluation_projects')
+    .select(`
+      id, name, description, client_name, status,
+      start_date, end_date, settings,
+      created_at, updated_at
+    `)
+    .order('created_at', { ascending: false });
+
+  // Filter by org if user has org context
+  if (userContext?.organisationId) {
+    query = query.eq('organisation_id', userContext.organisationId);
+  }
+  
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+
+  const { data, error } = await query.limit(20);
+  if (error) throw error;
+  
+  return {
+    evaluations: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+async function executeGetRequirements(params, context) {
+  if (!params.evaluationId) {
+    return { error: "evaluationId is required to query requirements" };
+  }
+  
+  let query = supabase
+    .from('requirements')
+    .select(`
+      id, reference, title, description, priority, status,
+      category_id, stakeholder_area_id, source, rationale,
+      ai_generated, ai_confidence,
+      created_at, updated_at,
+      evaluation_categories (id, name),
+      stakeholder_areas (id, name)
+    `)
+    .eq('evaluation_id', params.evaluationId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('reference');
+
+  if (params.priority && params.priority !== 'all') {
+    query = query.eq('priority', params.priority);
+  }
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.categoryId) {
+    query = query.eq('category_id', params.categoryId);
+  }
+
+  const { data, error } = await query.limit(100);
+  if (error) throw error;
+  
+  // Summary stats
+  const items = data || [];
+  const summary = {
+    total: items.length,
+    byPriority: {
+      'Must Have': items.filter(r => r.priority === 'Must Have').length,
+      'Should Have': items.filter(r => r.priority === 'Should Have').length,
+      'Could Have': items.filter(r => r.priority === 'Could Have').length,
+      'Won\'t Have': items.filter(r => r.priority === 'Won\'t Have').length,
+    },
+    byStatus: {
+      Draft: items.filter(r => r.status === 'Draft').length,
+      'Pending Approval': items.filter(r => r.status === 'Pending Approval').length,
+      Approved: items.filter(r => r.status === 'Approved').length,
+    },
+    aiGenerated: items.filter(r => r.ai_generated).length,
+  };
+  
+  return {
+    requirements: items,
+    count: items.length,
+    summary,
+    filters: params
+  };
+}
+
+async function executeGetVendors(params, context) {
+  if (!params.evaluationId) {
+    return { error: "evaluationId is required to query vendors" };
+  }
+  
+  let query = supabase
+    .from('vendors')
+    .select(`
+      id, name, contact_name, contact_email, website,
+      status, shortlist_rank, notes,
+      invited_date, response_due_date, submitted_date,
+      created_at, updated_at
+    `)
+    .eq('evaluation_id', params.evaluationId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('shortlist_rank', { nullsLast: true })
+    .order('name');
+
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+
+  const { data, error } = await query.limit(50);
+  if (error) throw error;
+  
+  return {
+    vendors: data || [],
+    count: data?.length || 0,
+    shortlisted: (data || []).filter(v => v.status === 'Shortlisted').length,
+    filters: params
+  };
+}
+
+// ============================================
+// SEGMENT 10: Evaluator Tool Functions (Part 2 - Extended)
+// ============================================
+
+async function executeGetScores(params, context) {
+  if (!params.evaluationId) {
+    return { error: "evaluationId is required to query scores" };
+  }
+  
+  if (params.consensusOnly) {
+    // Get consensus scores
+    let query = supabase
+      .from('consensus_scores')
+      .select(`
+        id, requirement_id, vendor_id, score, weighted_score, notes,
+        finalised_by, finalised_at,
+        requirements (id, reference, title),
+        vendors (id, name)
+      `)
+      .eq('evaluation_id', params.evaluationId);
+
+    if (params.vendorId) {
+      query = query.eq('vendor_id', params.vendorId);
+    }
+    if (params.requirementId) {
+      query = query.eq('requirement_id', params.requirementId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    return {
+      scores: data || [],
+      count: data?.length || 0,
+      type: 'consensus',
+      filters: params
+    };
+  } else {
+    // Get individual scores
+    let query = supabase
+      .from('scores')
+      .select(`
+        id, requirement_id, vendor_id, scorer_id, score, weighted_score, notes,
+        created_at,
+        requirements (id, reference, title),
+        vendors (id, name)
+      `)
+      .eq('evaluation_id', params.evaluationId);
+
+    if (params.vendorId) {
+      query = query.eq('vendor_id', params.vendorId);
+    }
+    if (params.requirementId) {
+      query = query.eq('requirement_id', params.requirementId);
+    }
+
+    const { data, error } = await query.limit(500);
+    if (error) throw error;
+    
+    return {
+      scores: data || [],
+      count: data?.length || 0,
+      type: 'individual',
+      filters: params
+    };
+  }
+}
+
+async function executeGetWorkshops(params, context) {
+  let query = supabase
+    .from('workshops')
+    .select(`
+      id, name, description, workshop_type, status,
+      scheduled_date, duration_minutes, location, meeting_link,
+      facilitator, notes,
+      created_at, updated_at,
+      workshop_attendees (id, user_id, attendance_status)
+    `)
+    .order('scheduled_date', { ascending: true });
+
+  if (params.evaluationId) {
+    query = query.eq('evaluation_id', params.evaluationId);
+  }
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+
+  const { data, error } = await query.limit(50);
+  if (error) throw error;
+  
+  const workshops = (data || []).map(w => ({
+    ...w,
+    attendeeCount: w.workshop_attendees?.length || 0,
+    workshop_attendees: undefined
+  }));
+  
+  return {
+    workshops,
+    count: workshops.length,
+    filters: params
+  };
+}
+
+async function executeGetStakeholderAreas(params, context) {
+  let query = supabase
+    .from('stakeholder_areas')
+    .select(`
+      id, name, description, lead_user_id, weight,
+      created_at
+    `)
+    .order('name');
+
+  if (params.evaluationId) {
+    query = query.eq('evaluation_id', params.evaluationId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  
+  return {
+    areas: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+// ============================================
+// SEGMENT 12: Admin Tool Functions
+// ============================================
+
+async function executeGetAuditLog(params, context) {
+  const { projectId, userContext } = context;
+  
+  // Admin only check
+  if (!['admin'].includes(userContext?.role)) {
+    return { error: "Audit log access requires admin role" };
+  }
+  
+  let query = supabase
+    .from('audit_log')
+    .select(`
+      id, action, entity_type, entity_id, 
+      user_id, user_email, changes, ip_address,
+      created_at
+    `)
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
+
+  if (params.action && params.action !== 'all') {
+    query = query.eq('action', params.action);
+  }
+  if (params.entityType) {
+    query = query.eq('entity_type', params.entityType);
+  }
+  if (params.userId) {
+    query = query.eq('user_id', params.userId);
+  }
+  if (params.dateRange && params.dateRange !== 'all') {
+    const range = getDateRange(params.dateRange);
+    if (range) {
+      query = query.gte('created_at', range.start);
+    }
+  }
+
+  const { data, error } = await query.limit(100);
+  if (error) throw error;
+  
+  return {
+    entries: data || [],
+    count: data?.length || 0,
+    filters: params
+  };
+}
+
+async function executeGetOrganisationSummary(params, context) {
+  const { userContext } = context;
+  
+  if (!['admin', 'supplier_pm'].includes(userContext?.role)) {
+    return { error: "Organisation summary requires admin or supplier_pm role" };
+  }
+  
+  const orgId = userContext?.organisationId;
+  if (!orgId) {
+    return { error: "No organisation context available" };
+  }
+  
+  // Get org details
+  const { data: org } = await supabase
+    .from('organisations')
+    .select('id, name, slug, subscription_tier, is_active')
+    .eq('id', orgId)
+    .single();
+  
+  // Get member count
+  const { count: memberCount } = await supabase
+    .from('user_organisations')
+    .select('id', { count: 'exact', head: true })
+    .eq('organisation_id', orgId);
+  
+  // Get project count
+  const { count: projectCount } = await supabase
+    .from('projects')
+    .select('id', { count: 'exact', head: true })
+    .eq('organisation_id', orgId)
+    .or('is_deleted.is.null,is_deleted.eq.false');
+  
+  return {
+    organisation: org,
+    memberCount: memberCount || 0,
+    projectCount: projectCount || 0
+  };
+}
+
+// ============================================
+// SEGMENT 13: Feature Guide Execution
+// ============================================
+
+// Guide registry - maps guide IDs to their file paths
+const GUIDE_PATHS = {
+  'timesheets': 'core/timesheets',
+  'expenses': 'core/expenses',
+  'milestones': 'core/milestones',
+  'deliverables': 'core/deliverables',
+  'resources': 'core/resources',
+  'variations': 'project-management/variations',
+  'raid': 'project-management/raid',
+  'quality-standards': 'project-management/quality-standards',
+  'kpis': 'project-management/kpis',
+  'wbs-planning': 'planning/wbs-planning',
+  'estimator': 'planning/estimator',
+  'benchmarking': 'planning/benchmarking',
+  'billing': 'finance/billing',
+  'partner-invoices': 'finance/partner-invoices',
+  'evaluation-setup': 'evaluator/evaluation-setup',
+  'requirements': 'evaluator/requirements',
+  'vendors': 'evaluator/vendors',
+  'scoring': 'evaluator/scoring',
+  'workshops': 'evaluator/workshops',
+  'evaluator-reports': 'evaluator/evaluator-reports',
+  'organisation-admin': 'admin/organisation-admin',
+  'project-settings': 'admin/project-settings',
+  'team-members': 'admin/team-members',
+  'audit-log': 'admin/audit-log',
+  'navigation': 'general/navigation',
+  'roles-permissions': 'general/roles-permissions',
+  'workflows': 'general/workflows',
+};
+
+// Keyword to guide mapping for fuzzy matching
+const KEYWORD_TO_GUIDE = {
+  'timesheet': 'timesheets', 'time entry': 'timesheets', 'hours': 'timesheets',
+  'expense': 'expenses', 'receipt': 'expenses', 'claim': 'expenses',
+  'milestone': 'milestones', 'phase': 'milestones', 'certificate': 'milestones',
+  'deliverable': 'deliverables', 'work product': 'deliverables', 'task': 'deliverables',
+  'resource': 'resources', 'team member': 'resources', 'staff': 'resources',
+  'variation': 'variations', 'change request': 'variations', 'change control': 'variations',
+  'risk': 'raid', 'issue': 'raid', 'assumption': 'raid', 'dependency': 'raid', 'raid': 'raid',
+  'quality': 'quality-standards', 'compliance': 'quality-standards', 'standard': 'quality-standards',
+  'kpi': 'kpis', 'indicator': 'kpis', 'metric': 'kpis',
+  'plan': 'wbs-planning', 'planning': 'wbs-planning', 'wbs': 'wbs-planning', 'gantt': 'wbs-planning',
+  'estimate': 'estimator', 'estimation': 'estimator', 'cost estimate': 'estimator',
+  'benchmark': 'benchmarking', 'rate card': 'benchmarking', 'sfia': 'benchmarking', 'day rate': 'benchmarking',
+  'billing': 'billing', 'budget': 'billing', 'finance': 'billing', 'invoice': 'billing',
+  'partner invoice': 'partner-invoices', 'subcontractor': 'partner-invoices',
+  'evaluation': 'evaluation-setup', 'evaluator': 'evaluation-setup', 'software evaluation': 'evaluation-setup',
+  'requirement': 'requirements', 'moscow': 'requirements',
+  'vendor': 'vendors', 'supplier': 'vendors', 'rfp': 'vendors',
+  'score': 'scoring', 'scoring': 'scoring',
+  'workshop': 'workshops', 'demo': 'workshops',
+  'evaluation report': 'evaluator-reports',
+  'organisation': 'organisation-admin', 'org admin': 'organisation-admin',
+  'project setting': 'project-settings', 'project config': 'project-settings',
+  'team': 'team-members', 'user': 'team-members', 'invite': 'team-members',
+  'audit': 'audit-log', 'activity log': 'audit-log', 'history': 'audit-log',
+  'navigate': 'navigation', 'menu': 'navigation', 'sidebar': 'navigation',
+  'role': 'roles-permissions', 'permission': 'roles-permissions', 'access': 'roles-permissions',
+  'workflow': 'workflows', 'approval': 'workflows', 'approval process': 'workflows',
+};
+
+function findGuideByKeyword(keyword) {
+  if (!keyword) return null;
+  const lowerKeyword = keyword.toLowerCase().trim();
+  
+  // Direct match on guide ID
+  if (GUIDE_PATHS[lowerKeyword]) return lowerKeyword;
+  
+  // Exact keyword match
+  if (KEYWORD_TO_GUIDE[lowerKeyword]) return KEYWORD_TO_GUIDE[lowerKeyword];
+  
+  // Partial match
+  for (const [key, guideId] of Object.entries(KEYWORD_TO_GUIDE)) {
+    if (lowerKeyword.includes(key) || key.includes(lowerKeyword)) {
+      return guideId;
+    }
+  }
+  
+  return null;
+}
+
+async function executeGetFeatureGuide(params, context) {
+  const { feature, section, action } = params;
+  
+  // Try to find the guide
+  let guideId = feature?.toLowerCase().replace(/\s+/g, '-');
+  
+  // Check direct match
+  if (!GUIDE_PATHS[guideId]) {
+    // Try keyword matching
+    guideId = findGuideByKeyword(feature);
+  }
+  
+  if (!guideId || !GUIDE_PATHS[guideId]) {
+    return {
+      error: `No guide found for "${feature}"`,
+      availableGuides: Object.keys(GUIDE_PATHS),
+      suggestion: "Try asking about: timesheets, expenses, variations, milestones, deliverables, resources, raid, evaluator, planning",
+      tip: "You can ask things like 'How do I create a timesheet?' or 'What's the approval workflow for expenses?'"
+    };
+  }
+  
+  // Try to load the guide dynamically
+  let guide;
+  try {
+    // Dynamic import from feature-guides directory
+    const guidePath = GUIDE_PATHS[guideId];
+    const module = await import(`../src/data/feature-guides/${guidePath}.js`);
+    guide = module.default;
+  } catch (error) {
+    // Guide file doesn't exist yet
+    return {
+      guideId,
+      status: 'not_implemented',
+      message: `The ${guideId} guide is registered but not yet implemented.`,
+      availableGuides: Object.keys(GUIDE_PATHS),
+      tip: "This guide will be available soon. In the meantime, I can help answer questions based on the application's data."
+    };
+  }
+  
+  // Build response based on request
+  const response = {
+    feature: guide.id,
+    title: guide.title,
+    category: guide.category
+  };
+  
+  // If specific action requested, return how-to for that action
+  if (action && guide.howTo && guide.howTo[action]) {
+    response.howTo = guide.howTo[action];
+    response.relevantFields = guide.fields;
+    const userRole = context.userContext?.role;
+    response.yourPermissions = guide.permissions?.[userRole] || guide.permissions;
+    return response;
+  }
+  
+  // If specific section requested
+  if (section && section !== 'all') {
+    if (section === 'permissions') {
+      const userRole = context.userContext?.role;
+      response.yourRole = userRole;
+      response.permissions = guide.permissions?.[userRole] || guide.permissions;
+    } else {
+      response[section] = guide[section];
+    }
+    return response;
+  }
+  
+  // Default: return overview with key sections
+  response.description = guide.description;
+  response.navigation = guide.navigation;
+  response.howTo = guide.howTo;
+  response.workflow = guide.workflow;
+  
+  // Add role-specific permissions
+  const userRole = context.userContext?.role;
+  if (guide.permissions) {
+    response.yourPermissions = guide.permissions[userRole] || guide.permissions;
+  }
+  
+  // Include FAQ if available
+  if (guide.faq) {
+    response.faq = guide.faq.slice(0, 5);
+  }
+  
+  // Include related guides
+  if (guide.related) {
+    response.related = guide.related;
+  }
+  
+  return response;
+}
+
 
 // ============================================
 // TOOL EXECUTION DISPATCHER
@@ -1393,6 +3038,60 @@ async function executeTool(toolName, toolInput, context) {
         return await executeGetResources(toolInput, context);
       case 'getKPIs':
         return await executeGetKPIs(toolInput, context);
+      case 'getRaidItems':
+        return await executeGetRaidItems(toolInput, context);
+      case 'getRaidSummary':
+        return await executeGetRaidSummary(toolInput, context);
+      case 'getQualityStandards':
+        return await executeGetQualityStandards(toolInput, context);
+      case 'getQualityStandardsSummary':
+        return await executeGetQualityStandardsSummary(toolInput, context);
+      case 'getPlanItems':
+        return await executeGetPlanItems(toolInput, context);
+      case 'getPlanSummary':
+        return await executeGetPlanSummary(toolInput, context);
+      case 'getEstimates':
+        return await executeGetEstimates(toolInput, context);
+      case 'getBenchmarkRates':
+        return await executeGetBenchmarkRates(toolInput, context);
+      case 'getVariations':
+        return await executeGetVariations(toolInput, context);
+      case 'getVariationsSummary':
+        return await executeGetVariationsSummary(toolInput, context);
+      case 'getDeliverableTasks':
+        return await executeGetDeliverableTasks(toolInput, context);
+      case 'getMilestoneCertificates':
+        return await executeGetMilestoneCertificates(toolInput, context);
+      // Segment 7: Partner & Invoicing
+      case 'getPartners':
+        return await executeGetPartners(toolInput, context);
+      case 'getPartnerInvoices':
+        return await executeGetPartnerInvoices(toolInput, context);
+      // Segment 8: Resource & Availability
+      case 'getResourceAvailability':
+        return await executeGetResourceAvailability(toolInput, context);
+      // Segment 9: Evaluator (Part 1)
+      case 'getEvaluationProjects':
+        return await executeGetEvaluationProjects(toolInput, context);
+      case 'getRequirements':
+        return await executeGetRequirements(toolInput, context);
+      case 'getVendors':
+        return await executeGetVendors(toolInput, context);
+      // Segment 10: Evaluator (Part 2)
+      case 'getScores':
+        return await executeGetScores(toolInput, context);
+      case 'getWorkshops':
+        return await executeGetWorkshops(toolInput, context);
+      case 'getStakeholderAreas':
+        return await executeGetStakeholderAreas(toolInput, context);
+      // Segment 12: Admin Tools
+      case 'getAuditLog':
+        return await executeGetAuditLog(toolInput, context);
+      case 'getOrganisationSummary':
+        return await executeGetOrganisationSummary(toolInput, context);
+      // Segment 13: Feature Guide
+      case 'getFeatureGuide':
+        return await executeGetFeatureGuide(toolInput, context);
       default:
         return { error: `Unknown tool: ${toolName}`, recoverable: false };
     }
@@ -1523,42 +3222,71 @@ Answer naturally and helpfully. If asked about switching projects or other proje
 function buildSystemPrompt(context) {
   const { userContext, projectContext, prefetchedContext } = context;
   
-  let prompt = `You are an AI assistant for the AMSF001 Project Tracker application. You help users query their project data, understand their pending actions, and navigate the system.
+  let prompt = `You are an AI assistant for the AMSF001 Project Tracker, a comprehensive project management and software evaluation platform. You help users query data, understand workflows, and navigate the system.
 
 ## Your Capabilities
-You have access to tools that query the project database. Use them to answer questions about:
-- Timesheets and time tracking
-- Expenses and expense claims
-- Milestones and project progress
-- Deliverables and their status
-- Budget and spend analysis
-- Resources and team members
-- KPIs and performance metrics
-- User's pending actions and responsibilities
+
+### Core Project Management
+- **Timesheets & Expenses** - Query time entries, expenses, validation status
+- **Milestones & Deliverables** - Track progress, certificates, task breakdowns
+- **Resources & Capacity** - Team utilisation, availability, partner assignments
+- **Budget & Finance** - Budget vs actual, partner invoicing, variations
+- **RAID Log** - Risks, Assumptions, Issues, Dependencies
+- **Quality Standards** - Compliance tracking and assessments
+- **KPIs** - Performance indicators and RAG status
+
+### Planning & Estimation
+- **Work Breakdown Structure** - Hierarchical plan items (components, milestones, deliverables, tasks)
+- **Estimating** - Cost estimates with SFIA 8 skill/level/tier rates
+- **Benchmarking** - Day rate comparisons across supplier tiers
+
+### Change Control
+- **Variations** - Change requests with cost/timeline impact
+- **Baseline Tracking** - Plan versioning and baseline protection
+
+### Software Evaluation (Evaluator Module)
+- **Evaluation Projects** - Multi-vendor software selection projects
+- **Requirements** - MoSCoW prioritised requirements with approval workflow
+- **Vendors** - Vendor management, RFP responses, evidence
+- **Scoring** - Individual and consensus scoring with weighted calculations
+- **Workshops & Surveys** - Stakeholder engagement and feedback collection
 
 ## Current Context
-- User: ${userContext?.name || 'Unknown'} (${userContext?.email || 'Unknown'})
-- Project: ${projectContext?.name || 'AMSF001'} (${projectContext?.reference || 'Unknown'})
-- Role on this project: ${userContext?.role || 'Unknown'}
-${userContext?.linkedResourceName ? `- Linked Resource: ${userContext.linkedResourceName}` : ''}
-${userContext?.partnerName ? `- Partner: ${userContext.partnerName}` : ''}
+- **User:** ${userContext?.name || 'Unknown'} (${userContext?.email || 'Unknown'})
+- **Project:** ${projectContext?.name || 'Unknown'} (${projectContext?.reference || 'Unknown'})
+- **Role:** ${userContext?.role || 'Unknown'}
+${userContext?.linkedResourceName ? `- **Linked Resource:** ${userContext.linkedResourceName}` : ''}
+${userContext?.partnerName ? `- **Partner:** ${userContext.partnerName}` : ''}
+${userContext?.organisationId ? `- **Organisation ID:** ${userContext.organisationId}` : ''}
 
-## Multi-Project Context
-- Users can be members of multiple projects with different roles on each
-- The user's current role is specific to the project they're viewing (${projectContext?.reference || 'current project'})
-- All queries and data are automatically scoped to the current project
-- If the user asks about switching projects, explain they can use the Project Switcher dropdown in the header`;
+## Navigation Help
+Users can access different modules via the navigation:
+- **Dashboard** - Project overview and key metrics
+- **Milestones/Deliverables** - Work tracking and sign-offs
+- **Timesheets/Expenses** - Time and cost capture
+- **Resources** - Team and capacity management
+- **Planning** - WBS editor (Excel-like grid)
+- **Estimator** - Cost estimation tool
+- **RAID Log** - Risk and issue management
+- **Variations** - Change control
+- **Evaluator** - Software evaluation projects (separate module)
+
+## Multi-Tenancy
+- Users can belong to multiple **organisations**
+- Each organisation has multiple **projects**
+- Users can have different roles on different projects
+- The **Project Switcher** in the header allows switching projects
+- All data queries are scoped to the current project`;
 
   // Add pre-fetched context if available (allows instant responses without tool calls)
   if (prefetchedContext) {
     prompt += `
 
 ## Current Project Data (Pre-loaded)
-This data was just fetched and is current. Use it to answer questions directly without calling tools when possible.
+Use this data for quick answers without tool calls:
 
-### Budget Summary
+### Budget
 - Project Budget: £${(prefetchedContext.budgetSummary?.projectBudget || 0).toLocaleString()}
-- Milestone Billable Total: £${(prefetchedContext.budgetSummary?.milestoneBillable || 0).toLocaleString()}
 - Actual Spend: £${(prefetchedContext.budgetSummary?.actualSpend || 0).toLocaleString()}
 - Variance: £${(prefetchedContext.budgetSummary?.variance || 0).toLocaleString()}
 - Budget Used: ${prefetchedContext.budgetSummary?.percentUsed || 0}%
@@ -1574,18 +3302,25 @@ This data was just fetched and is current. Use it to answer questions directly w
 - Review Complete: ${prefetchedContext.deliverableSummary?.byStatus?.reviewComplete || 0}
 - Awaiting Review: ${prefetchedContext.deliverableSummary?.byStatus?.awaitingReview || 0}
 - In Progress: ${prefetchedContext.deliverableSummary?.byStatus?.inProgress || 0}
-- Not Started: ${prefetchedContext.deliverableSummary?.byStatus?.notStarted || 0}
 
 ### Timesheets
 - Total Entries: ${prefetchedContext.timesheetSummary?.totalEntries || 0}
 - Total Hours: ${prefetchedContext.timesheetSummary?.totalHours || 0}
-- Submitted: ${prefetchedContext.timesheetSummary?.byStatus?.submitted || 0}
-- Validated: ${prefetchedContext.timesheetSummary?.byStatus?.validated || 0}
 
 ### Expenses
 - Total Amount: £${(prefetchedContext.expenseSummary?.totalAmount || 0).toLocaleString()}
 - Chargeable: £${(prefetchedContext.expenseSummary?.chargeableAmount || 0).toLocaleString()}
-- Non-Chargeable: £${(prefetchedContext.expenseSummary?.nonChargeableAmount || 0).toLocaleString()}
+
+### RAID Summary
+- Open Risks: ${prefetchedContext.raidSummary?.openRisks || 0}
+- Open Issues: ${prefetchedContext.raidSummary?.openIssues || 0}
+- High Priority: ${prefetchedContext.raidSummary?.highPriority || 0}
+
+### Quality Standards
+- Total: ${prefetchedContext.qualityStandardsSummary?.total || 0}
+- Compliant: ${prefetchedContext.qualityStandardsSummary?.compliant || 0}
+- Non-Compliant: ${prefetchedContext.qualityStandardsSummary?.nonCompliant || 0}
+- Compliance Rate: ${prefetchedContext.qualityStandardsSummary?.complianceRate || 0}%
 
 ### Pending Actions
 - Draft Timesheets: ${prefetchedContext.pendingActions?.draftTimesheets || 0}
@@ -1594,27 +3329,42 @@ This data was just fetched and is current. Use it to answer questions directly w
 
   prompt += `
 
-## Response Guidelines
-1. Be concise and helpful - get to the point quickly
-2. Use UK date format (DD/MM/YYYY) and GBP currency (£)
-3. When showing financial data, always be precise with figures
-4. If pre-loaded data can answer the question, use it directly without calling tools
-5. Only use tools when you need more specific details not in the pre-loaded data
-6. For "what do I need to do" questions, check pending actions first
-7. Respect the user's role - all data is automatically scoped to their permissions
-8. If a query returns no results, say so clearly and suggest alternatives
-9. Offer to drill down into details when appropriate
-10. Don't repeat tool results verbatim - synthesise them into a helpful response
-11. If some data queries fail but others succeed, provide what information you have and note what couldn't be retrieved
+## Feature Guide Capability
 
-## Important Notes
-- All queries are automatically filtered based on the user's role and permissions on the CURRENT project
-- The user's role is project-specific - they may have different roles on different projects
-- Partner users only see their own partner's data
-- Contributors only see their own timesheets and expenses
-- Cost prices are only visible to Admin and Supplier PM roles
-- Use pre-loaded data for general questions; use tools for specific details or filtering
-- If asked about other projects, explain that data is scoped to the current project and they can switch projects using the header dropdown`;
+You have access to detailed how-to guides for all application features via the **getFeatureGuide** tool.
+
+**Use getFeatureGuide when users ask:**
+- "How do I...?" questions (e.g., "How do I create a timesheet?")
+- "What does [field] mean?" questions
+- "What's the workflow for...?" questions
+- "Can I do X with my role?" questions
+- "Where do I find...?" questions
+- "What are the steps to...?" questions
+
+**Available Feature Guides:**
+
+| Category | Features |
+|----------|----------|
+| Core | timesheets, expenses, milestones, deliverables, resources |
+| Project Management | variations, raid, quality-standards, kpis |
+| Planning | wbs-planning, estimator, benchmarking |
+| Finance | billing, partner-invoices |
+| Evaluator | evaluation-setup, requirements, vendors, scoring, workshops, evaluator-reports |
+| Admin | organisation-admin, project-settings, team-members, audit-log |
+| General | navigation, roles-permissions, workflows |
+
+**Important:** Always use getFeatureGuide for procedural/how-to questions rather than guessing. The guides contain accurate step-by-step instructions, field explanations, workflow diagrams, and role-specific permissions.
+
+## Response Guidelines
+1. Be concise and helpful
+2. Use UK date format (DD/MM/YYYY) and GBP (£)
+3. Use pre-loaded data when possible, tools for specific queries
+4. Respect user's role - data is automatically permission-scoped
+5. If a query returns no results, suggest alternatives
+6. For "what do I need to do" - check pending actions first
+7. Offer to drill down when appropriate
+8. Don't repeat tool results verbatim - synthesise into helpful responses
+9. For how-to questions, always use getFeatureGuide first`;
 
   return prompt;
 }

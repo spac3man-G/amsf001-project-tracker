@@ -112,21 +112,35 @@ function getPageSpecificQuestions(pathname, role) {
     return questions;
   }
   
-  // Resources
+  // Resources (enhanced in Segment 8)
   if (path === '/resources' || path.startsWith('/resources/')) {
     return [
       { text: "Show resource utilization", category: "resources" },
-      { text: "Who's working on what?", category: "resources" },
-      { text: "List resources by partner", category: "resources" }
+      { text: "Who has availability this week?", category: "resources" },
+      { text: "List resources by partner", category: "resources" },
+      { text: "Show resource capacity", category: "resources" },
+      { text: "Who's working on what?", category: "resources" }
     ];
   }
   
-  // Partners
+  // Partners (enhanced in Segment 7)
   if (path === '/partners' || path.startsWith('/partners/')) {
     return [
-      { text: "Show partner spend breakdown", category: "partners" },
+      { text: "Show all partners", category: "partners" },
+      { text: "Partner spend breakdown", category: "partners" },
       { text: "List active partners", category: "partners" },
-      { text: "Partner hours this month", category: "partners" }
+      { text: "Partner hours this month", category: "partners" },
+      { text: "Show partner invoices", category: "invoices" }
+    ];
+  }
+  
+  // Finance Hub (Segment 7)
+  if (path === '/finance' || path.startsWith('/finance/')) {
+    return [
+      { text: "Show outstanding invoices", category: "invoices" },
+      { text: "Total invoiced this month", category: "invoices" },
+      { text: "Invoice status summary", category: "invoices" },
+      { text: "Budget vs actual spend", category: "budget" }
     ];
   }
   
@@ -166,12 +180,179 @@ function getPageSpecificQuestions(pathname, role) {
     ];
   }
   
+  // Planning (WBS)
+  if (path === '/planning' || path.startsWith('/planning/')) {
+    return [
+      { text: "Show plan summary", category: "planning" },
+      { text: "What tasks are overdue?", category: "planning" },
+      { text: "Show items by status", category: "planning" },
+      { text: "What's assigned to me?", category: "planning" },
+      { text: "Show milestone progress", category: "planning" }
+    ];
+  }
+  
+  // Estimator
+  if (path === '/estimator' || path.startsWith('/estimator/')) {
+    return [
+      { text: "Show all estimates", category: "estimates" },
+      { text: "What's the total estimated cost?", category: "estimates" },
+      { text: "Show approved estimates", category: "estimates" },
+      { text: "List estimate components", category: "estimates" }
+    ];
+  }
+  
+  // Benchmarking
+  if (path === '/benchmarking') {
+    return [
+      { text: "Show SFIA 8 rates", category: "rates" },
+      { text: "What's the rate for a Level 5 Architect?", category: "rates" },
+      { text: "Compare contractor vs Big 4 rates", category: "rates" },
+      { text: "Show rates by category", category: "rates" }
+    ];
+  }
+  
+  // Variations
+  if (path === '/variations' || path.startsWith('/variations/')) {
+    return [
+      { text: "Show pending variations", category: "variations" },
+      { text: "What's the total cost impact?", category: "variations" },
+      { text: "List approved variations", category: "variations" },
+      { text: "Show variations by type", category: "variations" },
+      { text: "Variations summary", category: "variations" }
+    ];
+  }
+  
   // Workflow Summary
   if (path === '/workflow-summary') {
     return [
       { text: "What needs my approval?", category: "workflow" },
       { text: "Show pending submissions", category: "workflow" },
       { text: "List items awaiting validation", category: "workflow" }
+    ];
+  }
+  
+  // ============================================
+  // SEGMENT 9-10: Evaluator Page Suggestions
+  // ============================================
+  
+  // Evaluator Dashboard
+  if (path === '/evaluator' || path === '/evaluator/dashboard') {
+    return [
+      { text: "Show evaluation status", category: "evaluator" },
+      { text: "How many requirements are approved?", category: "evaluator" },
+      { text: "Which vendors are shortlisted?", category: "evaluator" },
+      { text: "Show scoring progress", category: "evaluator" }
+    ];
+  }
+  
+  // Requirements Hub
+  if (path === '/evaluator/requirements' || path.startsWith('/evaluator/requirements/')) {
+    return [
+      { text: "Show all requirements", category: "evaluator" },
+      { text: "List Must Have requirements", category: "evaluator" },
+      { text: "Requirements pending approval", category: "evaluator" },
+      { text: "Show AI-generated requirements", category: "evaluator" }
+    ];
+  }
+  
+  // Vendors Hub
+  if (path === '/evaluator/vendors' || path.startsWith('/evaluator/vendors/')) {
+    return [
+      { text: "Show all vendors", category: "evaluator" },
+      { text: "Which vendors have submitted?", category: "evaluator" },
+      { text: "Vendor response status", category: "evaluator" },
+      { text: "Show shortlisted vendors", category: "evaluator" }
+    ];
+  }
+  
+  // Workshops Hub
+  if (path === '/evaluator/workshops') {
+    return [
+      { text: "Show upcoming workshops", category: "evaluator" },
+      { text: "Workshop schedule", category: "evaluator" },
+      { text: "Completed workshops", category: "evaluator" }
+    ];
+  }
+  
+  // Evaluator Reports Hub
+  if (path === '/evaluator/reports') {
+    return [
+      { text: "Scoring summary by vendor", category: "evaluator" },
+      { text: "Requirements coverage", category: "evaluator" },
+      { text: "Vendor comparison", category: "evaluator" }
+    ];
+  }
+  
+  // Evaluator Scoring
+  if (path === '/evaluator/scoring' || path.startsWith('/evaluator/scoring/')) {
+    return [
+      { text: "Show consensus scores", category: "evaluator" },
+      { text: "Scoring progress", category: "evaluator" },
+      { text: "My pending scores", category: "evaluator" }
+    ];
+  }
+  
+  // ============================================
+  // SEGMENT 12: Remaining Page Suggestions
+  // ============================================
+  
+  // Calendar
+  if (path === '/calendar') {
+    return [
+      { text: "What's happening this week?", category: "calendar" },
+      { text: "Upcoming milestone dates", category: "milestones" },
+      { text: "Show deadlines this month", category: "calendar" }
+    ];
+  }
+  
+  // Reports
+  if (path === '/reports') {
+    return [
+      { text: "Generate project status report", category: "reports" },
+      { text: "Budget vs actual summary", category: "budget" },
+      { text: "Resource utilisation report", category: "resources" }
+    ];
+  }
+  
+  // Team Members
+  if (path === '/team-members') {
+    return [
+      { text: "Show team members", category: "resources" },
+      { text: "Who has which role?", category: "resources" },
+      { text: "Team capacity overview", category: "resources" }
+    ];
+  }
+  
+  // Settings / Project Settings
+  if (path === '/settings' || path === '/project-settings') {
+    return [
+      { text: "What are my permissions?", category: "overview" },
+      { text: "Explain my role", category: "overview" }
+    ];
+  }
+  
+  // Admin pages
+  if (path.startsWith('/admin')) {
+    return [
+      { text: "Show organisation summary", category: "admin" },
+      { text: "User count by role", category: "admin" },
+      { text: "Recent audit log entries", category: "admin" }
+    ];
+  }
+  
+  // Network Standards
+  if (path === '/network-standards') {
+    return [
+      { text: "Show network standards status", category: "quality" },
+      { text: "Standards compliance summary", category: "quality" }
+    ];
+  }
+  
+  // Deleted Items
+  if (path === '/deleted-items') {
+    return [
+      { text: "Show recently deleted items", category: "admin" },
+      { text: "What was deleted this week?", category: "admin" }
     ];
   }
   
@@ -237,7 +418,18 @@ export function getCategoryIcon(category) {
     quality: 'Shield',
     timeline: 'Calendar',
     workflow: 'GitBranch',
-    tasks: 'ListTodo'
+    tasks: 'ListTodo',
+    planning: 'GitBranch',
+    estimates: 'Calculator',
+    rates: 'PoundSterling',
+    variations: 'GitPullRequest',
+    // Segment 7-10 additions
+    invoices: 'FileText',
+    evaluator: 'ClipboardCheck',
+    // Segment 12 additions
+    admin: 'Settings',
+    calendar: 'Calendar',
+    reports: 'FileBarChart'
   };
   
   return icons[category] || 'MessageCircle';

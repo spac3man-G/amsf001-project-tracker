@@ -1,13 +1,29 @@
 # AMSF001 Technical Specification: Database Schema - Core Tables
 
 **Document:** TECH-SPEC-02-Database-Core.md  
-**Version:** 5.0  
+**Version:** 5.2  
 **Created:** 10 December 2025  
-**Updated:** 6 January 2026  
-**Session:** 1.2.2 (updated plan_items schema)  
+**Updated:** 7 January 2026  
+**Session:** Documentation Review Phase 5 (consolidated architecture docs)  
 
 ---
 
+> **📝 Version 5.2 Updates (7 January 2026)**
+> 
+> Consolidated content from MILESTONE-DELIVERABLE-ARCHITECTURE.md:
+> - Added Section 8.7: Computed vs Stored Fields (milestone status/progress computed from deliverables)
+> - Added note to Section 9.7 about deliverable progress being stored
+> - See TECH-SPEC-08 Section 10 for calculation library details
+>
+> **📝 Version 5.1 Updates (7 January 2026)**
+> 
+> Added three previously undocumented tables discovered during documentation review:
+> - Added `org_invitations` table (Section 3.7) - organisation invitation system
+> - Added `deliverable_tasks` table (Section 9.8) - checklist tasks within deliverables
+> - Added `project_plans` table (Section 15.9) - plan state tracking for Planner-Tracker integration
+> - Added `get_plan_status()` function (Section 15.10)
+> - Updated Core Tables Summary (Section 1.1)
+>
 > **📝 Version 5.0 Updates (6 January 2026)**
 > 
 > Updated `plan_items` table to reflect current production schema:
@@ -62,14 +78,17 @@ This document covers the core entity tables that form the foundation of the AMSF
 |-------|---------|-------|
 | `organisations` | Organisation definitions | System-wide |
 | `user_organisations` | Org membership junction | Per organisation |
+| `org_invitations` | Pending org invitations | Per organisation |
 | `projects` | Project definitions | Per organisation |
 | `profiles` | User accounts | System-wide |
 | `user_projects` | Project membership junction | Per project |
 | `milestones` | Payment milestones | Per project (~10-50) |
 | `deliverables` | Work products | Per project (~20-100) |
+| `deliverable_tasks` | Checklist tasks within deliverables | Per deliverable |
 | `resources` | Team members | Per project (~5-20) |
 | `resource_availability` | Calendar availability | Per project |
 | `plan_items` | Project planning hierarchy | Per project |
+| `project_plans` | Plan state tracking | Per project |
 | `estimates` | Cost estimate headers | Per project |
 | `estimate_components` | Estimate component groups | Per estimate |
 | `estimate_tasks` | Work items within components | Per component |
@@ -283,6 +302,64 @@ CREATE INDEX idx_user_organisations_default ON user_organisations(user_id, is_de
 - **References:** `auth.users(id)`, `organisations(id)`
 - **Unique Constraint:** One membership per user per organisation
 - **Cascade Delete:** Removing org or user removes membership
+
+---
+
+### 3.7 Organisation Invitations Table
+
+The `org_invitations` table stores pending invitations for users to join organisations.
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS public.org_invitations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  org_role TEXT NOT NULL DEFAULT 'org_member',
+  token TEXT NOT NULL UNIQUE,
+  invited_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  invited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days'),
+  accepted_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  
+  CONSTRAINT org_invitations_email_check CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+  CONSTRAINT org_invitations_role_check CHECK (org_role IN ('org_admin', 'org_member')),
+  CONSTRAINT org_invitations_status_check CHECK (status IN ('pending', 'accepted', 'expired', 'revoked'))
+);
+```
+
+#### Column Reference
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | UUID | No | Primary key |
+| `organisation_id` | UUID | No | Target organisation |
+| `email` | TEXT | No | Invitee email address |
+| `org_role` | TEXT | No | Role to assign (org_admin, org_member) |
+| `token` | TEXT | No | Secure invitation token |
+| `invited_by` | UUID | Yes | User who sent invitation |
+| `invited_at` | TIMESTAMPTZ | No | When invitation was sent |
+| `expires_at` | TIMESTAMPTZ | No | Invitation expiry (7 days) |
+| `accepted_at` | TIMESTAMPTZ | Yes | When invitation was accepted |
+| `status` | TEXT | No | pending, accepted, expired, revoked |
+
+#### Status Values
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Awaiting user acceptance |
+| `accepted` | User joined organisation |
+| `expired` | Past expiry date |
+| `revoked` | Cancelled by admin |
+
+#### Helper Functions
+
+- **`get_invitation_by_token(TEXT)`** - Returns invitation details for accept flow
+- **`accept_invitation(TEXT, UUID)`** - Accepts invitation and creates membership
 
 ---
 
@@ -711,6 +788,51 @@ CREATE INDEX IF NOT EXISTS idx_milestones_active
 - **Signatures:** `auth.users` via PM ID fields
 - **Variations:** `variation_milestones` junction
 
+### 8.7 Computed vs Stored Fields
+
+> **Critical Architecture Note:** The milestone `status` and `percent_complete` displayed in the UI are **computed at runtime** from child deliverables, not read directly from the database.
+
+#### Computed Fields (UI Display)
+
+| Field | Computation | Source |
+|-------|-------------|--------|
+| `computedStatus` | Derived from deliverable statuses | `milestoneCalculations.js` |
+| `computedProgress` | Average of deliverable progress | `milestoneCalculations.js` |
+
+#### Computation Logic
+
+```javascript
+// From src/lib/milestoneCalculations.js
+
+// Status = f(deliverables)
+function calculateMilestoneStatus(deliverables) {
+  if (!deliverables || deliverables.length === 0) return 'Not Started';
+  if (deliverables.every(d => d.status === 'Delivered')) return 'Completed';
+  if (deliverables.every(d => d.status === 'Not Started' || !d.status)) return 'Not Started';
+  return 'In Progress';
+}
+
+// Progress = average of deliverable progress
+function calculateMilestoneProgress(deliverables) {
+  if (!deliverables || deliverables.length === 0) return 0;
+  const totalProgress = deliverables.reduce((sum, d) => sum + (d.progress || 0), 0);
+  return Math.round(totalProgress / deliverables.length);
+}
+```
+
+#### UI Usage Pattern
+
+```javascript
+// MilestonesContent.jsx
+milestones.map(m => ({
+  ...m,
+  computedStatus: calculateMilestoneStatus(milestoneDeliverables[m.id]),
+  computedProgress: calculateMilestoneProgress(milestoneDeliverables[m.id])
+}))
+```
+
+> **Why This Matters:** Any changes to milestone/deliverable architecture must preserve the parent-child relationship that enables this computation. See TECH-SPEC-08 Section 10 for full calculation library documentation.
+
 ---
 
 ## 9. Deliverables Table
@@ -886,6 +1008,91 @@ CREATE INDEX IF NOT EXISTS idx_deliverables_sign_off_status
 - **Junction:** `deliverable_kpis`, `deliverable_quality_standards`
 - **Assessments:** `deliverable_kpi_assessments`, `deliverable_qs_assessments`
 - **Variations:** `variation_deliverables`
+- **Tasks:** `deliverable_tasks`
+
+> **Note on Stored Progress:** Unlike milestones (where status/progress are computed), deliverable `progress` (0-100) **is stored** in the database. It is updated via UI sliders and auto-set to 100 when dual-signature sign-off completes. See TECH-SPEC-08 Section 10.2 for deliverable calculation functions.
+
+---
+
+### 9.8 Deliverable Tasks Table
+
+The `deliverable_tasks` table stores checklist-style tasks within deliverables (similar to Microsoft Planner).
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS deliverable_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  deliverable_id UUID NOT NULL REFERENCES deliverables(id) ON DELETE CASCADE,
+  
+  -- Task details
+  name TEXT NOT NULL,
+  owner TEXT,                    -- Free text (not FK to users)
+  comment TEXT,                  -- Optional task notes
+  is_complete BOOLEAN DEFAULT false,
+  
+  -- Ordering
+  sort_order INTEGER DEFAULT 0,
+  
+  -- Metadata
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id),
+  
+  -- Soft delete
+  is_deleted BOOLEAN DEFAULT FALSE,
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES auth.users(id)
+);
+```
+
+#### Column Reference
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | UUID | No | Primary key |
+| `deliverable_id` | UUID | No | Parent deliverable |
+| `name` | TEXT | No | Task name/description |
+| `owner` | TEXT | Yes | Free text owner field |
+| `comment` | TEXT | Yes | Optional task notes |
+| `is_complete` | BOOLEAN | Yes | Whether task is checked |
+| `sort_order` | INTEGER | Yes | Display order |
+| `created_at` | TIMESTAMPTZ | Yes | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | Yes | Last update timestamp |
+| `created_by` | UUID | Yes | User who created task |
+| `is_deleted` | BOOLEAN | Yes | Soft delete flag |
+| `deleted_at` | TIMESTAMPTZ | Yes | Deletion timestamp |
+| `deleted_by` | UUID | Yes | User who deleted |
+
+#### Indexes
+
+```sql
+CREATE INDEX idx_deliverable_tasks_deliverable_id 
+  ON deliverable_tasks(deliverable_id);
+
+CREATE INDEX idx_deliverable_tasks_sort_order 
+  ON deliverable_tasks(deliverable_id, sort_order);
+
+CREATE INDEX idx_deliverable_tasks_not_deleted 
+  ON deliverable_tasks(deliverable_id) 
+  WHERE is_deleted IS NOT TRUE;
+```
+
+#### RLS Policy
+
+Access controlled via deliverable's project:
+
+```sql
+CREATE POLICY "deliverable_tasks_access_via_project"
+  ON deliverable_tasks FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM deliverables d
+      WHERE d.id = deliverable_tasks.deliverable_id
+      AND can_access_project(d.project_id)
+    )
+  );
+```
 
 ---
 
@@ -1601,27 +1808,138 @@ $ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
+### 15.9 Project Plans Table
+
+The `project_plans` table tracks plan state for Planner-Tracker integration.
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS project_plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL DEFAULT 'Main Plan',
+    description TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'draft',
+    committed_at TIMESTAMPTZ,
+    committed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    
+    UNIQUE(project_id, name)
+);
+```
+
+#### Column Reference
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | UUID | No | Primary key |
+| `project_id` | UUID | No | Parent project |
+| `name` | VARCHAR(255) | No | Plan name (default: "Main Plan") |
+| `description` | TEXT | Yes | Plan description |
+| `status` | VARCHAR(20) | No | draft, committed, archived |
+| `committed_at` | TIMESTAMPTZ | Yes | Last commit timestamp |
+| `committed_by` | UUID | Yes | User who committed |
+| `version` | INTEGER | No | Version number |
+
+#### Status Values
+
+| Status | Description |
+|--------|-------------|
+| `draft` | Sandbox mode, not linked to Tracker |
+| `committed` | Linked to Tracker entities |
+| `archived` | Historical version |
+
+#### RLS Policies
+
+```sql
+-- SELECT: All project members can view
+CREATE POLICY "project_plans_select" ON project_plans
+    FOR SELECT USING (can_access_project(project_id));
+
+-- INSERT/UPDATE: admin, supplier_pm can modify
+-- DELETE: admin only
+```
+
+---
+
+### 15.10 Get Plan Status Function
+
+Helper function to retrieve plan status for a project.
+
+```sql
+CREATE OR REPLACE FUNCTION get_plan_status(p_project_id UUID)
+RETURNS TABLE (
+    status VARCHAR(20),
+    committed_count INTEGER,
+    uncommitted_count INTEGER,
+    baseline_locked_count INTEGER
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH stats AS (
+        SELECT 
+            COUNT(*) FILTER (WHERE is_published = true) as committed,
+            COUNT(*) FILTER (WHERE is_published = false) as uncommitted,
+            COUNT(DISTINCT pi.published_milestone_id) FILTER (
+                WHERE pi.published_milestone_id IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM milestones m 
+                    WHERE m.id = pi.published_milestone_id 
+                    AND m.baseline_locked = true
+                )
+            ) as locked
+        FROM plan_items pi
+        WHERE pi.project_id = p_project_id
+        AND pi.item_type IN ('milestone', 'deliverable')
+    ),
+    plan_status AS (
+        SELECT COALESCE(pp.status, 'draft') as plan_status
+        FROM project_plans pp
+        WHERE pp.project_id = p_project_id
+        LIMIT 1
+    )
+    SELECT 
+        COALESCE(ps.plan_status, 'draft')::VARCHAR(20),
+        COALESCE(s.committed, 0)::INTEGER,
+        COALESCE(s.uncommitted, 0)::INTEGER,
+        COALESCE(s.locked, 0)::INTEGER
+    FROM stats s
+    LEFT JOIN plan_status ps ON true;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+---
+
 ## 16. Session Completion
 
 ### 16.1 Checklist Status
 
 - [x] organisations table
 - [x] user_organisations table
+- [x] org_invitations table (NEW v5.1)
 - [x] organisation_members_with_profiles view
 - [x] projects table (with organisation_id)
 - [x] profiles table
 - [x] user_projects table (multi-tenancy)
 - [x] milestones table
 - [x] deliverables table
+- [x] deliverable_tasks table (NEW v5.1)
 - [x] resources table
 - [x] resource_availability table
 - [x] plan_items table (NEW v4.0)
+- [x] project_plans table (NEW v5.1)
 - [x] estimates table (NEW v4.0)
 - [x] estimate_components table (NEW v4.0)
 - [x] estimate_tasks table (NEW v4.0)
 - [x] estimate_resources table (NEW v4.0)
 - [x] plan_items_with_estimates view (NEW v4.0)
 - [x] recalculate_estimate_totals function (NEW v4.0)
+- [x] get_plan_status function (NEW v5.1)
 - [x] Entity relationships diagram (updated)
 
 ### 16.2 Next Session Preview

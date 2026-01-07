@@ -1,10 +1,15 @@
 # AMSF001 Technical Specification: Database Schema - Operational Tables
 
 **Document:** TECH-SPEC-03-Database-Operations.md  
-**Version:** 1.1  
+**Version:** 1.2  
 **Created:** 10 December 2025  
-**Updated:** 23 December 2025  
-**Session:** 1.3  
+**Updated:** 7 January 2026  
+**Session:** Documentation Review Phase 4  
+
+> **Version 1.2 Updates (7 January 2026):**
+> - Added `receipt_scans` and `classification_rules` to Operational Tables Summary (Section 1.1)
+> - Verified `expense_files.bucket` column documentation (Section 10.4)
+> - See TECH-SPEC-11-Evaluator.md for Evaluator module documentation
 
 > **Version 1.1 Updates (23 December 2025):**
 > - Added note about organisation context inheritance
@@ -26,6 +31,8 @@ This document covers the operational tables that manage day-to-day project activ
 | `partners` | Third-party companies | Few-Dozens |
 | `partner_invoices` | Invoices to partners | Dozens |
 | `partner_invoice_lines` | Invoice line items | Hundreds |
+| `receipt_scans` | AI receipt scanning records | Dozens-Hundreds |
+| `classification_rules` | Learned expense categories | Dozens |
 
 ### 1.2 Workflow Characteristics
 

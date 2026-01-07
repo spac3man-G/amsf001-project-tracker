@@ -1,11 +1,23 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.2  
+**Document Version:** 5.4  
 **Created:** 11 December 2025  
-**Last Updated:** 6 January 2026  
-**Session:** 1.7.3  
+**Last Updated:** 7 January 2026  
+**Session:** 1.7.4  
 **Author:** Claude AI (Anthropic)  
 
+> **Version 5.4 Updates (7 January 2026):**
+> - Updated Section 7: ChatContext to v4.0
+> - Documents expanded pre-fetched context (RAID, Quality Standards)
+> - Documents new local response patterns for instant responses
+> - Updated context pre-fetching structure with 9 query sources
+>
+> **Version 5.3 Updates (7 January 2026):**
+> - Added reference to TECH-SPEC-11-Evaluator.md for comprehensive Evaluator module documentation
+> - Added Section 8.6: EvaluationContext (cross-reference)
+> - Added Section 8.7: ReportBuilderContext (cross-reference)
+> - Added Section 15: Evaluator Frontend (summary with cross-reference)
+>
 > **Version 5.2 Updates (6 January 2026):**
 > - Added Section 10.3: UI Utility Hooks
 > - Documents useResizableColumns hook for table column resizing
@@ -59,6 +71,7 @@
 12. [Page-Specific State Management](#12-page-specific-state-management)
 13. [New UI Components (December 2025)](#13-new-ui-components-december-2025) *(NEW)*
 14. [Planning & Estimator Tools](#14-planning--estimator-tools) *(NEW - December 2025)*
+15. [Evaluator Frontend](#15-evaluator-frontend) *(NEW - January 2026)*
 - [Appendix A: Role Display Configuration](#appendix-a-role-display-configuration)
 - [Appendix B: Context Import Patterns](#appendix-b-context-import-patterns)
 - [Document History](#document-history)
@@ -1158,7 +1171,7 @@ function ViewAsBar() {
 ## 7. ChatContext
 
 **File:** `src/contexts/ChatContext.jsx`  
-**Version:** 3.5  
+**Version:** 4.0 (Updated 7 January 2026)  
 
 ### Purpose
 
@@ -1206,11 +1219,14 @@ The ChatContext implements three response paths:
 3. **Standard Path (Sonnet):** Complex queries requiring tool calls
 
 ```javascript
-// Local response patterns
+// Local response patterns (expanded in v4.0)
 const LOCAL_RESPONSE_PATTERNS = [
   { pattern: /budget|spend/i, type: 'budget' },
   { pattern: /how many milestones/i, type: 'milestoneCount' },
   { pattern: /status|overview|summary/i, type: 'overview' },
+  { pattern: /^how many (open )?(risks|issues)/i, type: 'raidCount' },
+  { pattern: /raid.*(summary|overview)/i, type: 'raidSummary' },
+  { pattern: /quality.*(status|summary|compliance)/i, type: 'qualitySummary' },
   // ...more patterns
 ];
 
@@ -1227,13 +1243,16 @@ const STREAMING_PATTERNS = [
 When the chat opens, context is pre-fetched for instant responses:
 
 ```javascript
-// Fetches from /api/chat-context
+// Fetches from /api/chat-context (expanded in v4.0)
 const prefetchedContext = {
-  budgetSummary: { ... },
-  milestoneSummary: { ... },
-  deliverableSummary: { ... },
-  pendingActions: { ... },
-  timesheetSummary: { ... }
+  budgetSummary: { projectBudget, actualSpend, variance, percentUsed },
+  milestoneSummary: { total, byStatus },
+  deliverableSummary: { total, byStatus },
+  timesheetSummary: { totalEntries, totalHours, byStatus },
+  expenseSummary: { totalAmount, chargeableAmount, nonChargeableAmount },
+  raidSummary: { total, openRisks, openIssues, highPriority, byType },
+  qualityStandardsSummary: { total, compliant, nonCompliant, complianceRate },
+  pendingActions: { draftTimesheets, awaitingValidation, hasPending }
 };
 ```
 
@@ -1399,6 +1418,61 @@ filterByTestFlag(items)
 
 // Computed
 canToggleTestUsers: boolean  // Only admin/supplier_pm
+```
+
+### 8.6 EvaluationContext
+
+**File:** `src/contexts/EvaluationContext.jsx`  
+**Version:** 1.0  
+
+> **Reference:** See **TECH-SPEC-11-Evaluator.md Section 4** for comprehensive documentation.
+
+Manages evaluation project state for the Evaluator module. Provides current evaluation context, loaded data, and evaluation-specific operations.
+
+```javascript
+// State
+{
+  currentEvaluation: Object,    // Active evaluation project
+  evaluationId: UUID,           // Current evaluation ID
+  requirements: Array,          // Loaded requirements
+  vendors: Array,               // Loaded vendors
+  stakeholders: Array,          // Stakeholders and areas
+  isLoading: boolean,
+  error: Error | null
+}
+
+// Functions
+loadEvaluation(id)              // Load evaluation by ID
+refreshEvaluation()             // Refresh current data
+switchEvaluation(id)            // Switch to different evaluation
+clearEvaluation()               // Clear current evaluation
+```
+
+### 8.7 ReportBuilderContext
+
+**File:** `src/contexts/ReportBuilderContext.jsx`  
+**Version:** 1.0  
+
+> **Reference:** See **TECH-SPEC-11-Evaluator.md Section 4** for comprehensive documentation.
+
+Manages report builder state for generating evaluation reports.
+
+```javascript
+// State
+{
+  reportConfig: Object,         // Report configuration
+  selectedSections: Array,      // Sections to include
+  generatedReport: Object,      // Generated report data
+  isGenerating: boolean,
+  error: Error | null
+}
+
+// Functions
+setReportConfig(config)         // Update report settings
+toggleSection(sectionId)        // Toggle section inclusion
+generateReport()                // Generate report
+downloadReport(format)          // Download as PDF/DOCX
+clearReport()                   // Clear generated report
 ```
 
 ---
@@ -2665,6 +2739,83 @@ src/
 
 ---
 
+## 15. Evaluator Frontend
+
+> **Added:** 7 January 2026
+> 
+> **Reference:** See **TECH-SPEC-11-Evaluator.md** for comprehensive documentation of the Evaluator module.
+
+The Evaluator module provides vendor evaluation and selection capabilities. This section provides a summary with references to the detailed documentation.
+
+### 15.1 Overview
+
+**Location:** `src/pages/evaluator/`
+
+The Evaluator module consists of 15 pages for managing evaluation projects, requirements, vendors, workshops, surveys, scoring, and report generation.
+
+### 15.2 Evaluator Pages Summary
+
+| Page | File | Purpose |
+|------|------|---------|
+| EvaluatorDashboard | `EvaluatorDashboard.jsx` | Main dashboard showing evaluation projects |
+| EvaluationHub | `EvaluationHub.jsx` | Central hub for evaluation project management |
+| RequirementsHub | `RequirementsHub.jsx` | Manage evaluation requirements by category |
+| RequirementDetail | `RequirementDetail.jsx` | Individual requirement detail view |
+| VendorsHub | `VendorsHub.jsx` | Manage vendors in evaluation |
+| VendorDetail | `VendorDetail.jsx` | Individual vendor detail and scoring |
+| WorkshopsHub | `WorkshopsHub.jsx` | Manage vendor workshops/demos |
+| WorkshopDetail | `WorkshopDetail.jsx` | Individual workshop management |
+| QuestionsHub | `QuestionsHub.jsx` | Manage vendor questions/RFI |
+| DocumentsHub | `DocumentsHub.jsx` | Manage evaluation documents |
+| ReportsHub | `ReportsHub.jsx` | Generate evaluation reports |
+| TraceabilityView | `TraceabilityView.jsx` | Requirements traceability matrix |
+| EvaluationSettings | `EvaluationSettings.jsx` | Evaluation project settings |
+| ClientPortal | `ClientPortal.jsx` | External client portal access |
+| VendorPortal | `VendorPortal.jsx` | External vendor portal access |
+
+### 15.3 State Management
+
+The Evaluator module uses two dedicated contexts:
+
+| Context | Location | Purpose |
+|---------|----------|---------|
+| EvaluationContext | `src/contexts/EvaluationContext.jsx` | Manages current evaluation state |
+| ReportBuilderContext | `src/contexts/ReportBuilderContext.jsx` | Manages report builder state |
+
+> **Reference:** See **Section 8.6** and **Section 8.7** for context details, and **TECH-SPEC-11-Evaluator.md Section 4** for comprehensive documentation.
+
+### 15.4 Services
+
+The module uses 18 dedicated services in `src/services/evaluator/`:
+
+- ai.service.js, approvals.service.js, base.evaluator.service.js
+- clientPortal.service.js, comments.service.js, emailNotifications.service.js
+- evaluationCategories.service.js, evaluationDocuments.service.js, evaluationProjects.service.js
+- evidence.service.js, requirements.service.js, scores.service.js
+- stakeholderAreas.service.js, surveys.service.js, traceability.service.js
+- vendorQuestions.service.js, vendors.service.js, workshops.service.js
+
+> **Reference:** See **TECH-SPEC-11-Evaluator.md Section 5** for service documentation and **TECH-SPEC-08-Services.md** for integration details.
+
+### 15.5 API Endpoints
+
+The module exposes 8 API endpoints in `api/evaluator/`:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/api/evaluator/ai-document-parse` | Parse uploaded documents with AI |
+| `/api/evaluator/ai-gap-analysis` | AI gap analysis for requirements |
+| `/api/evaluator/ai-market-research` | AI market research for vendors |
+| `/api/evaluator/ai-requirement-suggest` | AI requirement suggestions |
+| `/api/evaluator/client-portal-auth` | Client portal authentication |
+| `/api/evaluator/create-evaluation` | Create new evaluation project |
+| `/api/evaluator/generate-report` | Generate evaluation report |
+| `/api/evaluator/vendor-portal-auth` | Vendor portal authentication |
+
+> **Reference:** See **TECH-SPEC-11-Evaluator.md Section 6** for endpoint documentation and **TECH-SPEC-06-API-AI.md Section 10** for API integration.
+
+---
+
 ## Appendix A: Role Display Configuration
 
 ```javascript
@@ -2749,3 +2900,5 @@ import {
 | 4.0 | 24 Dec 2025 | Claude AI | **New UI Components**: Added Section 13 documenting LandingPage, OnboardingWizard, PendingInvitationCard, UpgradePrompt, UsageMeter, OrganisationUsageWidget |
 | 5.0 | 28 Dec 2025 | Claude AI | **Planning & Estimator Tools**: Added Section 14 documenting Planning.jsx, Estimator.jsx, Benchmarking.jsx pages and PlanningAIAssistant, ResourceTypeSelector components |
 | 5.1 | 28 Dec 2025 | Claude AI | **TD-001 Permission Hook Consolidation**: Updated Section 9.4 with 3 new hooks (useExpensePermissions, useRaidPermissions, useNetworkStandardPermissions), added Hook Summary Table |
+| 5.2 | 6 Jan 2026 | Claude AI | **UI Utility Hooks**: Added Section 10.3 documenting useResizableColumns hook, localStorage persistence patterns |
+| 5.3 | 7 Jan 2026 | Claude AI | **Evaluator Module Reference**: Added Section 8.6 (EvaluationContext), Section 8.7 (ReportBuilderContext), Section 15 (Evaluator Frontend summary). Cross-references to TECH-SPEC-11-Evaluator.md |

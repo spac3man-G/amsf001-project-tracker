@@ -1,9 +1,32 @@
 # AMSF001 Technical Specification - API Layer & AI Integration
 
-**Version:** 1.4  
-**Last Updated:** 6 January 2026  
-**Session:** 1.6.2  
+**Version:** 1.7  
+**Last Updated:** 7 January 2026  
+**Session:** 1.7.1  
 **Status:** Complete  
+
+> **Version 1.7 Updates (7 January 2026):**
+> - Chat AI: Added getFeatureGuide tool (tool count now 36)
+> - Chat AI: Added Section 5.6 Feature Guide System documentation
+> - Feature Guides: 27 guides implemented (~12,500 lines of documentation)
+> - Feature Guides: Covers all application features with how-to instructions
+> - Feature Guides: Includes workflows, permissions, FAQs for each feature
+
+> **Version 1.6 Updates (7 January 2026):**
+> - Chat AI: Expanded tool catalog from 12 to 35 tools (now 36 with getFeatureGuide)
+> - Chat AI: Added RAID, Quality Standards, Planning, Estimator, Variations tools
+> - Chat AI: Added Partner/Invoice, Resource Availability tools
+> - Chat AI: Added Evaluator module query tools (6 tools)
+> - Chat AI: Added Admin tools (getAuditLog, getOrganisationSummary)
+> - Chat AI: Updated system prompt with comprehensive feature coverage
+> - Chat AI: Pre-fetch context now includes RAID and Quality Standards summaries
+> - Chat AI: Enhanced page-specific suggestions (30+ pages)
+
+> **Version 1.5 Updates (7 January 2026):**
+> - Added reference to TECH-SPEC-11-Evaluator.md for comprehensive Evaluator module documentation
+> - Added Section 10: Evaluator API Endpoints (summary with cross-reference)
+> - Added missing endpoints to Section 2.1: `/api/manage-project-users`, `/api/report-ai`
+> - Updated endpoint summary table with all Evaluator endpoints
 
 > **Version 1.4 Updates (6 January 2026):**
 > - Planning AI: Upgraded from Claude Sonnet 4.5 to Claude Opus 4
@@ -42,6 +65,7 @@
 7. [Receipt Scanner API](#7-receipt-scanner-api)
 8. [Security & Configuration](#8-security--configuration)
 9. [Deployment & Monitoring](#9-deployment--monitoring)
+10. [Evaluator API Endpoints](#10-evaluator-api-endpoints)
 
 ---
 
@@ -120,8 +144,11 @@ The AMSF001 Project Tracker uses **Vercel Edge Functions** for its serverless AP
 | `/api/create-user` | POST | Create new user accounts | Admin JWT |
 | `/api/create-project` | POST | Create project (org-aware) | Admin/Org Admin JWT |
 | `/api/create-organisation` | POST | Create new organisation | Yes (JWT) |
+| `/api/manage-project-users` | POST | Manage project team membership | Admin/Org Admin JWT |
 | `/api/planning-ai` | POST | AI-powered WBS generation | Yes (JWT) |
+| `/api/report-ai` | POST | AI report generation | Yes (JWT) |
 | `/api/scan-receipt` | POST | AI receipt scanning | Yes (JWT) |
+| `/api/evaluator/*` | Various | Evaluator module endpoints | Yes (JWT) |
 
 ### 2.2 Vercel Routing Configuration
 
@@ -226,6 +253,22 @@ When chat opens, `/api/chat-context` is called to load project summary data:
     totalAmount: 15000,
     chargeableAmount: 12000,
     nonChargeableAmount: 3000
+  },
+  raidSummary: {
+    total: 12,
+    openRisks: 3,
+    openIssues: 2,
+    highPriority: 2,
+    byType: { Risk: 5, Issue: 4, Assumption: 2, Dependency: 1 }
+  },
+  qualityStandardsSummary: {
+    total: 8,
+    compliant: 5,
+    partiallyCompliant: 2,
+    nonCompliant: 1,
+    notAssessed: 0,
+    needsAttention: 3,
+    complianceRate: 63
   },
   pendingActions: {
     draftTimesheets: 3,
@@ -420,22 +463,89 @@ const ERROR_MESSAGES = {
 
 ### 5.1 Tool Catalog
 
-The chat assistant has access to 12 database query tools:
+The chat assistant has access to **36 database query tools** organised by functional area:
 
+#### Core Tools (User & Permissions)
 | Tool Name | Description | Parameters |
 |-----------|-------------|------------|
 | `getUserProfile` | Get current user's profile | None |
 | `getMyPendingActions` | Get items requiring user's attention | None |
 | `getRolePermissions` | Explain role capabilities | `role?` |
+
+#### Time & Expense Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
 | `getTimesheets` | Query timesheet entries | `status`, `dateRange`, `resourceName`, `mine` |
 | `getTimesheetSummary` | Aggregated timesheet stats | `groupBy`, `dateRange` |
 | `getExpenses` | Query expense entries | `status`, `dateRange`, `category`, `chargeableOnly`, `mine` |
 | `getExpenseSummary` | Aggregated expense stats | `groupBy`, `dateRange` |
+
+#### Project Progress Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
 | `getMilestones` | Get project milestones | `status`, `overdueOnly` |
 | `getDeliverables` | Get project deliverables | `status`, `milestoneName` |
+| `getDeliverableTasks` | Get tasks within deliverables | `deliverableId`, `status` |
+| `getMilestoneCertificates` | Get milestone sign-off certificates | `milestoneId`, `status` |
 | `getBudgetSummary` | Budget vs actual comparison | `groupBy` |
+
+#### Resource & Team Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
 | `getResources` | Get team members | `partnerName` |
+| `getResourceAvailability` | Query resource capacity allocation | `resourceId`, `dateRange`, `availableOnly` |
 | `getKPIs` | Get KPI data | `category` |
+
+#### RAID & Quality Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `getRaidItems` | Query RAID log entries | `type`, `status`, `priority`, `ownerId` |
+| `getRaidSummary` | Aggregated RAID statistics | None |
+| `getQualityStandards` | Query quality standards | `status`, `category` |
+| `getQualityStandardsSummary` | Aggregated quality stats | None |
+
+#### Planning & Estimation Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `getPlanItems` | Query WBS plan items | `itemType`, `parentId`, `milestoneId`, `search` |
+| `getPlanSummary` | Aggregated plan statistics | None |
+| `getEstimates` | Query cost estimates | `estimateId`, `status` |
+| `getBenchmarkRates` | Query SFIA benchmark rates | `skill`, `level`, `tier` |
+
+#### Change Control Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `getVariations` | Query change requests | `status`, `type`, `dateRange` |
+| `getVariationsSummary` | Aggregated variation statistics | None |
+
+#### Partner & Finance Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `getPartners` | Query partners | `status` |
+| `getPartnerInvoices` | Query partner invoices | `partnerId`, `status`, `dateRange` |
+
+#### Evaluator Module Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `getEvaluationProjects` | Query evaluation projects | `status` |
+| `getRequirements` | Query evaluation requirements | `evaluationId`, `priority`, `status`, `categoryId` |
+| `getVendors` | Query vendors in evaluation | `evaluationId`, `status` |
+| `getScores` | Query vendor scores | `evaluationId`, `vendorId`, `requirementId`, `consensusOnly` |
+| `getWorkshops` | Query evaluation workshops | `evaluationId`, `status` |
+| `getStakeholderAreas` | Query stakeholder areas | `evaluationId` |
+
+#### Admin Tools (Restricted)
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `getAuditLog` | Query audit log entries (admin only) | `action`, `entityType`, `userId`, `dateRange` |
+| `getOrganisationSummary` | Get organisation overview (admin/PM only) | None |
+
+#### Feature Guide Tools
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `getFeatureGuide` | Retrieve how-to documentation for application features | `guideId`, `keyword` |
+
+> **Note:** The `getFeatureGuide` tool retrieves structured documentation from 27 feature guides covering all application functionality. Guides are stored in `/src/data/feature-guides/` and include step-by-step instructions, field references, workflow diagrams, and FAQs. See Section 5.6 for details.
 
 ### 5.2 Tool Definition Schema
 
@@ -552,6 +662,163 @@ const cacheableTools = [
   'getKPIs',
   'getBudgetSummary'
 ];
+```
+
+### 5.6 Feature Guide System
+
+The `getFeatureGuide` tool provides structured "how-to" documentation for all application features, transforming the AI assistant into an interactive user guide.
+
+#### Guide Architecture
+
+```
+/src/data/feature-guides/
+├── index.js                    # Registry and search functions
+├── core/                       # 5 guides: timesheets, expenses, milestones, deliverables, resources
+├── project-management/         # 4 guides: variations, raid, quality-standards, kpis
+├── planning/                   # 3 guides: wbs-planning, estimator, benchmarking
+├── finance/                    # 2 guides: billing, partner-invoices
+├── evaluator/                  # 6 guides: evaluation-setup, requirements, vendors, scoring, workshops, evaluator-reports
+├── admin/                      # 4 guides: organisation-admin, project-settings, team-members, audit-log
+└── general/                    # 3 guides: navigation, roles-permissions, workflows
+```
+
+**Total: 27 guides, ~12,500 lines of documentation**
+
+#### Guide Structure
+
+Each guide follows a consistent template:
+
+```javascript
+const guide = {
+  id: 'timesheets',           // Unique identifier
+  title: 'Timesheets',        // Display name
+  category: 'core',           // Category for grouping
+  description: '...',         // Brief overview
+  
+  navigation: {               // How to access in UI
+    path: '/time/timesheets',
+    sidebar: 'Time & Expenses → Timesheets'
+  },
+  
+  howTo: {                    // Step-by-step instructions
+    create: {
+      title: 'Creating a Timesheet Entry',
+      steps: ['Navigate to...', 'Click...', 'Enter...'],
+      tips: ['Use Ctrl+D for...']
+    },
+    // ... other actions
+  },
+  
+  fields: {                   // Field reference
+    date: {
+      name: 'Entry Date',
+      type: 'date',
+      required: true,
+      description: 'The date for this time entry',
+      validation: 'Must be within project dates',
+      tips: 'Click to open calendar picker'
+    },
+    // ... other fields
+  },
+  
+  workflow: {                 // Status transitions
+    stages: ['Draft', 'Submitted', 'Validated', 'Approved'],
+    transitions: [
+      { from: 'Draft', to: 'Submitted', action: 'Submit', actor: 'Creator' }
+    ]
+  },
+  
+  permissions: {              // Role-based access
+    contributor: { canCreate: true, canValidate: false },
+    supplier_pm: { canCreate: true, canValidate: true }
+  },
+  
+  faq: [                      // Common questions
+    {
+      question: 'Can I edit an approved timesheet?',
+      answer: 'No, approved timesheets are locked...'
+    }
+  ],
+  
+  related: ['expenses', 'resources']  // Cross-references
+};
+```
+
+#### Tool Implementation
+
+```javascript
+// Tool definition
+{
+  name: "getFeatureGuide",
+  description: "Retrieve how-to documentation for a specific feature. Use when users ask 'how do I...?' questions.",
+  input_schema: {
+    type: "object",
+    properties: {
+      guideId: {
+        type: "string",
+        description: "Direct guide ID (e.g., 'timesheets', 'expenses')"
+      },
+      keyword: {
+        type: "string",
+        description: "Search keyword to find relevant guide"
+      }
+    },
+    required: []
+  }
+}
+
+// Execution function
+async function executeGetFeatureGuide(params) {
+  const { guideId, keyword } = params;
+  
+  // Priority: direct ID > keyword match
+  let targetGuideId = guideId;
+  if (!targetGuideId && keyword) {
+    targetGuideId = findGuideByKeyword(keyword);
+  }
+  
+  if (!targetGuideId) {
+    return {
+      error: 'Guide not found',
+      availableGuides: getAvailableGuides(),
+      suggestion: 'Try searching for: timesheets, expenses, milestones, etc.'
+    };
+  }
+  
+  // Dynamic import of guide module
+  const guidePath = getGuidePath(targetGuideId);
+  const guideModule = await import(`../src/data/feature-guides/${guidePath}.js`);
+  
+  return guideModule.default;
+}
+```
+
+#### Keyword Mapping
+
+The system supports fuzzy matching to help users find guides:
+
+| User Keywords | Maps To |
+|---------------|---------|
+| "timesheet", "hours", "log time" | `timesheets` |
+| "expense", "receipt", "claim" | `expenses` |
+| "risk", "issue", "raid" | `raid` |
+| "wbs", "planning", "gantt" | `wbs-planning` |
+| "sfia", "day rate", "benchmark" | `benchmarking` |
+| "approval", "workflow" | `workflows` |
+| "role", "permission", "access" | `roles-permissions` |
+
+#### System Prompt Integration
+
+The system prompt routes how-to questions to the feature guide tool:
+
+```
+## How-To Questions
+When users ask "how do I...?" or request help with a feature:
+1. Use getFeatureGuide tool with relevant keyword
+2. Extract relevant sections (howTo, fields, tips)
+3. Present step-by-step instructions
+4. Include relevant tips and warnings
+5. Offer related guides for further help
 ```
 
 ---
@@ -1415,6 +1682,64 @@ console.log(`[Tool] ${toolName} completed in ${Date.now() - startTime}ms`);
 
 ---
 
+## 10. Evaluator API Endpoints
+
+> **Reference:** See **TECH-SPEC-11-Evaluator.md** for comprehensive Evaluator module documentation.
+
+The Evaluator module provides a complete set of API endpoints for vendor evaluation functionality. All endpoints are located in `/api/evaluator/`.
+
+### 10.1 Endpoint Summary
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/evaluator/ai-document-parse` | POST | Parse uploaded documents with AI (RFP, proposals, requirements) |
+| `/api/evaluator/ai-gap-analysis` | POST | AI-powered gap analysis comparing vendor responses to requirements |
+| `/api/evaluator/ai-market-research` | POST | AI market research for identifying potential vendors |
+| `/api/evaluator/ai-requirement-suggest` | POST | AI-generated requirement suggestions based on context |
+| `/api/evaluator/client-portal-auth` | POST | Client portal authentication for external stakeholders |
+| `/api/evaluator/create-evaluation` | POST | Create new evaluation project with full structure |
+| `/api/evaluator/generate-report` | POST | Generate evaluation report (PDF/DOCX format) |
+| `/api/evaluator/vendor-portal-auth` | POST | Vendor portal authentication for external vendors |
+
+### 10.2 Authentication Requirements
+
+All Evaluator endpoints require JWT authentication. Portal endpoints (`client-portal-auth`, `vendor-portal-auth`) use token-based authentication for external users without full system accounts.
+
+### 10.3 AI Endpoints
+
+The four AI endpoints (`ai-document-parse`, `ai-gap-analysis`, `ai-market-research`, `ai-requirement-suggest`) all use Claude AI and follow the same patterns as the main chat API:
+
+- **Model:** Claude Sonnet 4.5 (default) or Claude Opus 4 (document analysis)
+- **Token tracking:** Same cost estimation as Section 4.3
+- **Rate limiting:** Applied per-user per-endpoint
+- **Error handling:** Standard API error responses
+
+### 10.4 Integration with Evaluator Module
+
+```javascript
+// Example: Create new evaluation project
+const response = await fetch('/api/evaluator/create-evaluation', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    name: 'CRM Vendor Selection 2026',
+    client_name: 'Acme Corporation',
+    description: 'Annual CRM platform evaluation',
+    settings: {
+      scoring_method: 'weighted',
+      require_evidence: true
+    }
+  })
+});
+```
+
+> **Full Documentation:** For complete request/response schemas, workflow diagrams, and implementation details, see **TECH-SPEC-11-Evaluator.md Section 3: API Layer**.
+
+---
+
 ## Appendix A: Tool Input Schemas
 
 ### getTimesheets
@@ -1506,3 +1831,5 @@ console.log(`[Tool] ${toolName} completed in ${Date.now() - startTime}ms`);
 | 1.1 | 23 Dec 2025 | Claude AI | Added `/api/create-project` endpoint, Project Creation API section (6.5) for org-aware project creation |
 | 1.2 | 24 Dec 2025 | Claude AI | Added `/api/create-organisation` endpoint (self-service org creation), Section 6.6 |
 | 1.3 | 28 Dec 2025 | Claude AI | Added `/api/planning-ai` endpoint (AI-powered WBS generation), Section 6.7 |
+| 1.4 | 6 Jan 2026 | Claude AI | Planning AI: Upgraded to Claude Opus 4, increased MAX_TOKENS to 16384, added component item type |
+| 1.5 | 7 Jan 2026 | Claude AI | Added Section 10: Evaluator API Endpoints, added `/api/manage-project-users` and `/api/report-ai` to endpoint summary, added cross-reference to TECH-SPEC-11-Evaluator.md |
