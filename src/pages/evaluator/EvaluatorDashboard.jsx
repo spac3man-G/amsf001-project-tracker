@@ -30,7 +30,7 @@ import { useEvaluationRole } from '../../hooks/useEvaluationRole';
 import { PageHeader, LoadingSpinner, StatCard } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
 import CreateEvaluationModal from '../../components/evaluator/CreateEvaluationModal';
-import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService } from '../../services/evaluator';
+import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService, workshopsService } from '../../services/evaluator';
 
 import './EvaluatorDashboard.css';
 
@@ -62,6 +62,7 @@ export default function EvaluatorDashboard() {
     categories: { total: 0, weightValid: false, weightTotal: 0 },
     stakeholderAreas: { total: 0 },
     vendors: { total: 0, shortlisted: 0, selected: 0, inPipeline: 0 },
+    workshops: { total: 0, scheduled: 0, complete: 0 },
     isLoading: true
   });
 
@@ -75,11 +76,12 @@ export default function EvaluatorDashboard() {
     console.log('loadStats: Loading stats for evaluation:', evaluationId);
 
     try {
-      const [reqSummary, categories, areas, vendorSummary] = await Promise.all([
+      const [reqSummary, categories, areas, vendorSummary, workshopSummary] = await Promise.all([
         requirementsService.getSummary(evaluationId),
         evaluationCategoriesService.validateWeights(evaluationId),
         stakeholderAreasService.getSummary(evaluationId),
-        vendorsService.getSummary(evaluationId)
+        vendorsService.getSummary(evaluationId),
+        workshopsService.getSummary(evaluationId)
       ]);
 
       console.log('loadStats: Categories result:', categories);
@@ -104,6 +106,11 @@ export default function EvaluatorDashboard() {
           shortlisted: vendorSummary.shortlisted,
           inPipeline: vendorSummary.inPipeline,
           selected: vendorSummary.selected
+        },
+        workshops: {
+          total: workshopSummary.total,
+          scheduled: workshopSummary.byStatus?.scheduled || 0,
+          complete: workshopSummary.byStatus?.complete || 0
         },
         isLoading: false
       });
@@ -259,9 +266,15 @@ export default function EvaluatorDashboard() {
         />
         <StatCard
           title="Workshops"
-          value="--"
+          value={stats.isLoading ? '--' : stats.workshops.total}
           icon={<Users size={24} />}
-          subtitle="Coming in Phase 4"
+          subtitle={stats.isLoading ? 'Loading...' : `${stats.workshops.complete} completed`}
+          onClick={() => navigate('/evaluator/workshops')}
+          trend={stats.workshops.scheduled > 0 ? {
+            value: stats.workshops.scheduled,
+            label: 'scheduled',
+            direction: 'neutral'
+          } : null}
         />
         <StatCard
           title="Vendors"

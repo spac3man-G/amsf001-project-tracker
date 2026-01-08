@@ -558,15 +558,16 @@ async function generateComparisonReport(evaluationProjectId, project, format) {
  */
 async function generateEvidenceReport(evaluationProjectId, project, format) {
   const { data: evidence, error } = await supabase
-    .from('evaluation_evidence')
+    .from('evidence')
     .select(`
       id,
-      evidence_type,
+      type,
       title,
-      description,
-      source,
-      sentiment,
-      collected_date,
+      content,
+      summary,
+      source_url,
+      confidence_level,
+      captured_at,
       vendor:vendor_id(name),
       created_at
     `)
@@ -580,21 +581,23 @@ async function generateEvidenceReport(evaluationProjectId, project, format) {
     'Title',
     'Type',
     'Vendor',
-    'Source',
-    'Sentiment',
-    'Description',
-    'Collected Date',
+    'Summary',
+    'Confidence Level',
+    'Content',
+    'Source URL',
+    'Captured At',
     'Created At'
   ];
 
-  const rows = evidence.map(e => [
+  const rows = (evidence || []).map(e => [
     e.title,
-    e.evidence_type,
+    e.type,
     e.vendor?.name || '',
-    e.source || '',
-    e.sentiment || '',
-    e.description || '',
-    formatDate(e.collected_date),
+    e.summary || '',
+    e.confidence_level || '',
+    e.content || '',
+    e.source_url || '',
+    formatDate(e.captured_at),
     formatDate(e.created_at)
   ]);
 
