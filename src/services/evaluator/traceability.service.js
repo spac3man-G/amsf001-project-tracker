@@ -275,8 +275,8 @@ export class TraceabilityService extends EvaluatorBaseService {
         .select(`
           id,
           title,
-          evidence_type,
-          sentiment,
+          type,
+          confidence_level,
           vendor_id,
           requirement_links:evidence_requirements(requirement_id),
           criterion_links:evidence_criteria(criterion_id)
@@ -616,7 +616,7 @@ export class TraceabilityService extends EvaluatorBaseService {
         .from('evidence')
         .select(`
           *,
-          created_by_user:created_by(id, full_name)
+          captured_by_user:captured_by(id, full_name)
         `)
         .eq('vendor_id', vendorId);
 
@@ -844,8 +844,8 @@ export class TraceabilityService extends EvaluatorBaseService {
           type: 'evidence',
           id: ev.id,
           label: ev.title,
-          evidenceType: ev.evidence_type,
-          sentiment: ev.sentiment
+          evidenceType: ev.type,
+          confidenceLevel: ev.confidence_level
         }))
       });
     }
