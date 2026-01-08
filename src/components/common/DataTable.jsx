@@ -45,8 +45,11 @@ export default function DataTable({
     );
   }
 
+  // Filter out null/undefined rows to prevent crashes
+  const safeData = (data || []).filter(row => row != null);
+
   // Empty state
-  if (!data || data.length === 0) {
+  if (safeData.length === 0) {
     const EmptyIcon = emptyIcon || Inbox;
     return (
       <div className="empty-state">
@@ -111,14 +114,14 @@ export default function DataTable({
           </tr>
         </thead>
         <tbody>
-          {data.map((row, rowIndex) => (
-            <tr 
+          {safeData.map((row, rowIndex) => (
+            <tr
               key={row[rowKey] || rowIndex}
               onClick={() => onRowClick && onRowClick(row)}
               className={onRowClick ? 'clickable' : ''}
             >
               {columns.map((column) => (
-                <td 
+                <td
                   key={column.key}
                   style={{
                     textAlign: column.align || 'left',
@@ -126,7 +129,7 @@ export default function DataTable({
                   }}
                   className={column.mono ? 'table-cell-mono' : ''}
                 >
-                  {column.render 
+                  {column.render
                     ? column.render(row[column.key], row, rowIndex)
                     : row[column.key]
                   }

@@ -469,7 +469,7 @@ export default function RequirementsHub() {
         />
       ),
       width: '40px',
-      render: (row) => (
+      render: (_, row) => (
         <input
           type="checkbox"
           checked={selectedIds.includes(row.id)}
@@ -483,7 +483,7 @@ export default function RequirementsHub() {
       header: 'Ref',
       width: '80px',
       sortable: true,
-      render: (row) => (
+      render: (_, row) => (
         <span className="requirement-ref">{row.reference_code}</span>
       )
     },
@@ -491,7 +491,7 @@ export default function RequirementsHub() {
       key: 'title',
       header: 'Title',
       sortable: true,
-      render: (row) => (
+      render: (_, row) => (
         <div className="requirement-title-cell">
           <span className="title">{row.title}</span>
           {row.description && (
@@ -504,8 +504,8 @@ export default function RequirementsHub() {
       key: 'category',
       header: 'Category',
       width: '150px',
-      render: (row) => row.category ? (
-        <span 
+      render: (_, row) => row.category ? (
+        <span
           className="category-badge"
           style={{ backgroundColor: row.category.color || '#6B7280' }}
         >
@@ -517,8 +517,8 @@ export default function RequirementsHub() {
       key: 'stakeholder_area',
       header: 'Stakeholder',
       width: '130px',
-      render: (row) => row.stakeholder_area ? (
-        <span 
+      render: (_, row) => row.stakeholder_area ? (
+        <span
           className="stakeholder-badge"
           style={{ borderColor: row.stakeholder_area.color || '#6B7280' }}
         >
@@ -531,7 +531,7 @@ export default function RequirementsHub() {
       header: 'Priority',
       width: '120px',
       sortable: true,
-      render: (row) => {
+      render: (_, row) => {
         const config = PRIORITY_CONFIG[row.priority] || PRIORITY_CONFIG.should_have;
         return (
           <StatusBadge status={config.color} size="sm">
@@ -545,7 +545,7 @@ export default function RequirementsHub() {
       header: 'Status',
       width: '120px',
       sortable: true,
-      render: (row) => {
+      render: (_, row) => {
         const config = STATUS_CONFIG[row.status] || STATUS_CONFIG.draft;
         return (
           <StatusBadge status={config.color} size="sm">
@@ -558,13 +558,13 @@ export default function RequirementsHub() {
       key: 'actions',
       header: '',
       width: '80px',
-      render: (row) => {
+      render: (_, row) => {
         const actions = getRowActions(row);
         return (
           <div className="row-actions">
             {/* Primary action - Edit if available, otherwise View */}
             {canManageRequirements && row.status !== 'approved' ? (
-              <button 
+              <button
                 className="btn-icon btn-sm"
                 onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}
                 title="Edit"
@@ -572,7 +572,7 @@ export default function RequirementsHub() {
                 <Edit2 size={16} />
               </button>
             ) : (
-              <button 
+              <button
                 className="btn-icon btn-sm"
                 onClick={(e) => { e.stopPropagation(); navigate(`/evaluator/requirements/${row.id}`); }}
                 title="View"
@@ -580,10 +580,10 @@ export default function RequirementsHub() {
                 <Eye size={16} />
               </button>
             )}
-            
+
             {/* Quick status actions */}
             {canManageRequirements && row.status === 'draft' && (
-              <button 
+              <button
                 className="btn-icon btn-sm"
                 onClick={(e) => { e.stopPropagation(); handleSubmitForReview(row); }}
                 title="Submit for Review"
@@ -591,9 +591,9 @@ export default function RequirementsHub() {
                 <Send size={16} />
               </button>
             )}
-            
+
             {canApproveRequirements && row.status === 'under_review' && (
-              <button 
+              <button
                 className="btn-icon btn-sm btn-success"
                 onClick={(e) => { e.stopPropagation(); handleApprove(row); }}
                 title="Approve"
