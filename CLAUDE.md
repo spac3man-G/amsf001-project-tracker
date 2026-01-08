@@ -11,9 +11,14 @@ At the start of each session, check if the user wants to continue work on any ac
 | Feature | Plan File | Status | Next Session |
 |---------|-----------|--------|--------------|
 | Planner-Tracker Sync | `IMPLEMENTATION-PLAN-Planner-Tracker-Sync.md` | Ready | Session 1 |
+| Evaluator Product Roadmap | `docs/EVALUATOR-PRODUCT-ROADMAP.md` | Ready | v1.1 Features |
 
 **How to offer:** At session start, ask:
-> "I see there's an active implementation plan for **Planner-Tracker Sync** (Session 1 pending). Would you like to continue with that, or work on something else?"
+> "I see there are active implementation plans:
+> - **Planner-Tracker Sync** (Session 1 pending)
+> - **Evaluator Product Roadmap** (v1.1: Smart Notifications, AI Response Analysis, Dashboard Analytics)
+>
+> Would you like to continue with one of these, or work on something else?"
 
 **When resuming:** Read the implementation plan file for full context including verification steps, git commits, and what files to reference.
 
@@ -21,17 +26,19 @@ At the start of each session, check if the user wants to continue work on any ac
 
 ## Evaluator Module - Pending Features
 
-The following Evaluator features are incomplete and need implementation:
+> **Note:** A comprehensive product roadmap exists at `docs/EVALUATOR-PRODUCT-ROADMAP.md` with 14 major features planned across 4 releases (v1.1-v2.0). See Active Implementation Plans above.
+
+**Quick reference - incomplete features:**
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
-| Workshops | Medium | Full workshop scheduling, attendee management, and requirement capture during sessions. Currently shows "Coming in Phase 4" placeholder. |
-| Surveys | Medium | Survey builder UI, response collection, and requirement extraction from responses. Service exists but UI is minimal. |
-| Document AI Parsing | Medium | AI-powered requirement extraction from uploaded documents (RFPs, SOWs). Upload works but AI parsing not fully wired. |
-| Spreadsheet Requirements Entry | High | Excel-like grid for bulk requirements entry (faster than form-based entry). |
-| CSV Import for Requirements | High | Import requirements from CSV files. |
+| Smart Notifications | High | Real-time alerts for scoring deadlines, requirement changes, vendor updates (v1.1) |
+| AI Response Analysis | High | Claude-powered vendor response scoring and gap detection (v1.1) |
+| Dashboard Analytics | High | Interactive charts, progress tracking, team activity (v1.1) |
+| Evaluation Templates | Medium | Reusable evaluation configurations and requirement libraries (v1.2) |
+| Live Collaboration | Medium | Real-time multi-user editing with presence indicators (v1.3) |
 
-**What's complete:** Vendors, Evaluation/Scoring, Reports, Traceability, Requirements (form-based), AI Gap Analysis, AI Market Research.
+**What's complete:** Vendors, Evaluation/Scoring, Reports, Traceability, Requirements, Workshops (basic), Evidence, AI Gap Analysis, AI Market Research.
 
 ---
 
