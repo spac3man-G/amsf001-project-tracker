@@ -147,7 +147,7 @@ export class EvidenceService extends EvaluatorBaseService {
         .select(`
           *,
           vendor:vendor_id(id, name, status),
-          created_by_profile:created_by(id, full_name, email),
+          captured_by_profile:captured_by(id, full_name, email),
           links:evidence_links(
             id,
             requirement_id,
@@ -167,15 +167,15 @@ export class EvidenceService extends EvaluatorBaseService {
       // Apply type filter
       if (options.type) {
         if (Array.isArray(options.type)) {
-          query = query.in('evidence_type', options.type);
+          query = query.in('type', options.type);
         } else {
-          query = query.eq('evidence_type', options.type);
+          query = query.eq('type', options.type);
         }
       }
 
-      // Apply sentiment filter
-      if (options.sentiment) {
-        query = query.eq('sentiment', options.sentiment);
+      // Apply confidence filter (replaces sentiment)
+      if (options.confidence) {
+        query = query.eq('confidence_level', options.confidence);
       }
 
       // Apply search
@@ -195,8 +195,7 @@ export class EvidenceService extends EvaluatorBaseService {
 
       return (data || []).map(e => ({
         ...e,
-        typeConfig: EVIDENCE_TYPE_CONFIG[e.evidence_type] || {},
-        sentimentConfig: EVIDENCE_SENTIMENT_CONFIG[e.sentiment] || {},
+        typeConfig: EVIDENCE_TYPE_CONFIG[e.type] || {},
         linkedRequirements: e.links?.filter(l => l.requirement_id).map(l => l.requirement) || [],
         linkedCriteria: e.links?.filter(l => l.criterion_id).map(l => l.criterion) || []
       }));
@@ -218,7 +217,7 @@ export class EvidenceService extends EvaluatorBaseService {
         .from('evidence')
         .select(`
           *,
-          created_by_profile:created_by(id, full_name, email),
+          captured_by_profile:captured_by(id, full_name, email),
           links:evidence_links(
             id,
             requirement_id,
@@ -232,7 +231,7 @@ export class EvidenceService extends EvaluatorBaseService {
 
       // Apply type filter
       if (options.type) {
-        query = query.eq('evidence_type', options.type);
+        query = query.eq('type', options.type);
       }
 
       query = query.order('created_at', { ascending: false });
@@ -243,8 +242,7 @@ export class EvidenceService extends EvaluatorBaseService {
 
       return (data || []).map(e => ({
         ...e,
-        typeConfig: EVIDENCE_TYPE_CONFIG[e.evidence_type] || {},
-        sentimentConfig: EVIDENCE_SENTIMENT_CONFIG[e.sentiment] || {},
+        typeConfig: EVIDENCE_TYPE_CONFIG[e.type] || {},
         linkedRequirements: e.links?.filter(l => l.requirement_id).map(l => l.requirement) || [],
         linkedCriteria: e.links?.filter(l => l.criterion_id).map(l => l.criterion) || []
       }));
@@ -266,7 +264,7 @@ export class EvidenceService extends EvaluatorBaseService {
         .select(`
           *,
           vendor:vendor_id(id, name, status),
-          created_by_profile:created_by(id, full_name, email),
+          captured_by_profile:captured_by(id, full_name, email),
           links:evidence_links(
             id,
             requirement_id,
@@ -285,8 +283,7 @@ export class EvidenceService extends EvaluatorBaseService {
       const evidence = data[0];
       return {
         ...evidence,
-        typeConfig: EVIDENCE_TYPE_CONFIG[evidence.evidence_type] || {},
-        sentimentConfig: EVIDENCE_SENTIMENT_CONFIG[evidence.sentiment] || {},
+        typeConfig: EVIDENCE_TYPE_CONFIG[evidence.type] || {},
         linkedRequirements: evidence.links?.filter(l => l.requirement_id).map(l => l.requirement) || [],
         linkedCriteria: evidence.links?.filter(l => l.criterion_id).map(l => l.criterion) || []
       };
@@ -316,14 +313,14 @@ export class EvidenceService extends EvaluatorBaseService {
       const dataToCreate = {
         evaluation_project_id: evidenceData.evaluation_project_id,
         vendor_id: evidenceData.vendor_id,
-        evidence_type: evidenceData.evidence_type || EVIDENCE_TYPES.OTHER,
+        type: evidenceData.type || evidenceData.evidence_type || 'other',
         title: evidenceData.title,
         content: evidenceData.content || null,
-        sentiment: evidenceData.sentiment || EVIDENCE_SENTIMENT.NEUTRAL,
+        summary: evidenceData.summary || null,
         source_url: evidenceData.source_url || null,
-        source_document_id: evidenceData.source_document_id || null,
-        evidence_date: evidenceData.evidence_date || new Date().toISOString(),
-        created_by: evidenceData.created_by || null
+        confidence_level: evidenceData.confidence_level || 'medium',
+        captured_by: evidenceData.captured_by || evidenceData.created_by || null,
+        captured_at: evidenceData.captured_at || new Date().toISOString()
       };
 
       const { data, error } = await supabase
@@ -356,8 +353,8 @@ export class EvidenceService extends EvaluatorBaseService {
   async updateEvidence(evidenceId, updates) {
     try {
       const allowedFields = [
-        'title', 'content', 'evidence_type', 'sentiment',
-        'source_url', 'source_document_id', 'evidence_date'
+        'title', 'content', 'type', 'summary',
+        'source_url', 'confidence_level', 'captured_at', 'tags'
       ];
 
       const filteredUpdates = {};

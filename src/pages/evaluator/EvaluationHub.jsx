@@ -100,8 +100,8 @@ function EvaluationHub() {
       ]);
 
       // Filter to vendors in evaluation stage
-      const evaluableVendors = vendorsData.filter(v => 
-        [VENDOR_STATUSES.UNDER_EVALUATION, VENDOR_STATUSES.SHORTLISTED].includes(v.status)
+      const evaluableVendors = vendorsData.filter(v =>
+        [VENDOR_STATUSES.UNDER_EVALUATION, VENDOR_STATUSES.SHORT_LIST].includes(v.status)
       );
 
       setVendors(evaluableVendors);

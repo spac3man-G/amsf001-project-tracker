@@ -298,8 +298,7 @@ async function getEvaluationProject(supabase, evaluationProjectId) {
       name,
       description,
       client_name,
-      industry_type,
-      project_type
+      settings
     `)
     .eq('id', evaluationProjectId)
     .single();
@@ -396,8 +395,8 @@ export default async function handler(req, res) {
 
 **Project Name:** ${project.name}
 **Client:** ${project.client_name || 'Not specified'}
-**Industry:** ${project.industry_type || additionalContext?.industry || 'Enterprise Software'}
-**Project Type:** ${project.project_type || additionalContext?.projectType || 'Technology Procurement'}
+**Industry:** ${additionalContext?.industry || 'Enterprise Software'}
+**Project Type:** ${additionalContext?.projectType || 'Technology Procurement'}
 
 ${project.description ? `**Description:** ${project.description}` : ''}
 

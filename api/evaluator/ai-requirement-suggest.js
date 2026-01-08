@@ -269,7 +269,7 @@ async function getRequirement(supabase, requirementId) {
 async function getProjectContext(supabase, evaluationProjectId) {
   const { data, error } = await supabase
     .from('evaluation_projects')
-    .select('name, description, industry_type, project_type')
+    .select('name, description, settings')
     .eq('id', evaluationProjectId)
     .single();
 
@@ -369,8 +369,6 @@ ${requirement.stakeholder_area?.name ? `**Stakeholder Area:** ${requirement.stak
 ${projectContext ? `
 ## Project Context
 **Project:** ${projectContext.name}
-**Industry:** ${projectContext.industry_type || 'Not specified'}
-**Project Type:** ${projectContext.project_type || 'Technology Procurement'}
 ${projectContext.description ? `**Description:** ${projectContext.description}` : ''}
 ` : ''}
 

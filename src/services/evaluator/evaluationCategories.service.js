@@ -86,6 +86,57 @@ export class EvaluationCategoriesService extends EvaluatorBaseService {
     }
   }
 
+  /**
+   * Get all categories with their criteria included
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @returns {Promise<Array>} Array of categories with criteria
+   */
+  async getAllWithCriteria(evaluationProjectId) {
+    try {
+      // Get categories
+      const { data: categories, error: catError } = await supabase
+        .from('evaluation_categories')
+        .select('*')
+        .eq('evaluation_project_id', evaluationProjectId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('sort_order', { ascending: true });
+
+      if (catError) throw catError;
+
+      // Get all criteria for this project
+      const { data: allCriteria, error: critError } = await supabase
+        .from('evaluation_criteria')
+        .select('*')
+        .eq('evaluation_project_id', evaluationProjectId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('sort_order', { ascending: true });
+
+      if (critError) throw critError;
+
+      // Group criteria by category
+      const criteriaByCategory = {};
+      (allCriteria || []).forEach(crit => {
+        if (crit.category_id) {
+          if (!criteriaByCategory[crit.category_id]) {
+            criteriaByCategory[crit.category_id] = [];
+          }
+          criteriaByCategory[crit.category_id].push(crit);
+        }
+      });
+
+      // Merge criteria into categories (filter out any null/undefined entries)
+      return (categories || [])
+        .filter(category => category && category.id)
+        .map(category => ({
+          ...category,
+          criteria: criteriaByCategory[category.id] || [],
+          criteriaCount: (criteriaByCategory[category.id] || []).length
+        }));
+    } catch (error) {
+      console.error('EvaluationCategoriesService getAllWithCriteria failed:', error);
+      throw error;
+    }
+  }
 
   /**
    * Get category with its criteria

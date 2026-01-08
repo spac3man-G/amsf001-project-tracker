@@ -19,6 +19,22 @@ At the start of each session, check if the user wants to continue work on any ac
 
 ---
 
+## Evaluator Module - Pending Features
+
+The following Evaluator features are incomplete and need implementation:
+
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| Workshops | Medium | Full workshop scheduling, attendee management, and requirement capture during sessions. Currently shows "Coming in Phase 4" placeholder. |
+| Surveys | Medium | Survey builder UI, response collection, and requirement extraction from responses. Service exists but UI is minimal. |
+| Document AI Parsing | Medium | AI-powered requirement extraction from uploaded documents (RFPs, SOWs). Upload works but AI parsing not fully wired. |
+| Spreadsheet Requirements Entry | High | Excel-like grid for bulk requirements entry (faster than form-based entry). |
+| CSV Import for Requirements | High | Import requirements from CSV files. |
+
+**What's complete:** Vendors, Evaluation/Scoring, Reports, Traceability, Requirements (form-based), AI Gap Analysis, AI Market Research.
+
+---
+
 ## Project Overview
 
 **Tracker by Progressive** is an enterprise-grade, multi-tenant SaaS application for project portfolio management. It includes:

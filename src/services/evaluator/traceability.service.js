@@ -176,7 +176,7 @@ export class TraceabilityService extends EvaluatorBaseService {
         `)
         .eq('evaluation_project_id', evaluationProjectId)
         .eq('is_deleted', false)
-        .in('status', ['under_evaluation', 'shortlisted', 'selected', 'finalist']);
+        .in('status', ['under_evaluation', 'short_list', 'selected']);
 
       if (options.vendorIds && options.vendorIds.length > 0) {
         query = query.in('id', options.vendorIds);

@@ -12,27 +12,22 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  ClipboardList, 
-  Users, 
-  Building2, 
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Users,
+  Building2,
   CheckSquare,
   GitBranch,
   FileText,
   Settings,
-  Plus,
-  ArrowRight,
-  AlertCircle,
-  Clock,
-  CheckCircle,
-  Folder
+  Plus
 } from 'lucide-react';
 
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useEvaluatorPermissions } from '../../hooks/useEvaluatorPermissions';
 import { useEvaluationRole } from '../../hooks/useEvaluationRole';
-import { PageHeader, Card, LoadingSpinner, StatCard } from '../../components/common';
+import { PageHeader, LoadingSpinner, StatCard } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
 import CreateEvaluationModal from '../../components/evaluator/CreateEvaluationModal';
 import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService } from '../../services/evaluator';
@@ -207,6 +202,47 @@ export default function EvaluatorDashboard() {
         )}
       </div>
 
+      {/* Quick Actions - Compact Grid */}
+      <div className="quick-actions-compact">
+        <QuickActionTile
+          icon={<ClipboardList size={20} />}
+          title="Requirements"
+          onClick={() => navigate('/evaluator/requirements')}
+        />
+        <QuickActionTile
+          icon={<Building2 size={20} />}
+          title="Vendors"
+          onClick={() => navigate('/evaluator/vendors')}
+        />
+        <QuickActionTile
+          icon={<FileText size={20} />}
+          title="Questions"
+          onClick={() => navigate('/evaluator/questions')}
+        />
+        <QuickActionTile
+          icon={<CheckSquare size={20} />}
+          title="Evaluation"
+          onClick={() => navigate('/evaluator/evaluation')}
+        />
+        <QuickActionTile
+          icon={<GitBranch size={20} />}
+          title="Traceability"
+          onClick={() => navigate('/evaluator/traceability')}
+        />
+        <QuickActionTile
+          icon={<FileText size={20} />}
+          title="Reports"
+          onClick={() => navigate('/evaluator/reports')}
+        />
+        {canEditEvaluation && (
+          <QuickActionTile
+            icon={<Settings size={20} />}
+            title="Settings"
+            onClick={() => navigate('/evaluator/settings')}
+          />
+        )}
+      </div>
+
       {/* Quick Stats */}
       <div className="dashboard-stats">
         <StatCard
@@ -244,103 +280,27 @@ export default function EvaluatorDashboard() {
           value={stats.isLoading ? '--' : stats.categories.total}
           icon={<CheckSquare size={24} />}
           subtitle={stats.isLoading ? 'Loading...' : (
-            stats.categories.weightValid 
-              ? 'Weights valid (100%)' 
+            stats.categories.weightValid
+              ? 'Weights valid (100%)'
               : `Weights: ${stats.categories.weightTotal}%`
           )}
           onClick={() => navigate('/evaluator/settings')}
           status={stats.categories.weightValid ? 'success' : 'warning'}
         />
       </div>
-
-      {/* Quick Actions */}
-      <div className="dashboard-section">
-        <h3 className="section-title">Quick Actions</h3>
-        <div className="quick-actions-grid">
-          <QuickActionCard
-            icon={<ClipboardList size={24} />}
-            title="Requirements"
-            description="Manage evaluation requirements"
-            onClick={() => navigate('/evaluator/requirements')}
-          />
-          <QuickActionCard
-            icon={<Users size={24} />}
-            title="Workshops"
-            description="Schedule and capture workshops"
-            onClick={() => navigate('/evaluator/workshops')}
-          />
-          <QuickActionCard
-            icon={<Folder size={24} />}
-            title="Documents"
-            description="Upload and manage documents"
-            onClick={() => navigate('/evaluator/documents')}
-          />
-          <QuickActionCard
-            icon={<Building2 size={24} />}
-            title="Vendors"
-            description="Manage vendor pipeline"
-            onClick={() => navigate('/evaluator/vendors')}
-          />
-          <QuickActionCard
-            icon={<FileText size={24} />}
-            title="Questions"
-            description="Manage vendor RFP questions"
-            onClick={() => navigate('/evaluator/questions')}
-          />
-          <QuickActionCard
-            icon={<CheckSquare size={24} />}
-            title="Evaluation"
-            description="Score vendors against criteria"
-            onClick={() => navigate('/evaluator/evaluation')}
-          />
-          <QuickActionCard
-            icon={<GitBranch size={24} />}
-            title="Traceability"
-            description="View requirements traceability"
-            onClick={() => navigate('/evaluator/traceability')}
-          />
-          <QuickActionCard
-            icon={<FileText size={24} />}
-            title="Reports"
-            description="Generate evaluation reports"
-            onClick={() => navigate('/evaluator/reports')}
-          />
-        </div>
-      </div>
-
-      {/* Settings Link (if admin) */}
-      {canEditEvaluation && (
-        <div className="dashboard-section">
-          <h3 className="section-title">Administration</h3>
-          <div className="quick-actions-grid single-row">
-            <QuickActionCard
-              icon={<Settings size={24} />}
-              title="Evaluation Settings"
-              description="Configure categories, criteria, and team"
-              onClick={() => navigate('/evaluator/settings')}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 /**
- * QuickActionCard - Clickable card for dashboard actions
+ * QuickActionTile - Compact square tile for dashboard actions
  */
-function QuickActionCard({ icon, title, description, onClick }) {
+function QuickActionTile({ icon, title, onClick }) {
   return (
-    <Card className="quick-action-card" onClick={onClick}>
-      <div className="quick-action-content">
-        <div className="quick-action-icon">{icon}</div>
-        <div className="quick-action-text">
-          <h4>{title}</h4>
-          <p>{description}</p>
-        </div>
-        <ArrowRight size={20} className="quick-action-arrow" />
-      </div>
-    </Card>
+    <button className="quick-action-tile" onClick={onClick}>
+      <div className="quick-action-tile-icon">{icon}</div>
+      <span className="quick-action-tile-title">{title}</span>
+    </button>
   );
 }
 

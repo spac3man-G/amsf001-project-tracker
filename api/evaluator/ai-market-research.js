@@ -261,8 +261,7 @@ async function getEvaluationProject(supabase, evaluationProjectId) {
       name,
       description,
       client_name,
-      industry_type,
-      project_type
+      settings
     `)
     .eq('id', evaluationProjectId)
     .single();
@@ -375,8 +374,8 @@ export default async function handler(req, res) {
 
 **Project Name:** ${project.name}
 **Client:** ${project.client_name || 'Not specified'}
-**Industry:** ${project.industry_type || additionalContext?.industry || 'Enterprise Software'}
-**Project Type:** ${project.project_type || additionalContext?.projectType || 'Technology Procurement'}
+**Industry:** ${additionalContext?.industry || 'Enterprise Software'}
+**Project Type:** ${additionalContext?.projectType || 'Technology Procurement'}
 
 ${project.description ? `**Description:** ${project.description}` : ''}
 
@@ -392,7 +391,7 @@ ${reqs.map(r => `- [${r.priority === 'must_have' ? 'Must' : 'Should'}] ${r.title
 `).join('\n')}
 
 ## Existing Vendors (Already in System)
-${existingVendors.length > 0 
+${existingVendors.length > 0
   ? existingVendors.map(v => `- ${v.name} (${v.status})`).join('\n')
   : 'None yet - this is initial market research'}
 
@@ -401,7 +400,7 @@ Please identify and recommend vendors suitable for this procurement. Exclude any
 
 Focus on vendors that:
 1. Address the key requirements listed
-2. Serve the ${project.industry_type || 'enterprise'} market
+2. Serve the enterprise market
 3. Would be appropriate for ${project.client_name || 'the client'}
 `;
 

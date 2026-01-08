@@ -133,7 +133,7 @@ export class VendorsService extends EvaluatorBaseService {
         .select(`
           *,
           contacts:vendor_contacts(
-            id, user_id, name, email, phone, role, is_primary
+            id, user_id, name, email, phone, job_title, is_primary
           ),
           status_changed_by_profile:profiles!status_changed_by(id, full_name, email)
         `)
@@ -198,7 +198,7 @@ export class VendorsService extends EvaluatorBaseService {
         .select(`
           *,
           contacts:vendor_contacts(
-            id, user_id, name, email, phone, role, is_primary, created_at
+            id, user_id, name, email, phone, job_title, is_primary, created_at
           ),
           status_changed_by_profile:profiles!status_changed_by(id, full_name, email),
           documents:vendor_documents(
@@ -506,7 +506,7 @@ export class VendorsService extends EvaluatorBaseService {
         name: contactData.name || null,
         email: contactData.email || null,
         phone: contactData.phone || null,
-        role: contactData.role || null,
+        job_title: contactData.job_title || contactData.role || null,
         is_primary: contactData.is_primary || false
       };
 
@@ -551,7 +551,7 @@ export class VendorsService extends EvaluatorBaseService {
         }
       }
 
-      const allowedFields = ['name', 'email', 'phone', 'role', 'is_primary'];
+      const allowedFields = ['name', 'email', 'phone', 'job_title', 'is_primary'];
       const filteredUpdates = {};
       allowedFields.forEach(field => {
         if (updates[field] !== undefined) {

@@ -236,9 +236,9 @@ function VendorsHub() {
     
     try {
       const results = await aiService.runMarketResearch(
-        currentEvaluation.id, 
+        currentEvaluation.id,
         user.id,
-        { industry: currentEvaluation.industry_type }
+        {} // industry context passed as additional context if needed
       );
       
       if (results.success) {
