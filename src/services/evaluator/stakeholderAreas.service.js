@@ -55,11 +55,13 @@ export class StakeholderAreasService extends EvaluatorBaseService {
         }
       });
 
-      // Merge counts into areas
-      return (areas || []).map(area => ({
-        ...area,
-        requirementCount: counts[area.id] || 0
-      }));
+      // Merge counts into areas (filter out any null/undefined entries)
+      return (areas || [])
+        .filter(area => area && area.id)
+        .map(area => ({
+          ...area,
+          requirementCount: counts[area.id] || 0
+        }));
     } catch (error) {
       console.error('StakeholderAreasService getAllWithCounts failed:', error);
       throw error;

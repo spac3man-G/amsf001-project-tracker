@@ -72,12 +72,14 @@ export class EvaluationCategoriesService extends EvaluatorBaseService {
         }
       });
 
-      // Merge counts into categories
-      return (categories || []).map(category => ({
-        ...category,
-        criteriaCount: criteriaCounts[category.id] || 0,
-        requirementCount: requirementCounts[category.id] || 0
-      }));
+      // Merge counts into categories (filter out any null/undefined entries)
+      return (categories || [])
+        .filter(category => category && category.id)
+        .map(category => ({
+          ...category,
+          criteriaCount: criteriaCounts[category.id] || 0,
+          requirementCount: requirementCounts[category.id] || 0
+        }));
     } catch (error) {
       console.error('EvaluationCategoriesService getAllWithCounts failed:', error);
       throw error;
