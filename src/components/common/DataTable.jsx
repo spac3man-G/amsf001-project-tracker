@@ -4,10 +4,18 @@ import LoadingSpinner from './LoadingSpinner';
 
 /**
  * DataTable - Apple-inspired table component with sorting and states
- * 
+ *
  * Uses design system CSS classes for consistent styling across the app.
- * 
+ *
  * @param {Array} columns - Column definitions [{ key, label, sortable, render, width, align }]
+ *   - key: Property name in data object
+ *   - label: Column header text
+ *   - sortable: Enable sorting for this column
+ *   - render: Custom render function (value, row, rowIndex) => ReactNode
+ *             IMPORTANT: First arg is cell value (row[key]), second is full row object
+ *             Example: render: (_, row) => <Button onClick={() => edit(row.id)}>Edit</Button>
+ *   - width: CSS width (e.g., '100px', '20%')
+ *   - align: Text alignment ('left', 'center', 'right')
  * @param {Array} data - Array of data objects
  * @param {boolean} [loading=false] - Show loading state
  * @param {string} [loadingMessage='Loading...'] - Loading state message

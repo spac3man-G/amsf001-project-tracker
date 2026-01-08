@@ -391,7 +391,7 @@ export class WorkflowService {
           id,
           submitted_date,
           expense_date,
-          description,
+          reason,
           amount,
           status,
           chargeable_to_customer,
@@ -416,7 +416,7 @@ export class WorkflowService {
           id: exp.id,
           category: category.id,
           type: 'expense',
-          title: `Expense: ${exp.description || 'No description'}`,
+          title: `Expense: ${exp.reason || 'No description'}`,
           description: `£${parseFloat(exp.amount || 0).toFixed(2)} - ${exp.resource_name || 'Unknown'}`,
           status: exp.status,
           timestamp,
@@ -549,7 +549,6 @@ export class WorkflowService {
           title,
           status,
           variation_type,
-          submitted_at,
           created_at,
           total_cost_impact,
           total_days_impact
@@ -561,7 +560,7 @@ export class WorkflowService {
       if (error) throw error;
 
       return (data || []).map(v => {
-        const timestamp = v.submitted_at || v.created_at;
+        const timestamp = v.created_at;
         const daysPending = calculateDaysPending(timestamp);
 
         // Determine category based on status
