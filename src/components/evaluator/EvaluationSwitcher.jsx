@@ -72,10 +72,12 @@ export default function EvaluationSwitcher() {
         <div className="switcher-dropdown" role="listbox">
           <div className="switcher-header">Switch Evaluation</div>
           <ul className="switcher-list">
-            {availableEvaluations.map((assignment) => {
+            {availableEvaluations
+              .filter(assignment => assignment?.evaluation_project?.id)
+              .map((assignment) => {
               const evaluation = assignment.evaluation_project;
               const isSelected = evaluation.id === currentEvaluation?.id;
-              
+
               return (
                 <li key={evaluation.id}>
                   <button

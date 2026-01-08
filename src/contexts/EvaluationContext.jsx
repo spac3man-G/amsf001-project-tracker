@@ -109,14 +109,17 @@ export function EvaluationProvider({ children }) {
         });
 
         // Build assignments array with org admin having 'admin' role for unassigned evaluations
-        assignments = (orgEvaluations || []).map(evaluation => ({
-          id: `${user.id}-${evaluation.id}`,
-          evaluation_project_id: evaluation.id,
-          role: roleMap[evaluation.id]?.role || 'admin',
-          is_default: roleMap[evaluation.id]?.is_default || false,
-          stakeholder_area_id: roleMap[evaluation.id]?.stakeholder_area_id || null,
-          evaluation_project: evaluation
-        }));
+        // Filter out any null/undefined entries that might come from the database
+        assignments = (orgEvaluations || [])
+          .filter(evaluation => evaluation && evaluation.id)
+          .map(evaluation => ({
+            id: `${user.id}-${evaluation.id}`,
+            evaluation_project_id: evaluation.id,
+            role: roleMap[evaluation.id]?.role || 'admin',
+            is_default: roleMap[evaluation.id]?.is_default || false,
+            stakeholder_area_id: roleMap[evaluation.id]?.stakeholder_area_id || null,
+            evaluation_project: evaluation
+          }));
 
       } else {
         // Regular users: fetch only their assigned evaluations within the organisation
@@ -141,8 +144,10 @@ export function EvaluationProvider({ children }) {
         }
 
         // Filter to only evaluations in the current organisation and not deleted
+        // Also filter out any null/undefined evaluation_project entries
         assignments = (userAssignments || []).filter(
-          a => a.evaluation_project?.organisation_id === organisationId &&
+          a => a.evaluation_project?.id &&
+               a.evaluation_project?.organisation_id === organisationId &&
                !a.evaluation_project?.is_deleted
         );
       }
