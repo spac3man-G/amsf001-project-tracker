@@ -153,11 +153,14 @@ export function useEvaluatorPermissions() {
     isClientStakeholder: effectiveRole === 'client_stakeholder',
     isParticipant: effectiveRole === 'participant',
     isVendor: effectiveRole === 'vendor',
-    
+
     // Aggregate checks
     canManageEvaluation: effectiveRole === 'admin',
     canContribute: ['admin', 'evaluator'].includes(effectiveRole),
     canApprove: ['admin', 'client_stakeholder'].includes(effectiveRole),
+
+    // Requirements management (create, edit, delete)
+    canManageRequirements: ['admin', 'evaluator'].includes(effectiveRole),
   }), [effectiveRole]);
 
   return {
