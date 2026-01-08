@@ -20,6 +20,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 
 export default function GanttContent() {
   const [milestones, setMilestones] = useState([]);
+  const [originalBaselines, setOriginalBaselines] = useState({}); // v1 baseline versions keyed by milestone_id
   const [loading, setLoading] = useState(true);
   const { projectId } = useProject();
   const [viewStart, setViewStart] = useState(null);
@@ -47,12 +48,14 @@ export default function GanttContent() {
     if (milestones.length > 0) {
       calculateViewRange();
     }
-  }, [milestones]);
+  }, [milestones, originalBaselines]);
 
   async function fetchMilestones(projId) {
     const pid = projId || projectId;
     try {
       setLoading(true);
+
+      // Fetch milestones
       const { data, error } = await supabase
         .from('milestones')
         .select('*')
@@ -61,6 +64,61 @@ export default function GanttContent() {
 
       if (error) throw error;
       setMilestones(data || []);
+
+      // Fetch original baseline data for all milestones
+      // We check two sources:
+      // 1. milestone_baseline_versions v1 with variation_id = NULL (ideal)
+      // 2. variation_milestones.original_baseline_* from the first applied variation (fallback)
+      if (data && data.length > 0) {
+        const milestoneIds = data.map(m => m.id);
+        const v1Map = {};
+
+        // First try: v1 records with no variation_id (true original baseline)
+        const { data: v1Data, error: v1Error } = await supabase
+          .from('milestone_baseline_versions')
+          .select('milestone_id, baseline_start_date, baseline_end_date, baseline_billable')
+          .in('milestone_id', milestoneIds)
+          .eq('version', 1)
+          .is('variation_id', null);
+
+        if (!v1Error && v1Data) {
+          v1Data.forEach(v => {
+            v1Map[v.milestone_id] = v;
+          });
+        }
+
+        // Fallback: Get original values from variation_milestones for milestones not yet in v1Map
+        // This handles cases where v1 was created with variation_id set (data model issue)
+        const milestonesNeedingFallback = milestoneIds.filter(id => !v1Map[id]);
+        if (milestonesNeedingFallback.length > 0) {
+          // Simple query - get all variation_milestones for these milestones
+          const { data: vmData, error: vmError } = await supabase
+            .from('variation_milestones')
+            .select('milestone_id, original_baseline_start, original_baseline_end, original_baseline_cost, created_at')
+            .in('milestone_id', milestonesNeedingFallback)
+            .order('created_at', { ascending: true });
+
+          if (vmError) {
+            console.warn('Error fetching variation_milestones:', vmError);
+          } else if (vmData && vmData.length > 0) {
+            // Group by milestone_id and take the first (earliest) variation record
+            const seenMilestones = new Set();
+            vmData.forEach(vm => {
+              if (!seenMilestones.has(vm.milestone_id)) {
+                seenMilestones.add(vm.milestone_id);
+                v1Map[vm.milestone_id] = {
+                  milestone_id: vm.milestone_id,
+                  baseline_start_date: vm.original_baseline_start,
+                  baseline_end_date: vm.original_baseline_end,
+                  baseline_billable: vm.original_baseline_cost
+                };
+              }
+            });
+          }
+        }
+
+        setOriginalBaselines(v1Map);
+      }
     } catch (error) {
       console.error('Error fetching milestones:', error);
     } finally {
@@ -71,17 +129,21 @@ export default function GanttContent() {
   function calculateViewRange() {
     let minDate = new Date();
     let maxDate = new Date();
-    
+
     milestones.forEach(m => {
+      // Include original baseline dates from v1 if they exist
+      const v1 = originalBaselines[m.id];
       const dates = [
         m.baseline_start_date,
         m.baseline_end_date,
         m.actual_start_date,
         m.forecast_end_date,
         m.start_date,
-        m.end_date
+        m.end_date,
+        v1?.baseline_start_date,
+        v1?.baseline_end_date
       ].filter(Boolean).map(d => new Date(d));
-      
+
       dates.forEach(d => {
         if (d < minDate) minDate = d;
         if (d > maxDate) maxDate = d;
@@ -317,10 +379,15 @@ export default function GanttContent() {
 
       {/* Legend */}
       <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem 1rem' }}>
-        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ width: '24px', height: '12px', backgroundColor: '#94a3b8', borderRadius: '2px', opacity: 0.6 }}></div>
-            <span style={{ fontSize: '0.85rem' }}>Baseline (fixed)</span>
+            <div style={{ width: '24px', height: '12px', backgroundColor: '#64748b', borderRadius: '2px', border: '1px dashed #475569' }}></div>
+            <span style={{ fontSize: '0.85rem' }}>Original Baseline</span>
+            <Lock size={14} style={{ color: '#475569' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: '24px', height: '12px', backgroundColor: '#94a3b8', borderRadius: '2px', opacity: 0.7 }}></div>
+            <span style={{ fontSize: '0.85rem' }}>Current Baseline</span>
             <Lock size={14} style={{ color: '#64748b' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -362,34 +429,61 @@ export default function GanttContent() {
             }}>
               Milestone
             </div>
-            {milestones.map(m => (
-              <div 
-                key={m.id} 
-                style={{ 
-                  padding: '0.5rem 0.75rem', 
-                  borderBottom: '1px solid #f1f5f9',
-                  height: '80px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}
-              >
-                <Link 
-                  to={`/milestones/${m.id}`}
-                  style={{ 
-                    fontWeight: '600', 
-                    color: '#3b82f6',
-                    textDecoration: 'none',
-                    fontSize: '0.9rem'
+            {milestones.map(m => {
+              // Check if this milestone has a variation applied
+              const v1 = originalBaselines[m.id];
+              const hasVariation = v1 && (
+                (v1.baseline_start_date && m.baseline_start_date && v1.baseline_start_date !== m.baseline_start_date) ||
+                (v1.baseline_end_date && m.baseline_end_date && v1.baseline_end_date !== m.baseline_end_date)
+              );
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    borderBottom: '1px solid #f1f5f9',
+                    height: '100px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center'
                   }}
                 >
-                  {m.milestone_ref}
-                </Link>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
-                  {m.name?.substring(0, 25)}{m.name?.length > 25 ? '...' : ''}
+                  <Link
+                    to={`/milestones/${m.id}`}
+                    style={{
+                      fontWeight: '600',
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    {m.milestone_ref}
+                  </Link>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                    {m.name?.substring(0, 25)}{m.name?.length > 25 ? '...' : ''}
+                  </div>
+                  {hasVariation && (
+                    <div style={{
+                      fontSize: '0.7rem',
+                      color: '#f59e0b',
+                      marginTop: '0.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}>
+                      <span style={{
+                        backgroundColor: '#fef3c7',
+                        padding: '0.1rem 0.35rem',
+                        borderRadius: '3px',
+                        fontWeight: '500'
+                      }}>
+                        Varied
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Chart Area */}
@@ -435,36 +529,80 @@ export default function GanttContent() {
 
               {/* Milestone Rows */}
               {milestones.map(m => {
+                // Get original baseline from v1 (pre-variation)
+                const v1 = originalBaselines[m.id];
+                const originalStart = v1?.baseline_start_date;
+                const originalEnd = v1?.baseline_end_date;
+
+                // Current baseline (may have been modified by variations)
                 const baselineStart = m.baseline_start_date || m.start_date;
                 const baselineEnd = m.baseline_end_date || m.end_date;
+
+                // Actual/Forecast
                 const actualStart = m.actual_start_date || m.start_date;
                 const forecastEnd = m.forecast_end_date || m.end_date;
 
+                // Check if a variation has changed the baseline
+                const hasVariation = v1 && (
+                  (originalStart && baselineStart && originalStart !== baselineStart) ||
+                  (originalEnd && baselineEnd && originalEnd !== baselineEnd)
+                );
+
+                // Calculate positions
+                const originalX = originalStart ? dateToX(originalStart) : 0;
+                const originalWidth = originalStart && originalEnd ? Math.max(20, dateToX(originalEnd) - originalX) : 0;
                 const baselineX = dateToX(baselineStart);
                 const baselineWidth = Math.max(20, dateToX(baselineEnd) - baselineX);
                 const actualX = dateToX(actualStart);
                 const actualWidth = Math.max(20, dateToX(forecastEnd) - actualX);
 
                 return (
-                  <div 
+                  <div
                     key={m.id}
-                    style={{ 
-                      height: '80px',
+                    style={{
+                      height: '100px',
                       borderBottom: '1px solid #f1f5f9',
                       position: 'relative'
                     }}
                   >
-                    {/* Baseline Bar (fixed, grayed out) */}
+                    {/* Original Baseline Bar (pre-variation, only shown if different from current) */}
+                    {hasVariation && originalStart && originalEnd && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${originalX}px`,
+                          top: '8px',
+                          width: `${originalWidth}px`,
+                          height: '18px',
+                          backgroundColor: '#64748b',
+                          borderRadius: '4px',
+                          border: '1px dashed #475569',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.65rem',
+                          color: 'white',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title={`Original Commitment: ${formatDate(originalStart)} - ${formatDate(originalEnd)}`}
+                      >
+                        <Lock size={9} style={{ marginRight: '2px' }} />
+                        Original
+                      </div>
+                    )}
+
+                    {/* Current Baseline Bar (fixed, may be same as original if no variation) */}
                     {baselineStart && baselineEnd && (
                       <div
                         style={{
                           position: 'absolute',
                           left: `${baselineX}px`,
-                          top: '12px',
+                          top: hasVariation ? '30px' : '12px',
                           width: `${baselineWidth}px`,
                           height: '20px',
                           backgroundColor: '#94a3b8',
-                          opacity: 0.5,
+                          opacity: 0.6,
                           borderRadius: '4px',
                           display: 'flex',
                           alignItems: 'center',
@@ -474,7 +612,7 @@ export default function GanttContent() {
                           overflow: 'hidden',
                           whiteSpace: 'nowrap'
                         }}
-                        title={`Baseline: ${formatDate(baselineStart)} - ${formatDate(baselineEnd)}`}
+                        title={`${hasVariation ? 'Current ' : ''}Baseline: ${formatDate(baselineStart)} - ${formatDate(baselineEnd)}`}
                       >
                         <Lock size={10} style={{ marginRight: '2px' }} />
                         Baseline
@@ -487,7 +625,7 @@ export default function GanttContent() {
                         style={{
                           position: 'absolute',
                           left: `${actualX}px`,
-                          top: '40px',
+                          top: hasVariation ? '56px' : '40px',
                           width: `${actualWidth}px`,
                           height: '24px',
                           backgroundColor: dragging?.milestoneId === m.id ? '#2563eb' : '#3b82f6',
@@ -583,50 +721,85 @@ export default function GanttContent() {
       {/* Date Summary Table */}
       <div className="card" style={{ marginTop: '1.5rem' }}>
         <h3 style={{ marginBottom: '1rem' }}>Milestone Date Summary</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Ref</th>
-              <th>Name</th>
-              <th>Baseline Start</th>
-              <th>Baseline End</th>
-              <th>Actual Start</th>
-              <th>Forecast End</th>
-              <th>Variance (days)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {milestones.map(m => {
-              const baselineEnd = m.baseline_end_date || m.end_date;
-              const forecastEnd = m.forecast_end_date || m.end_date;
-              let variance = 0;
-              if (baselineEnd && forecastEnd) {
-                variance = Math.round((new Date(forecastEnd) - new Date(baselineEnd)) / (1000 * 60 * 60 * 24));
-              }
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Ref</th>
+                <th>Name</th>
+                <th style={{ backgroundColor: '#f1f5f9' }}>Original Start</th>
+                <th style={{ backgroundColor: '#f1f5f9' }}>Original End</th>
+                <th>Current Start</th>
+                <th>Current End</th>
+                <th>Actual Start</th>
+                <th>Forecast End</th>
+                <th>Variance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {milestones.map(m => {
+                const v1 = originalBaselines[m.id];
+                const originalStart = v1?.baseline_start_date;
+                const originalEnd = v1?.baseline_end_date;
+                const baselineStart = m.baseline_start_date || m.start_date;
+                const baselineEnd = m.baseline_end_date || m.end_date;
+                const forecastEnd = m.forecast_end_date || m.end_date;
 
-              return (
-                <tr key={m.id}>
-                  <td>
-                    <Link to={`/milestones/${m.id}`} style={{ fontFamily: 'monospace', fontWeight: '600', color: '#3b82f6' }}>
-                      {m.milestone_ref}
-                    </Link>
-                  </td>
-                  <td>{m.name}</td>
-                  <td>{formatDate(m.baseline_start_date || m.start_date)}</td>
-                  <td>{formatDate(m.baseline_end_date || m.end_date)}</td>
-                  <td>{formatDate(m.actual_start_date || m.start_date)}</td>
-                  <td>{formatDate(m.forecast_end_date || m.end_date)}</td>
-                  <td style={{ 
-                    fontWeight: '600',
-                    color: variance > 0 ? '#dc2626' : variance < 0 ? '#16a34a' : '#64748b'
-                  }}>
-                    {variance > 0 ? `+${variance}` : variance} days
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                // Check if varied
+                const hasVariation = v1 && (
+                  (originalStart && baselineStart && originalStart !== baselineStart) ||
+                  (originalEnd && baselineEnd && originalEnd !== baselineEnd)
+                );
+
+                // Variance against current baseline
+                let variance = 0;
+                if (baselineEnd && forecastEnd) {
+                  variance = Math.round((new Date(forecastEnd) - new Date(baselineEnd)) / (1000 * 60 * 60 * 24));
+                }
+
+                return (
+                  <tr key={m.id}>
+                    <td>
+                      <Link to={`/milestones/${m.id}`} style={{ fontFamily: 'monospace', fontWeight: '600', color: '#3b82f6' }}>
+                        {m.milestone_ref}
+                      </Link>
+                      {hasVariation && (
+                        <span style={{
+                          marginLeft: '0.5rem',
+                          fontSize: '0.7rem',
+                          backgroundColor: '#fef3c7',
+                          color: '#92400e',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: '3px',
+                          fontWeight: '500'
+                        }}>
+                          Varied
+                        </span>
+                      )}
+                    </td>
+                    <td>{m.name}</td>
+                    <td style={{ backgroundColor: '#f8fafc', color: hasVariation ? '#64748b' : '#94a3b8' }}>
+                      {originalStart ? formatDate(originalStart) : '-'}
+                    </td>
+                    <td style={{ backgroundColor: '#f8fafc', color: hasVariation ? '#64748b' : '#94a3b8' }}>
+                      {originalEnd ? formatDate(originalEnd) : '-'}
+                    </td>
+                    <td>{formatDate(baselineStart)}</td>
+                    <td>{formatDate(baselineEnd)}</td>
+                    <td>{formatDate(m.actual_start_date || m.start_date)}</td>
+                    <td>{formatDate(forecastEnd)}</td>
+                    <td style={{
+                      fontWeight: '600',
+                      color: variance > 0 ? '#dc2626' : variance < 0 ? '#16a34a' : '#64748b'
+                    }}>
+                      {variance > 0 ? `+${variance}` : variance} days
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Info Box */}
@@ -636,13 +809,13 @@ export default function GanttContent() {
           <div>
             <h4 style={{ margin: '0 0 0.5rem 0', color: '#1e40af' }}>Using the Gantt Chart</h4>
             <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#1e40af', fontSize: '0.9rem' }}>
-              <li><strong>Baseline bars (grey):</strong> Fixed dates representing the original plan - cannot be moved</li>
-              <li><strong>Actual/Forecast bars (blue):</strong> Current schedule - drag to adjust dates</li>
-              <li><strong>Drag the whole bar:</strong> Move both start and end dates together</li>
-              <li><strong>Drag the edges:</strong> Adjust start or end date independently</li>
+              <li><strong>Original Baseline (dark grey, dashed):</strong> The initial signed commitment before any variations - shows what was originally agreed</li>
+              <li><strong>Current Baseline (light grey):</strong> The current agreed baseline after any approved variations</li>
+              <li><strong>Actual/Forecast (blue):</strong> Current working schedule - drag to adjust dates</li>
+              <li><strong>"Varied" badge:</strong> Indicates the milestone has been modified by a variation</li>
               <li><strong>Red line:</strong> Today's date</li>
-              <li><strong>Variance:</strong> Positive = behind schedule, Negative = ahead of schedule</li>
-              <li>Changes are saved automatically when you release the mouse</li>
+              <li><strong>Variance:</strong> Positive = behind schedule (vs current baseline), Negative = ahead</li>
+              <li>Drag blue bars to update actual/forecast dates (changes saved automatically)</li>
             </ul>
           </div>
         </div>
