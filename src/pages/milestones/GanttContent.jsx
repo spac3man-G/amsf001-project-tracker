@@ -66,58 +66,40 @@ export default function GanttContent() {
       setMilestones(data || []);
 
       // Fetch original baseline data for all milestones
-      // We check two sources:
-      // 1. milestone_baseline_versions v1 with variation_id = NULL (ideal)
-      // 2. variation_milestones.original_baseline_* from the first applied variation (fallback)
+      // SOURCE OF TRUTH: variation_milestones.original_baseline_* from the FIRST variation
+      // This is the most reliable source because it captures what existed before any variation was applied.
+      // milestone_baseline_versions v1 records may be corrupted (created after variation applied).
       if (data && data.length > 0) {
         const milestoneIds = data.map(m => m.id);
-        const v1Map = {};
+        const originalMap = {};
 
-        // First try: v1 records with no variation_id (true original baseline)
-        const { data: v1Data, error: v1Error } = await supabase
-          .from('milestone_baseline_versions')
-          .select('milestone_id, baseline_start_date, baseline_end_date, baseline_billable')
+        // Primary source: Get original values from variation_milestones (first/earliest variation per milestone)
+        // This is the authoritative source for pre-variation baseline dates
+        const { data: vmData, error: vmError } = await supabase
+          .from('variation_milestones')
+          .select('milestone_id, original_baseline_start, original_baseline_end, original_baseline_cost, created_at')
           .in('milestone_id', milestoneIds)
-          .eq('version', 1)
-          .is('variation_id', null);
+          .order('created_at', { ascending: true });
 
-        if (!v1Error && v1Data) {
-          v1Data.forEach(v => {
-            v1Map[v.milestone_id] = v;
+        if (vmError) {
+          console.warn('Error fetching variation_milestones:', vmError);
+        } else if (vmData && vmData.length > 0) {
+          // Group by milestone_id and take the first (earliest) variation record
+          const seenMilestones = new Set();
+          vmData.forEach(vm => {
+            if (!seenMilestones.has(vm.milestone_id)) {
+              seenMilestones.add(vm.milestone_id);
+              originalMap[vm.milestone_id] = {
+                milestone_id: vm.milestone_id,
+                baseline_start_date: vm.original_baseline_start,
+                baseline_end_date: vm.original_baseline_end,
+                baseline_billable: vm.original_baseline_cost
+              };
+            }
           });
         }
 
-        // Fallback: Get original values from variation_milestones for milestones not yet in v1Map
-        // This handles cases where v1 was created with variation_id set (data model issue)
-        const milestonesNeedingFallback = milestoneIds.filter(id => !v1Map[id]);
-        if (milestonesNeedingFallback.length > 0) {
-          // Simple query - get all variation_milestones for these milestones
-          const { data: vmData, error: vmError } = await supabase
-            .from('variation_milestones')
-            .select('milestone_id, original_baseline_start, original_baseline_end, original_baseline_cost, created_at')
-            .in('milestone_id', milestonesNeedingFallback)
-            .order('created_at', { ascending: true });
-
-          if (vmError) {
-            console.warn('Error fetching variation_milestones:', vmError);
-          } else if (vmData && vmData.length > 0) {
-            // Group by milestone_id and take the first (earliest) variation record
-            const seenMilestones = new Set();
-            vmData.forEach(vm => {
-              if (!seenMilestones.has(vm.milestone_id)) {
-                seenMilestones.add(vm.milestone_id);
-                v1Map[vm.milestone_id] = {
-                  milestone_id: vm.milestone_id,
-                  baseline_start_date: vm.original_baseline_start,
-                  baseline_end_date: vm.original_baseline_end,
-                  baseline_billable: vm.original_baseline_cost
-                };
-              }
-            });
-          }
-        }
-
-        setOriginalBaselines(v1Map);
+        setOriginalBaselines(originalMap);
       }
     } catch (error) {
       console.error('Error fetching milestones:', error);
