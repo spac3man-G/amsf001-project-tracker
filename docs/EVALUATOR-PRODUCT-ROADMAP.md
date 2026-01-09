@@ -1,1038 +1,242 @@
 # Evaluator Product Roadmap
 
-## Implementation Plan for Product Improvements
+## Consolidated Implementation Plan
 
-**Document Version**: 1.0
+**Document Version**: 2.0
 **Created**: 08 January 2026
-**Status**: Planning
+**Updated**: 09 January 2026
+**Status**: Active Development
+**Project Context**: CSP Technology Procurement Exercise
 
 ---
 
-## Overview
+## Executive Summary
 
-This document outlines the implementation plan for enhancing the Evaluator module with new features focused on three strategic themes:
+This document consolidates the Evaluator module enhancement plan with specific requirements from the **CSP (Carey Olsen Corporate Services) Technology Platform Selection** project. The CSP project involves evaluating 4 vendors (CSC Entity Management, Athennian, Vistra Platform, Quantios Core) across 55 requirements spanning 7 categories.
 
-1. **Automation & Intelligence** - Reduce manual effort with AI and workflow automation
-2. **Decision Confidence** - Better visualization and analytics for decision-making
-3. **Collaboration Excellence** - Improve stakeholder engagement across all parties
+### Current State Assessment
+
+| Category | Readiness | Gap Severity | Notes |
+|----------|-----------|--------------|-------|
+| Core Evaluation Framework | 85% | Minimal | Scoring, consensus, audit trail built |
+| Requirements Management | 80% | Minor | Consolidation needed |
+| Workshop & Collaboration | 50% | **Major** | Live collaboration critical gap |
+| RFP & Vendor Management | 75% | Medium | Q&A forum now complete |
+| AI Integration | 65% | Medium | Response analysis in roadmap |
+| Reporting & Analytics | 70% | Minor | Traceability matrix needed |
+| Stakeholder Portals | 70% | Medium | Client portal needed |
+| Project Management | 40% | Major | Risk tracking needed |
+| **Overall** | **68%** | **Medium-High** | |
+
+### What's Complete (as of 09 Jan 2026)
+
+- **Vendor Q&A System** (Feature 1.4) - Completed and pushed
+  - `vendor_qa` table with RLS policies
+  - VendorQAService with full workflow
+  - QASubmissionForm and QAHistory components
+  - QAManagementHub for evaluation team
+  - Q&A period management (enable/disable, dates)
+  - Share answered Q&A with all vendors (anonymized)
 
 ---
 
-## Release Schedule
+## Strategic Themes
 
-| Release | Theme | Target | Duration |
-|---------|-------|--------|----------|
-| **v1.1** | Quick Wins | Feb 2026 | 4-6 weeks |
-| **v1.2** | Templates & Analytics | Mar 2026 | 6-8 weeks |
-| **v1.3** | Collaboration | May 2026 | 8-10 weeks |
-| **v2.0** | Platform Evolution | Aug 2026 | 12-16 weeks |
+1. **CSP Project Enablement** - Features required for Jan-May 2026 procurement
+2. **Automation & Intelligence** - AI-powered analysis and workflow automation
+3. **Decision Confidence** - Better visualization and analytics for decision-making
+4. **Collaboration Excellence** - Real-time stakeholder engagement
 
 ---
 
-# Release v1.1: Quick Wins
+## Release Schedule (Updated)
 
-## Feature 1.1.1: Smart Notifications & Reminders
+| Release | Theme | Target | Duration | Status |
+|---------|-------|--------|----------|--------|
+| **v1.0.x** | CSP Critical Path | Jan 2026 | 2-3 weeks | **IN PROGRESS** |
+| **v1.1** | Quick Wins + CSP Phase 2 | Feb 2026 | 4-6 weeks | Planned |
+| **v1.2** | Templates & Analytics | Mar 2026 | 6-8 weeks | Planned |
+| **v1.3** | Collaboration Excellence | May 2026 | 8-10 weeks | Planned |
+| **v2.0** | Platform Evolution | Aug 2026 | 12-16 weeks | Planned |
+
+---
+
+# PHASE 0: CSP CRITICAL PATH (v1.0.x)
+
+## Priority Matrix: Must-Build Before CSP Launch
+
+These features are required before the CSP project can proceed effectively.
+
+| Feature | Effort | Status | Priority |
+|---------|--------|--------|----------|
+| ~~Vendor Q&A Forum~~ | ~~12h~~ | **COMPLETE** | ~~Critical~~ |
+| Live Workshop Collaboration | 40h | Not Started | **Critical** |
+| Client Approval Portal | 20h | Not Started | **Critical** |
+| AI Response Scoring | 8h | Not Started | High |
+| Traceability Matrix Enhancement | 8h | Partial | High |
+| Risk Dashboard | 12h | Not Started | Medium |
+| Financial Analysis View | 6h | Not Started | Medium |
+
+**Total Remaining Effort**: ~94h (excluding completed Q&A)
+
+---
+
+## Feature 0.1: Live Workshop Collaboration [CRITICAL]
 
 ### Purpose
-Automated notifications to keep evaluations moving without manual follow-up.
+Enable real-time requirement capture during stakeholder workshops - essential for CSP requirements gathering phase.
 
-### User Stories
-- As a consultant, I want to be notified when a vendor submits their response so I can review promptly
-- As a vendor, I want reminder emails before my response deadline
-- As a client stakeholder, I want to know when requirements need my approval
-- As an evaluator, I want alerts when score reconciliation is needed
+### User Journey: UJ1.1 - Business Stakeholder Contributing Requirements via Workshop
+
+**Actor:** CSP manager, Finance team member, Compliance officer
+**Trigger:** Workshop date arrival
+
+**Journey Steps:**
+1. User receives workshop invite (email with Outlook integration)
+2. User accepts RSVP through invite link
+3. On workshop day, user joins live collaboration session
+4. Facilitator explains evaluation context and scoring framework
+5. **Requirements entry mode:**
+   - User clicks "Add Requirement"
+   - Types requirement title and description
+   - System provides real-time AI category suggestions based on text content
+   - User selects category (or accepts AI suggestion)
+   - User rates priority (MoSCoW: Must/Should/Could/Won't)
+   - Requirement appears instantly in shared list with "new" indicator
+6. User votes on other requirements (thumbs up, priority dots)
+7. AI consolidation engine runs in real-time, flagging duplicates
+8. Facilitator guides consolidation discussion
+9. User reviews consolidated requirement set
+10. Post-workshop: User completes follow-up survey
+
+**AI Integration Points:**
+- Real-time category suggestion based on requirement text
+- Duplicate/similar requirement detection with merge suggestions
+- Stakeholder perspective analysis
+
+### Use Case: UC1 - Collect stakeholder requirements via workshop
+
+**Actors:** Facilitator, Stakeholders (Finance, IT, Compliance, CSP Partners)
+**Precondition:** Workshop scheduled
+**Flow:**
+1. Facilitator starts live workshop session
+2. Stakeholders join via web portal or Teams link
+3. Facilitator explains evaluation context and success criteria
+4. Stakeholders enter requirements in real-time via quick-add form
+5. System shows live vote counts on requirements (priority/importance)
+6. AI flags likely duplicates in real-time
+7. Facilitator guides final prioritization discussion
+8. Post-workshop: System sends follow-up questionnaire to attendees
+
+**Post-Condition:** All workshop requirements captured and attributed to stakeholder
 
 ### Technical Specification
 
 #### Database Changes
 
 ```sql
--- New table: notification_preferences
-CREATE TABLE notification_preferences (
+-- Live Workshop Tables
+CREATE TABLE workshop_live_requirements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  evaluation_project_id UUID REFERENCES evaluation_projects(id) ON DELETE CASCADE,
-
-  -- Notification types (all default true)
-  notify_vendor_response BOOLEAN DEFAULT true,
-  notify_requirement_approval BOOLEAN DEFAULT true,
-  notify_score_reconciliation BOOLEAN DEFAULT true,
-  notify_workshop_reminder BOOLEAN DEFAULT true,
-  notify_deadline_approaching BOOLEAN DEFAULT true,
-  notify_client_activity BOOLEAN DEFAULT true,
-
-  -- Delivery preferences
-  email_enabled BOOLEAN DEFAULT true,
-  in_app_enabled BOOLEAN DEFAULT true,
-
-  -- Timing preferences
-  reminder_days_before INTEGER DEFAULT 2,
-  digest_frequency VARCHAR(20) DEFAULT 'immediate', -- immediate, daily, weekly
-
+  workshop_id UUID NOT NULL REFERENCES workshops(id) ON DELETE CASCADE,
+  requirement_title VARCHAR(255) NOT NULL,
+  requirement_description TEXT,
+  contributor_id UUID REFERENCES profiles(id),
+  contributor_name VARCHAR(100),
+  ai_suggested_category UUID REFERENCES evaluation_categories(id),
+  category_confidence DECIMAL(3,2),
+  selected_category UUID REFERENCES evaluation_categories(id),
+  priority VARCHAR(20), -- must_have, should_have, could_have, wont_have
+  status VARCHAR(20) DEFAULT 'draft', -- draft, proposed, voted, locked, finalized
+  is_duplicate BOOLEAN DEFAULT false,
+  duplicate_of UUID REFERENCES workshop_live_requirements(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- New table: notifications
-CREATE TABLE notifications (
+CREATE TABLE workshop_live_votes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  evaluation_project_id UUID REFERENCES evaluation_projects(id) ON DELETE CASCADE,
-
-  -- Notification content
-  type VARCHAR(50) NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  message TEXT NOT NULL,
-  action_url TEXT,
-
-  -- Related entities
-  related_entity_type VARCHAR(50), -- vendor, requirement, workshop, score
-  related_entity_id UUID,
-
-  -- Status
-  read_at TIMESTAMPTZ,
-  dismissed_at TIMESTAMPTZ,
-
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_notifications_user_unread ON notifications(user_id, read_at) WHERE read_at IS NULL;
-```
-
-#### Notification Types
-
-| Type | Trigger | Recipients | Timing |
-|------|---------|------------|--------|
-| `vendor_response_submitted` | Vendor submits response | Evaluation team | Immediate |
-| `vendor_response_deadline` | Deadline approaching | Vendor contacts | 7d, 3d, 1d before |
-| `requirement_approval_needed` | Requirement submitted for approval | Client stakeholders | Immediate |
-| `requirement_approved` | Client approves requirement | Evaluation team | Immediate |
-| `score_reconciliation_needed` | Score variance > threshold | Evaluators for that criterion | Immediate |
-| `workshop_reminder` | Upcoming workshop | Attendees, Facilitator | 24h, 1h before |
-| `evaluation_milestone` | Phase completion | Evaluation team | Immediate |
-| `client_comment_added` | Client adds comment | Evaluation team | Immediate |
-
-#### New Service: NotificationService
-
-```javascript
-// src/services/evaluator/notifications.service.js
-
-class NotificationsService extends EvaluatorBaseService {
-  constructor() {
-    super('notifications');
-  }
-
-  // Create notification for user(s)
-  async notify(type, options) {
-    const { evaluationProjectId, recipientUserIds, title, message, actionUrl, relatedEntity } = options;
-    // Check user preferences before creating
-    // Create notification records
-    // Trigger email if preference enabled
-  }
-
-  // Get unread notifications for user
-  async getUnread(userId, evaluationProjectId = null) { }
-
-  // Mark as read
-  async markRead(notificationId, userId) { }
-
-  // Mark all as read
-  async markAllRead(userId, evaluationProjectId = null) { }
-
-  // Get notification preferences
-  async getPreferences(userId, evaluationProjectId) { }
-
-  // Update preferences
-  async updatePreferences(userId, evaluationProjectId, preferences) { }
-}
-```
-
-#### New API Endpoint: Email Delivery
-
-```javascript
-// api/evaluator/send-notification.js
-
-// POST /api/evaluator/send-notification
-// Sends email notification using configured email service
-// Called by database trigger or background job
-
-export default async function handler(req, res) {
-  const { notificationId, userId, type, title, message, actionUrl } = req.body;
-
-  // Get user email from profiles
-  // Render email template based on type
-  // Send via email service (Resend, SendGrid, etc.)
-  // Log delivery status
-}
-```
-
-#### UI Components
-
-```
-src/components/evaluator/notifications/
-├── NotificationBell.jsx        # Header icon with badge
-├── NotificationDropdown.jsx    # Dropdown list of recent
-├── NotificationItem.jsx        # Single notification row
-├── NotificationPreferences.jsx # Settings modal
-└── NotificationCenter.jsx      # Full page view (optional)
-```
-
-#### Integration Points
-
-1. **Header Component**: Add NotificationBell to EvaluatorDashboard header
-2. **Vendor Response Submit**: Trigger `vendor_response_submitted`
-3. **Requirement Status Change**: Trigger `requirement_approval_needed` / `requirement_approved`
-4. **Score Save**: Check variance, trigger `score_reconciliation_needed`
-5. **Workshop Create/Update**: Schedule `workshop_reminder` notifications
-6. **Background Job**: Daily check for approaching deadlines
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| Database migration for notification tables | 2h | None |
-| NotificationService implementation | 4h | Database |
-| Email API endpoint | 4h | Service |
-| NotificationBell component | 3h | Service |
-| NotificationDropdown component | 4h | Service |
-| NotificationPreferences component | 3h | Service |
-| Integration with vendor response flow | 2h | Components |
-| Integration with requirement approval flow | 2h | Components |
-| Integration with scoring flow | 2h | Components |
-| Integration with workshop flow | 2h | Components |
-| Background job for deadline reminders | 4h | Service |
-| Testing and polish | 4h | All |
-| **Total** | **36h** | |
-
----
-
-## Feature 1.1.2: AI-Powered Response Analysis
-
-### Purpose
-Help evaluators quickly understand vendor responses and identify key points.
-
-### User Stories
-- As an evaluator, I want AI to summarize long vendor responses so I can review faster
-- As an evaluator, I want AI to flag potential compliance gaps in responses
-- As an evaluator, I want AI to suggest a score based on response quality
-- As an evaluator, I want to see how this vendor's response compares to others
-
-### Technical Specification
-
-#### New API Endpoint
-
-```javascript
-// api/evaluator/ai-analyze-response.js
-
-// POST /api/evaluator/ai-analyze-response
-// Analyzes a vendor response using Claude
-
-export default async function handler(req, res) {
-  const {
-    responseId,
-    questionText,
-    responseText,
-    requirementContext, // linked requirement details
-    scoringScale,       // what scale we're using
-    otherVendorResponses // anonymized for comparison
-  } = req.body;
-
-  // System prompt for analysis
-  const systemPrompt = `You are an expert technology procurement analyst...`;
-
-  // Call Claude API with structured output
-  const analysis = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    system: systemPrompt,
-    messages: [{ role: 'user', content: buildAnalysisPrompt(...) }],
-    tools: [analyzeResponseTool]
-  });
-
-  // Return structured analysis
-  return res.json({
-    summary: analysis.summary,           // 2-3 sentence summary
-    keyPoints: analysis.keyPoints,       // bullet points
-    complianceGaps: analysis.gaps,       // potential concerns
-    strengths: analysis.strengths,       // positive differentiators
-    suggestedScore: analysis.score,      // recommended score with rationale
-    confidence: analysis.confidence,     // AI confidence level
-    comparisonNotes: analysis.comparison // how it compares to others
-  });
-}
-```
-
-#### Tool Definition
-
-```javascript
-const analyzeResponseTool = {
-  name: 'analyze_vendor_response',
-  description: 'Analyze a vendor response to an RFP question',
-  input_schema: {
-    type: 'object',
-    properties: {
-      summary: {
-        type: 'string',
-        description: '2-3 sentence summary of the response'
-      },
-      keyPoints: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Key points from the response (3-5 bullets)'
-      },
-      gaps: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            issue: { type: 'string' },
-            severity: { enum: ['minor', 'moderate', 'major'] },
-            suggestion: { type: 'string' }
-          }
-        },
-        description: 'Potential compliance gaps or concerns'
-      },
-      strengths: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Strengths and differentiators'
-      },
-      suggestedScore: {
-        type: 'object',
-        properties: {
-          value: { type: 'number' },
-          rationale: { type: 'string' }
-        }
-      },
-      confidence: {
-        enum: ['low', 'medium', 'high'],
-        description: 'Confidence in the analysis'
-      },
-      comparisonNotes: {
-        type: 'string',
-        description: 'How this response compares to others (if provided)'
-      }
-    },
-    required: ['summary', 'keyPoints', 'suggestedScore', 'confidence']
-  }
-};
-```
-
-#### Database Changes
-
-```sql
--- Add AI analysis caching to vendor_responses
-ALTER TABLE vendor_responses ADD COLUMN ai_analysis JSONB;
-ALTER TABLE vendor_responses ADD COLUMN ai_analyzed_at TIMESTAMPTZ;
-
--- Track AI usage
--- (Uses existing ai_tasks table)
-```
-
-#### UI Components
-
-```
-src/components/evaluator/ai/
-├── ResponseAnalysisButton.jsx  # "Analyze with AI" button
-├── ResponseAnalysisPanel.jsx   # Analysis results display
-├── AnalysisSummaryCard.jsx     # Compact summary view
-└── ComplianceGapsList.jsx      # List of identified gaps
-```
-
-#### Integration
-
-1. Add "Analyze with AI" button to VendorResponseForm view mode
-2. Add analysis panel to ScoringInterface when viewing responses
-3. Cache analysis results to avoid re-processing
-4. Show analysis alongside score input
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| API endpoint implementation | 6h | None |
-| Claude tool definition and testing | 4h | API |
-| Database migration for caching | 1h | None |
-| ResponseAnalysisButton component | 2h | API |
-| ResponseAnalysisPanel component | 4h | API |
-| Integration with scoring interface | 3h | Components |
-| Comparison feature (cross-vendor) | 4h | API |
-| Testing and prompt refinement | 4h | All |
-| **Total** | **28h** | |
-
----
-
-## Feature 1.1.3: Dashboard Analytics Widgets
-
-### Purpose
-Provide at-a-glance visibility into evaluation health and progress.
-
-### User Stories
-- As a consultant, I want to see a score heatmap across all vendors and categories
-- As a consultant, I want to see a vendor comparison radar chart
-- As a consultant, I want to track evaluation timeline progress
-- As a consultant, I want to see risk indicators for vendors with issues
-
-### Technical Specification
-
-#### New Dashboard Widgets
-
-**Widget 1: Score Heatmap**
-- Matrix visualization: Vendors (columns) × Categories (rows)
-- Cell color: RAG based on weighted average score
-- Click cell to drill into that vendor-category
-
-**Widget 2: Vendor Comparison Radar**
-- Radar/spider chart with category axes
-- Each vendor as a different colored line
-- Toggle vendors on/off
-- Hover for exact values
-
-**Widget 3: Evaluation Timeline**
-- Gantt-style progress bar
-- Phases: Setup → Discovery → Requirements → Vendors → Evaluation → Decision
-- Current phase highlighted
-- Key milestones marked
-
-**Widget 4: Risk Indicators**
-- Cards showing potential issues:
-  - Vendors with incomplete responses
-  - Requirements with no scores
-  - High score variance needing reconciliation
-  - Overdue deadlines
-- Click to navigate to issue
-
-**Widget 5: Stakeholder Participation**
-- Bar chart of participation by stakeholder area
-- Metrics: requirements contributed, approvals completed, workshop attendance
-- Identify under-represented groups
-
-#### New Service Methods
-
-```javascript
-// src/services/evaluator/analytics.service.js
-
-class AnalyticsService {
-  // Score heatmap data
-  async getScoreHeatmap(evaluationProjectId) {
-    // Returns: { vendors: [], categories: [], scores: [[]] }
-  }
-
-  // Radar chart data
-  async getVendorRadarData(evaluationProjectId, vendorIds) {
-    // Returns: { categories: [], vendors: [{ name, scores: [] }] }
-  }
-
-  // Timeline progress
-  async getTimelineProgress(evaluationProjectId) {
-    // Returns: { phases: [{ name, status, startDate, endDate, completion }] }
-  }
-
-  // Risk indicators
-  async getRiskIndicators(evaluationProjectId) {
-    // Returns: { incompleteResponses, unscoredRequirements, varianceIssues, overdueItems }
-  }
-
-  // Stakeholder participation
-  async getStakeholderParticipation(evaluationProjectId) {
-    // Returns: { areas: [{ name, requirementsCount, approvalsCount, attendanceRate }] }
-  }
-}
-```
-
-#### UI Components
-
-```
-src/components/evaluator/analytics/
-├── ScoreHeatmap.jsx           # Matrix heatmap with Recharts
-├── VendorRadarChart.jsx       # Radar chart with Recharts
-├── EvaluationTimeline.jsx     # Gantt-style progress
-├── RiskIndicatorCards.jsx     # Alert cards
-├── StakeholderParticipation.jsx # Bar chart
-└── AnalyticsDashboard.jsx     # Container with all widgets
-```
-
-#### Dashboard Layout Update
-
-```jsx
-// Updated EvaluatorDashboard.jsx structure
-
-<div className="evaluator-dashboard">
-  <PageHeader ... />
-
-  {/* Existing Quick Actions */}
-  <QuickActionsGrid />
-
-  {/* Existing Stat Cards */}
-  <StatCardsRow />
-
-  {/* NEW: Analytics Section */}
-  <AnalyticsDashboard>
-    <div className="analytics-row">
-      <ScoreHeatmap />
-      <VendorRadarChart />
-    </div>
-    <div className="analytics-row">
-      <EvaluationTimeline />
-      <RiskIndicatorCards />
-    </div>
-    <div className="analytics-row">
-      <StakeholderParticipation />
-    </div>
-  </AnalyticsDashboard>
-</div>
-```
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| AnalyticsService implementation | 6h | None |
-| ScoreHeatmap component | 5h | Service |
-| VendorRadarChart component | 4h | Service |
-| EvaluationTimeline component | 4h | Service |
-| RiskIndicatorCards component | 3h | Service |
-| StakeholderParticipation component | 3h | Service |
-| AnalyticsDashboard container | 2h | All widgets |
-| Dashboard layout integration | 2h | Container |
-| Responsive design adjustments | 3h | Integration |
-| Testing and polish | 4h | All |
-| **Total** | **36h** | |
-
----
-
-## v1.1 Release Summary
-
-| Feature | Effort | Business Value |
-|---------|--------|----------------|
-| Smart Notifications | 36h | Reduces cycle time 20-30% |
-| AI Response Analysis | 28h | Saves 2-3h per vendor |
-| Dashboard Analytics | 36h | Better executive visibility |
-| **Total v1.1** | **100h** | |
-
-**Estimated Duration**: 4-6 weeks (assuming 1 developer)
-
----
-
-# Release v1.2: Templates & Analytics
-
-## Feature 1.2.1: Evaluation Templates
-
-### Purpose
-Enable rapid evaluation setup using pre-built templates.
-
-### User Stories
-- As a consultant, I want to select a template when creating an evaluation
-- As a consultant, I want templates for common evaluation types (CRM, ERP, HRIS)
-- As a consultant, I want to save my evaluation setup as a template for reuse
-- As a consultant, I want to clone from a previous evaluation
-
-### Technical Specification
-
-#### Database Changes
-
-```sql
--- New table: evaluation_templates
-CREATE TABLE evaluation_templates (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-  -- Ownership
-  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-
-  -- Template metadata
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  domain VARCHAR(100), -- CRM, ERP, HRIS, Custom, etc.
-  tags TEXT[],
-
-  -- Template content (JSONB for flexibility)
-  template_data JSONB NOT NULL,
-  /* template_data structure:
-  {
-    "categories": [
-      { "name": "...", "weight": 20, "description": "...", "criteria": [...] }
-    ],
-    "stakeholderAreas": [
-      { "name": "...", "description": "..." }
-    ],
-    "scoringScale": {
-      "type": "numeric",
-      "minValue": 0,
-      "maxValue": 5,
-      "labels": { "0": "Not Met", "5": "Fully Met" }
-    },
-    "questionLibrary": [
-      { "section": "...", "question": "...", "type": "..." }
-    ],
-    "phases": [
-      { "name": "Discovery", "durationDays": 14 }
-    ]
-  }
-  */
-
-  -- Visibility
-  is_public BOOLEAN DEFAULT false, -- visible to all orgs
-  is_system BOOLEAN DEFAULT false, -- provided by platform
-
-  -- Timestamps
+  live_requirement_id UUID NOT NULL REFERENCES workshop_live_requirements(id) ON DELETE CASCADE,
+  voter_id UUID REFERENCES profiles(id),
+  voter_name VARCHAR(100),
+  vote_type VARCHAR(20) NOT NULL, -- thumbs_up, priority_1, priority_2, priority_3
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  UNIQUE(live_requirement_id, voter_id, vote_type)
 );
 
--- Track template usage
-CREATE TABLE evaluation_template_usage (
+CREATE TABLE workshop_phases (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  template_id UUID REFERENCES evaluation_templates(id) ON DELETE SET NULL,
-  evaluation_project_id UUID REFERENCES evaluation_projects(id) ON DELETE CASCADE,
-  used_at TIMESTAMPTZ DEFAULT NOW()
+  workshop_id UUID NOT NULL REFERENCES workshops(id) ON DELETE CASCADE,
+  phase VARCHAR(30) NOT NULL, -- entry, voting, discussion, consolidation, locked
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  ended_at TIMESTAMPTZ,
+  started_by UUID REFERENCES profiles(id)
 );
+
+-- Indexes
+CREATE INDEX idx_workshop_live_req_workshop ON workshop_live_requirements(workshop_id);
+CREATE INDEX idx_workshop_live_votes_req ON workshop_live_votes(live_requirement_id);
 ```
 
-#### Pre-Built System Templates
+#### New Service: WorkshopCollaborationService
 
-**Template: CRM Evaluation**
-```json
-{
-  "name": "CRM Platform Evaluation",
-  "domain": "CRM",
-  "categories": [
-    { "name": "Sales Automation", "weight": 25 },
-    { "name": "Marketing Automation", "weight": 20 },
-    { "name": "Customer Service", "weight": 20 },
-    { "name": "Analytics & Reporting", "weight": 15 },
-    { "name": "Integration & API", "weight": 10 },
-    { "name": "Vendor Viability", "weight": 10 }
-  ],
-  "stakeholderAreas": [
-    { "name": "Sales" },
-    { "name": "Marketing" },
-    { "name": "Customer Success" },
-    { "name": "IT" },
-    { "name": "Finance" }
-  ],
-  "questionLibrary": [
-    { "section": "Sales Automation", "question": "Describe your lead scoring capabilities..." },
-    // ... 20+ questions
-  ]
+```javascript
+// src/services/evaluator/workshopCollaboration.service.js
+
+class WorkshopCollaborationService {
+  // Start live session
+  async startLiveSession(workshopId, facilitatorId) { }
+
+  // Add live requirement
+  async addLiveRequirement(workshopId, data) { }
+
+  // Cast vote
+  async castVote(liveRequirementId, voterId, voteType) { }
+
+  // Remove vote
+  async removeVote(liveRequirementId, voterId, voteType) { }
+
+  // Get vote counts
+  async getVoteCounts(workshopId) { }
+
+  // Change workshop phase
+  async setPhase(workshopId, phase, userId) { }
+
+  // Mark as duplicate
+  async markDuplicate(requirementId, duplicateOfId) { }
+
+  // Finalize to requirements table
+  async finalizeToRequirements(workshopId, userId) { }
+
+  // Get AI category suggestion
+  async suggestCategory(requirementText, evaluationProjectId) { }
+
+  // Detect duplicates
+  async detectDuplicates(workshopId) { }
 }
 ```
 
-**Other System Templates:**
-- ERP Platform Evaluation
-- HRIS/HCM Evaluation
-- Cloud Infrastructure Evaluation
-- Cybersecurity Tools Evaluation
-- Data Analytics Platform Evaluation
-- Collaboration Tools Evaluation
-- Custom (Blank)
-
-#### New Service: TemplatesService
-
-```javascript
-// src/services/evaluator/templates.service.js
-
-class TemplatesService {
-  // Get available templates (system + org-specific)
-  async getAvailable(organisationId) { }
-
-  // Get single template
-  async getTemplate(templateId) { }
-
-  // Create new template
-  async createTemplate(organisationId, userId, data) { }
-
-  // Create evaluation from template
-  async applyTemplate(templateId, evaluationProjectId) { }
-
-  // Save evaluation as template
-  async saveAsTemplate(evaluationProjectId, templateData) { }
-
-  // Clone from existing evaluation
-  async cloneEvaluation(sourceEvaluationId, newEvaluationData) { }
-}
-```
-
-#### UI Components
-
-```
-src/components/evaluator/templates/
-├── TemplateSelector.jsx        # Template picker in create flow
-├── TemplateCard.jsx            # Single template preview
-├── TemplatePreview.jsx         # Full template details modal
-├── SaveAsTemplateModal.jsx     # Save current as template
-└── CloneEvaluationModal.jsx    # Clone from existing
-```
-
-#### Create Evaluation Flow Update
-
-```
-Current: Create → Enter details → Save → Manually configure
-
-New: Create → Select template (or blank) → Enter details → Auto-configure → Review → Save
-```
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| Database migration | 2h | None |
-| TemplatesService implementation | 6h | Database |
-| System templates data (7 templates) | 8h | Service |
-| TemplateSelector component | 4h | Service |
-| TemplateCard component | 2h | Service |
-| TemplatePreview component | 3h | Service |
-| SaveAsTemplateModal component | 3h | Service |
-| CloneEvaluationModal component | 3h | Service |
-| Create evaluation flow integration | 4h | Components |
-| Template application logic | 4h | Service |
-| Testing and polish | 4h | All |
-| **Total** | **43h** | |
-
----
-
-## Feature 1.2.2: Scenario Comparison Tool
-
-### Purpose
-Model "what-if" scenarios to support decision-making.
-
-### User Stories
-- As a consultant, I want to adjust category weights and see how rankings change
-- As a consultant, I want to exclude optional requirements and see impact
-- As a consultant, I want to compare multiple scenarios side-by-side
-- As a consultant, I want to export scenario analysis to reports
-
-### Technical Specification
-
-#### Database Changes
-
-```sql
--- New table: evaluation_scenarios
-CREATE TABLE evaluation_scenarios (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  evaluation_project_id UUID NOT NULL REFERENCES evaluation_projects(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-
-  -- Scenario details
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-
-  -- Scenario configuration
-  config JSONB NOT NULL,
-  /* config structure:
-  {
-    "categoryWeights": { "cat-uuid-1": 30, "cat-uuid-2": 25, ... },
-    "excludedRequirements": ["req-uuid-1", "req-uuid-2"],
-    "excludedCriteria": ["crit-uuid-1"],
-    "vendorSubset": ["vendor-uuid-1", "vendor-uuid-2"] // null = all
-  }
-  */
-
-  -- Calculated results (cached)
-  results JSONB,
-  /* results structure:
-  {
-    "rankings": [
-      { "vendorId": "...", "vendorName": "...", "score": 85.2, "rank": 1 }
-    ],
-    "calculatedAt": "2026-01-15T..."
-  }
-  */
-
-  -- Flags
-  is_baseline BOOLEAN DEFAULT false, -- marks the "current" scenario
-
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### New Service: ScenariosService
-
-```javascript
-// src/services/evaluator/scenarios.service.js
-
-class ScenariosService extends EvaluatorBaseService {
-  constructor() {
-    super('evaluation_scenarios');
-  }
-
-  // Get all scenarios for evaluation
-  async getAll(evaluationProjectId) { }
-
-  // Create scenario
-  async create(evaluationProjectId, userId, config) { }
-
-  // Calculate scenario results
-  async calculate(scenarioId) {
-    // Get scenario config
-    // Apply weight overrides
-    // Exclude specified requirements/criteria
-    // Recalculate vendor scores
-    // Return and cache results
-  }
-
-  // Compare multiple scenarios
-  async compare(scenarioIds) {
-    // Return side-by-side comparison data
-  }
-
-  // Get baseline (current actual)
-  async getBaseline(evaluationProjectId) { }
-
-  // Set as baseline
-  async setAsBaseline(scenarioId) { }
-}
-```
-
-#### UI Components
-
-```
-src/components/evaluator/scenarios/
-├── ScenarioBuilder.jsx         # Create/edit scenario
-├── ScenarioCard.jsx            # Scenario summary card
-├── ScenarioComparison.jsx      # Side-by-side comparison
-├── WeightSliders.jsx           # Category weight adjusters
-├── RequirementExcluder.jsx     # Toggle requirements on/off
-├── RankingChangeIndicator.jsx  # Shows rank movement
-└── ScenarioExport.jsx          # Export to report
-```
-
-#### New Page: Scenarios View
-
-```
-/evaluator/scenarios
-
-- List of saved scenarios
-- "Create Scenario" button
-- Side-by-side comparison view
-- Export options
-```
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| Database migration | 2h | None |
-| ScenariosService implementation | 8h | Database |
-| Calculation engine | 6h | Service |
-| ScenarioBuilder component | 6h | Service |
-| ScenarioCard component | 2h | Service |
-| WeightSliders component | 3h | Builder |
-| RequirementExcluder component | 3h | Builder |
-| ScenarioComparison component | 6h | Service |
-| RankingChangeIndicator component | 2h | Comparison |
-| Scenarios page | 4h | Components |
-| Export functionality | 3h | Page |
-| Testing and polish | 4h | All |
-| **Total** | **49h** | |
-
----
-
-## Feature 1.2.3: Advanced Reporting
-
-### Purpose
-Enhanced report generation with customization and additional formats.
-
-### User Stories
-- As a consultant, I want customizable report sections
-- As a consultant, I want to include scenario analysis in reports
-- As a consultant, I want professional PDF output (not HTML)
-- As a consultant, I want executive summary auto-generation
-- As a consultant, I want to export to PowerPoint format
-
-### Technical Specification
-
-#### Report Builder System
-
-```javascript
-// Report configuration structure
-const reportConfig = {
-  title: "Vendor Evaluation Report",
-  subtitle: "CRM Platform Selection",
-  date: "2026-01-15",
-  preparedFor: "Client Name",
-  preparedBy: "Consultant Name",
-
-  sections: [
-    { type: "executive_summary", enabled: true, aiGenerated: true },
-    { type: "methodology", enabled: true },
-    { type: "requirements_overview", enabled: true, groupBy: "category" },
-    { type: "vendor_profiles", enabled: true, vendorIds: ["all"] },
-    { type: "scoring_matrix", enabled: true },
-    { type: "vendor_comparison", enabled: true, chartType: "radar" },
-    { type: "scenario_analysis", enabled: true, scenarioIds: [...] },
-    { type: "recommendation", enabled: true, aiAssisted: true },
-    { type: "appendix_evidence", enabled: false },
-    { type: "appendix_responses", enabled: false }
-  ],
-
-  branding: {
-    primaryColor: "#3B82F6",
-    logo: "url-to-logo",
-    footerText: "Confidential"
-  }
-};
-```
-
-#### PDF Generation Upgrade
-
-Replace HTML-based PDF with proper PDF generation:
-
-```javascript
-// api/evaluator/generate-report.js (updated)
-
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-
-// OR use Puppeteer for HTML-to-PDF
-import puppeteer from 'puppeteer';
-
-async function generatePDF(reportConfig, data) {
-  // Option 1: jsPDF for programmatic PDF
-  const doc = new jsPDF();
-  // ... build PDF programmatically
-
-  // Option 2: Puppeteer for HTML template rendering
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.setContent(renderHTMLTemplate(reportConfig, data));
-  const pdf = await page.pdf({ format: 'A4' });
-
-  return pdf;
-}
-```
-
-#### AI Executive Summary
-
-```javascript
-// api/evaluator/ai-executive-summary.js
-
-// POST /api/evaluator/ai-executive-summary
-// Generates executive summary using Claude
-
-export default async function handler(req, res) {
-  const { evaluationProjectId, includeRecommendation } = req.body;
-
-  // Gather all evaluation data
-  const data = await gatherEvaluationData(evaluationProjectId);
-
-  // Generate summary with Claude
-  const summary = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    system: 'You are an expert technology procurement consultant...',
-    messages: [{
-      role: 'user',
-      content: buildSummaryPrompt(data, includeRecommendation)
-    }]
-  });
-
-  return res.json({
-    executiveSummary: summary.content,
-    keyFindings: extractKeyFindings(summary),
-    recommendation: includeRecommendation ? extractRecommendation(summary) : null
-  });
-}
-```
-
-#### UI Components
-
-```
-src/components/evaluator/reports/
-├── ReportBuilder.jsx           # Report configuration UI
-├── SectionToggle.jsx           # Enable/disable sections
-├── SectionOrderer.jsx          # Drag to reorder
-├── BrandingConfig.jsx          # Colors, logo, footer
-├── ReportPreview.jsx           # Live preview
-└── ExportOptions.jsx           # PDF, PPTX, Word options
-```
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| Report configuration schema | 2h | None |
-| PDF generation upgrade (Puppeteer) | 8h | Schema |
-| AI executive summary endpoint | 6h | None |
-| ReportBuilder component | 6h | Schema |
-| SectionToggle component | 2h | Builder |
-| SectionOrderer component | 3h | Builder |
-| BrandingConfig component | 3h | Builder |
-| ReportPreview component | 4h | Builder |
-| PowerPoint export (basic) | 6h | Schema |
-| Report templates (3 styles) | 4h | PDF generation |
-| Testing and polish | 4h | All |
-| **Total** | **48h** | |
-
----
-
-## v1.2 Release Summary
-
-| Feature | Effort | Business Value |
-|---------|--------|----------------|
-| Evaluation Templates | 43h | Setup time: days → hours |
-| Scenario Comparison | 49h | Better decision support |
-| Advanced Reporting | 48h | Professional deliverables |
-| **Total v1.2** | **140h** | |
-
-**Estimated Duration**: 6-8 weeks (assuming 1 developer)
-
----
-
-# Release v1.3: Collaboration Excellence
-
-## Feature 1.3.1: Live Collaboration Mode
-
-### Purpose
-Enable real-time requirement capture during workshops.
-
-### User Stories
-- As a facilitator, I want multiple people to add requirements simultaneously
-- As a facilitator, I want live voting/prioritization with stakeholders
-- As a facilitator, I want instant AI categorization suggestions
-- As a facilitator, I want session recording with auto-transcription
-
-### Technical Specification
-
-#### Real-Time Architecture
-
-```
-Option 1: Supabase Realtime (Recommended)
-- Uses existing Supabase infrastructure
-- Postgres LISTEN/NOTIFY under the hood
-- Presence tracking for active users
-- Broadcast for live updates
-
-Option 2: Socket.io
-- Separate WebSocket server
-- More control but more infrastructure
-```
-
-#### Supabase Realtime Implementation
+#### New Hook: useLiveWorkshop
 
 ```javascript
 // src/hooks/useLiveWorkshop.js
-
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 
 export function useLiveWorkshop(workshopId) {
   const [liveRequirements, setLiveRequirements] = useState([]);
   const [activeUsers, setActiveUsers] = useState([]);
   const [votes, setVotes] = useState({});
+  const [currentPhase, setCurrentPhase] = useState('entry');
 
   useEffect(() => {
-    // Subscribe to requirement changes
+    // Subscribe to requirement changes via Supabase Realtime
     const reqChannel = supabase
       .channel(`workshop:${workshopId}:requirements`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'evaluation_requirements',
-        filter: `source_workshop_id=eq.${workshopId}`
-      }, (payload) => {
-        // Handle insert/update/delete
-        handleRequirementChange(payload);
-      })
+        table: 'workshop_live_requirements',
+        filter: `workshop_id=eq.${workshopId}`
+      }, handleRequirementChange)
       .subscribe();
 
     // Subscribe to presence (active users)
@@ -1041,18 +245,12 @@ export function useLiveWorkshop(workshopId) {
       .on('presence', { event: 'sync' }, () => {
         setActiveUsers(presenceChannel.presenceState());
       })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({ user_id: currentUser.id, name: currentUser.name });
-        }
-      });
+      .subscribe();
 
     // Subscribe to votes broadcast
     const voteChannel = supabase
       .channel(`workshop:${workshopId}:votes`)
-      .on('broadcast', { event: 'vote' }, (payload) => {
-        handleVote(payload);
-      })
+      .on('broadcast', { event: 'vote' }, handleVote)
       .subscribe();
 
     return () => {
@@ -1062,580 +260,470 @@ export function useLiveWorkshop(workshopId) {
     };
   }, [workshopId]);
 
-  const addRequirement = async (reqData) => {
-    // Insert via Supabase - realtime will broadcast
+  return {
+    liveRequirements,
+    activeUsers,
+    votes,
+    currentPhase,
+    addRequirement,
+    castVote,
+    removeVote,
+    setPhase
   };
-
-  const castVote = async (requirementId, voteType) => {
-    // Broadcast vote
-    await supabase.channel(`workshop:${workshopId}:votes`)
-      .send({
-        type: 'broadcast',
-        event: 'vote',
-        payload: { requirementId, voteType, userId: currentUser.id }
-      });
-  };
-
-  return { liveRequirements, activeUsers, votes, addRequirement, castVote };
 }
-```
-
-#### Live Capture UI
-
-```
-src/pages/evaluator/LiveWorkshop.jsx
-
-Features:
-- Split view: Facilitator controls | Participant view
-- Real-time requirement list with "just added" highlights
-- Quick-add form (minimal fields)
-- AI categorization chip suggestions
-- Live voting buttons (thumbs up/down, priority dots)
-- Active users indicator
-- Timer/agenda tracker
-- Recording controls (if enabled)
-```
-
-#### AI-Assisted Transcription (Optional)
-
-```javascript
-// api/evaluator/transcribe-workshop.js
-
-// POST /api/evaluator/transcribe-workshop
-// Takes audio file, returns transcript with extracted requirements
-
-// Uses OpenAI Whisper for transcription
-// Uses Claude for requirement extraction from transcript
-```
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| Supabase Realtime setup | 4h | None |
-| useLiveWorkshop hook | 6h | Realtime |
-| LiveWorkshop page | 8h | Hook |
-| Quick-add requirement form | 3h | Page |
-| Live voting system | 4h | Hook |
-| Active users presence | 3h | Hook |
-| AI categorization suggestions | 4h | Form |
-| Timer/agenda component | 2h | Page |
-| Participant view (simplified) | 4h | Page |
-| Facilitator controls | 4h | Page |
-| Transcription API (optional) | 8h | None |
-| Testing and polish | 6h | All |
-| **Total** | **56h** | |
-
----
-
-## Feature 1.3.2: Smart Requirement Consolidation
-
-### Purpose
-AI-powered detection and merging of duplicate/similar requirements.
-
-### User Stories
-- As a consultant, I want AI to identify similar requirements
-- As a consultant, I want to merge requirements with one click
-- As a consultant, I want to see conflicting requirements between stakeholder groups
-- As a consultant, I want auto-grouping suggestions
-
-### Technical Specification
-
-#### New API Endpoint
-
-```javascript
-// api/evaluator/ai-consolidate-requirements.js
-
-// POST /api/evaluator/ai-consolidate-requirements
-// Analyzes all requirements for duplicates and conflicts
-
-export default async function handler(req, res) {
-  const { evaluationProjectId } = req.body;
-
-  // Fetch all requirements
-  const requirements = await fetchAllRequirements(evaluationProjectId);
-
-  // Use Claude to analyze semantic similarity
-  const analysis = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    system: 'You are a requirements analyst...',
-    messages: [{
-      role: 'user',
-      content: buildConsolidationPrompt(requirements)
-    }],
-    tools: [consolidationTool]
-  });
-
-  return res.json({
-    duplicates: analysis.duplicates,      // Groups of similar requirements
-    conflicts: analysis.conflicts,         // Contradicting requirements
-    suggestions: analysis.suggestions,     // Merge/consolidation suggestions
-    groupings: analysis.groupings          // Suggested categorization
-  });
-}
-
-const consolidationTool = {
-  name: 'analyze_requirements',
-  input_schema: {
-    type: 'object',
-    properties: {
-      duplicates: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            requirementIds: { type: 'array', items: { type: 'string' } },
-            similarity: { type: 'number' },
-            suggestedMerge: { type: 'string' }
-          }
-        }
-      },
-      conflicts: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            requirementIds: { type: 'array', items: { type: 'string' } },
-            conflictType: { type: 'string' },
-            resolution: { type: 'string' }
-          }
-        }
-      },
-      groupings: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            suggestedCategory: { type: 'string' },
-            requirementIds: { type: 'array', items: { type: 'string' } }
-          }
-        }
-      }
-    }
-  }
-};
 ```
 
 #### UI Components
 
 ```
-src/components/evaluator/consolidation/
-├── ConsolidationWizard.jsx     # Step-by-step consolidation flow
-├── DuplicateGroupCard.jsx      # Shows similar requirements
-├── ConflictCard.jsx            # Shows conflicting requirements
-├── MergePreview.jsx            # Preview merged requirement
-├── BulkCategorize.jsx          # Apply suggested categories
-└── ConsolidationReport.jsx     # Summary of changes made
+src/pages/evaluator/LiveWorkshop.jsx           # Main live workshop page
+src/components/evaluator/workshop/
+├── LiveRequirementEntry.jsx                   # Quick-add form
+├── LiveRequirementList.jsx                    # Real-time updating list
+├── LiveRequirementCard.jsx                    # Single requirement with votes
+├── LiveVotingPanel.jsx                        # Vote buttons
+├── WorkshopPhaseControl.jsx                   # Facilitator phase controls
+├── ActiveUsersIndicator.jsx                   # Who's online
+├── DuplicateDetectionAlert.jsx                # AI duplicate warning
+├── CategorySuggestionChip.jsx                 # AI category suggestion
+└── WorkshopTimer.jsx                          # Session timer
 ```
 
 ### Implementation Tasks
 
 | Task | Estimate | Dependencies |
 |------|----------|--------------|
-| Consolidation API endpoint | 8h | None |
-| Semantic similarity prompt tuning | 4h | API |
-| ConsolidationWizard component | 6h | API |
-| DuplicateGroupCard component | 3h | Wizard |
-| ConflictCard component | 3h | Wizard |
-| MergePreview component | 3h | Wizard |
-| Merge execution logic | 4h | Service |
-| BulkCategorize component | 3h | Wizard |
-| ConsolidationReport component | 2h | Wizard |
-| Integration with RequirementsHub | 2h | Components |
+| Database migration for live workshop tables | 3h | None |
+| WorkshopCollaborationService implementation | 6h | Database |
+| useLiveWorkshop hook with Supabase Realtime | 6h | Service |
+| LiveWorkshop page | 6h | Hook |
+| LiveRequirementEntry component | 3h | Page |
+| LiveRequirementList + Card components | 4h | Page |
+| LiveVotingPanel component | 3h | Hook |
+| WorkshopPhaseControl component | 3h | Service |
+| ActiveUsersIndicator component | 2h | Hook |
+| AI category suggestion endpoint | 3h | None |
+| DuplicateDetectionAlert + AI endpoint | 4h | Service |
+| Finalize to requirements logic | 3h | Service |
 | Testing and polish | 4h | All |
-| **Total** | **42h** | |
+| **Total** | **50h** | |
 
 ---
 
-## Feature 1.3.3: Vendor Portal Enhancements
+## Feature 0.2: Client Approval Portal [CRITICAL]
 
 ### Purpose
-Improve vendor experience for higher response quality and completion rates.
+Separate portal for internal client stakeholders (Carey Olsen partners, Finance, IT) to review and approve consolidated requirements before RFP.
 
-### User Stories
-- As a vendor, I want real-time validation as I complete the form
-- As a vendor, I want to see my progress through the RFP
-- As a vendor, I want to preview documents before uploading
-- As a vendor, I want to understand question importance/priority
-- As a vendor, I want a compliance checklist to track requirements
+### User Journey: UJ4.1 - Client Stakeholder Accessing Portal for Requirements Approval
 
-### Technical Specification
+**Actor:** Carey Olsen partner, Finance director
+**Trigger:** User receives email: "Please review and approve CSP requirements"
 
-#### Enhanced Vendor Portal Features
+**Journey Steps:**
+1. User clicks portal link in email (unique token-authenticated)
+2. Portal loads with Carey Olsen branding
+3. User sees "Requirements for Approval" dashboard:
+   - 55 requirements organized by category
+   - Status indicators (approved, pending review, revision requested)
+4. User can:
+   - **View by category** (e.g., show only "Integration Requirements")
+   - **View by priority** (e.g., show only "Must Have")
+   - **View by stakeholder area** (e.g., requirements contributed by Finance team)
+5. For each requirement, user sees:
+   - Requirement title and description
+   - Category and priority
+   - Stakeholders who contributed/supported it
+   - Links to RFP questions addressing this requirement
+6. User can add comments on individual requirements
+7. User can:
+   - Approve requirement individually
+   - Flag for revision
+   - Request evidence
+8. User views overall approval progress:
+   - "Your team has approved 42 of 55 requirements (76%)"
+9. User submits final approval with signature
+10. System notifies all stakeholders: "Finance team has approved requirements"
 
-**1. Real-Time Validation**
-```javascript
-// Validation rules per question type
-const validationRules = {
-  textarea: { minLength: 50, maxLength: 5000 },
-  compliance: { required: true },
-  file: { maxSize: '10MB', allowedTypes: ['pdf', 'docx'] }
-};
+### Use Case: UC10 - Client stakeholders review and approve consolidated requirements
 
-// Show inline validation errors as user types
-// Prevent submission until all required fields valid
-```
+**Actors:** Stakeholders (Finance, IT, Compliance, CSP Partners)
+**Precondition:** Requirements consolidation complete
+**Flow:**
+1. System sends approval email to stakeholders with portal link
+2. Stakeholders access client portal
+3. Each stakeholder reviews requirements
+4. Stakeholders vote on requirement approval
+5. System tracks approval percentage per stakeholder area
+6. Once all stakeholder areas approve, requirements are "Approved"
+7. Final approved requirement set locked for RFP
 
-**2. Progress Indicator**
-```jsx
-// Multi-step progress bar
-<ProgressBar>
-  <Step status="complete">Company Info</Step>
-  <Step status="current">Functional Requirements</Step>
-  <Step status="pending">Technical Requirements</Step>
-  <Step status="pending">Pricing</Step>
-  <Step status="pending">Review & Submit</Step>
-</ProgressBar>
-```
-
-**3. Question Importance Indicators**
-```jsx
-// Visual priority markers
-<Question>
-  <ImportanceBadge level="critical" /> {/* Red - must answer fully */}
-  <ImportanceBadge level="high" />     {/* Orange */}
-  <ImportanceBadge level="medium" />   {/* Yellow */}
-  <ImportanceBadge level="low" />      {/* Gray */}
-</Question>
-```
-
-**4. Compliance Checklist Sidebar**
-```jsx
-// Sticky sidebar showing compliance tracking
-<ComplianceSidebar>
-  <ChecklistItem status="met">Security certifications</ChecklistItem>
-  <ChecklistItem status="partial">Data residency</ChecklistItem>
-  <ChecklistItem status="not_met">API documentation</ChecklistItem>
-  <ChecklistItem status="pending">Reference customers</ChecklistItem>
-</ComplianceSidebar>
-```
-
-**5. Document Preview**
-```jsx
-// Preview uploaded documents before final submit
-<DocumentPreview
-  file={uploadedFile}
-  onReplace={handleReplace}
-  onRemove={handleRemove}
-/>
-```
-
-#### Database Changes
-
-```sql
--- Add importance to vendor questions
-ALTER TABLE vendor_questions ADD COLUMN importance VARCHAR(20) DEFAULT 'medium';
--- Values: critical, high, medium, low
-
--- Add validation rules to vendor questions
-ALTER TABLE vendor_questions ADD COLUMN validation_rules JSONB;
-
--- Track partial saves
-ALTER TABLE vendor_responses ADD COLUMN last_saved_at TIMESTAMPTZ;
-ALTER TABLE vendor_responses ADD COLUMN auto_saved BOOLEAN DEFAULT false;
-```
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| Database migration | 1h | None |
-| Real-time validation system | 4h | Migration |
-| ProgressBar component | 3h | None |
-| Question importance badges | 2h | Migration |
-| ComplianceSidebar component | 4h | None |
-| DocumentPreview component | 3h | None |
-| Auto-save functionality | 3h | None |
-| VendorPortal page updates | 6h | All components |
-| Mobile responsiveness | 3h | Page |
-| Testing and polish | 4h | All |
-| **Total** | **33h** | |
-
----
-
-## v1.3 Release Summary
-
-| Feature | Effort | Business Value |
-|---------|--------|----------------|
-| Live Collaboration Mode | 56h | Real-time workshop capture |
-| Smart Requirement Consolidation | 42h | Cleaner requirement sets |
-| Vendor Portal Enhancements | 33h | Higher response rates |
-| **Total v1.3** | **131h** | |
-
-**Estimated Duration**: 8-10 weeks (assuming 1 developer)
-
----
-
-# Release v2.0: Platform Evolution
-
-## Feature 2.0.1: Procurement Workflow Extension
-
-### Purpose
-Extend Evaluator beyond selection into procurement execution.
-
-### User Stories
-- As a consultant, I want to track contract negotiation progress
-- As a consultant, I want a checklist of commercial terms to negotiate
-- As a consultant, I want to link evaluation outcomes to delivery projects
-- As a consultant, I want to track post-implementation success metrics
+**Post-Condition:** Client-approved requirement set ready for RFP
 
 ### Technical Specification
 
 #### Database Changes
 
 ```sql
--- New table: procurement_workflows
-CREATE TABLE procurement_workflows (
+-- Client Portal Access
+CREATE TABLE client_portal_access_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   evaluation_project_id UUID NOT NULL REFERENCES evaluation_projects(id) ON DELETE CASCADE,
-  selected_vendor_id UUID REFERENCES vendors(id) ON DELETE SET NULL,
+  stakeholder_area_id UUID REFERENCES stakeholder_areas(id),
+  user_email VARCHAR(255) NOT NULL,
+  user_name VARCHAR(255),
+  access_token VARCHAR(64) UNIQUE NOT NULL,
+  token_expires_at TIMESTAMPTZ NOT NULL,
+  last_accessed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-  -- Workflow status
-  status VARCHAR(50) NOT NULL DEFAULT 'negotiation',
-  -- Values: negotiation, contracting, implementation_planning, complete, cancelled
+-- Client Requirement Approvals (extends existing requirement_approvals)
+ALTER TABLE requirement_approvals ADD COLUMN IF NOT EXISTS
+  stakeholder_area_id UUID REFERENCES stakeholder_areas(id);
+ALTER TABLE requirement_approvals ADD COLUMN IF NOT EXISTS
+  approval_note TEXT;
+ALTER TABLE requirement_approvals ADD COLUMN IF NOT EXISTS
+  revision_requested BOOLEAN DEFAULT false;
 
-  -- Key dates
-  selection_date DATE,
-  target_contract_date DATE,
-  actual_contract_date DATE,
-  target_go_live_date DATE,
-  actual_go_live_date DATE,
+-- Stakeholder Area Approval Summary
+CREATE TABLE stakeholder_area_approvals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  evaluation_project_id UUID NOT NULL REFERENCES evaluation_projects(id) ON DELETE CASCADE,
+  stakeholder_area_id UUID NOT NULL REFERENCES stakeholder_areas(id),
+  approved_by UUID REFERENCES profiles(id),
+  approved_by_name VARCHAR(255),
+  approved_at TIMESTAMPTZ,
+  approval_signature TEXT, -- Digital signature/confirmation
+  total_requirements INTEGER,
+  approved_count INTEGER,
+  revision_requested_count INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-  -- Commercial tracking
-  proposed_value DECIMAL(15,2),
-  negotiated_value DECIMAL(15,2),
-  final_contract_value DECIMAL(15,2),
+CREATE INDEX idx_client_portal_token ON client_portal_access_tokens(access_token);
+```
 
-  -- Links
-  linked_project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
-  contract_document_id UUID,
+#### New Service: ClientPortalService
 
+```javascript
+// src/services/evaluator/clientPortal.service.js
+
+class ClientPortalService {
+  // Generate access token
+  async generateAccessToken(evaluationProjectId, stakeholderAreaId, email, name) { }
+
+  // Validate token
+  async validateToken(token) { }
+
+  // Get requirements for approval
+  async getRequirementsForApproval(token, filters) { }
+
+  // Approve requirement
+  async approveRequirement(token, requirementId, note) { }
+
+  // Request revision
+  async requestRevision(token, requirementId, reason) { }
+
+  // Submit final area approval
+  async submitAreaApproval(token, signature) { }
+
+  // Get approval progress
+  async getApprovalProgress(evaluationProjectId) { }
+
+  // Send invitation emails
+  async sendInvitations(evaluationProjectId, stakeholderAreaId, emails) { }
+}
+```
+
+#### UI Components
+
+```
+src/pages/evaluator/ClientPortal.jsx           # Main client portal page
+src/components/evaluator/clientPortal/
+├── ClientPortalLogin.jsx                      # Token entry if not in URL
+├── RequirementsApprovalList.jsx               # List with filters
+├── RequirementApprovalCard.jsx                # Single requirement
+├── ApprovalProgressBar.jsx                    # Overall progress
+├── StakeholderAreaProgress.jsx                # Progress by area
+├── ApprovalCommentForm.jsx                    # Add comments
+├── RevisionRequestModal.jsx                   # Request changes
+├── FinalApprovalModal.jsx                     # Digital signature
+└── ClientPortalHeader.jsx                     # Branded header
+```
+
+### Implementation Tasks
+
+| Task | Estimate | Dependencies |
+|------|----------|--------------|
+| Database migration for client portal | 2h | None |
+| ClientPortalService implementation | 5h | Database |
+| Token validation API endpoint | 2h | Service |
+| ClientPortal page | 4h | Service |
+| RequirementsApprovalList component | 3h | Page |
+| RequirementApprovalCard component | 2h | List |
+| ApprovalProgressBar component | 2h | Page |
+| StakeholderAreaProgress component | 2h | Page |
+| ApprovalCommentForm component | 2h | Card |
+| RevisionRequestModal component | 2h | Card |
+| FinalApprovalModal component | 2h | Page |
+| Email invitation integration | 3h | Service |
+| Testing and polish | 3h | All |
+| **Total** | **34h** | |
+
+---
+
+## Feature 0.3: AI Response Scoring Enhancement
+
+### Purpose
+Extend AI response analysis to include score suggestions, helping evaluators score faster and more consistently.
+
+### User Journey: UJ2.3 - Evaluator Reviewing Vendor Response with AI Analysis
+
+**Actor:** Technical evaluator, Solution architect
+**Trigger:** Evaluator clicks "Review Response" on vendor dashboard
+
+**Journey Steps:**
+1. Evaluator opens vendor response view
+2. System displays response with:
+   - Vendor name and submission date
+   - Overall completion percentage
+   - Question-by-question navigation
+3. For each question response, evaluator sees:
+   - **Response text** (vendor's answer)
+   - **Supporting documents** (linked case studies, specs)
+   - **AI Analysis Panel** (system-generated insights)
+4. AI Analysis includes:
+   - **Summary** (2-3 sentence distilled version)
+   - **Key Points** (bullet-point extraction of main claims)
+   - **Compliance Gaps** (areas where response is ambiguous or incomplete)
+   - **Strengths** (positive differentiators)
+   - **Suggested Score** (0-5 with rationale) **[NEW]**
+   - **Confidence Level** (low/medium/high) **[NEW]**
+   - **Comparison Notes** (how this compares to other vendors)
+5. Evaluator scores response using guidance:
+   - Reviews vendor response and AI summary
+   - Sees AI suggested score with rationale
+   - Enters score (can accept, modify, or override AI suggestion)
+   - Enters confidence level
+   - Adds written justification for score
+6. System tracks when evaluator accepts vs overrides AI suggestion
+
+### Technical Specification
+
+#### API Enhancement
+
+```javascript
+// api/evaluator/ai-analyze-response.js (enhanced)
+
+export default async function handler(req, res) {
+  const {
+    responseId,
+    questionText,
+    responseText,
+    requirementContext,
+    scoringScale,
+    scoringGuidance, // NEW: Scoring criteria descriptions
+    otherVendorResponses
+  } = req.body;
+
+  const analysis = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    system: systemPrompt,
+    messages: [{ role: 'user', content: buildAnalysisPrompt(...) }],
+    tools: [analyzeResponseTool]
+  });
+
+  return res.json({
+    summary: analysis.summary,
+    keyPoints: analysis.keyPoints,
+    complianceGaps: analysis.gaps,
+    strengths: analysis.strengths,
+    suggestedScore: {
+      value: analysis.score,           // 0-5
+      rationale: analysis.scoreRationale,
+      confidence: analysis.confidence   // low, medium, high
+    },
+    comparisonNotes: analysis.comparison
+  });
+}
+```
+
+#### Database Changes
+
+```sql
+-- Track AI score suggestions
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS ai_suggested_score DECIMAL(3,1);
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS ai_suggestion_accepted BOOLEAN;
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS ai_analysis_id UUID;
+
+-- Cache AI analysis
+CREATE TABLE vendor_response_ai_analysis (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_response_id UUID NOT NULL REFERENCES vendor_responses(id) ON DELETE CASCADE,
+  analysis_data JSONB NOT NULL,
+  suggested_score DECIMAL(3,1),
+  confidence VARCHAR(20),
+  analyzed_at TIMESTAMPTZ DEFAULT NOW(),
+  model_used VARCHAR(100),
+  token_usage INTEGER
+);
+```
+
+### Implementation Tasks
+
+| Task | Estimate | Dependencies |
+|------|----------|--------------|
+| Enhance ai-analyze-response endpoint | 4h | None |
+| Database migration for AI tracking | 1h | None |
+| Update tool definition with scoring | 2h | API |
+| ResponseAnalysisPanel scoring display | 3h | API |
+| Score suggestion acceptance UI | 2h | Panel |
+| AI suggestion tracking in scores | 2h | Database |
+| Testing and prompt refinement | 4h | All |
+| **Total** | **18h** | |
+
+---
+
+## Feature 0.4: Enhanced Traceability Matrix
+
+### Purpose
+Interactive matrix showing Requirements × Vendors × Scores with drill-down capability.
+
+### User Journey: UJ3.2 - Evaluator Viewing Traceability Matrix
+
+**Actor:** CSP consultant, Steering committee member
+**Trigger:** User navigates to "Traceability View" tab
+
+**Journey Steps:**
+1. System displays interactive traceability matrix:
+   - **Rows:** 55 requirements (grouped by category)
+   - **Columns:** 4 vendors
+   - **Cells:** Colored by score (5=dark green, 4=green, 3=yellow, 2=orange, 1=red)
+2. User can:
+   - **Filter by category** (show only "Integration Requirements")
+   - **Filter by priority** (show only "Must Have" requirements)
+   - **Sort by vendor** (show which vendor scores highest)
+3. User clicks on a cell:
+   - Right panel opens showing:
+     - **Requirement:** Original requirement text
+     - **Related RFP Question:** The question asked
+     - **Vendor Response:** Vendor's response text
+     - **Evidence:** Supporting documents
+     - **Evaluation:** Individual scores + consensus score
+     - **Rationale:** Why consensus score was chosen
+4. System highlights key insights:
+   - "Vistra scores highest on real-time reporting (avg 4.6)"
+   - "All vendors have gap on AEOI automation (avg 3.1)"
+5. User can export traceability report (spreadsheet, detailed PDF)
+
+### Technical Specification
+
+```javascript
+// src/services/evaluator/traceability.service.js
+
+class TraceabilityService {
+  // Get matrix data
+  async getTraceabilityMatrix(evaluationProjectId, options = {}) {
+    const { categoryFilter, priorityFilter, vendorIds } = options;
+    // Returns: {
+    //   requirements: [],
+    //   vendors: [],
+    //   scores: { [reqId]: { [vendorId]: scoreData } },
+    //   insights: []
+    // }
+  }
+
+  // Get drill-down detail
+  async getCellDetail(requirementId, vendorId) {
+    // Returns full detail including response, evidence, scores
+  }
+
+  // Generate insights
+  async generateInsights(evaluationProjectId) {
+    // AI-generated insights about gaps and differentiators
+  }
+
+  // Export matrix
+  async exportMatrix(evaluationProjectId, format) {
+    // format: 'xlsx', 'pdf', 'csv'
+  }
+}
+```
+
+### Implementation Tasks
+
+| Task | Estimate | Dependencies |
+|------|----------|--------------|
+| TraceabilityService implementation | 4h | None |
+| Matrix data query optimization | 2h | Service |
+| TraceabilityMatrix component | 5h | Service |
+| CellDetailPanel component | 3h | Matrix |
+| Matrix filters and sorting | 2h | Matrix |
+| Insights generation (AI) | 3h | Service |
+| Export functionality | 3h | Service |
+| Testing and polish | 2h | All |
+| **Total** | **24h** | |
+
+---
+
+## Feature 0.5: Risk Dashboard
+
+### Purpose
+Track procurement project risks including integration risks, vendor viability, and implementation risks.
+
+### Technical Specification
+
+#### Database Changes
+
+```sql
+CREATE TABLE procurement_risks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  evaluation_project_id UUID NOT NULL REFERENCES evaluation_projects(id) ON DELETE CASCADE,
+
+  -- Risk details
+  risk_title VARCHAR(255) NOT NULL,
+  risk_description TEXT,
+  risk_category VARCHAR(50), -- integration, vendor_viability, implementation, commercial, technical
+
+  -- Assessment
+  probability VARCHAR(20), -- low, medium, high
+  impact VARCHAR(20), -- low, medium, high
+  risk_score INTEGER GENERATED ALWAYS AS (
+    CASE probability WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 END *
+    CASE impact WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 END
+  ) STORED,
+
+  -- Mitigation
+  mitigation_plan TEXT,
+  mitigation_owner UUID REFERENCES profiles(id),
+  mitigation_status VARCHAR(50) DEFAULT 'identified', -- identified, mitigating, mitigated, accepted, escalated
+  mitigation_due_date DATE,
+
+  -- Vendor association (optional)
+  vendor_id UUID REFERENCES vendors(id),
+
+  -- Timestamps
+  created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- New table: procurement_checklist_items
-CREATE TABLE procurement_checklist_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  procurement_workflow_id UUID NOT NULL REFERENCES procurement_workflows(id) ON DELETE CASCADE,
-
-  -- Item details
-  category VARCHAR(100), -- commercial, legal, technical, operational
-  item_name VARCHAR(255) NOT NULL,
-  description TEXT,
-
-  -- Status
-  status VARCHAR(50) DEFAULT 'pending',
-  -- Values: pending, in_progress, complete, not_applicable
-
-  -- Tracking
-  assigned_to UUID REFERENCES profiles(id),
-  due_date DATE,
-  completed_at TIMESTAMPTZ,
-  notes TEXT,
-
-  sort_order INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- New table: success_metrics
-CREATE TABLE success_metrics (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  procurement_workflow_id UUID NOT NULL REFERENCES procurement_workflows(id) ON DELETE CASCADE,
-
-  -- Metric definition
-  metric_name VARCHAR(255) NOT NULL,
-  description TEXT,
-  target_value VARCHAR(100),
-  measurement_frequency VARCHAR(50), -- monthly, quarterly, annually
-
-  -- Tracking
-  current_value VARCHAR(100),
-  last_measured_at TIMESTAMPTZ,
-  status VARCHAR(50), -- on_track, at_risk, off_track
-
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### New Pages
-
-```
-/evaluator/procurement/:workflowId
-├── Overview (status, key dates, value tracking)
-├── Checklist (negotiation items)
-├── Documents (contracts, amendments)
-├── Success Metrics (post-implementation)
-└── Linked Project (if connected)
-```
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| Database migration | 3h | None |
-| ProcurementService | 8h | Database |
-| Procurement dashboard page | 8h | Service |
-| Checklist management | 6h | Service |
-| Document management | 4h | Service |
-| Success metrics tracking | 6h | Service |
-| Project linking integration | 6h | Service |
-| Value tracking charts | 4h | Page |
-| Default checklist templates | 4h | Service |
-| Testing and polish | 6h | All |
-| **Total** | **55h** | |
-
----
-
-## Feature 2.0.2: Multi-Evaluation Benchmarking
-
-### Purpose
-Enable cross-evaluation analytics and organizational learning.
-
-### User Stories
-- As a consultant, I want to see vendor performance across multiple evaluations
-- As a consultant, I want to compare this evaluation's requirements to industry benchmarks
-- As a consultant, I want to build a best practices library from past evaluations
-- As a consultant, I want to see historical trends
-
-### Technical Specification
-
-#### Cross-Evaluation Analytics
-
-```javascript
-// src/services/evaluator/benchmarking.service.js
-
-class BenchmarkingService {
-  // Vendor performance across evaluations
-  async getVendorHistory(vendorName, organisationId) {
-    // Find vendor by name across evaluations
-    // Return: evaluations participated, average score, win rate
-  }
-
-  // Category benchmark comparison
-  async getCategoryBenchmarks(evaluationProjectId, categoryId) {
-    // Compare category weights to org average
-    // Compare requirement counts to similar evaluations
-  }
-
-  // Best practices library
-  async getBestPractices(domain, organisationId) {
-    // Aggregate successful patterns from past evaluations
-    // Return: common categories, typical weights, effective questions
-  }
-
-  // Historical trends
-  async getTrends(organisationId, timeRange) {
-    // Evaluations over time
-    // Average duration
-    // Vendor selection patterns
-  }
-}
-```
-
-#### New Pages
-
-```
-/evaluator/benchmarking
-├── Vendor History (cross-evaluation vendor view)
-├── Category Benchmarks (compare to org averages)
-├── Best Practices (learnings library)
-└── Trends (historical analytics)
-```
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| BenchmarkingService | 10h | None |
-| Vendor history analytics | 6h | Service |
-| Category benchmarks | 6h | Service |
-| Best practices aggregation | 8h | Service |
-| Historical trends | 6h | Service |
-| Benchmarking dashboard page | 8h | Service |
-| Visualization components | 6h | Page |
-| Testing and polish | 6h | All |
-| **Total** | **56h** | |
-
----
-
-## Feature 2.0.3: Advanced Access Control
-
-### Purpose
-Support complex enterprise governance requirements.
-
-### User Stories
-- As an admin, I want to restrict evaluators to specific categories
-- As an admin, I want to enable blinded scoring (can't see other scores)
-- As an admin, I want time-limited access for external consultants
-- As an admin, I want to delegate my access to someone temporarily
-
-### Technical Specification
-
-#### Database Changes
-
-```sql
--- Extend evaluation_project_users with granular permissions
-ALTER TABLE evaluation_project_users ADD COLUMN permissions JSONB DEFAULT '{}';
-/* permissions structure:
-{
-  "categories": ["cat-uuid-1", "cat-uuid-2"], // null = all
-  "vendors": ["vendor-uuid-1"], // null = all
-  "blindedScoring": true, // can't see other evaluator scores
-  "expiresAt": "2026-02-01T00:00:00Z", // null = no expiry
-  "canDelegate": true
-}
-*/
-
--- New table: access_delegations
-CREATE TABLE access_delegations (
+CREATE TABLE procurement_issues (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   evaluation_project_id UUID NOT NULL REFERENCES evaluation_projects(id) ON DELETE CASCADE,
-  delegator_user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  delegate_user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
 
-  -- Delegation scope
-  permissions JSONB NOT NULL, -- same structure as above
-  reason TEXT,
+  issue_title VARCHAR(255) NOT NULL,
+  issue_description TEXT,
+  priority VARCHAR(20), -- low, medium, high, critical
 
-  -- Validity
-  starts_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  expires_at TIMESTAMPTZ NOT NULL,
-  revoked_at TIMESTAMPTZ,
+  resolution_plan TEXT,
+  owner_id UUID REFERENCES profiles(id),
+  status VARCHAR(50) DEFAULT 'open', -- open, in_progress, resolved, closed
 
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ
 );
-```
-
-#### Permission Enforcement
-
-```javascript
-// src/hooks/useEvaluatorPermissions.js (updated)
-
-export function useEvaluatorPermissions() {
-  const { evaluationRole, permissions } = useEvaluationRole();
-
-  const canViewCategory = (categoryId) => {
-    if (!permissions.categories) return true; // null = all
-    return permissions.categories.includes(categoryId);
-  };
-
-  const canViewVendor = (vendorId) => {
-    if (!permissions.vendors) return true;
-    return permissions.vendors.includes(vendorId);
-  };
-
-  const canSeeOtherScores = () => {
-    return !permissions.blindedScoring;
-  };
-
-  const isAccessExpired = () => {
-    if (!permissions.expiresAt) return false;
-    return new Date(permissions.expiresAt) < new Date();
-  };
-
-  // ... existing permissions
-}
 ```
 
 ### Implementation Tasks
@@ -1643,254 +731,485 @@ export function useEvaluatorPermissions() {
 | Task | Estimate | Dependencies |
 |------|----------|--------------|
 | Database migration | 2h | None |
-| Permission service updates | 6h | Database |
-| useEvaluatorPermissions updates | 4h | Service |
-| Category restriction UI | 4h | Hook |
-| Vendor restriction UI | 4h | Hook |
-| Blinded scoring mode | 4h | Hook |
-| Time-limited access UI | 3h | Hook |
-| Delegation management UI | 6h | Service |
-| Access control admin page | 6h | All |
-| RLS policy updates | 4h | Database |
-| Testing and polish | 6h | All |
-| **Total** | **49h** | |
+| RisksService implementation | 4h | Database |
+| RiskDashboard component | 4h | Service |
+| RiskCard component | 2h | Dashboard |
+| RiskForm (create/edit) | 3h | Service |
+| Risk matrix visualization | 3h | Dashboard |
+| Issues list component | 2h | Service |
+| Testing and polish | 2h | All |
+| **Total** | **22h** | |
 
 ---
 
-## Feature 2.0.4: Mobile Scoring App
+## v1.0.x Phase Summary
 
-### Purpose
-Enable scoring and evidence capture on mobile devices.
+| Feature | Effort | Status | Priority |
+|---------|--------|--------|----------|
+| ~~Vendor Q&A Forum~~ | ~~12h~~ | **COMPLETE** | ~~Critical~~ |
+| Live Workshop Collaboration | 50h | Not Started | Critical |
+| Client Approval Portal | 34h | Not Started | Critical |
+| AI Response Scoring | 18h | Not Started | High |
+| Traceability Matrix | 24h | Not Started | High |
+| Risk Dashboard | 22h | Not Started | Medium |
+| **Total Remaining** | **148h** | | |
 
-### User Stories
-- As an evaluator, I want to score vendors during live demos
-- As an evaluator, I want to capture voice notes as evidence
-- As an evaluator, I want to take photos/screenshots as evidence
-- As an evaluator, I want offline mode with sync
-
-### Technical Specification
-
-#### Technical Approach
-
-**Option 1: Progressive Web App (PWA)**
-- Reuse existing React codebase
-- Add service worker for offline
-- Responsive mobile-first views
-- Web push notifications
-
-**Option 2: React Native**
-- Separate codebase
-- Better native features
-- More development effort
-- App store deployment
-
-**Recommended: PWA** (lower effort, shared codebase)
-
-#### PWA Implementation
-
-```javascript
-// service-worker.js
-// Cache API responses for offline use
-// Queue score submissions for sync when online
-
-// src/pages/evaluator/MobileScoring.jsx
-// Simplified mobile-first scoring interface
-
-// src/components/evaluator/mobile/
-// VoiceNoteRecorder.jsx
-// PhotoCapture.jsx
-// OfflineIndicator.jsx
-// SyncStatus.jsx
-```
-
-#### Mobile-Specific Features
-
-1. **Quick Score Entry**: Large touch-friendly score buttons
-2. **Voice Notes**: Record audio, auto-transcribe (optional)
-3. **Photo Capture**: Camera integration for evidence
-4. **Offline Queue**: Save locally, sync when online
-5. **Push Notifications**: Score reminders, deadline alerts
-
-### Implementation Tasks
-
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| PWA service worker setup | 6h | None |
-| Offline data caching | 8h | Service worker |
-| Sync queue implementation | 6h | Caching |
-| MobileScoring page | 8h | None |
-| VoiceNoteRecorder component | 6h | Page |
-| PhotoCapture component | 4h | Page |
-| OfflineIndicator component | 2h | Service worker |
-| SyncStatus component | 2h | Sync queue |
-| Push notification setup | 4h | Service worker |
-| Mobile-responsive CSS | 6h | Page |
-| Testing on devices | 6h | All |
-| **Total** | **58h** | |
+**Timeline**: 4-5 weeks with 1 FTE developer
 
 ---
 
-## Feature 2.0.5: Vendor Intelligence Integration
+# PHASE 1: QUICK WINS (v1.1)
 
-### Purpose
-Auto-populate vendor information from external sources.
+Building on existing roadmap with CSP-specific enhancements.
 
-### User Stories
-- As a consultant, I want vendor profiles auto-populated with company data
-- As a consultant, I want to see recent news about vendors
-- As a consultant, I want financial stability indicators
-- As a consultant, I want employee reviews/ratings
+## Feature 1.1: Smart Notifications & Reminders
 
-### Technical Specification
+### Enhanced for CSP Requirements
 
-#### Integration Sources
+**Additional Notification Types:**
 
-| Source | Data | API |
-|--------|------|-----|
-| LinkedIn | Company size, employees, location | LinkedIn API |
-| Crunchbase | Funding, revenue, growth | Crunchbase API |
-| Glassdoor | Employee ratings, reviews | Glassdoor API |
-| News API | Recent articles, sentiment | NewsAPI / Bing News |
-| G2/Capterra | Product reviews, ratings | Scraping or API |
+| Type | Trigger | Recipients | Timing |
+|------|---------|------------|--------|
+| `requirement_approval_needed` | Requirement submitted for approval | Client stakeholders | Immediate |
+| `requirement_approved` | Client approves requirement | Evaluation team | Immediate |
+| `workshop_reminder` | Upcoming workshop | Attendees, Facilitator | 24h, 1h before |
+| `qa_question_submitted` | Vendor asks question | Evaluation team | Immediate |
+| `qa_answer_published` | Question answered | Asking vendor | Immediate |
+| `qa_shared` | Q&A shared with all vendors | All vendors | Immediate |
+| `client_comment_added` | Client adds comment | Evaluation team | Immediate |
+| `evaluation_milestone` | Phase completion | All stakeholders | Immediate |
 
-#### New API Endpoint
+**Estimated Effort**: 36h (as per original roadmap)
 
-```javascript
-// api/evaluator/vendor-intelligence.js
+---
 
-// POST /api/evaluator/vendor-intelligence
-// Fetches external data for a vendor
+## Feature 1.2: AI-Powered Response Analysis
 
-export default async function handler(req, res) {
-  const { vendorName, vendorWebsite } = req.body;
+**Enhancements from CSP requirements:**
+- Include score suggestion (covered in Feature 0.3)
+- Add comparison across vendors
+- Cache analysis for reuse
 
-  const [linkedin, crunchbase, news, reviews] = await Promise.allSettled([
-    fetchLinkedInData(vendorName),
-    fetchCrunchbaseData(vendorName),
-    fetchNewsArticles(vendorName),
-    fetchProductReviews(vendorName)
-  ]);
+**Estimated Effort**: 28h (as per original roadmap)
 
-  return res.json({
-    company: {
-      employees: linkedin.value?.employees,
-      founded: crunchbase.value?.founded,
-      funding: crunchbase.value?.totalFunding,
-      headquarters: linkedin.value?.headquarters
-    },
-    financials: {
-      revenue: crunchbase.value?.revenue,
-      growth: crunchbase.value?.growthRate,
-      fundingRounds: crunchbase.value?.rounds
-    },
-    reputation: {
-      glassdoorRating: null, // if available
-      g2Rating: reviews.value?.g2,
-      recentNews: news.value?.articles
-    },
-    lastUpdated: new Date().toISOString()
-  });
+---
+
+## Feature 1.3: Dashboard Analytics Widgets
+
+**Additional Widgets for CSP:**
+- Stakeholder participation by area (who contributed requirements)
+- Q&A activity (questions asked, response times)
+- Client approval progress
+
+**Estimated Effort**: 36h (as per original roadmap)
+
+---
+
+## Feature 1.4: Vendor Q&A Management [COMPLETE]
+
+**Status**: Implemented and pushed on 09 January 2026
+
+**What was built:**
+- `vendor_qa` table with full RLS policies
+- Q&A period settings (qa_enabled, qa_start_date, qa_end_date)
+- VendorQAService with complete workflow
+- QASubmissionForm component for vendor portal
+- QAHistory component showing own + shared Q&A
+- QAManagementHub for evaluation team
+- Share with all vendors (anonymized option)
+- Withdraw question capability
+
+---
+
+## v1.1 Release Summary
+
+| Feature | Effort | Status |
+|---------|--------|--------|
+| Smart Notifications | 36h | Planned |
+| AI Response Analysis | 28h | Planned |
+| Dashboard Analytics | 36h | Planned |
+| ~~Vendor Q&A~~ | ~~12h~~ | **COMPLETE** |
+| **Total v1.1** | **100h** | |
+
+---
+
+# PHASE 2: TEMPLATES & ANALYTICS (v1.2)
+
+## Feature 2.1: Evaluation Templates
+
+### CSP-Specific Templates
+
+**Template: CSP Entity Management Evaluation**
+```json
+{
+  "name": "CSP Entity Management Evaluation",
+  "domain": "Entity Management",
+  "categories": [
+    { "name": "Functional Requirements", "weight": 36 },
+    { "name": "Integration Requirements", "weight": 30 },
+    { "name": "Technical Architecture", "weight": 12 },
+    { "name": "Compliance Automation", "weight": 9 },
+    { "name": "Vendor Viability", "weight": 6 },
+    { "name": "Commercial Terms", "weight": 7 }
+  ],
+  "stakeholderAreas": [
+    { "name": "Finance" },
+    { "name": "IT" },
+    { "name": "Compliance" },
+    { "name": "CSP Partners" }
+  ],
+  "integrations": [
+    "3E/Elite",
+    "Intapp",
+    "Peppermint"
+  ]
 }
 ```
 
-#### Database Changes
+**Estimated Effort**: 43h (as per original roadmap)
+
+---
+
+## Feature 2.2: Scenario Comparison Tool
+
+**CSP Use Case:**
+- Baseline: Current weightings (Integration 30%, Functional 36%, etc.)
+- Scenario 2: Integration-First (increase integration weight to 50%)
+- Scenario 3: Cost-Conscious (increase cost weight to 20%)
+
+**Estimated Effort**: 49h (as per original roadmap)
+
+---
+
+## Feature 2.3: Advanced Reporting
+
+### AI Executive Summary Enhancement
+
+**CSP-Specific Report Sections:**
+- Integration capability comparison (3E, Intapp, Peppermint)
+- AEOI/CRS compliance gap analysis
+- ViewPoint migration risk assessment
+- 3-year TCO comparison
+
+**Estimated Effort**: 48h (as per original roadmap)
+
+---
+
+## Feature 2.4: AI Requirement Consolidation
+
+### User Journey: UJ1.3 - Evaluator Consolidating Requirements
+
+**Actor:** CSP consultant, Procurement manager
+**Trigger:** User navigates to "Requirements Hub" > "Consolidation" tab
+
+**Journey Steps:**
+1. System displays all raw requirements (workshop + form submissions)
+2. User clicks "Run AI Consolidation"
+3. System analyzes for:
+   - Semantic similarity (AI identifies clusters)
+   - Conflicts/contradictions between stakeholder groups
+   - Categorization suggestions
+4. AI consolidation report displays:
+   - **Duplicate Groups** (e.g., "These 3 requirements mean the same thing")
+   - **Conflicts** (e.g., "Finance wants 'real-time'; IT says 'daily batch sufficient'")
+   - **Auto-Grouping Suggestions**
+5. User reviews and manually adjusts
+6. For each group, user:
+   - Selects canonical requirement
+   - Marks others as absorbed
+   - Adds consolidation note
+7. System generates consolidation report with audit trail
+
+### Technical Specification
 
 ```sql
--- Cache vendor intelligence data
-ALTER TABLE vendors ADD COLUMN intelligence_data JSONB;
-ALTER TABLE vendors ADD COLUMN intelligence_updated_at TIMESTAMPTZ;
+CREATE TABLE requirement_consolidation_groups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  evaluation_project_id UUID NOT NULL REFERENCES evaluation_projects(id) ON DELETE CASCADE,
+  canonical_requirement_id UUID REFERENCES requirements(id),
+  group_name VARCHAR(255),
+  consolidation_type VARCHAR(50), -- duplicate, conflict, variant
+  ai_confidence DECIMAL(3,2),
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE requirement_consolidation_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES requirement_consolidation_groups(id) ON DELETE CASCADE,
+  requirement_id UUID NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
+  role VARCHAR(20), -- canonical, absorbed, variant
+  consolidation_note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
-### Implementation Tasks
+**Estimated Effort**: 42h (from v1.3, accelerated for CSP)
 
-| Task | Estimate | Dependencies |
-|------|----------|--------------|
-| Database migration | 1h | None |
-| LinkedIn integration | 6h | API keys |
-| Crunchbase integration | 6h | API keys |
-| News API integration | 4h | API keys |
-| Review aggregation | 4h | APIs |
-| Intelligence API endpoint | 4h | Integrations |
-| VendorIntelligencePanel component | 6h | API |
-| Auto-populate on vendor create | 3h | API |
-| Refresh intelligence action | 2h | API |
-| Testing and error handling | 4h | All |
-| **Total** | **40h** | |
+---
+
+## v1.2 Release Summary
+
+| Feature | Effort | Priority |
+|---------|--------|----------|
+| Evaluation Templates | 43h | High |
+| Scenario Comparison | 49h | High |
+| Advanced Reporting | 48h | High |
+| AI Requirement Consolidation | 42h | High |
+| **Total v1.2** | **182h** | |
+
+---
+
+# PHASE 3: COLLABORATION EXCELLENCE (v1.3)
+
+## Feature 3.1: Real-Time Multi-User Editing
+
+Beyond workshops - enable live collaboration on:
+- Requirements editing
+- Scoring sessions
+- Report collaboration
+
+**Estimated Effort**: 56h (as per original roadmap)
+
+---
+
+## Feature 3.2: Vendor Portal Enhancements
+
+### CSP-Specific Enhancements
+
+- Real-time validation (min character counts, required fields)
+- Progress indicator (3 of 25 sections complete)
+- Question importance badges (Critical, High, Medium, Low)
+- Compliance checklist sidebar
+- Document preview before upload
+- Auto-save functionality
+
+**Estimated Effort**: 33h (as per original roadmap)
+
+---
+
+## Feature 3.3: Financial Analysis View
+
+### Use Case: UC12 - Compare vendor scenarios and analyze sensitivity
+
+**Components:**
+- 3-year TCO breakdown per vendor
+- Implementation cost vs ongoing operations
+- Cost sensitivity analysis ("If implementation runs 10% over...")
+- Financial risk indicators
+
+**Estimated Effort**: 20h
+
+---
+
+## v1.3 Release Summary
+
+| Feature | Effort |
+|---------|--------|
+| Real-Time Multi-User Editing | 56h |
+| Vendor Portal Enhancements | 33h |
+| Financial Analysis View | 20h |
+| **Total v1.3** | **109h** |
+
+---
+
+# PHASE 4: PLATFORM EVOLUTION (v2.0)
+
+## Feature 4.1: Procurement Workflow Extension
+
+Track post-selection:
+- Contract negotiation progress
+- Commercial terms checklist
+- Implementation planning
+- Success metrics tracking
+
+**Estimated Effort**: 55h (as per original roadmap)
+
+---
+
+## Feature 4.2: Multi-Evaluation Benchmarking
+
+- Vendor performance across evaluations
+- Category benchmarks vs org averages
+- Best practices library
+- Historical trends
+
+**Estimated Effort**: 56h (as per original roadmap)
+
+---
+
+## Feature 4.3: Advanced Access Control
+
+- Category-restricted evaluators
+- Blinded scoring mode
+- Time-limited access
+- Delegation management
+
+**Estimated Effort**: 49h (as per original roadmap)
+
+---
+
+## Feature 4.4: AI Recommendation Generation
+
+### Use Case: UC13 - Generate executive recommendation report
+
+**AI generates:**
+- Recommended vendor with rationale
+- Risk assessment per vendor
+- Scenario-based recommendations
+- Critical success factors
+
+**Estimated Effort**: 18h
 
 ---
 
 ## v2.0 Release Summary
 
-| Feature | Effort | Business Value |
-|---------|--------|----------------|
-| Procurement Workflow | 55h | End-to-end lifecycle |
-| Multi-Evaluation Benchmarking | 56h | Organizational learning |
-| Advanced Access Control | 49h | Enterprise governance |
-| Mobile Scoring App | 58h | Field capture capability |
-| Vendor Intelligence | 40h | Richer vendor profiles |
-| **Total v2.0** | **258h** | |
-
-**Estimated Duration**: 12-16 weeks (assuming 1 developer)
+| Feature | Effort |
+|---------|--------|
+| Procurement Workflow | 55h |
+| Multi-Evaluation Benchmarking | 56h |
+| Advanced Access Control | 49h |
+| AI Recommendation Generation | 18h |
+| **Total v2.0** | **178h** |
 
 ---
 
-# Complete Roadmap Summary
+# GAP ANALYSIS: COMPLETE STATUS
 
-| Release | Effort | Cumulative | Target Date |
-|---------|--------|------------|-------------|
-| v1.1 Quick Wins | 100h | 100h | Feb 2026 |
-| v1.2 Templates & Analytics | 140h | 240h | Mar 2026 |
-| v1.3 Collaboration | 131h | 371h | May 2026 |
-| v2.0 Platform Evolution | 258h | 629h | Aug 2026 |
+## Updated Gap Status Table
 
-**Total Estimated Effort**: 629 hours (~16 person-weeks)
+| Feature | CSP Need | Current State | Gap | Priority |
+|---------|----------|---------------|-----|----------|
+| **Requirements Management** | | | | |
+| Requirement capture | Required | Built | None | - |
+| AI categorization | Required | v1.2 planned | Minor | High |
+| AI consolidation | Required | v1.2 planned | Minor | High |
+| Requirement approval workflow | Required | Built | None | - |
+| **Workshop Management** | | | | |
+| Workshop scheduling | Required | Built | None | - |
+| Live collaboration | Required | **v1.0.x planned** | **Major** | **Critical** |
+| Real-time requirement entry | Required | **v1.0.x planned** | **Major** | **Critical** |
+| Live voting/prioritization | Required | **v1.0.x planned** | **Major** | **Critical** |
+| **RFP Management** | | | | |
+| RFP templates | Required | v1.2 planned | Minor | High |
+| Question-to-requirement linking | Required | Built | None | - |
+| Vendor portal | Required | Built | None | - |
+| **Vendor Response** | | | | |
+| Response capture | Required | Built | None | - |
+| AI response analysis | Required | v1.1 planned | Minor | High |
+| **AI score suggestion** | Required | **v1.0.x planned** | Medium | High |
+| Q&A forum | Required | **COMPLETE** | **None** | - |
+| **Evaluation & Scoring** | | | | |
+| Individual scoring | Required | Built | None | - |
+| Consensus scoring | Required | Built | None | - |
+| Score variance detection | Required | v1.1 planned | Minor | High |
+| **Traceability** | | | | |
+| Requirement-to-Criteria | Required | Built | None | - |
+| **Traceability matrix view** | Required | **v1.0.x planned** | Medium | High |
+| **Stakeholder Portals** | | | | |
+| Vendor portal | Required | Built | None | - |
+| **Client approval portal** | Required | **v1.0.x planned** | **Major** | **Critical** |
+| **Project Management** | | | | |
+| Project status tracking | Required | Built | None | - |
+| **Risk tracking** | Required | **v1.0.x planned** | Major | Medium |
+| **Reporting** | | | | |
+| Score heatmap | Required | v1.1 planned | Minor | Medium |
+| Vendor comparison | Required | v1.1 planned | Minor | Medium |
+| Scenario comparison | Required | v1.2 planned | Minor | Medium |
+| PDF generation | Required | v1.2 planned | Minor | High |
+| **AI recommendation** | Required | v2.0 planned | Medium | High |
 
 ---
 
-# Dependencies & Prerequisites
+# COMPLETE ROADMAP SUMMARY
 
-## Technical Dependencies
+| Release | Focus | Effort | Cumulative | Target |
+|---------|-------|--------|------------|--------|
+| v1.0.x | CSP Critical Path | 148h | 148h | Jan 2026 |
+| v1.1 | Quick Wins | 100h | 248h | Feb 2026 |
+| v1.2 | Templates & Analytics | 182h | 430h | Mar-Apr 2026 |
+| v1.3 | Collaboration | 109h | 539h | May 2026 |
+| v2.0 | Platform Evolution | 178h | 717h | Aug 2026 |
 
-| Dependency | Required For | Notes |
-|------------|--------------|-------|
-| Email service (Resend/SendGrid) | Notifications | Need API key setup |
-| Puppeteer/Chromium | PDF generation | Vercel configuration |
-| Supabase Realtime | Live collaboration | Already available |
-| External APIs | Vendor intelligence | LinkedIn, Crunchbase keys |
-
-## Infrastructure Considerations
-
-1. **Database**: No schema changes require downtime
-2. **API**: Vercel serverless scales automatically
-3. **Storage**: Existing Supabase storage sufficient
-4. **Performance**: May need caching for benchmarking queries
+**Total Estimated Effort**: 717 hours (~18 person-weeks)
 
 ---
 
-# Success Metrics
+# USE CASES REFERENCE
 
-| Metric | Baseline | v1.1 Target | v2.0 Target |
-|--------|----------|-------------|-------------|
-| Evaluation setup time | 2-3 days | 4-6 hours | 1-2 hours |
-| Time per vendor review | 4-6 hours | 2-3 hours | 1-2 hours |
-| Workshop-to-requirements time | 2 days | Same day | Real-time |
-| Vendor response rate | Unknown | 85% | 95% |
-| Report generation time | 30 min | 5 min | 2 min |
-| Mobile score capture | 0% | 0% | 50% |
+## Complete Use Case Map
+
+### Phase 1: Requirements Collection
+- **UC1**: Collect stakeholder requirements via workshop (Live collaboration)
+- **UC2**: Distribute e-form for asynchronous requirement collection
+- **UC3**: Consolidate duplicate/similar requirements using AI
+
+### Phase 2: Vendor Assessment
+- **UC4**: Create and customize RFP from template
+- **UC5**: Track vendor response status and send reminders
+- **UC6**: Evaluate vendor response with AI-powered guidance
+
+### Phase 3: Evaluation & Decision
+- **UC7**: Reconcile evaluator score variance through consensus discussion
+- **UC8**: View traceability matrix (requirements → RFP → scores)
+- **UC9**: Generate vendor comparison and recommendation report
+
+### Phase 4: Stakeholder Collaboration
+- **UC10**: Client stakeholders review and approve consolidated requirements
+- **UC11**: Vendor portal post-submission access for Q&A [COMPLETE]
+
+### Phase 5: Decision Support
+- **UC12**: Compare vendor scenarios and analyze sensitivity
+- **UC13**: Generate executive recommendation report
 
 ---
 
-# Risk Mitigation
+# USER JOURNEYS REFERENCE
 
-| Risk | Mitigation |
-|------|------------|
-| AI costs scaling | Token tracking, usage limits, caching |
-| External API rate limits | Caching, queue-based fetching |
-| Mobile offline sync conflicts | Last-write-wins with audit log |
-| Real-time scalability | Supabase handles, monitor usage |
-| Template quality | Start with 3-4 well-tested templates |
+| ID | Journey | Phase | Status |
+|----|---------|-------|--------|
+| UJ1.1 | Stakeholder Contributing Requirements via Workshop | 1 | v1.0.x |
+| UJ1.2 | Stakeholder Submitting Requirements via E-Form | 1 | Built |
+| UJ1.3 | Evaluator Consolidating Requirements | 1 | v1.2 |
+| UJ2.1 | Evaluator Creating RFP from Template | 2 | v1.2 |
+| UJ2.2 | Vendor Completing RFP Response | 2 | Built |
+| UJ2.3 | Evaluator Reviewing Response with AI | 2 | v1.1 |
+| UJ3.1 | Team Reconciling Score Variance | 3 | Built |
+| UJ3.2 | Viewing Traceability Matrix | 3 | v1.0.x |
+| UJ4.1 | Client Stakeholder Approval Portal | 4 | v1.0.x |
+| UJ4.2 | Vendor Post-Submission Q&A | 4 | **COMPLETE** |
+| UJ5.1 | Steering Committee Scenario Analysis | 5 | v1.2 |
+
+---
+
+# NEXT STEPS
+
+## Immediate Actions (This Week)
+
+1. **Apply database migration** for vendor_qa (if not done)
+2. **Begin Feature 0.1**: Live Workshop Collaboration
+   - Database migration for workshop tables
+   - WorkshopCollaborationService
+   - useLiveWorkshop hook
+
+## Week 2
+
+3. **Continue Feature 0.1**: Workshop UI components
+4. **Begin Feature 0.2**: Client Approval Portal
+
+## Week 3
+
+5. **Complete Feature 0.2**: Client Portal testing
+6. **Begin Feature 0.3**: AI Response Scoring
+
+## Week 4
+
+7. **Complete Features 0.3, 0.4**: AI Scoring + Traceability Matrix
+8. **Begin Feature 0.5**: Risk Dashboard
 
 ---
 
 *Document maintained by: Product Team*
-*Last updated: 08 January 2026*
+*Last updated: 09 January 2026*
+*Version: 2.0*
