@@ -150,3 +150,12 @@ export {
   DEADLINE_TYPES,
   DEADLINE_STATUS
 } from './notifications.service';
+
+// v1.1: Vendor Q&A System
+export {
+  vendorQAService,
+  VendorQAService,
+  QA_STATUS,
+  QA_STATUS_CONFIG,
+  QA_CATEGORIES
+} from './vendorQA.service';

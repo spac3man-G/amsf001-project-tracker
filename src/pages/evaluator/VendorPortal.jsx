@@ -21,9 +21,13 @@ import {
   ChevronRight,
   Clock,
   Send,
-  Save
+  Save,
+  HelpCircle,
+  MessageSquare,
+  Plus
 } from 'lucide-react';
-import { vendorQuestionsService, QUESTION_SECTION_CONFIG } from '../../services/evaluator';
+import { vendorQuestionsService, vendorQAService, QUESTION_SECTION_CONFIG } from '../../services/evaluator';
+import { QASubmissionForm, QAHistory } from '../../components/evaluator/vendorPortal';
 import './VendorPortal.css';
 
 // Portal states
@@ -50,6 +54,12 @@ function VendorPortal() {
   const [progress, setProgress] = useState(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
+
+  // Q&A state
+  const [activeTab, setActiveTab] = useState('questions'); // 'questions' | 'qa'
+  const [showQAForm, setShowQAForm] = useState(false);
+  const [qaPeriodOpen, setQAPeriodOpen] = useState(false);
+  const [pendingQACount, setPendingQACount] = useState(0);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -81,7 +91,7 @@ function VendorPortal() {
 
     try {
       setLoadingQuestions(true);
-      const [questionsData, progressData] = await Promise.all([
+      const [questionsData, progressData, qaOpen] = await Promise.all([
         vendorQuestionsService.getQuestionsWithResponses(
           session.evaluationProject.id,
           session.vendor.id
@@ -89,11 +99,13 @@ function VendorPortal() {
         vendorQuestionsService.getResponseProgress(
           session.evaluationProject.id,
           session.vendor.id
-        )
+        ),
+        vendorQAService.isQAPeriodOpen(session.evaluationProject.id)
       ]);
 
       setQuestions(questionsData);
       setProgress(progressData);
+      setQAPeriodOpen(qaOpen);
 
       // Set first section as active
       if (questionsData.length > 0 && !activeSection) {
@@ -280,81 +292,156 @@ function VendorPortal() {
         </div>
       )}
 
+      {/* Main Tabs */}
+      <div className="vendor-portal-tabs">
+        <button
+          className={`vendor-portal-tab ${activeTab === 'questions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('questions')}
+        >
+          <FileText size={18} />
+          RFP Questions
+        </button>
+        <button
+          className={`vendor-portal-tab ${activeTab === 'qa' ? 'active' : ''}`}
+          onClick={() => setActiveTab('qa')}
+        >
+          <MessageSquare size={18} />
+          Q&A
+          {qaPeriodOpen && <span className="tab-badge">Open</span>}
+        </button>
+      </div>
+
       {/* Main Content */}
       <div className="vendor-portal-main">
-        {/* Sidebar - Section Navigation */}
-        <nav className="vendor-portal-sidebar">
-          <h2>
-            <FileText size={18} />
-            Sections
-          </h2>
-          <ul className="vendor-portal-sections">
-            {sections.map(sectionKey => {
-              const config = QUESTION_SECTION_CONFIG[sectionKey] || {};
-              const sectionQuestions = questionsBySection[sectionKey] || [];
-              const answeredCount = sectionQuestions.filter(q => q.response).length;
-              const isActive = activeSection === sectionKey;
+        {activeTab === 'questions' ? (
+          <>
+            {/* Sidebar - Section Navigation */}
+            <nav className="vendor-portal-sidebar">
+              <h2>
+                <FileText size={18} />
+                Sections
+              </h2>
+              <ul className="vendor-portal-sections">
+                {sections.map(sectionKey => {
+                  const config = QUESTION_SECTION_CONFIG[sectionKey] || {};
+                  const sectionQuestions = questionsBySection[sectionKey] || [];
+                  const answeredCount = sectionQuestions.filter(q => q.response).length;
+                  const isActive = activeSection === sectionKey;
 
-              return (
-                <li key={sectionKey}>
-                  <button
-                    className={`vendor-portal-section-btn ${isActive ? 'active' : ''}`}
-                    onClick={() => setActiveSection(sectionKey)}
-                  >
-                    <span className="section-name">{config.label || sectionKey}</span>
-                    <span className="section-progress">
-                      {answeredCount}/{sectionQuestions.length}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                  return (
+                    <li key={sectionKey}>
+                      <button
+                        className={`vendor-portal-section-btn ${isActive ? 'active' : ''}`}
+                        onClick={() => setActiveSection(sectionKey)}
+                      >
+                        <span className="section-name">{config.label || sectionKey}</span>
+                        <span className="section-progress">
+                          {answeredCount}/{sectionQuestions.length}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
 
-          {progress?.isComplete && (
-            <button className="vendor-portal-submit-btn">
-              <Send size={16} />
-              Submit Responses
-            </button>
-          )}
-        </nav>
+              {progress?.isComplete && (
+                <button className="vendor-portal-submit-btn">
+                  <Send size={16} />
+                  Submit Responses
+                </button>
+              )}
+            </nav>
 
-        {/* Questions Area */}
-        <main className="vendor-portal-content">
-          {loadingQuestions ? (
-            <div className="vendor-portal-loading">
-              <div className="spinner" />
-              <span>Loading questions...</span>
-            </div>
-          ) : activeSection && questionsBySection[activeSection] ? (
-            <div className="vendor-portal-questions">
-              <div className="vendor-portal-section-header">
-                <h2>{QUESTION_SECTION_CONFIG[activeSection]?.label || activeSection}</h2>
-                {QUESTION_SECTION_CONFIG[activeSection]?.description && (
-                  <p>{QUESTION_SECTION_CONFIG[activeSection].description}</p>
-                )}
+            {/* Questions Area */}
+            <main className="vendor-portal-content">
+              {loadingQuestions ? (
+                <div className="vendor-portal-loading">
+                  <div className="spinner" />
+                  <span>Loading questions...</span>
+                </div>
+              ) : activeSection && questionsBySection[activeSection] ? (
+                <div className="vendor-portal-questions">
+                  <div className="vendor-portal-section-header">
+                    <h2>{QUESTION_SECTION_CONFIG[activeSection]?.label || activeSection}</h2>
+                    {QUESTION_SECTION_CONFIG[activeSection]?.description && (
+                      <p>{QUESTION_SECTION_CONFIG[activeSection].description}</p>
+                    )}
+                  </div>
+
+                  <div className="vendor-portal-question-list">
+                    {questionsBySection[activeSection].map((question, index) => (
+                      <QuestionItem
+                        key={question.id}
+                        question={question}
+                        index={index}
+                        vendorId={session?.vendor?.id}
+                        onResponseSaved={fetchQuestions}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="vendor-portal-empty">
+                  <FileText size={48} />
+                  <h3>No Questions</h3>
+                  <p>Select a section from the sidebar to view questions.</p>
+                </div>
+              )}
+            </main>
+          </>
+        ) : (
+          /* Q&A Tab Content */
+          <main className="vendor-portal-content vendor-portal-qa-content">
+            <div className="vendor-portal-qa-header">
+              <div>
+                <h2>
+                  <HelpCircle size={20} />
+                  Questions & Answers
+                </h2>
+                <p>
+                  {qaPeriodOpen
+                    ? 'Submit questions to the evaluation team during the Q&A period.'
+                    : 'The Q&A period is currently closed.'}
+                </p>
               </div>
+              {qaPeriodOpen && (
+                <button
+                  className="vendor-portal-ask-btn"
+                  onClick={() => setShowQAForm(!showQAForm)}
+                >
+                  {showQAForm ? (
+                    'Cancel'
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      Ask a Question
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
 
-              <div className="vendor-portal-question-list">
-                {questionsBySection[activeSection].map((question, index) => (
-                  <QuestionItem 
-                    key={question.id}
-                    question={question}
-                    index={index}
-                    vendorId={session?.vendor?.id}
-                    onResponseSaved={fetchQuestions}
-                  />
-                ))}
+            {showQAForm && qaPeriodOpen && (
+              <div className="vendor-portal-qa-form-container">
+                <QASubmissionForm
+                  evaluationProjectId={session?.evaluationProject?.id}
+                  vendorId={session?.vendor?.id}
+                  onSubmitted={() => {
+                    setShowQAForm(false);
+                  }}
+                  onCancel={() => setShowQAForm(false)}
+                />
               </div>
+            )}
+
+            <div className="vendor-portal-qa-history">
+              <QAHistory
+                evaluationProjectId={session?.evaluationProject?.id}
+                vendorId={session?.vendor?.id}
+              />
             </div>
-          ) : (
-            <div className="vendor-portal-empty">
-              <FileText size={48} />
-              <h3>No Questions</h3>
-              <p>Select a section from the sidebar to view questions.</p>
-            </div>
-          )}
-        </main>
+          </main>
+        )}
       </div>
     </div>
   );

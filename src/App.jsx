@@ -90,6 +90,7 @@ const DocumentsHub = lazy(() => import('./pages/evaluator/DocumentsHub'));
 const VendorsHub = lazy(() => import('./pages/evaluator/VendorsHub'));
 const VendorDetail = lazy(() => import('./pages/evaluator/VendorDetail'));
 const QuestionsHub = lazy(() => import('./pages/evaluator/QuestionsHub'));
+const QAManagementHub = lazy(() => import('./pages/evaluator/QAManagementHub'));
 const VendorPortal = lazy(() => import('./pages/evaluator/VendorPortal'));
 const EvaluationHub = lazy(() => import('./pages/evaluator/EvaluationHub'));
 const TraceabilityView = lazy(() => import('./pages/evaluator/TraceabilityView'));
@@ -553,6 +554,11 @@ export default function App() {
                             <Route path="/evaluator/questions" element={
                               <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
                                 <QuestionsHub />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/evaluator/qa" element={
+                              <ProtectedRoute requiredRoles={['admin', 'supplier_pm']}>
+                                <QAManagementHub />
                               </ProtectedRoute>
                             } />
                             <Route path="/evaluator/evaluation" element={

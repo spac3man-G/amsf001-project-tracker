@@ -22,7 +22,8 @@ import {
   FileText,
   Settings,
   Plus,
-  BarChart3
+  BarChart3,
+  MessageSquare
 } from 'lucide-react';
 
 import { useEvaluation } from '../../contexts/EvaluationContext';
@@ -231,6 +232,11 @@ export default function EvaluatorDashboard() {
           icon={<FileText size={20} />}
           title="Questions"
           onClick={() => navigate('/evaluator/questions')}
+        />
+        <QuickActionTile
+          icon={<MessageSquare size={20} />}
+          title="Q&A"
+          onClick={() => navigate('/evaluator/qa')}
         />
         <QuickActionTile
           icon={<CheckSquare size={20} />}

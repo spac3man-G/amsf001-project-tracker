@@ -780,3 +780,136 @@
     border: 1px solid #e5e7eb;
   }
 }
+
+/* ============================================
+   Q&A Section Styles
+   ============================================ */
+
+/* Main Tabs */
+.vendor-portal-tabs {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 24px;
+}
+
+.vendor-portal-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+
+.vendor-portal-tab:hover {
+  color: #374151;
+}
+
+.vendor-portal-tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+.vendor-portal-tab .tab-badge {
+  padding: 2px 8px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+/* Q&A Content */
+.vendor-portal-qa-content {
+  flex: 1;
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.vendor-portal-qa-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.vendor-portal-qa-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.vendor-portal-qa-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.vendor-portal-ask-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.vendor-portal-ask-btn:hover {
+  background: #2563eb;
+}
+
+.vendor-portal-qa-form-container {
+  margin-bottom: 24px;
+}
+
+.vendor-portal-qa-history {
+  /* Container for QAHistory component */
+}
+
+/* Q&A Mobile Responsive */
+@media (max-width: 768px) {
+  .vendor-portal-tabs {
+    padding: 0 16px;
+  }
+
+  .vendor-portal-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 14px 12px;
+    font-size: 13px;
+  }
+
+  .vendor-portal-qa-content {
+    padding: 16px;
+  }
+
+  .vendor-portal-qa-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .vendor-portal-ask-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
