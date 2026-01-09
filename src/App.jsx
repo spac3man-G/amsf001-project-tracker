@@ -68,6 +68,7 @@ const Estimator = lazy(() => import('./pages/estimator/Estimator'));
 const TeamMembers = lazy(() => import('./pages/TeamMembers'));
 const ProjectSettings = lazy(() => import('./pages/ProjectSettings'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
+const AccountNotifications = lazy(() => import('./pages/AccountNotifications'));
 const WorkflowSummary = lazy(() => import('./pages/WorkflowSummary'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Planning = lazy(() => import('./pages/planning/Planning'));
@@ -466,6 +467,9 @@ export default function App() {
                             } />
                             <Route path="/account" element={
                               <ProtectedRoute><AccountSettings /></ProtectedRoute>
+                            } />
+                            <Route path="/account/notifications" element={
+                              <ProtectedRoute><AccountNotifications /></ProtectedRoute>
                             } />
 
                             {/* Workflow Summary - redirect to Dashboard tab */}

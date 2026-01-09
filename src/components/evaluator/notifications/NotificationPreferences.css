@@ -1,0 +1,378 @@
+/**
+ * NotificationPreferences Styles
+ * @version 1.0
+ * @created January 9, 2026
+ */
+
+.notification-preferences {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.notification-preferences.loading,
+.notification-preferences.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.notification-preferences.loading .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.notification-preferences.error button {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.preferences-header {
+  margin-bottom: 32px;
+}
+
+.preferences-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.preferences-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.preferences-error {
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.preferences-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.preferences-section h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.section-description {
+  margin: -8px 0 16px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.preference-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.preference-row:last-child {
+  border-bottom: none;
+}
+
+.preference-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #6b7280;
+}
+
+.preference-info > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.preference-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.preference-description {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Toggle Switch */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle.small {
+  width: 36px;
+  height: 20px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #d1d5db;
+  transition: 0.2s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toggle.small .toggle-slider:before {
+  height: 14px;
+  width: 14px;
+}
+
+.toggle input:checked + .toggle-slider {
+  background-color: #3b82f6;
+}
+
+.toggle input:disabled + .toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.toggle.small input:checked + .toggle-slider:before {
+  transform: translateX(16px);
+}
+
+/* Quiet Hours */
+.quiet-hours-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.time-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.time-input-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.time-input-group input,
+.time-input-group select {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #374151;
+  background: white;
+}
+
+.time-input-group input:focus,
+.time-input-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.time-input-group.timezone select {
+  min-width: 200px;
+}
+
+/* Digest Options */
+.digest-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.digest-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.digest-option label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.digest-option select,
+.digest-option input {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #374151;
+  background: white;
+}
+
+/* Type Preferences Table */
+.type-preferences-table {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.type-table-header {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.type-channel-header {
+  text-align: center;
+}
+
+.type-preference-row {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.type-preference-row:hover {
+  background: #f9fafb;
+}
+
+.type-name {
+  font-size: 13px;
+  color: #374151;
+}
+
+.type-preference-row .toggle {
+  justify-self: center;
+}
+
+/* Actions */
+.preferences-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.save-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.save-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.save-button.saved {
+  background: #10b981;
+}
+
+.save-button .spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .preferences-section {
+    padding: 16px;
+  }
+
+  .quiet-hours-row {
+    flex-direction: column;
+  }
+
+  .time-input-group.timezone select {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .type-table-header,
+  .type-preference-row {
+    grid-template-columns: 1fr 60px 60px;
+    gap: 8px;
+  }
+
+  .type-table-header {
+    font-size: 10px;
+  }
+
+  .type-name {
+    font-size: 12px;
+  }
+}

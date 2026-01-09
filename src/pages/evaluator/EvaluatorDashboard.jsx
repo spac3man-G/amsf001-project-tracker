@@ -31,6 +31,7 @@ import { useEvaluationRole } from '../../hooks/useEvaluationRole';
 import { PageHeader, LoadingSpinner, StatCard } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
 import CreateEvaluationModal from '../../components/evaluator/CreateEvaluationModal';
+import { NotificationCenter } from '../../components/evaluator/notifications';
 import { ScoreHeatmap, VendorRadarChart, EvaluationTimeline, RiskIndicators } from '../../components/evaluator/analytics';
 import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService, workshopsService } from '../../services/evaluator';
 
@@ -185,7 +186,10 @@ export default function EvaluatorDashboard() {
         title="Evaluator Dashboard"
         subtitle={currentEvaluation?.name || 'Select an evaluation'}
         actions={
-          <EvaluationSwitcher />
+          <div className="dashboard-header-actions">
+            <NotificationCenter />
+            <EvaluationSwitcher />
+          </div>
         }
       />
 

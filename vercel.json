@@ -6,6 +6,15 @@
   "functions": {
     "api/planning-ai.js": {
       "maxDuration": 300
+    },
+    "api/evaluator/check-deadlines.js": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/evaluator/check-deadlines",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }

@@ -7,6 +7,13 @@
   padding: 0;
 }
 
+/* Dashboard Header Actions */
+.dashboard-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* Empty State */
 .evaluator-empty-state {
   display: flex;

@@ -7,3 +7,4 @@ export { default as StakeholderAreasManager } from './StakeholderAreasManager';
 export { default as EvaluationCategoriesManager } from './EvaluationCategoriesManager';
 export { default as ScoringScaleManager } from './ScoringScaleManager';
 export { default as ProjectDetailsManager } from './ProjectDetailsManager';
+export { default as DeadlineSchedulesManager } from './DeadlineSchedulesManager';

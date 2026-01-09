@@ -139,3 +139,14 @@ export {
 
 // v1.1: Dashboard Analytics
 export { analyticsService } from './analytics.service';
+
+// v1.1: Notifications System
+export {
+  notificationsService,
+  NotificationsService,
+  NOTIFICATION_TYPES,
+  NOTIFICATION_PRIORITIES,
+  EVENT_TYPES,
+  DEADLINE_TYPES,
+  DEADLINE_STATUS
+} from './notifications.service';

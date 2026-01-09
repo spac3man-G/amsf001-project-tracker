@@ -24,11 +24,12 @@ import {
   Toast 
 } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
-import { 
-  StakeholderAreasManager, 
+import {
+  StakeholderAreasManager,
   EvaluationCategoriesManager,
   ScoringScaleManager,
-  ProjectDetailsManager
+  ProjectDetailsManager,
+  DeadlineSchedulesManager
 } from '../../components/evaluator/settings';
 import { 
   stakeholderAreasService, 
@@ -272,6 +273,12 @@ export default function EvaluationSettings() {
           scales={scoringScales}
           evaluationProjectId={evaluationId}
           onSave={handleSaveScoringScales}
+          isLoading={isLoading}
+        />
+
+        {/* Deadline Reminders */}
+        <DeadlineSchedulesManager
+          evaluationProjectId={evaluationId}
           isLoading={isLoading}
         />
       </div>
