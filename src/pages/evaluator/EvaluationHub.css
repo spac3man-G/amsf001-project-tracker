@@ -747,6 +747,138 @@
   }
 }
 
+/* ============================================================================
+   AI RESPONSES BUTTON
+   ============================================================================ */
+
+.evaluation-hub-btn-ai {
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  border-color: #c7d2fe;
+  color: #4f46e5;
+}
+
+.evaluation-hub-btn-ai:hover {
+  background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+  border-color: #a5b4fc;
+}
+
+.evaluation-hub-btn-ai .ai-badge {
+  color: #6366f1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ============================================================================
+   RESPONSES VIEW
+   ============================================================================ */
+
+.responses-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.responses-view-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.responses-view-empty svg {
+  color: #d1d5db;
+}
+
+.responses-view-empty h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.responses-view-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.responses-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, #eef2ff, #faf5ff);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.responses-view-description {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.responses-view-description .ai-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #6366f1;
+}
+
+.responses-view-description p {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.responses-view-vendor-select {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.responses-view-vendor-select label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.responses-view-vendor-select select {
+  padding: 10px 16px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  min-width: 200px;
+}
+
+.responses-view-vendor-select select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.responses-view-content {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
 @media (max-width: 768px) {
   .evaluation-hub-header {
     flex-direction: column;
@@ -789,5 +921,18 @@
 
   .evidence-view-filters {
     flex-wrap: wrap;
+  }
+
+  .responses-view-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .responses-view-vendor-select {
+    width: 100%;
+  }
+
+  .responses-view-vendor-select select {
+    width: 100%;
   }
 }

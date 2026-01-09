@@ -400,6 +400,101 @@ class AIService {
   }
 
   // ============================================================================
+  // RESPONSE ANALYSIS (v1.1 - Feature 1.1.2)
+  // ============================================================================
+
+  /**
+   * Analyze a vendor response using AI
+   *
+   * @param {string} responseId - Vendor Response UUID
+   * @param {string} userId - User UUID
+   * @param {Object} options - Options { includeComparison, forceRefresh }
+   * @returns {Promise<Object>} Analysis result
+   */
+  async analyzeResponse(responseId, userId, options = {}) {
+    try {
+      const response = await fetch('/api/evaluator/ai-analyze-response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          responseId,
+          userId,
+          includeComparison: options.includeComparison !== false,
+          forceRefresh: options.forceRefresh || false
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to analyze vendor response');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('AIService.analyzeResponse error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get cached AI analysis for a vendor response
+   *
+   * @param {string} responseId - Vendor Response UUID
+   * @returns {Promise<Object|null>} Cached analysis or null
+   */
+  async getCachedAnalysis(responseId) {
+    try {
+      const { data, error } = await supabase
+        .from('vendor_responses')
+        .select('ai_analysis, ai_analyzed_at, ai_analyzed_by')
+        .eq('id', responseId)
+        .single();
+
+      if (error) {
+        console.error('AIService.getCachedAnalysis error:', error);
+        return null;
+      }
+
+      if (!data?.ai_analysis) {
+        return null;
+      }
+
+      return {
+        ...data.ai_analysis,
+        analyzedAt: data.ai_analyzed_at,
+        analyzedBy: data.ai_analyzed_by
+      };
+    } catch (error) {
+      console.error('AIService.getCachedAnalysis failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear cached AI analysis for a response (e.g., after response is updated)
+   *
+   * @param {string} responseId - Vendor Response UUID
+   * @returns {Promise<void>}
+   */
+  async clearCachedAnalysis(responseId) {
+    try {
+      await supabase
+        .from('vendor_responses')
+        .update({
+          ai_analysis: null,
+          ai_analyzed_at: null,
+          ai_analyzed_by: null
+        })
+        .eq('id', responseId);
+    } catch (error) {
+      console.error('AIService.clearCachedAnalysis failed:', error);
+    }
+  }
+
+  // ============================================================================
   // TASK HISTORY & STATISTICS
   // ============================================================================
 

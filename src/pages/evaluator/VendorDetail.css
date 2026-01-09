@@ -602,22 +602,123 @@
   to { transform: rotate(360deg); }
 }
 
+/* ============================================================================
+   TABS
+   ============================================================================ */
+
+.vendor-detail-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: var(--bg-secondary, #f1f5f9);
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.vendor-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.vendor-tab:hover {
+  color: var(--text-primary, #1e293b);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.vendor-tab.active {
+  background: white;
+  color: var(--primary-color, #3b82f6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.vendor-tab .ai-badge {
+  color: var(--primary-color, #6366f1);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ============================================================================
+   RESPONSES TAB
+   ============================================================================ */
+
+.vendor-detail-responses {
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.responses-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.responses-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+}
+
+.responses-header h2 svg {
+  color: var(--primary-color, #6366f1);
+}
+
+.responses-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted, #64748b);
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .vendor-detail {
     padding: 16px;
   }
-  
+
   .vendor-detail-title-row {
     flex-direction: column;
   }
-  
+
   .vendor-detail-icon {
     width: 48px;
     height: 48px;
   }
-  
+
   .vendor-contact-form-row {
     grid-template-columns: 1fr;
+  }
+
+  .vendor-detail-tabs {
+    width: 100%;
+  }
+
+  .vendor-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 12px;
+  }
+
+  .vendor-detail-responses {
+    padding: 16px;
   }
 }

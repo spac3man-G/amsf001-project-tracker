@@ -1,0 +1,253 @@
+/**
+ * VendorRadarChart Styles
+ * @version 1.0
+ * @created January 9, 2026
+ */
+
+.vendor-radar-chart {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.vendor-radar-chart.loading,
+.vendor-radar-chart.error,
+.vendor-radar-chart.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: #6b7280;
+  min-height: 300px;
+}
+
+.vendor-radar-chart.loading .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.vendor-radar-chart.error button {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.radar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.radar-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.vendor-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vendor-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.vendor-toggle:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.vendor-toggle.active {
+  border-color: var(--vendor-color);
+  background: color-mix(in srgb, var(--vendor-color) 10%, white);
+}
+
+.vendor-toggle.active .vendor-toggle-name {
+  color: var(--vendor-color);
+}
+
+.vendor-toggle-name {
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #6b7280;
+}
+
+.vendor-toggle-score {
+  font-weight: 600;
+  color: #374151;
+}
+
+.radar-container {
+  padding: 16px;
+}
+
+.radar-summary {
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.summary-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.ranking-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.ranking-item .rank {
+  font-weight: 700;
+  color: #9ca3af;
+  min-width: 24px;
+}
+
+.ranking-item:nth-child(1) .rank {
+  color: #f59e0b;
+}
+
+.ranking-item:nth-child(2) .rank {
+  color: #9ca3af;
+}
+
+.ranking-item:nth-child(3) .rank {
+  color: #b45309;
+}
+
+.ranking-item .vendor-name {
+  color: #374151;
+  font-weight: 500;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ranking-item .overall-score {
+  font-weight: 600;
+  color: #10b981;
+  margin-left: auto;
+}
+
+/* Tooltip */
+.radar-tooltip {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 160px;
+}
+
+.tooltip-category {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tooltip-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tooltip-score-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.tooltip-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.tooltip-vendor {
+  flex: 1;
+  color: #6b7280;
+}
+
+.tooltip-value {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .radar-header {
+    flex-direction: column;
+  }
+
+  .vendor-toggles {
+    width: 100%;
+  }
+
+  .vendor-toggle {
+    flex: 1;
+    min-width: 100px;
+    justify-content: center;
+  }
+
+  .radar-container {
+    padding: 8px;
+  }
+
+  .ranking-list {
+    flex-direction: column;
+  }
+
+  .ranking-item {
+    width: 100%;
+  }
+}

@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
+import {
   Star,
   ChevronDown,
   ChevronRight,
@@ -21,15 +21,18 @@ import {
   Save,
   Send,
   FileText,
-  Plus
+  Plus,
+  Sparkles,
+  X
 } from 'lucide-react';
-import { 
+import {
   scoresService,
   evidenceService,
   SCORE_STATUS,
   SCORE_STATUS_CONFIG
 } from '../../../services/evaluator';
 import EvidenceCard from './EvidenceCard';
+import { VendorResponseViewer } from '../questions';
 import './ScoringInterface.css';
 
 function ScoringInterface({ 
@@ -46,6 +49,7 @@ function ScoringInterface({
   const [activeCriterion, setActiveCriterion] = useState(null);
   const [savingCriterion, setSavingCriterion] = useState(null);
   const [progress, setProgress] = useState(null);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
   // Initialize expanded categories
   useEffect(() => {
@@ -231,13 +235,55 @@ function ScoringInterface({
           </div>
         )}
 
-        {!readOnly && scoredCount > 0 && (
-          <button className="scoring-submit-btn" onClick={handleSubmitAll}>
-            <Send size={16} />
-            Submit All Scores
+        <div className="scoring-header-actions">
+          <button
+            className={`scoring-ai-btn ${showAiPanel ? 'active' : ''}`}
+            onClick={() => setShowAiPanel(!showAiPanel)}
+            title="AI Response Analysis"
+          >
+            <Sparkles size={16} />
+            AI Assist
           </button>
-        )}
+
+          {!readOnly && scoredCount > 0 && (
+            <button className="scoring-submit-btn" onClick={handleSubmitAll}>
+              <Send size={16} />
+              Submit All Scores
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* AI Response Analysis Panel */}
+      {showAiPanel && (
+        <div className="scoring-ai-panel">
+          <div className="scoring-ai-panel-header">
+            <h3>
+              <Sparkles size={18} />
+              AI Response Analysis
+            </h3>
+            <button
+              className="scoring-ai-panel-close"
+              onClick={() => setShowAiPanel(false)}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="scoring-ai-panel-content">
+            <p className="scoring-ai-panel-description">
+              Review vendor responses with AI-powered analysis. The AI will summarize responses,
+              identify gaps, and suggest scores based on response quality.
+            </p>
+            <VendorResponseViewer
+              vendorId={vendor?.id}
+              evaluationProjectId={evaluationProjectId}
+              vendorName={vendor?.name}
+              showAiAnalysis={true}
+              compact={true}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Categories and Criteria */}
       <div className="scoring-categories">

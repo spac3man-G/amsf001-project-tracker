@@ -1,0 +1,270 @@
+/**
+ * RiskIndicators Styles
+ * @version 1.0
+ * @created January 9, 2026
+ */
+
+.risk-indicators {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.risk-indicators.loading,
+.risk-indicators.error,
+.risk-indicators.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: #6b7280;
+  min-height: 200px;
+}
+
+.risk-indicators.loading .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.risk-indicators.error button {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.risk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.risk-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.risk-summary {
+  display: flex;
+  gap: 8px;
+}
+
+.risk-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.risk-badge.high {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.risk-badge.medium {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.risk-badge.low {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.risk-badge.success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.risk-list {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--risk-bg);
+  border-left: 3px solid var(--risk-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.risk-item:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.risk-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: white;
+  border-radius: 8px;
+  color: var(--risk-color);
+  flex-shrink: 0;
+}
+
+.risk-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.risk-title {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.risk-description {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.risk-affected {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--risk-color);
+  font-weight: 500;
+}
+
+.risk-severity {
+  flex-shrink: 0;
+}
+
+.severity-label {
+  display: block;
+  padding: 4px 8px;
+  background: white;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--risk-color);
+  text-transform: uppercase;
+}
+
+.no-risks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  text-align: center;
+  color: #10b981;
+}
+
+.no-risks p {
+  margin: 16px 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.no-risks span {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.health-score {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.health-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.health-meter {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.health-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease, background-color 0.3s;
+}
+
+.health-value {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.health-number {
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.health-max {
+  color: #9ca3af;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .risk-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .risk-summary {
+    flex-wrap: wrap;
+  }
+
+  .risk-item {
+    flex-wrap: wrap;
+  }
+
+  .risk-severity {
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .health-score {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .health-value {
+    text-align: right;
+  }
+}

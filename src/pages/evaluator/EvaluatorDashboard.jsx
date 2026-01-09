@@ -21,7 +21,8 @@ import {
   GitBranch,
   FileText,
   Settings,
-  Plus
+  Plus,
+  BarChart3
 } from 'lucide-react';
 
 import { useEvaluation } from '../../contexts/EvaluationContext';
@@ -30,6 +31,7 @@ import { useEvaluationRole } from '../../hooks/useEvaluationRole';
 import { PageHeader, LoadingSpinner, StatCard } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
 import CreateEvaluationModal from '../../components/evaluator/CreateEvaluationModal';
+import { ScoreHeatmap, VendorRadarChart, EvaluationTimeline, RiskIndicators } from '../../components/evaluator/analytics';
 import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService, workshopsService } from '../../services/evaluator';
 
 import './EvaluatorDashboard.css';
@@ -300,6 +302,49 @@ export default function EvaluatorDashboard() {
           onClick={() => navigate('/evaluator/settings')}
           status={stats.categories.weightValid ? 'success' : 'warning'}
         />
+      </div>
+
+      {/* Analytics Section */}
+      <div className="dashboard-analytics">
+        <div className="analytics-header">
+          <h2>
+            <BarChart3 size={20} />
+            Analytics Overview
+          </h2>
+        </div>
+
+        <div className="analytics-grid">
+          {/* Row 1: Timeline and Risk */}
+          <div className="analytics-row">
+            <div className="analytics-item timeline-item">
+              <EvaluationTimeline evaluationProjectId={evaluationId} />
+            </div>
+            <div className="analytics-item risk-item">
+              <RiskIndicators evaluationProjectId={evaluationId} />
+            </div>
+          </div>
+
+          {/* Row 2: Heatmap */}
+          <div className="analytics-row full-width">
+            <div className="analytics-item heatmap-item">
+              <ScoreHeatmap
+                evaluationProjectId={evaluationId}
+                onCellClick={(vendor, category) => {
+                  navigate(`/evaluator/vendors/${vendor.id}`, {
+                    state: { highlightCategory: category.id }
+                  });
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Row 3: Radar Chart */}
+          <div className="analytics-row full-width">
+            <div className="analytics-item radar-item">
+              <VendorRadarChart evaluationProjectId={evaluationId} maxVendors={5} />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

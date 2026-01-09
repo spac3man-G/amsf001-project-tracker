@@ -32,7 +32,9 @@ import {
   RefreshCw,
   FileText,
   Star,
-  StarOff
+  StarOff,
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -41,7 +43,7 @@ import {
   VENDOR_STATUS_CONFIG,
   VENDOR_STATUSES
 } from '../../services/evaluator';
-import { VendorForm } from '../../components/evaluator';
+import { VendorForm, VendorResponseViewer } from '../../components/evaluator';
 import './VendorDetail.css';
 
 function VendorDetail() {
@@ -58,6 +60,7 @@ function VendorDetail() {
   const [showAddContact, setShowAddContact] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('details'); // 'details' | 'responses'
 
   // Contact form state
   const [contactForm, setContactForm] = useState({
@@ -307,7 +310,46 @@ function VendorDetail() {
         </div>
       )}
 
-      <div className="vendor-detail-content">
+      {/* Tab Navigation */}
+      <div className="vendor-detail-tabs">
+        <button
+          className={`vendor-tab ${activeTab === 'details' ? 'active' : ''}`}
+          onClick={() => setActiveTab('details')}
+        >
+          <Building2 size={16} />
+          Details
+        </button>
+        <button
+          className={`vendor-tab ${activeTab === 'responses' ? 'active' : ''}`}
+          onClick={() => setActiveTab('responses')}
+        >
+          <MessageSquare size={16} />
+          Responses
+          <Sparkles size={12} className="ai-badge" />
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'responses' ? (
+        <div className="vendor-detail-responses">
+          <div className="responses-header">
+            <h2>
+              <MessageSquare size={20} />
+              Vendor Responses
+            </h2>
+            <p className="responses-subtitle">
+              Review {vendor.name}'s responses to RFP questions with AI-powered analysis
+            </p>
+          </div>
+          <VendorResponseViewer
+            vendorId={vendor.id}
+            evaluationProjectId={currentEvaluation?.id}
+            vendorName={vendor.name}
+            showAiAnalysis={true}
+          />
+        </div>
+      ) : (
+        <div className="vendor-detail-content">
         {/* Left Column */}
         <div className="vendor-detail-main">
           {/* Status Section */}
@@ -608,6 +650,7 @@ function VendorDetail() {
           </section>
         </div>
       </div>
+      )}
 
       {/* Edit Modal */}
       {showEditModal && (

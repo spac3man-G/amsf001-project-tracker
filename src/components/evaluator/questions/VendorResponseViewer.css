@@ -1,0 +1,408 @@
+/**
+ * VendorResponseViewer Styles
+ *
+ * Styles for displaying vendor responses with AI analysis integration.
+ *
+ * @version 1.0
+ * @created January 9, 2026
+ * @phase Evaluator Product Roadmap v1.1 - Feature 1.1.2
+ */
+
+/* ============================================================================
+   CONTAINER
+   ============================================================================ */
+
+.vendor-response-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vendor-response-viewer.compact {
+  gap: 4px;
+}
+
+/* Loading / Error / Empty States */
+.vendor-response-viewer.loading,
+.vendor-response-viewer.error,
+.vendor-response-viewer.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 0.875rem;
+}
+
+.vendor-response-viewer.error {
+  color: var(--color-error, #ef4444);
+}
+
+.loading-indicator .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   RESPONSE ITEM
+   ============================================================================ */
+
+.response-item {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.response-item.has-response {
+  border-left: 3px solid var(--color-success, #10b981);
+}
+
+.response-item.no-response {
+  border-left: 3px solid var(--color-warning, #f59e0b);
+}
+
+.compact .response-item {
+  border-radius: 6px;
+}
+
+/* ============================================================================
+   RESPONSE HEADER
+   ============================================================================ */
+
+.response-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.response-header:hover {
+  background: var(--color-surface-secondary, #f9fafb);
+}
+
+.compact .response-header {
+  padding: 8px 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.header-left svg {
+  flex-shrink: 0;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.question-number {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  background: var(--color-surface-secondary, #f3f4f6);
+  border-radius: 4px;
+}
+
+.question-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compact .question-text {
+  font-size: 0.8125rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.section-badge {
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--color-primary, #6366f1);
+  background: var(--color-primary-light, #eef2ff);
+  border-radius: 4px;
+}
+
+.response-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.response-status.responded {
+  color: var(--color-success, #059669);
+  background: #dcfce7;
+}
+
+.response-status.pending {
+  color: var(--color-warning, #d97706);
+  background: #fef3c7;
+}
+
+.compliance-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.compliance-badge.green {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.compliance-badge.yellow {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.compliance-badge.red {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.compliance-badge.blue {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.compliance-badge.gray {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+/* ============================================================================
+   RESPONSE CONTENT
+   ============================================================================ */
+
+.response-content {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+.compact .response-content {
+  padding: 0 12px 12px;
+}
+
+/* Question Guidance */
+.question-guidance {
+  padding: 12px;
+  margin: 12px 0;
+  background: var(--color-surface-secondary, #f9fafb);
+  border-radius: 6px;
+}
+
+.guidance-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.question-guidance p {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #6b7280);
+  line-height: 1.5;
+}
+
+/* Response Body */
+.response-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.response-text label,
+.response-value label,
+.compliance-notes label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 4px;
+}
+
+.response-text p,
+.compliance-notes p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text, #111827);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.response-value pre {
+  margin: 0;
+  padding: 12px;
+  font-size: 0.8125rem;
+  font-family: monospace;
+  background: var(--color-surface-secondary, #f3f4f6);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+/* Response Metadata */
+.response-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+.meta-item {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+.status-badge {
+  padding: 2px 6px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.status-badge.draft {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.status-badge.submitted {
+  color: #059669;
+  background: #dcfce7;
+}
+
+.status-badge.updated {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+/* No Response Message */
+.no-response-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  margin-top: 12px;
+  color: var(--color-warning, #d97706);
+  background: #fffbeb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+/* ============================================================================
+   AI ANALYSIS SECTION
+   ============================================================================ */
+
+.ai-analysis-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--color-border, #e5e7eb);
+}
+
+.analyze-response-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-primary, #6366f1);
+  background: var(--color-primary-light, #eef2ff);
+  border: 1px solid var(--color-primary, #6366f1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.analyze-response-btn:hover {
+  background: #e0e7ff;
+  transform: translateY(-1px);
+}
+
+.score-preview {
+  padding: 2px 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-success, #059669);
+  background: #dcfce7;
+  border-radius: 4px;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .response-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .header-left {
+    width: 100%;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .question-text {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 480px) {
+  .response-item {
+    border-radius: 6px;
+  }
+
+  .response-header {
+    padding: 10px 12px;
+  }
+
+  .response-content {
+    padding: 0 12px 12px;
+  }
+}

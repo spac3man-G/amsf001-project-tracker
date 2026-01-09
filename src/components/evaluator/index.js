@@ -65,7 +65,8 @@ export {
   QuestionCard,
   QuestionForm,
   QuestionList,
-  VendorResponseForm
+  VendorResponseForm,
+  VendorResponseViewer
 } from './questions';
 
 // Phase 6: Scoring
@@ -91,10 +92,11 @@ export {
   RequirementComments
 } from './client';
 
-// Phase 8A: AI Components
+// Phase 8A: AI Components + v1.1 Response Analysis
 export {
   ParsedRequirementsReview,
-  GapAnalysisResults
+  GapAnalysisResults,
+  ResponseAnalysisPanel
 } from './ai';
 
 // Phase 9: Vendor Portal Components

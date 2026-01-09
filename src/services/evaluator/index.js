@@ -136,3 +136,6 @@ export {
   EMAIL_NOTIFICATION_TYPE,
   EMAIL_TEMPLATES
 } from './emailNotifications.service';
+
+// v1.1: Dashboard Analytics
+export { analyticsService } from './analytics.service';

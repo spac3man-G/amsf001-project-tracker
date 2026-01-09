@@ -23,7 +23,9 @@ import {
   TrendingUp,
   FileText,
   Plus,
-  Filter
+  Filter,
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,11 +36,12 @@ import {
   evidenceService,
   VENDOR_STATUSES
 } from '../../services/evaluator';
-import { 
+import {
   ScoringInterface,
   EvidenceCard,
   EvidenceForm,
-  ReconciliationPanel
+  ReconciliationPanel,
+  VendorResponseViewer
 } from '../../components/evaluator';
 import './EvaluationHub.css';
 
@@ -47,7 +50,8 @@ const VIEW_MODES = {
   OVERVIEW: 'overview',
   SCORING: 'scoring',
   RECONCILIATION: 'reconciliation',
-  EVIDENCE: 'evidence'
+  EVIDENCE: 'evidence',
+  RESPONSES: 'responses'
 };
 
 function EvaluationHub() {
@@ -244,6 +248,7 @@ function EvaluationHub() {
             {viewMode === VIEW_MODES.SCORING && `Score: ${selectedVendor?.name}`}
             {viewMode === VIEW_MODES.RECONCILIATION && 'Score Reconciliation'}
             {viewMode === VIEW_MODES.EVIDENCE && 'Evidence Management'}
+            {viewMode === VIEW_MODES.RESPONSES && 'Vendor Responses'}
           </h1>
           <p className="evaluation-hub-subtitle">
             {currentEvaluation.name}
@@ -253,14 +258,22 @@ function EvaluationHub() {
         <div className="evaluation-hub-actions">
           {viewMode === VIEW_MODES.OVERVIEW && (
             <>
-              <button 
+              <button
+                className="evaluation-hub-btn evaluation-hub-btn-ai"
+                onClick={() => setViewMode(VIEW_MODES.RESPONSES)}
+              >
+                <MessageSquare size={16} />
+                Responses
+                <Sparkles size={12} className="ai-badge" />
+              </button>
+              <button
                 className="evaluation-hub-btn evaluation-hub-btn-secondary"
                 onClick={() => setViewMode(VIEW_MODES.EVIDENCE)}
               >
                 <FileText size={16} />
                 Evidence
               </button>
-              <button 
+              <button
                 className="evaluation-hub-btn evaluation-hub-btn-secondary"
                 onClick={() => setViewMode(VIEW_MODES.RECONCILIATION)}
               >
@@ -331,6 +344,13 @@ function EvaluationHub() {
             onAddEvidence={handleAddEvidence}
             onEditEvidence={handleEditEvidence}
             onDeleteEvidence={handleDeleteEvidence}
+          />
+        )}
+
+        {viewMode === VIEW_MODES.RESPONSES && (
+          <ResponsesView
+            vendors={vendors}
+            evaluationProjectId={currentEvaluation.id}
           />
         )}
       </div>
@@ -647,6 +667,60 @@ function EvidenceView({
               }}
             />
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Responses View Component
+ * View all vendor responses with AI analysis
+ */
+function ResponsesView({ vendors, evaluationProjectId }) {
+  const [selectedVendor, setSelectedVendor] = useState(vendors[0] || null);
+
+  if (vendors.length === 0) {
+    return (
+      <div className="responses-view-empty">
+        <MessageSquare size={48} />
+        <h3>No Vendors Available</h3>
+        <p>Move vendors to evaluation status to view their responses.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="responses-view">
+      <div className="responses-view-header">
+        <div className="responses-view-description">
+          <Sparkles size={18} className="ai-icon" />
+          <p>
+            Review vendor responses to RFP questions with AI-powered analysis.
+            Select a vendor to view their responses and get AI summaries, gap identification, and scoring suggestions.
+          </p>
+        </div>
+        <div className="responses-view-vendor-select">
+          <label>Select Vendor:</label>
+          <select
+            value={selectedVendor?.id || ''}
+            onChange={e => setSelectedVendor(vendors.find(v => v.id === e.target.value))}
+          >
+            {vendors.map(v => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {selectedVendor && (
+        <div className="responses-view-content">
+          <VendorResponseViewer
+            vendorId={selectedVendor.id}
+            evaluationProjectId={evaluationProjectId}
+            vendorName={selectedVendor.name}
+            showAiAnalysis={true}
+          />
         </div>
       )}
     </div>
