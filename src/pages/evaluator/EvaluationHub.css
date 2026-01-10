@@ -245,6 +245,26 @@
   font-weight: 400;
 }
 
+.evaluation-stat-sublabel {
+  font-size: 12px;
+  color: var(--ds-text-tertiary);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.evaluation-stat-card-clickable {
+  cursor: pointer;
+}
+
+.evaluation-stat-card-clickable:hover {
+  background: var(--ds-teal-light);
+}
+
+.evaluation-stat-card-clickable:focus {
+  outline: 2px solid var(--ds-teal);
+  outline-offset: 2px;
+}
+
 /* -----------------------------------------------------------------------------
    Section Styling
    ----------------------------------------------------------------------------- */

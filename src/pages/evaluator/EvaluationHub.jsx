@@ -313,6 +313,8 @@ function EvaluationHub() {
             evidence={evidence}
             onVendorSelect={handleVendorSelect}
             onAddEvidence={handleAddEvidence}
+            onEditEvidence={handleEditEvidence}
+            onViewReconciliation={() => setViewMode(VIEW_MODES.RECONCILIATION)}
             loading={loading}
           />
         )}
@@ -379,15 +381,17 @@ function EvaluationHub() {
 /**
  * Overview View Component
  */
-function OverviewView({ 
-  vendors, 
-  vendorProgress, 
+function OverviewView({
+  vendors,
+  vendorProgress,
   ranking,
   totalCriteria,
   evidence,
   onVendorSelect,
   onAddEvidence,
-  loading 
+  onEditEvidence,
+  onViewReconciliation,
+  loading
 }) {
   if (loading) {
     return (
@@ -419,7 +423,13 @@ function OverviewView({
             <span className="evaluation-stat-label">Vendors to Evaluate</span>
           </div>
         </div>
-        <div className="evaluation-stat-card">
+        <div
+          className="evaluation-stat-card evaluation-stat-card-clickable"
+          onClick={onViewReconciliation}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && onViewReconciliation()}
+        >
           <Star size={24} />
           <div className="evaluation-stat-info">
             <span className="evaluation-stat-value">{totalCriteria}</span>
@@ -433,16 +443,25 @@ function OverviewView({
             <span className="evaluation-stat-label">Evidence Items</span>
           </div>
         </div>
-        <div className="evaluation-stat-card">
+        <div
+          className={`evaluation-stat-card ${ranking.length > 0 && ranking[0].vendor ? 'evaluation-stat-card-clickable' : ''}`}
+          onClick={() => ranking.length > 0 && ranking[0].vendor && onVendorSelect(ranking[0].vendor)}
+          role={ranking.length > 0 && ranking[0].vendor ? "button" : undefined}
+          tabIndex={ranking.length > 0 && ranking[0].vendor ? 0 : undefined}
+          onKeyDown={(e) => e.key === 'Enter' && ranking.length > 0 && ranking[0].vendor && onVendorSelect(ranking[0].vendor)}
+        >
           <TrendingUp size={24} />
           <div className="evaluation-stat-info">
             <span className="evaluation-stat-value">
-              {ranking.length > 0 && ranking[0].score > 0 
-                ? `${ranking[0].score.toFixed(0)}%` 
+              {ranking.length > 0 && ranking[0].score > 0
+                ? `${ranking[0].score.toFixed(0)}%`
                 : '-'
               }
             </span>
             <span className="evaluation-stat-label">Top Score</span>
+            {ranking.length > 0 && ranking[0].vendor && (
+              <span className="evaluation-stat-sublabel">{ranking[0].vendor.name}</span>
+            )}
           </div>
         </div>
       </div>
@@ -520,6 +539,7 @@ function OverviewView({
                 key={ev.id}
                 evidence={ev}
                 compact
+                onClick={() => onEditEvidence(ev)}
               />
             ))}
           </div>
