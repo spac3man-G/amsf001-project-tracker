@@ -1,14 +1,18 @@
 /**
  * ClientPortal Page
- * 
+ *
  * Public-facing portal for clients to view evaluation progress and reports.
- * Authentication is done via access codes stored in permissions JSON.
+ * Supports two authentication methods:
+ * 1. Access codes (legacy) - stored in permissions JSON
+ * 2. URL tokens (v1.0.x) - secure tokens for external stakeholders
+ *
  * Supports custom branding from evaluation project settings.
- * 
- * @version 1.1
+ *
+ * @version 2.0
  * @created 04 January 2026
- * @updated 04 January 2026
+ * @updated 09 January 2026
  * @phase Phase 9 - Portal Refinement (Task 9.1, 9.2, 9.3)
+ * @phase Evaluator Roadmap v3.0 - Feature 0.6
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -33,6 +37,7 @@ import {
 } from 'lucide-react';
 import { clientPortalService } from '../../services/evaluator/clientPortal.service';
 import ClientDashboard from '../../components/evaluator/client/ClientDashboard';
+import { TokenPortalPage } from '../../components/evaluator/client-portal';
 import './ClientPortal.css';
 
 // Portal states
@@ -63,7 +68,15 @@ const DEFAULT_BRANDING = {
 
 function ClientPortal() {
   const [searchParams] = useSearchParams();
-  
+
+  // Check for token-based authentication (v1.0.x feature)
+  const token = searchParams.get('token');
+  if (token) {
+    // Use the new token-based portal for external stakeholders
+    return <TokenPortalPage />;
+  }
+
+  // Legacy access code-based authentication
   // Auth state
   const [portalState, setPortalState] = useState(PORTAL_STATE.LOGIN);
   const [accessCode, setAccessCode] = useState('');

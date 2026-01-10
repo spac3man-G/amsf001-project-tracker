@@ -4,41 +4,91 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## Active Implementation Plans
+## Evaluator UAT Remediation Plan (Active)
 
-At the start of each session, check if the user wants to continue work on any active implementation plans:
+UAT completed 10 January 2026 identified **20 bugs** and **25 feature gaps**. Full details in `docs/EVALUATOR-UAT-FINDINGS.md`.
 
-| Feature | Plan File | Status | Next Session |
-|---------|-----------|--------|--------------|
-| Planner-Tracker Sync | `IMPLEMENTATION-PLAN-Planner-Tracker-Sync.md` | Ready | Session 1 |
-| Evaluator Product Roadmap | `docs/EVALUATOR-PRODUCT-ROADMAP.md` | Ready | v1.1 Features |
+**At session start, offer:**
+> "The Evaluator UAT Remediation Plan is active. Current sprint: [check document]
+> Would you like to continue with bug fixes, or work on something else?"
 
-**How to offer:** At session start, ask:
-> "I see there are active implementation plans:
-> - **Planner-Tracker Sync** (Session 1 pending)
-> - **Evaluator Product Roadmap** (v1.1: Smart Notifications, AI Response Analysis, Dashboard Analytics)
->
-> Would you like to continue with one of these, or work on something else?"
+### Sprint Structure
 
-**When resuming:** Read the implementation plan file for full context including verification steps, git commits, and what files to reference.
+| Sprint | Focus | Bugs | Status |
+|--------|-------|------|--------|
+| Sprint 1 | Root Cause Investigation | - | **Next** |
+| Sprint 2 | Core CRUD (Requirements, Vendors, Questions) | BUG-003,004,005,008,009 | Pending |
+| Sprint 3 | Data Loading (Q&A, Traceability, Reports) | BUG-012,013,018,019,020 | Pending |
+| Sprint 4 | UI/Interaction Fixes | BUG-001,002,006,010,011,014-17 | Pending |
+| Sprint 5 | AI Config (Opus 4.5) | BUG-007 | Pending |
+| Sprint 6+ | Feature Enhancements | FE-001 to FE-025 | Future |
 
----
+### Sprint 1: Root Cause Investigation
 
-## Evaluator Module - Pending Features
+Many bugs are "Failed to load/save" errors - likely share common cause. Investigate first:
 
-> **Note:** A comprehensive product roadmap exists at `docs/EVALUATOR-PRODUCT-ROADMAP.md` with 14 major features planned across 4 releases (v1.1-v2.0). See Active Implementation Plans above.
+1. Check browser DevTools console for JS errors
+2. Check Network tab for failed API calls (look for 4xx/5xx responses)
+3. Check Supabase dashboard for database errors
+4. Verify evaluator tables exist and have correct RLS policies
+5. Test services directly to isolate frontend vs backend issues
 
-**Quick reference - incomplete features:**
+**Key files:**
+```
+src/services/evaluator/*.service.js
+src/pages/evaluator/*.jsx
+supabase/migrations/202601090*.sql
+```
 
-| Feature | Priority | Description |
-|---------|----------|-------------|
-| Smart Notifications | High | Real-time alerts for scoring deadlines, requirement changes, vendor updates (v1.1) |
-| AI Response Analysis | High | Claude-powered vendor response scoring and gap detection (v1.1) |
-| Dashboard Analytics | High | Interactive charts, progress tracking, team activity (v1.1) |
-| Evaluation Templates | Medium | Reusable evaluation configurations and requirement libraries (v1.2) |
-| Live Collaboration | Medium | Real-time multi-user editing with presence indicators (v1.3) |
+**Hypothesis:** Missing migrations, RLS policy issues, or project context not passed correctly.
 
-**What's complete:** Vendors, Evaluation/Scoring, Reports, Traceability, Requirements, Workshops (basic), Evidence, AI Gap Analysis, AI Market Research.
+### Critical Bugs (Fix First)
+
+| Bug | Component | Issue |
+|-----|-----------|-------|
+| BUG-003 | Requirements | Create Requirement silent failure |
+| BUG-008 | Questions | Failed to load questions |
+| BUG-009 | Questions | Failed to save question |
+| BUG-012 | Q&A | Failed to load Q&A data |
+| BUG-018 | Traceability | Failed to load traceability data |
+| BUG-019 | Reports | Failed to generate report |
+
+### When Resuming
+
+1. Read `docs/EVALUATOR-UAT-FINDINGS.md` for full bug list and current sprint status
+2. Check the "Remediation Plan" section for detailed sprint tasks
+3. Update bug status as fixes are completed
+
+### Architectural Decisions (from UAT)
+
+- **ARCH-001**: Unified sidebar navigation with collapsible app sections (TRACKER, PLANNER, EVALUATOR)
+- **ARCH-002**: Consolidated role system - Option C (Separate roles per app, consistent naming: Admin, PM, Finance, Contributor, Viewer)
+- **Role Assignment**: At PROJECT level (not organisation)
+- **Customer Access**: Customer PM/Contributor use full app (not Client Portal)
+
+### Evaluator Key Files
+
+```
+src/services/evaluator/
+├── requirements.service.js    # BUG-003
+├── vendors.service.js         # BUG-004,005
+├── questions.service.js       # BUG-008,009
+├── vendorQA.service.js        # BUG-012
+├── traceability.service.js    # BUG-018
+├── scores.service.js
+└── index.js
+
+src/pages/evaluator/
+├── EvaluatorDashboard.jsx
+├── VendorDetail.jsx
+└── ClientPortal.jsx
+
+api/evaluator/
+├── ai-gap-analysis.js         # Needs Opus 4.5
+├── ai-market-research.js      # Needs Opus 4.5
+├── ai-analyze-response.js     # Needs Opus 4.5
+└── [6 more AI endpoints]      # All need Opus 4.5
+```
 
 ---
 
@@ -57,7 +107,7 @@ At the start of each session, check if the user wants to continue work on any ac
 
 - **Frontend**: React 18, Vite, React Router, Recharts
 - **Backend**: Supabase (PostgreSQL + Auth + Storage + RLS)
-- **AI**: Anthropic Claude (Opus 4, Sonnet 4.5, Haiku) via Vercel Edge Functions
+- **AI**: Anthropic Claude (Opus 4.5 for Evaluator, Sonnet 4 for chat, Haiku for simple tasks) via Vercel Edge Functions
 - **Hosting**: Vercel
 - **Testing**: Vitest (unit), Playwright (E2E with 7 role-based profiles)
 

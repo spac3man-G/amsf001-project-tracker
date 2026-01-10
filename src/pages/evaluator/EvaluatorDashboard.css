@@ -205,8 +205,16 @@
   grid-template-columns: 1fr;
 }
 
+.analytics-row.four-col {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .analytics-item {
   min-width: 0;
+}
+
+.widget-item {
+  min-height: 280px;
 }
 
 .timeline-item {
@@ -249,7 +257,17 @@
     grid-template-columns: 1fr;
   }
 
+  .analytics-row.four-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .analytics-header h2 {
     font-size: 1.125rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .analytics-row.four-col {
+    grid-template-columns: 1fr;
   }
 }

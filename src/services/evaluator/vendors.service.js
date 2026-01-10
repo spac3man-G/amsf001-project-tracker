@@ -253,7 +253,7 @@ export class VendorsService extends EvaluatorBaseService {
         status_changed_at: new Date().toISOString(),
         status_changed_by: vendorData.created_by || null,
         portal_enabled: false,
-        notes: vendorData.notes || null
+        internal_notes: vendorData.notes || vendorData.internal_notes || null  // Use internal_notes (migration column name)
       };
 
       return this.create(dataToCreate);
@@ -272,14 +272,22 @@ export class VendorsService extends EvaluatorBaseService {
   async updateVendor(vendorId, updates) {
     try {
       const allowedFields = [
-        'name', 'description', 'website', 'notes',
+        'name', 'description', 'website', 'internal_notes',
         'portal_enabled', 'portal_access_expires_at'
       ];
 
+      // Map old field names to new ones
+      const fieldMapping = {
+        'notes': 'internal_notes'
+      };
+
       const filteredUpdates = {};
-      allowedFields.forEach(field => {
+      Object.keys(updates).forEach(field => {
         if (updates[field] !== undefined) {
-          filteredUpdates[field] = updates[field];
+          const dbField = fieldMapping[field] || field;
+          if (allowedFields.includes(dbField)) {
+            filteredUpdates[dbField] = updates[field];
+          }
         }
       });
 
@@ -350,12 +358,12 @@ export class VendorsService extends EvaluatorBaseService {
         status_changed_by: userId
       };
 
-      // Append transition note if provided
+      // Append transition note if provided (use internal_notes column)
       if (notes) {
-        const existingNotes = current.notes || '';
+        const existingNotes = current.internal_notes || '';
         const timestamp = new Date().toLocaleDateString();
         const statusLabel = VENDOR_STATUS_CONFIG[newStatus]?.label || newStatus;
-        updates.notes = existingNotes 
+        updates.internal_notes = existingNotes
           ? `${existingNotes}\n\n[${timestamp}] Status changed to ${statusLabel}: ${notes}`
           : `[${timestamp}] Status changed to ${statusLabel}: ${notes}`;
       }

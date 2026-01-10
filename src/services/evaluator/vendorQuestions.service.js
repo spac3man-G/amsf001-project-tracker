@@ -14,18 +14,19 @@ import { EvaluatorBaseService } from './base.evaluator.service';
 import { supabase } from '../../lib/supabase';
 
 /**
- * Question types
+ * Question types - aligned with database migration
+ * Migration: 202601010012_create_vendor_questions_responses.sql
  */
 export const QUESTION_TYPES = {
   TEXT: 'text',
-  LONG_TEXT: 'long_text',
-  SINGLE_CHOICE: 'single_choice',
-  MULTIPLE_CHOICE: 'multiple_choice',
-  RATING: 'rating',
+  TEXTAREA: 'textarea',        // Was 'long_text'
   YES_NO: 'yes_no',
-  FILE_UPLOAD: 'file_upload',
+  MULTIPLE_CHOICE: 'multiple_choice',  // Single select from options
+  MULTI_SELECT: 'multi_select',        // Multiple select from options
+  NUMBER: 'number',
   DATE: 'date',
-  NUMBER: 'number'
+  FILE_UPLOAD: 'file_upload',
+  COMPLIANCE: 'compliance'     // Compliance level response
 };
 
 export const QUESTION_TYPE_CONFIG = {
@@ -35,29 +36,23 @@ export const QUESTION_TYPE_CONFIG = {
     description: 'Single line text response',
     hasOptions: false
   },
-  [QUESTION_TYPES.LONG_TEXT]: {
+  [QUESTION_TYPES.TEXTAREA]: {
     label: 'Long Text',
     icon: 'AlignLeft',
     description: 'Multi-line text response',
     hasOptions: false
   },
-  [QUESTION_TYPES.SINGLE_CHOICE]: {
+  [QUESTION_TYPES.MULTIPLE_CHOICE]: {
     label: 'Single Choice',
     icon: 'CircleDot',
     description: 'Select one option from a list',
     hasOptions: true
   },
-  [QUESTION_TYPES.MULTIPLE_CHOICE]: {
+  [QUESTION_TYPES.MULTI_SELECT]: {
     label: 'Multiple Choice',
     icon: 'CheckSquare',
     description: 'Select multiple options from a list',
     hasOptions: true
-  },
-  [QUESTION_TYPES.RATING]: {
-    label: 'Rating Scale',
-    icon: 'Star',
-    description: 'Rating from 1-5 or 1-10',
-    hasOptions: false
   },
   [QUESTION_TYPES.YES_NO]: {
     label: 'Yes/No',
@@ -81,6 +76,12 @@ export const QUESTION_TYPE_CONFIG = {
     label: 'Number',
     icon: 'Hash',
     description: 'Numeric response',
+    hasOptions: false
+  },
+  [QUESTION_TYPES.COMPLIANCE]: {
+    label: 'Compliance',
+    icon: 'Shield',
+    description: 'Compliance level assessment',
     hasOptions: false
   }
 };
@@ -168,13 +169,10 @@ export class VendorQuestionsService extends EvaluatorBaseService {
    */
   async getAllWithDetails(evaluationProjectId, options = {}) {
     try {
+      // First get questions
       let query = supabase
         .from('vendor_questions')
-        .select(`
-          *,
-          linked_requirements:requirement_id(id, reference_code, title),
-          linked_criterion:criterion_id(id, name, category_id)
-        `)
+        .select('*')
         .eq('evaluation_project_id', evaluationProjectId)
         .or('is_deleted.is.null,is_deleted.eq.false');
 
@@ -193,25 +191,67 @@ export class VendorQuestionsService extends EvaluatorBaseService {
         query = query.eq('is_required', options.required);
       }
 
-      // Apply search
+      // Apply search (use guidance_for_vendors instead of help_text)
       if (options.search) {
-        query = query.or(`question_text.ilike.%${options.search}%,help_text.ilike.%${options.search}%`);
+        query = query.or(`question_text.ilike.%${options.search}%,guidance_for_vendors.ilike.%${options.search}%`);
       }
 
-      // Order by section and then display order
-      query = query.order('section').order('display_order');
+      // Order by section and then sort_order (not display_order)
+      query = query.order('section').order('sort_order');
 
-      const { data, error } = await query;
+      const { data: questions, error } = await query;
 
       if (error) {
         console.error('VendorQuestionsService getAllWithDetails error:', error);
         throw error;
       }
 
-      return (data || []).map(q => ({
+      if (!questions || questions.length === 0) {
+        return [];
+      }
+
+      // Get linked requirements and criteria via junction table
+      const questionIds = questions.map(q => q.id);
+      const { data: links, error: linksError } = await supabase
+        .from('vendor_question_links')
+        .select(`
+          question_id,
+          requirement_id,
+          criterion_id,
+          requirement:requirement_id(id, reference_code, title),
+          criterion:criterion_id(id, name, category_id)
+        `)
+        .in('question_id', questionIds);
+
+      if (linksError) {
+        console.error('VendorQuestionsService getAllWithDetails links error:', linksError);
+        // Don't fail - just return questions without links
+      }
+
+      // Build links map
+      const linksMap = {};
+      (links || []).forEach(link => {
+        if (!linksMap[link.question_id]) {
+          linksMap[link.question_id] = { requirements: [], criteria: [] };
+        }
+        if (link.requirement) {
+          linksMap[link.question_id].requirements.push(link.requirement);
+        }
+        if (link.criterion) {
+          linksMap[link.question_id].criteria.push(link.criterion);
+        }
+      });
+
+      return questions.map(q => ({
         ...q,
+        // Map guidance_for_vendors to help_text for UI compatibility
+        help_text: q.guidance_for_vendors,
+        // Map sort_order to display_order for UI compatibility
+        display_order: q.sort_order,
         typeConfig: QUESTION_TYPE_CONFIG[q.question_type] || {},
-        sectionConfig: QUESTION_SECTION_CONFIG[q.section] || {}
+        sectionConfig: QUESTION_SECTION_CONFIG[q.section] || {},
+        linked_requirements: linksMap[q.id]?.requirements || [],
+        linked_criteria: linksMap[q.id]?.criteria || []
       }));
     } catch (error) {
       console.error('VendorQuestionsService getAllWithDetails failed:', error);
@@ -265,11 +305,7 @@ export class VendorQuestionsService extends EvaluatorBaseService {
     try {
       const { data, error } = await supabase
         .from('vendor_questions')
-        .select(`
-          *,
-          linked_requirements:requirement_id(id, reference_code, title, description),
-          linked_criterion:criterion_id(id, name, category_id, weight)
-        `)
+        .select('*')
         .eq('id', questionId)
         .or('is_deleted.is.null,is_deleted.eq.false')
         .limit(1);
@@ -278,10 +314,39 @@ export class VendorQuestionsService extends EvaluatorBaseService {
       if (!data?.[0]) return null;
 
       const question = data[0];
+
+      // Get linked requirements and criteria via junction table
+      const { data: links, error: linksError } = await supabase
+        .from('vendor_question_links')
+        .select(`
+          requirement_id,
+          criterion_id,
+          requirement:requirement_id(id, reference_code, title, description),
+          criterion:criterion_id(id, name, category_id, weight)
+        `)
+        .eq('question_id', questionId);
+
+      if (linksError) {
+        console.error('VendorQuestionsService getByIdWithDetails links error:', linksError);
+      }
+
+      const linkedRequirements = [];
+      const linkedCriteria = [];
+      (links || []).forEach(link => {
+        if (link.requirement) linkedRequirements.push(link.requirement);
+        if (link.criterion) linkedCriteria.push(link.criterion);
+      });
+
       return {
         ...question,
+        // Map guidance_for_vendors to help_text for UI compatibility
+        help_text: question.guidance_for_vendors,
+        // Map sort_order to display_order for UI compatibility
+        display_order: question.sort_order,
         typeConfig: QUESTION_TYPE_CONFIG[question.question_type] || {},
-        sectionConfig: QUESTION_SECTION_CONFIG[question.section] || {}
+        sectionConfig: QUESTION_SECTION_CONFIG[question.section] || {},
+        linked_requirements: linkedRequirements,
+        linked_criteria: linkedCriteria
       };
     } catch (error) {
       console.error('VendorQuestionsService getByIdWithDetails failed:', error);
@@ -303,32 +368,71 @@ export class VendorQuestionsService extends EvaluatorBaseService {
         throw new Error('question_text is required');
       }
 
-      // Get next display order for section
+      // Get next sort_order for section (not display_order)
       const { data: existing } = await supabase
         .from('vendor_questions')
-        .select('display_order')
+        .select('sort_order')
         .eq('evaluation_project_id', questionData.evaluation_project_id)
         .eq('section', questionData.section || QUESTION_SECTIONS.OTHER)
-        .order('display_order', { ascending: false })
+        .order('sort_order', { ascending: false })
         .limit(1);
 
-      const nextOrder = (existing?.[0]?.display_order || 0) + 1;
+      const nextOrder = (existing?.[0]?.sort_order || 0) + 1;
+
+      // Map question type if using old names
+      let questionType = questionData.question_type || QUESTION_TYPES.TEXT;
+      if (questionType === 'long_text') questionType = QUESTION_TYPES.TEXTAREA;
+      if (questionType === 'single_choice') questionType = QUESTION_TYPES.MULTIPLE_CHOICE;
+      if (questionType === 'rating') questionType = QUESTION_TYPES.NUMBER;
 
       const dataToCreate = {
         evaluation_project_id: questionData.evaluation_project_id,
         question_text: questionData.question_text,
-        question_type: questionData.question_type || QUESTION_TYPES.TEXT,
+        question_type: questionType,
         section: questionData.section || QUESTION_SECTIONS.OTHER,
-        help_text: questionData.help_text || null,
+        guidance_for_vendors: questionData.help_text || questionData.guidance_for_vendors || null,
         is_required: questionData.is_required ?? true,
-        options: questionData.options || null, // JSONB for choice options
-        validation_rules: questionData.validation_rules || null, // JSONB for validation
-        display_order: questionData.display_order || nextOrder,
-        requirement_id: questionData.requirement_id || null,
-        criterion_id: questionData.criterion_id || null
+        options: questionData.options || null,
+        sort_order: questionData.display_order || questionData.sort_order || nextOrder,
+        max_length: questionData.max_length || null,
+        scoring_guidance: questionData.scoring_guidance || null
       };
 
-      return this.create(dataToCreate);
+      const newQuestion = await this.create(dataToCreate);
+
+      // Create links via junction table if provided
+      if (newQuestion && (questionData.requirement_id || questionData.criterion_id)) {
+        const links = [];
+        if (questionData.requirement_id) {
+          links.push({
+            question_id: newQuestion.id,
+            requirement_id: questionData.requirement_id,
+            criterion_id: null
+          });
+        }
+        if (questionData.criterion_id) {
+          links.push({
+            question_id: newQuestion.id,
+            requirement_id: null,
+            criterion_id: questionData.criterion_id
+          });
+        }
+        if (links.length > 0) {
+          const { error: linkError } = await supabase
+            .from('vendor_question_links')
+            .insert(links);
+          if (linkError) {
+            console.error('VendorQuestionsService createQuestion link error:', linkError);
+          }
+        }
+      }
+
+      // Return with UI-compatible field names
+      return {
+        ...newQuestion,
+        help_text: newQuestion.guidance_for_vendors,
+        display_order: newQuestion.sort_order
+      };
     } catch (error) {
       console.error('VendorQuestionsService createQuestion failed:', error);
       throw error;
@@ -343,20 +447,77 @@ export class VendorQuestionsService extends EvaluatorBaseService {
    */
   async updateQuestion(questionId, updates) {
     try {
-      const allowedFields = [
-        'question_text', 'question_type', 'section', 'help_text',
-        'is_required', 'options', 'validation_rules', 'display_order',
-        'requirement_id', 'criterion_id'
+      // Map old field names to new database column names
+      const fieldMapping = {
+        'help_text': 'guidance_for_vendors',
+        'display_order': 'sort_order'
+      };
+
+      const allowedDbFields = [
+        'question_text', 'question_type', 'section', 'guidance_for_vendors',
+        'is_required', 'options', 'sort_order', 'max_length', 'scoring_guidance'
       ];
 
       const filteredUpdates = {};
-      allowedFields.forEach(field => {
+
+      // Process updates with field name mapping
+      Object.keys(updates).forEach(field => {
         if (updates[field] !== undefined) {
-          filteredUpdates[field] = updates[field];
+          const dbField = fieldMapping[field] || field;
+          if (allowedDbFields.includes(dbField)) {
+            // Map question type if using old names
+            if (dbField === 'question_type') {
+              let qType = updates[field];
+              if (qType === 'long_text') qType = QUESTION_TYPES.TEXTAREA;
+              if (qType === 'single_choice') qType = QUESTION_TYPES.MULTIPLE_CHOICE;
+              if (qType === 'rating') qType = QUESTION_TYPES.NUMBER;
+              filteredUpdates[dbField] = qType;
+            } else {
+              filteredUpdates[dbField] = updates[field];
+            }
+          }
         }
       });
 
-      return this.update(questionId, filteredUpdates);
+      const result = await this.update(questionId, filteredUpdates);
+
+      // Handle requirement/criterion links via junction table
+      if (updates.requirement_id !== undefined || updates.criterion_id !== undefined) {
+        // Delete existing links
+        await supabase
+          .from('vendor_question_links')
+          .delete()
+          .eq('question_id', questionId);
+
+        // Create new links
+        const links = [];
+        if (updates.requirement_id) {
+          links.push({
+            question_id: questionId,
+            requirement_id: updates.requirement_id,
+            criterion_id: null
+          });
+        }
+        if (updates.criterion_id) {
+          links.push({
+            question_id: questionId,
+            requirement_id: null,
+            criterion_id: updates.criterion_id
+          });
+        }
+        if (links.length > 0) {
+          await supabase
+            .from('vendor_question_links')
+            .insert(links);
+        }
+      }
+
+      // Return with UI-compatible field names
+      return {
+        ...result,
+        help_text: result.guidance_for_vendors,
+        display_order: result.sort_order
+      };
     } catch (error) {
       console.error('VendorQuestionsService updateQuestion failed:', error);
       throw error;
@@ -374,13 +535,13 @@ export class VendorQuestionsService extends EvaluatorBaseService {
     try {
       const updates = questionIds.map((id, index) => ({
         id,
-        display_order: index + 1
+        sort_order: index + 1  // Use sort_order, not display_order
       }));
 
       for (const update of updates) {
         await supabase
           .from('vendor_questions')
-          .update({ display_order: update.display_order })
+          .update({ sort_order: update.sort_order })
           .eq('id', update.id)
           .eq('evaluation_project_id', evaluationProjectId);
       }
@@ -393,45 +554,217 @@ export class VendorQuestionsService extends EvaluatorBaseService {
   }
 
   // ============================================================================
-  // QUESTION LINKING
+  // QUESTION LINKING (via vendor_question_links junction table)
   // ============================================================================
 
   /**
    * Link question to a requirement
    * @param {string} questionId - Question UUID
    * @param {string} requirementId - Requirement UUID
-   * @returns {Promise<Object>} Updated question
+   * @returns {Promise<Object>} Created link
    */
   async linkToRequirement(questionId, requirementId) {
-    return this.updateQuestion(questionId, { requirement_id: requirementId });
+    try {
+      // Check if link already exists
+      const { data: existing } = await supabase
+        .from('vendor_question_links')
+        .select('id')
+        .eq('question_id', questionId)
+        .eq('requirement_id', requirementId)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        return existing[0]; // Already linked
+      }
+
+      const { data, error } = await supabase
+        .from('vendor_question_links')
+        .insert({
+          question_id: questionId,
+          requirement_id: requirementId,
+          criterion_id: null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('VendorQuestionsService linkToRequirement failed:', error);
+      throw error;
+    }
   }
 
   /**
    * Link question to evaluation criterion
    * @param {string} questionId - Question UUID
    * @param {string} criterionId - Criterion UUID
-   * @returns {Promise<Object>} Updated question
+   * @returns {Promise<Object>} Created link
    */
   async linkToCriterion(questionId, criterionId) {
-    return this.updateQuestion(questionId, { criterion_id: criterionId });
+    try {
+      // Check if link already exists
+      const { data: existing } = await supabase
+        .from('vendor_question_links')
+        .select('id')
+        .eq('question_id', questionId)
+        .eq('criterion_id', criterionId)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        return existing[0]; // Already linked
+      }
+
+      const { data, error } = await supabase
+        .from('vendor_question_links')
+        .insert({
+          question_id: questionId,
+          requirement_id: null,
+          criterion_id: criterionId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('VendorQuestionsService linkToCriterion failed:', error);
+      throw error;
+    }
   }
 
   /**
    * Unlink question from requirement
    * @param {string} questionId - Question UUID
-   * @returns {Promise<Object>} Updated question
+   * @param {string} requirementId - Requirement UUID (optional - if null, removes all)
+   * @returns {Promise<boolean>} Success status
    */
-  async unlinkFromRequirement(questionId) {
-    return this.updateQuestion(questionId, { requirement_id: null });
+  async unlinkFromRequirement(questionId, requirementId = null) {
+    try {
+      let query = supabase
+        .from('vendor_question_links')
+        .delete()
+        .eq('question_id', questionId);
+
+      if (requirementId) {
+        query = query.eq('requirement_id', requirementId);
+      } else {
+        query = query.not('requirement_id', 'is', null);
+      }
+
+      const { error } = await query;
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('VendorQuestionsService unlinkFromRequirement failed:', error);
+      throw error;
+    }
   }
 
   /**
    * Unlink question from criterion
    * @param {string} questionId - Question UUID
-   * @returns {Promise<Object>} Updated question
+   * @param {string} criterionId - Criterion UUID (optional - if null, removes all)
+   * @returns {Promise<boolean>} Success status
    */
-  async unlinkFromCriterion(questionId) {
-    return this.updateQuestion(questionId, { criterion_id: null });
+  async unlinkFromCriterion(questionId, criterionId = null) {
+    try {
+      let query = supabase
+        .from('vendor_question_links')
+        .delete()
+        .eq('question_id', questionId);
+
+      if (criterionId) {
+        query = query.eq('criterion_id', criterionId);
+      } else {
+        query = query.not('criterion_id', 'is', null);
+      }
+
+      const { error } = await query;
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('VendorQuestionsService unlinkFromCriterion failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all links for a question
+   * @param {string} questionId - Question UUID
+   * @returns {Promise<Object>} Object with requirements and criteria arrays
+   */
+  async getQuestionLinks(questionId) {
+    try {
+      const { data: links, error } = await supabase
+        .from('vendor_question_links')
+        .select(`
+          id,
+          requirement:requirement_id(id, reference_code, title),
+          criterion:criterion_id(id, name, category_id)
+        `)
+        .eq('question_id', questionId);
+
+      if (error) throw error;
+
+      const requirements = [];
+      const criteria = [];
+      (links || []).forEach(link => {
+        if (link.requirement) requirements.push(link.requirement);
+        if (link.criterion) criteria.push(link.criterion);
+      });
+
+      return { requirements, criteria };
+    } catch (error) {
+      console.error('VendorQuestionsService getQuestionLinks failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update all links for a question (replace existing)
+   * @param {string} questionId - Question UUID
+   * @param {Array<string>} requirementIds - Requirement UUIDs
+   * @param {Array<string>} criterionIds - Criterion UUIDs
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateQuestionLinks(questionId, requirementIds = [], criterionIds = []) {
+    try {
+      // Delete all existing links
+      await supabase
+        .from('vendor_question_links')
+        .delete()
+        .eq('question_id', questionId);
+
+      // Create new links
+      const links = [];
+      requirementIds.forEach(reqId => {
+        links.push({
+          question_id: questionId,
+          requirement_id: reqId,
+          criterion_id: null
+        });
+      });
+      criterionIds.forEach(critId => {
+        links.push({
+          question_id: questionId,
+          requirement_id: null,
+          criterion_id: critId
+        });
+      });
+
+      if (links.length > 0) {
+        const { error } = await supabase
+          .from('vendor_question_links')
+          .insert(links);
+        if (error) throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('VendorQuestionsService updateQuestionLinks failed:', error);
+      throw error;
+    }
   }
 
   // ============================================================================

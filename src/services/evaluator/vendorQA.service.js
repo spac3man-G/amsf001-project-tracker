@@ -3,12 +3,14 @@
  *
  * Manages vendor questions and answers during the Q&A period.
  *
- * @version 1.0
+ * @version 1.1
  * @created January 9, 2026
+ * @updated 09 January 2026 - Added notification triggers
  * @phase Phase 1 - Feature 1.4: Vendor Q&A Management
  */
 
 import { supabase } from '../../lib/supabase';
+import { notificationTriggersService } from './notificationTriggers.service';
 
 // ============================================================================
 // CONSTANTS
@@ -87,7 +89,7 @@ class VendorQAService {
       .from('vendor_qa')
       .select(`
         *,
-        vendor:vendors(id, company_name),
+        vendor:vendors(id, name),
         submitted_by_user:profiles!vendor_qa_submitted_by_fkey(id, full_name, email),
         answered_by_user:profiles!vendor_qa_answered_by_fkey(id, full_name, email)
       `)
@@ -124,7 +126,7 @@ class VendorQAService {
       .from('vendor_qa')
       .select(`
         *,
-        vendor:vendors(id, name:company_name)
+        vendor:vendors(id, name)
       `)
       .eq('evaluation_project_id', evaluationProjectId)
       .order('submitted_at', { ascending: false });
@@ -193,7 +195,7 @@ class VendorQAService {
       .from('vendor_qa')
       .select(`
         *,
-        vendor:vendors(id, company_name),
+        vendor:vendors(id, name),
         submitted_by_user:profiles!vendor_qa_submitted_by_fkey(id, full_name, email),
         answered_by_user:profiles!vendor_qa_answered_by_fkey(id, full_name, email)
       `)
@@ -288,7 +290,40 @@ class VendorQAService {
       throw error;
     }
 
+    // Trigger notification for evaluation team
+    if (data) {
+      this._notifyQuestionSubmitted(data, question.vendorId).catch(
+        err => console.error('Question notification failed:', err)
+      );
+    }
+
     return data;
+  }
+
+  /**
+   * Helper to notify team of new question
+   * @private
+   */
+  async _notifyQuestionSubmitted(qaData, vendorId) {
+    // Get vendor details (use 'name' column, not 'company_name')
+    const { data: vendor } = await supabase
+      .from('vendors')
+      .select('id, name')
+      .eq('id', vendorId)
+      .single();
+
+    if (vendor) {
+      await notificationTriggersService.onQAQuestionSubmitted(
+        qaData.evaluation_project_id,
+        {
+          id: qaData.id,
+          question: qaData.question_text,
+          category: qaData.question_category,
+          asked_at: qaData.submitted_at || new Date().toISOString()
+        },
+        { id: vendor.id, name: vendor.name }
+      );
+    }
   }
 
   /**
@@ -367,6 +402,20 @@ class VendorQAService {
       throw error;
     }
 
+    // Notify vendor of answer
+    if (data) {
+      notificationTriggersService.onQAAnswerPublished(
+        data.evaluation_project_id,
+        {
+          id: data.id,
+          vendor_id: data.vendor_id,
+          question: data.question_text,
+          answer: answerText
+        },
+        false // Not shared with all vendors yet
+      ).catch(err => console.error('Answer notification failed:', err));
+    }
+
     return data;
   }
 
@@ -418,6 +467,20 @@ class VendorQAService {
     if (error) {
       console.error('VendorQAService.shareWithAllVendors failed:', error);
       throw error;
+    }
+
+    // Notify all vendors of shared Q&A
+    if (data) {
+      notificationTriggersService.onQAAnswerPublished(
+        data.evaluation_project_id,
+        {
+          id: data.id,
+          vendor_id: data.vendor_id,
+          question: data.question_text,
+          answer: data.answer_text
+        },
+        true // Shared with all vendors
+      ).catch(err => console.error('Share notification failed:', err));
     }
 
     return data;

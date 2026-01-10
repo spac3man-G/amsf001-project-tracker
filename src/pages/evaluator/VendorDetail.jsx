@@ -34,7 +34,8 @@ import {
   Star,
   StarOff,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -43,7 +44,7 @@ import {
   VENDOR_STATUS_CONFIG,
   VENDOR_STATUSES
 } from '../../services/evaluator';
-import { VendorForm, VendorResponseViewer } from '../../components/evaluator';
+import { VendorForm, VendorResponseViewer, VendorIntelligencePanel } from '../../components/evaluator';
 import './VendorDetail.css';
 
 function VendorDetail() {
@@ -60,7 +61,7 @@ function VendorDetail() {
   const [showAddContact, setShowAddContact] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // 'details' | 'responses'
+  const [activeTab, setActiveTab] = useState('details'); // 'details' | 'responses' | 'intelligence'
 
   // Contact form state
   const [contactForm, setContactForm] = useState({
@@ -327,6 +328,14 @@ function VendorDetail() {
           Responses
           <Sparkles size={12} className="ai-badge" />
         </button>
+        <button
+          className={`vendor-tab ${activeTab === 'intelligence' ? 'active' : ''}`}
+          onClick={() => setActiveTab('intelligence')}
+        >
+          <TrendingUp size={16} />
+          Intelligence
+          <Sparkles size={12} className="ai-badge" />
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -346,6 +355,14 @@ function VendorDetail() {
             evaluationProjectId={currentEvaluation?.id}
             vendorName={vendor.name}
             showAiAnalysis={true}
+          />
+        </div>
+      ) : activeTab === 'intelligence' ? (
+        <div className="vendor-detail-intelligence">
+          <VendorIntelligencePanel
+            vendorId={vendor.id}
+            vendorName={vendor.name}
+            onDataUpdate={fetchVendor}
           />
         </div>
       ) : (

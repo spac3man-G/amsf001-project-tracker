@@ -1,16 +1,18 @@
 /**
  * Approvals Service
- * 
+ *
  * Handles requirement approval workflow for the Evaluator tool.
  * Supports client approval/rejection of requirements with comments.
- * 
- * @version 1.0
+ *
+ * @version 1.1
  * @created 04 January 2026
+ * @updated 09 January 2026 - Added notification triggers
  * @phase Phase 9 - Portal Refinement (Task 9.2)
  */
 
 import { EvaluatorBaseService } from './base.evaluator.service';
 import { supabase } from '../../lib/supabase';
+import { notificationTriggersService } from './notificationTriggers.service';
 
 /**
  * Approval status constants
@@ -178,10 +180,46 @@ export class ApprovalsService extends EvaluatorBaseService {
         .single();
 
       if (error) throw error;
+
+      // Trigger notification if approved
+      if (data && approval.status === APPROVAL_STATUS.APPROVED) {
+        this._triggerApprovalNotification(requirementId, data, approval).catch(
+          err => console.error('Approval notification failed:', err)
+        );
+      }
+
       return data;
     } catch (error) {
       console.error('ApprovalsService submitApproval failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Helper to trigger approval notification
+   * @private
+   */
+  async _triggerApprovalNotification(requirementId, approvalData, approvalInput) {
+    // Get requirement details
+    const { data: requirement } = await supabase
+      .from('requirements')
+      .select(`
+        id, title, evaluation_project_id,
+        category:evaluation_categories(id, name)
+      `)
+      .eq('id', requirementId)
+      .single();
+
+    if (requirement) {
+      await notificationTriggersService.onRequirementApproved(
+        requirement.evaluation_project_id,
+        requirement,
+        {
+          approver_name: approvalInput.clientName || 'Client Stakeholder',
+          approved_at: approvalData.approved_at,
+          comments: approvalData.comments
+        }
+      );
     }
   }
 
@@ -265,9 +303,10 @@ export class ApprovalsService extends EvaluatorBaseService {
    * Batch approve requirements
    * @param {Array<string>} requirementIds - Array of requirement UUIDs
    * @param {Object} approval - Approval data
+   * @param {string} evaluationProjectId - Optional evaluation project ID for notifications
    * @returns {Promise<Array>} Created approvals
    */
-  async batchApprove(requirementIds, approval) {
+  async batchApprove(requirementIds, approval, evaluationProjectId = null) {
     try {
       const approvals = requirementIds.map(reqId => ({
         requirement_id: reqId,
@@ -285,10 +324,48 @@ export class ApprovalsService extends EvaluatorBaseService {
         .select();
 
       if (error) throw error;
+
+      // Trigger notifications for batch approved items
+      if (data && approval.status === APPROVAL_STATUS.APPROVED && evaluationProjectId) {
+        this._triggerBatchApprovalNotifications(evaluationProjectId, requirementIds, approval).catch(
+          err => console.error('Batch approval notification failed:', err)
+        );
+      }
+
       return data;
     } catch (error) {
       console.error('ApprovalsService batchApprove failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Helper to trigger batch approval notifications
+   * @private
+   */
+  async _triggerBatchApprovalNotifications(evaluationProjectId, requirementIds, approvalInput) {
+    // Get requirement details for all approved requirements
+    const { data: requirements } = await supabase
+      .from('requirements')
+      .select(`
+        id, title,
+        category:evaluation_categories(id, name)
+      `)
+      .in('id', requirementIds);
+
+    if (requirements && requirements.length > 0) {
+      // Send individual notifications for each approved requirement
+      for (const requirement of requirements) {
+        await notificationTriggersService.onRequirementApproved(
+          evaluationProjectId,
+          requirement,
+          {
+            approver_name: approvalInput.clientName || 'Client Stakeholder',
+            approved_at: new Date().toISOString(),
+            comments: approvalInput.comments
+          }
+        );
+      }
     }
   }
 }

@@ -14,23 +14,41 @@ import { EvaluatorBaseService } from './base.evaluator.service';
 import { supabase } from '../../lib/supabase';
 
 /**
- * Evidence types
+ * Evidence types - aligned with database migration
+ * Migration: 202601010013_create_evidence.sql
  */
 export const EVIDENCE_TYPES = {
-  DEMO_NOTE: 'demo_note',
-  REFERENCE_CHECK: 'reference_check',
-  DOCUMENT_EXCERPT: 'document_excerpt',
   VENDOR_RESPONSE: 'vendor_response',
-  MEETING_NOTE: 'meeting_note',
+  DEMO_NOTES: 'demo_notes',          // Was 'demo_note' (singular)
+  REFERENCE_CHECK: 'reference_check',
+  MARKET_RESEARCH: 'market_research',
+  AI_ANALYSIS: 'ai_analysis',
+  POC_RESULTS: 'poc_results',        // Was 'poc_result' (singular)
   TECHNICAL_REVIEW: 'technical_review',
-  PRICING_ANALYSIS: 'pricing_analysis',
-  POC_RESULT: 'poc_result',
+  COMMERCIAL_REVIEW: 'commercial_review',  // Was 'pricing_analysis'
+  SECURITY_REVIEW: 'security_review',
+  COMPLIANCE_REVIEW: 'compliance_review',
   OTHER: 'other'
 };
 
+// Type aliases for backward compatibility
+export const EVIDENCE_TYPE_ALIASES = {
+  'demo_note': 'demo_notes',
+  'poc_result': 'poc_results',
+  'pricing_analysis': 'commercial_review',
+  'document_excerpt': 'other',
+  'meeting_note': 'other'
+};
+
 export const EVIDENCE_TYPE_CONFIG = {
-  [EVIDENCE_TYPES.DEMO_NOTE]: {
-    label: 'Demo Note',
+  [EVIDENCE_TYPES.VENDOR_RESPONSE]: {
+    label: 'Vendor Response',
+    icon: 'MessageSquare',
+    description: 'Response from RFP questions',
+    color: '#10b981'
+  },
+  [EVIDENCE_TYPES.DEMO_NOTES]: {
+    label: 'Demo Notes',
     icon: 'Play',
     description: 'Notes from vendor demonstration',
     color: '#8b5cf6'
@@ -41,23 +59,23 @@ export const EVIDENCE_TYPE_CONFIG = {
     description: 'Feedback from vendor reference',
     color: '#06b6d4'
   },
-  [EVIDENCE_TYPES.DOCUMENT_EXCERPT]: {
-    label: 'Document Excerpt',
-    icon: 'FileText',
-    description: 'Excerpt from vendor documentation',
+  [EVIDENCE_TYPES.MARKET_RESEARCH]: {
+    label: 'Market Research',
+    icon: 'TrendingUp',
+    description: 'External market research findings',
     color: '#f59e0b'
   },
-  [EVIDENCE_TYPES.VENDOR_RESPONSE]: {
-    label: 'Vendor Response',
-    icon: 'MessageSquare',
-    description: 'Response from RFP questions',
-    color: '#10b981'
+  [EVIDENCE_TYPES.AI_ANALYSIS]: {
+    label: 'AI Analysis',
+    icon: 'Sparkles',
+    description: 'AI-generated analysis',
+    color: '#a855f7'
   },
-  [EVIDENCE_TYPES.MEETING_NOTE]: {
-    label: 'Meeting Note',
-    icon: 'Calendar',
-    description: 'Notes from vendor meeting',
-    color: '#3b82f6'
+  [EVIDENCE_TYPES.POC_RESULTS]: {
+    label: 'POC Results',
+    icon: 'FlaskConical',
+    description: 'Proof of concept results',
+    color: '#f97316'
   },
   [EVIDENCE_TYPES.TECHNICAL_REVIEW]: {
     label: 'Technical Review',
@@ -65,17 +83,23 @@ export const EVIDENCE_TYPE_CONFIG = {
     description: 'Technical assessment findings',
     color: '#ec4899'
   },
-  [EVIDENCE_TYPES.PRICING_ANALYSIS]: {
-    label: 'Pricing Analysis',
+  [EVIDENCE_TYPES.COMMERCIAL_REVIEW]: {
+    label: 'Commercial Review',
     icon: 'DollarSign',
     description: 'Cost and pricing evaluation',
     color: '#84cc16'
   },
-  [EVIDENCE_TYPES.POC_RESULT]: {
-    label: 'POC Result',
-    icon: 'FlaskConical',
-    description: 'Proof of concept results',
-    color: '#f97316'
+  [EVIDENCE_TYPES.SECURITY_REVIEW]: {
+    label: 'Security Review',
+    icon: 'Shield',
+    description: 'Security assessment findings',
+    color: '#ef4444'
+  },
+  [EVIDENCE_TYPES.COMPLIANCE_REVIEW]: {
+    label: 'Compliance Review',
+    icon: 'CheckCircle',
+    description: 'Compliance and regulatory review',
+    color: '#3b82f6'
   },
   [EVIDENCE_TYPES.OTHER]: {
     label: 'Other',
@@ -86,41 +110,48 @@ export const EVIDENCE_TYPE_CONFIG = {
 };
 
 /**
- * Evidence sentiment/rating
+ * Evidence confidence levels - aligned with database migration
+ * Migration uses 'confidence_level' column (not 'sentiment')
  */
-export const EVIDENCE_SENTIMENT = {
-  POSITIVE: 'positive',
-  NEUTRAL: 'neutral',
-  NEGATIVE: 'negative',
-  MIXED: 'mixed'
+export const EVIDENCE_CONFIDENCE = {
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  VERIFIED: 'verified'
 };
 
-export const EVIDENCE_SENTIMENT_CONFIG = {
-  [EVIDENCE_SENTIMENT.POSITIVE]: {
-    label: 'Positive',
+// Keep old name as alias for backward compatibility
+export const EVIDENCE_SENTIMENT = EVIDENCE_CONFIDENCE;
+
+export const EVIDENCE_CONFIDENCE_CONFIG = {
+  [EVIDENCE_CONFIDENCE.LOW]: {
+    label: 'Low Confidence',
+    color: '#ef4444',
+    bgColor: '#fee2e2',
+    icon: 'AlertTriangle'
+  },
+  [EVIDENCE_CONFIDENCE.MEDIUM]: {
+    label: 'Medium Confidence',
+    color: '#f59e0b',
+    bgColor: '#fef3c7',
+    icon: 'Minus'
+  },
+  [EVIDENCE_CONFIDENCE.HIGH]: {
+    label: 'High Confidence',
     color: '#10b981',
     bgColor: '#d1fae5',
     icon: 'ThumbsUp'
   },
-  [EVIDENCE_SENTIMENT.NEUTRAL]: {
-    label: 'Neutral',
-    color: '#6b7280',
-    bgColor: '#f3f4f6',
-    icon: 'Minus'
-  },
-  [EVIDENCE_SENTIMENT.NEGATIVE]: {
-    label: 'Negative',
-    color: '#ef4444',
-    bgColor: '#fee2e2',
-    icon: 'ThumbsDown'
-  },
-  [EVIDENCE_SENTIMENT.MIXED]: {
-    label: 'Mixed',
-    color: '#f59e0b',
-    bgColor: '#fef3c7',
-    icon: 'AlertTriangle'
+  [EVIDENCE_CONFIDENCE.VERIFIED]: {
+    label: 'Verified',
+    color: '#3b82f6',
+    bgColor: '#dbeafe',
+    icon: 'CheckCircle'
   }
 };
+
+// Keep old name as alias for backward compatibility
+export const EVIDENCE_SENTIMENT_CONFIG = EVIDENCE_CONFIDENCE_CONFIG;
 
 export class EvidenceService extends EvaluatorBaseService {
   constructor() {
@@ -310,15 +341,21 @@ export class EvidenceService extends EvaluatorBaseService {
         throw new Error('title is required');
       }
 
+      // Map type using aliases if needed
+      let evidenceType = evidenceData.type || evidenceData.evidence_type || 'other';
+      if (EVIDENCE_TYPE_ALIASES[evidenceType]) {
+        evidenceType = EVIDENCE_TYPE_ALIASES[evidenceType];
+      }
+
       const dataToCreate = {
         evaluation_project_id: evidenceData.evaluation_project_id,
         vendor_id: evidenceData.vendor_id,
-        type: evidenceData.type || evidenceData.evidence_type || 'other',
+        type: evidenceType,
         title: evidenceData.title,
         content: evidenceData.content || null,
         summary: evidenceData.summary || null,
         source_url: evidenceData.source_url || null,
-        confidence_level: evidenceData.confidence_level || 'medium',
+        confidence_level: evidenceData.confidence_level || evidenceData.sentiment || 'medium',
         captured_by: evidenceData.captured_by || evidenceData.created_by || null,
         captured_at: evidenceData.captured_at || new Date().toISOString()
       };
@@ -517,7 +554,7 @@ export class EvidenceService extends EvaluatorBaseService {
           evidence:evidence_id(
             *,
             vendor:vendor_id(id, name),
-            created_by_profile:created_by(id, full_name)
+            captured_by_profile:captured_by(id, full_name)
           )
         `)
         .eq('requirement_id', requirementId);
@@ -529,8 +566,8 @@ export class EvidenceService extends EvaluatorBaseService {
         .filter(e => e && (!e.is_deleted))
         .map(e => ({
           ...e,
-          typeConfig: EVIDENCE_TYPE_CONFIG[e.evidence_type] || {},
-          sentimentConfig: EVIDENCE_SENTIMENT_CONFIG[e.sentiment] || {}
+          typeConfig: EVIDENCE_TYPE_CONFIG[e.type] || {},
+          confidenceConfig: EVIDENCE_CONFIDENCE_CONFIG[e.confidence_level] || {}
         }));
     } catch (error) {
       console.error('EvidenceService getByRequirement failed:', error);
@@ -551,7 +588,7 @@ export class EvidenceService extends EvaluatorBaseService {
           evidence:evidence_id(
             *,
             vendor:vendor_id(id, name),
-            created_by_profile:created_by(id, full_name)
+            captured_by_profile:captured_by(id, full_name)
           )
         `)
         .eq('criterion_id', criterionId);
@@ -563,8 +600,8 @@ export class EvidenceService extends EvaluatorBaseService {
         .filter(e => e && (!e.is_deleted))
         .map(e => ({
           ...e,
-          typeConfig: EVIDENCE_TYPE_CONFIG[e.evidence_type] || {},
-          sentimentConfig: EVIDENCE_SENTIMENT_CONFIG[e.sentiment] || {}
+          typeConfig: EVIDENCE_TYPE_CONFIG[e.type] || {},
+          confidenceConfig: EVIDENCE_CONFIDENCE_CONFIG[e.confidence_level] || {}
         }));
     } catch (error) {
       console.error('EvidenceService getByCriterion failed:', error);
@@ -586,16 +623,16 @@ export class EvidenceService extends EvaluatorBaseService {
       const evidence = await this.getAllWithDetails(evaluationProjectId);
 
       const byType = {};
-      const bySentiment = {};
+      const byConfidence = {};
       const byVendor = {};
       let withLinks = 0;
 
       evidence.forEach(e => {
-        // By type
-        byType[e.evidence_type] = (byType[e.evidence_type] || 0) + 1;
+        // By type (use 'type' column, not 'evidence_type')
+        byType[e.type] = (byType[e.type] || 0) + 1;
 
-        // By sentiment
-        bySentiment[e.sentiment] = (bySentiment[e.sentiment] || 0) + 1;
+        // By confidence level (use 'confidence_level' column, not 'sentiment')
+        byConfidence[e.confidence_level] = (byConfidence[e.confidence_level] || 0) + 1;
 
         // By vendor
         if (e.vendor) {
@@ -617,7 +654,8 @@ export class EvidenceService extends EvaluatorBaseService {
       return {
         total: evidence.length,
         byType,
-        bySentiment,
+        byConfidence,
+        bySentiment: byConfidence,  // Alias for backward compatibility
         byVendor: Object.values(byVendor),
         withLinks,
         withoutLinks: evidence.length - withLinks

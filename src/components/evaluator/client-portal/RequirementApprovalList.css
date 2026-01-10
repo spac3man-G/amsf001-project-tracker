@@ -1,0 +1,432 @@
+/**
+ * RequirementApprovalList Styles
+ * @created 09 January 2026
+ */
+
+/* Empty State */
+.approval-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.approval-list-empty svg {
+  margin-bottom: 0.75rem;
+}
+
+/* Batch Actions */
+.batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.selection-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  color: var(--portal-primary, #2563eb);
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0;
+}
+
+.text-btn:hover {
+  text-decoration: underline;
+}
+
+.batch-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.batch-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.batch-btn:hover {
+  opacity: 0.9;
+}
+
+.batch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.batch-btn.approve {
+  background: #10b981;
+  color: white;
+}
+
+.batch-btn.changes {
+  background: #f59e0b;
+  color: white;
+}
+
+/* Requirements List */
+.requirements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Requirement Item */
+.requirement-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+
+.requirement-item.expanded {
+  border-color: var(--portal-primary, #2563eb);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+}
+
+.requirement-item.status-approved {
+  border-left: 3px solid #10b981;
+}
+
+.requirement-item.status-changes_requested {
+  border-left: 3px solid #f59e0b;
+}
+
+.requirement-item.status-rejected {
+  border-left: 3px solid #ef4444;
+}
+
+.requirement-item.status-pending {
+  border-left: 3px solid #94a3b8;
+}
+
+/* Requirement Header */
+.requirement-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.requirement-header:hover {
+  background: #f8fafc;
+}
+
+.select-checkbox {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #94a3b8;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.select-checkbox:hover {
+  color: #64748b;
+}
+
+.requirement-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.requirement-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.requirement-code {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.requirement-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+.requirement-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.priority-badge {
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.category-badge {
+  color: #64748b;
+}
+
+.area-badge {
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.6875rem;
+}
+
+.requirement-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Requirement Details */
+.requirement-details {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+
+.detail-section {
+  padding: 1rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+}
+
+.detail-section h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 0 0 0.5rem 0;
+}
+
+.detail-section p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #334155;
+  line-height: 1.6;
+}
+
+/* Previous Approval */
+.previous-approval {
+  padding: 1rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.previous-approval h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 0 0 0.5rem 0;
+}
+
+.approval-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  margin-bottom: 0.5rem;
+}
+
+.approval-date {
+  color: #94a3b8;
+  margin-left: auto;
+}
+
+.approval-comments {
+  margin: 0;
+  padding: 0.5rem;
+  background: #f1f5f9;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+/* Approval Form */
+.approval-form {
+  padding-top: 1rem;
+}
+
+.approval-form h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 0 0 0.75rem 0;
+}
+
+.form-field {
+  margin-bottom: 0.75rem;
+}
+
+.form-field label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-bottom: 0.375rem;
+}
+
+.form-field textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.form-field textarea:focus {
+  outline: none;
+  border-color: var(--portal-primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  background: #fef2f2;
+  border-radius: 4px;
+  color: #dc2626;
+  font-size: 0.8125rem;
+  margin-bottom: 0.75rem;
+}
+
+.approval-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.approval-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.approval-btn:hover {
+  opacity: 0.9;
+}
+
+.approval-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.approval-btn.approve {
+  background: #10b981;
+  color: white;
+}
+
+.approval-btn.changes {
+  background: #f59e0b;
+  color: white;
+}
+
+.approval-btn.reset {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.approval-btn.reset:hover {
+  background: #cbd5e1;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .batch-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .batch-buttons {
+    width: 100%;
+  }
+
+  .batch-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .requirement-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .requirement-status {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .approval-buttons {
+    flex-direction: column;
+  }
+
+  .approval-btn {
+    justify-content: center;
+  }
+}

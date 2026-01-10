@@ -1,17 +1,25 @@
 /**
  * Client Portal Service
- * 
+ *
  * Handles all client portal-related data operations for the Evaluator tool.
  * Provides read-only access for client stakeholders to view evaluation progress,
  * requirements, and vendor comparisons.
- * 
- * @version 1.0
+ *
+ * Extended in v1.0.x with:
+ * - Token-based access for external stakeholders
+ * - Stakeholder area approvals
+ * - Final sign-off workflow
+ *
+ * @version 2.0
  * @created 04 January 2026
+ * @updated 09 January 2026
  * @phase Phase 7B - Client Dashboard & Reports (Task 7B.1-7B.6)
+ * @phase Evaluator Roadmap v3.0 - Feature 0.6
  */
 
 import { EvaluatorBaseService } from './base.evaluator.service';
 import { supabase } from '../../lib/supabase';
+import crypto from 'crypto';
 
 /**
  * Client view permissions
@@ -560,6 +568,484 @@ export class ClientPortalService extends EvaluatorBaseService {
       }
     }
     return permissions[permissionKey] === true;
+  }
+
+  // ============================================================================
+  // TOKEN MANAGEMENT (v1.0.x - Feature 0.6)
+  // ============================================================================
+
+  /**
+   * Generate a cryptographically secure access token
+   * @returns {string} 64-character hex token
+   */
+  generateAccessToken() {
+    // In browser environment, use Web Crypto API
+    if (typeof window !== 'undefined' && window.crypto) {
+      const array = new Uint8Array(32);
+      window.crypto.getRandomValues(array);
+      return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+    // In Node environment (API routes), use crypto module
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Create a client portal access token invitation
+   * @param {string} evaluationProjectId - Evaluation project UUID
+   * @param {Object} invitation - Invitation details
+   * @returns {Promise<Object>} Created token record with full URL
+   */
+  async createAccessToken(evaluationProjectId, invitation) {
+    try {
+      const accessToken = this.generateAccessToken();
+
+      // Default expiration: 30 days
+      const expiresAt = invitation.expiresAt ||
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from('client_portal_access_tokens')
+        .insert({
+          evaluation_project_id: evaluationProjectId,
+          stakeholder_area_id: invitation.stakeholderAreaId || null,
+          user_email: invitation.email,
+          user_name: invitation.name,
+          user_title: invitation.title || null,
+          access_token: accessToken,
+          token_expires_at: expiresAt,
+          permissions: invitation.permissions || {
+            view_requirements: true,
+            approve_requirements: true,
+            add_comments: true,
+            view_vendors: false,
+            view_scores: false
+          },
+          invited_by: invitation.invitedBy || null,
+          invitation_message: invitation.message || null,
+          invitation_sent_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        ...data,
+        portalUrl: `/evaluator/client-portal?token=${accessToken}`
+      };
+    } catch (error) {
+      console.error('ClientPortalService createAccessToken failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate an access token and return portal context
+   * @param {string} accessToken - The access token
+   * @returns {Promise<Object|null>} Token data with project/area info, or null if invalid
+   */
+  async validateAccessToken(accessToken) {
+    try {
+      const { data, error } = await supabase
+        .from('client_portal_access_tokens')
+        .select(`
+          *,
+          evaluation_project:evaluation_projects!evaluation_project_id(
+            id, name, description, client_name, client_logo_url, status, branding
+          ),
+          stakeholder_area:stakeholder_areas!stakeholder_area_id(
+            id, name, color, weight
+          )
+        `)
+        .eq('access_token', accessToken)
+        .eq('status', 'active')
+        .single();
+
+      if (error || !data) return null;
+
+      // Check expiration
+      if (new Date(data.token_expires_at) < new Date()) {
+        // Mark as expired
+        await supabase
+          .from('client_portal_access_tokens')
+          .update({ status: 'expired' })
+          .eq('id', data.id);
+        return null;
+      }
+
+      // Update access tracking
+      await supabase
+        .from('client_portal_access_tokens')
+        .update({
+          last_accessed_at: new Date().toISOString(),
+          access_count: (data.access_count || 0) + 1
+        })
+        .eq('id', data.id);
+
+      return data;
+    } catch (error) {
+      console.error('ClientPortalService validateAccessToken failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all access tokens for an evaluation project
+   * @param {string} evaluationProjectId - Evaluation project UUID
+   * @returns {Promise<Array>} Access tokens with inviter details
+   */
+  async getAccessTokens(evaluationProjectId) {
+    try {
+      const { data, error } = await supabase
+        .from('client_portal_access_tokens')
+        .select(`
+          *,
+          stakeholder_area:stakeholder_areas!stakeholder_area_id(id, name, color),
+          invited_by_user:profiles!invited_by(id, full_name, email)
+        `)
+        .eq('evaluation_project_id', evaluationProjectId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('ClientPortalService getAccessTokens failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Revoke an access token
+   * @param {string} tokenId - Token UUID
+   * @param {string} userId - User revoking the token
+   * @param {string} reason - Reason for revocation
+   * @returns {Promise<Object>} Updated token
+   */
+  async revokeAccessToken(tokenId, userId, reason = null) {
+    try {
+      const { data, error } = await supabase
+        .from('client_portal_access_tokens')
+        .update({
+          status: 'revoked',
+          revoked_at: new Date().toISOString(),
+          revoked_by: userId,
+          revoke_reason: reason
+        })
+        .eq('id', tokenId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('ClientPortalService revokeAccessToken failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resend/refresh an access token
+   * @param {string} tokenId - Token UUID
+   * @param {number} extendDays - Days to extend expiration (default: 30)
+   * @returns {Promise<Object>} Updated token with new URL
+   */
+  async refreshAccessToken(tokenId, extendDays = 30) {
+    try {
+      const newToken = this.generateAccessToken();
+      const newExpiration = new Date(Date.now() + extendDays * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from('client_portal_access_tokens')
+        .update({
+          access_token: newToken,
+          token_expires_at: newExpiration,
+          status: 'active',
+          invitation_sent_at: new Date().toISOString()
+        })
+        .eq('id', tokenId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        ...data,
+        portalUrl: `/evaluator/client-portal?token=${newToken}`
+      };
+    } catch (error) {
+      console.error('ClientPortalService refreshAccessToken failed:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // STAKEHOLDER AREA APPROVALS (v1.0.x - Feature 0.6)
+  // ============================================================================
+
+  /**
+   * Submit final stakeholder area approval/sign-off
+   * @param {string} evaluationProjectId - Evaluation project UUID
+   * @param {string} stakeholderAreaId - Stakeholder area UUID
+   * @param {Object} approval - Approval details
+   * @returns {Promise<Object>} Created approval record
+   */
+  async submitStakeholderAreaApproval(evaluationProjectId, stakeholderAreaId, approval) {
+    try {
+      // Get current approval stats for the area
+      const stats = await this.getAreaApprovalStats(evaluationProjectId, stakeholderAreaId);
+
+      const { data, error } = await supabase
+        .from('stakeholder_area_approvals')
+        .upsert({
+          evaluation_project_id: evaluationProjectId,
+          stakeholder_area_id: stakeholderAreaId,
+          approved_by_name: approval.name,
+          approved_by_email: approval.email,
+          approved_by_title: approval.title,
+          approved_by_user_id: approval.userId || null,
+          approved_at: new Date().toISOString(),
+          approval_signature: approval.signature,
+          approval_notes: approval.notes,
+          total_requirements: stats.total,
+          approved_count: stats.approved,
+          rejected_count: stats.rejected,
+          changes_requested_count: stats.changesRequested
+        }, {
+          onConflict: 'evaluation_project_id,stakeholder_area_id'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('ClientPortalService submitStakeholderAreaApproval failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get approval stats for a specific stakeholder area
+   * @param {string} evaluationProjectId - Evaluation project UUID
+   * @param {string} stakeholderAreaId - Stakeholder area UUID
+   * @returns {Promise<Object>} Approval statistics
+   */
+  async getAreaApprovalStats(evaluationProjectId, stakeholderAreaId) {
+    try {
+      const { data, error } = await supabase
+        .from('requirements')
+        .select(`
+          id,
+          requirement_approvals(id, status, stakeholder_area_id)
+        `)
+        .eq('evaluation_project_id', evaluationProjectId)
+        .eq('stakeholder_area_id', stakeholderAreaId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      if (error) throw error;
+
+      const requirements = data || [];
+      let approved = 0;
+      let rejected = 0;
+      let changesRequested = 0;
+      let pending = 0;
+
+      requirements.forEach(req => {
+        const areaApprovals = (req.requirement_approvals || []).filter(
+          a => a.stakeholder_area_id === stakeholderAreaId
+        );
+        if (areaApprovals.length > 0) {
+          const latest = areaApprovals[0];
+          switch (latest.status) {
+            case 'approved': approved++; break;
+            case 'rejected': rejected++; break;
+            case 'changes_requested': changesRequested++; break;
+            default: pending++;
+          }
+        } else {
+          pending++;
+        }
+      });
+
+      return {
+        total: requirements.length,
+        approved,
+        rejected,
+        changesRequested,
+        pending,
+        approvedPercent: requirements.length > 0
+          ? Math.round((approved / requirements.length) * 100)
+          : 0
+      };
+    } catch (error) {
+      console.error('ClientPortalService getAreaApprovalStats failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get stakeholder area approvals for an evaluation project
+   * @param {string} evaluationProjectId - Evaluation project UUID
+   * @returns {Promise<Array>} Area approvals with details
+   */
+  async getStakeholderAreaApprovals(evaluationProjectId) {
+    try {
+      const { data, error } = await supabase
+        .from('stakeholder_area_approvals')
+        .select(`
+          *,
+          stakeholder_area:stakeholder_areas!stakeholder_area_id(id, name, color, weight)
+        `)
+        .eq('evaluation_project_id', evaluationProjectId)
+        .order('approved_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('ClientPortalService getStakeholderAreaApprovals failed:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // CLIENT PORTAL DATA (v1.0.x - Feature 0.6)
+  // ============================================================================
+
+  /**
+   * Get complete client portal data for a token holder
+   * @param {Object} tokenData - Validated token data
+   * @returns {Promise<Object>} Complete portal data
+   */
+  async getClientPortalData(tokenData) {
+    try {
+      const evaluationProjectId = tokenData.evaluation_project_id;
+      const stakeholderAreaId = tokenData.stakeholder_area_id;
+
+      // Get requirements filtered by stakeholder area if specified
+      const requirements = await this.getRequirementsSummary(
+        evaluationProjectId,
+        stakeholderAreaId
+      );
+
+      // Get approval progress
+      const approvalProgress = stakeholderAreaId
+        ? await this.getAreaApprovalStats(evaluationProjectId, stakeholderAreaId)
+        : await this.getApprovalStats(evaluationProjectId);
+
+      // Get stakeholder areas for context
+      const { data: stakeholderAreas } = await supabase
+        .from('stakeholder_areas')
+        .select('id, name, color, weight')
+        .eq('evaluation_project_id', evaluationProjectId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('sort_order');
+
+      // Get final area approvals
+      const areaApprovals = await this.getStakeholderAreaApprovals(evaluationProjectId);
+
+      // Check if this user's area has final approval
+      const userAreaApproval = stakeholderAreaId
+        ? areaApprovals.find(a => a.stakeholder_area_id === stakeholderAreaId)
+        : null;
+
+      return {
+        project: tokenData.evaluation_project,
+        user: {
+          name: tokenData.user_name,
+          email: tokenData.user_email,
+          title: tokenData.user_title,
+          stakeholderArea: tokenData.stakeholder_area
+        },
+        permissions: tokenData.permissions,
+        requirements,
+        approvalProgress,
+        stakeholderAreas: stakeholderAreas || [],
+        areaApprovals,
+        userAreaApproval,
+        canSubmitFinalApproval: stakeholderAreaId && !userAreaApproval
+      };
+    } catch (error) {
+      console.error('ClientPortalService getClientPortalData failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit requirement approval from client portal
+   * @param {Object} tokenData - Validated token data
+   * @param {string} requirementId - Requirement UUID
+   * @param {Object} approval - Approval data
+   * @returns {Promise<Object>} Created approval
+   */
+  async submitRequirementApproval(tokenData, requirementId, approval) {
+    try {
+      // Check permission
+      if (!tokenData.permissions?.approve_requirements) {
+        throw new Error('You do not have permission to approve requirements');
+      }
+
+      const { data, error } = await supabase
+        .from('requirement_approvals')
+        .upsert({
+          requirement_id: requirementId,
+          client_name: tokenData.user_name,
+          client_email: tokenData.user_email,
+          stakeholder_area_id: tokenData.stakeholder_area_id,
+          status: approval.status,
+          comments: approval.comments,
+          approval_note: approval.note,
+          revision_requested: approval.status === 'changes_requested',
+          approved_at: approval.status !== 'pending' ? new Date().toISOString() : null
+        }, {
+          onConflict: 'requirement_id,client_email'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('ClientPortalService submitRequirementApproval failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Batch approve requirements from client portal
+   * @param {Object} tokenData - Validated token data
+   * @param {Array<string>} requirementIds - Requirement UUIDs
+   * @param {Object} approval - Approval data
+   * @returns {Promise<Array>} Created approvals
+   */
+  async batchApproveRequirements(tokenData, requirementIds, approval) {
+    try {
+      if (!tokenData.permissions?.approve_requirements) {
+        throw new Error('You do not have permission to approve requirements');
+      }
+
+      const approvals = requirementIds.map(reqId => ({
+        requirement_id: reqId,
+        client_name: tokenData.user_name,
+        client_email: tokenData.user_email,
+        stakeholder_area_id: tokenData.stakeholder_area_id,
+        status: approval.status,
+        comments: approval.comments,
+        approved_at: approval.status !== 'pending' ? new Date().toISOString() : null
+      }));
+
+      const { data, error } = await supabase
+        .from('requirement_approvals')
+        .upsert(approvals, {
+          onConflict: 'requirement_id,client_email'
+        })
+        .select();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('ClientPortalService batchApproveRequirements failed:', error);
+      throw error;
+    }
   }
 }
 

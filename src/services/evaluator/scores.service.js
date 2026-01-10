@@ -1,12 +1,14 @@
 /**
  * Scores Service
- * 
+ *
  * Handles all scoring-related data operations for the Evaluator tool.
  * Scores are assigned by evaluators to vendors against evaluation criteria.
- * Supports individual scores, consensus scores, and weighted calculations.
- * 
- * @version 1.0
+ * Supports individual scores, consensus scores, weighted calculations,
+ * and AI-suggested scoring with acceptance tracking.
+ *
+ * @version 1.1
  * @created 03 January 2026
+ * @updated 09 January 2026 - Added AI suggestion tracking
  * @phase Phase 6 - Evaluation & Scoring (Task 6B.1)
  */
 
@@ -14,12 +16,18 @@ import { EvaluatorBaseService } from './base.evaluator.service';
 import { supabase } from '../../lib/supabase';
 
 /**
- * Score status
+ * Score status - aligned with database migration
+ * Migration: 202601010014_create_scores.sql
  */
 export const SCORE_STATUS = {
   DRAFT: 'draft',
   SUBMITTED: 'submitted',
-  RECONCILED: 'reconciled'
+  LOCKED: 'locked'  // Was 'reconciled' - migration uses 'locked'
+};
+
+// Keep alias for backward compatibility
+export const SCORE_STATUS_ALIASES = {
+  'reconciled': 'locked'  // Map old status to new
 };
 
 export const SCORE_STATUS_CONFIG = {
@@ -33,10 +41,10 @@ export const SCORE_STATUS_CONFIG = {
     color: '#3b82f6',
     description: 'Score submitted for reconciliation'
   },
-  [SCORE_STATUS.RECONCILED]: {
-    label: 'Reconciled',
+  [SCORE_STATUS.LOCKED]: {
+    label: 'Locked',
     color: '#10b981',
-    description: 'Consensus reached'
+    description: 'Consensus reached and locked'
   }
 };
 
@@ -213,16 +221,44 @@ export class ScoresService extends EvaluatorBaseService {
         scoreData.evaluator_id
       );
 
+      // Map status if using old name
+      let status = scoreData.status || SCORE_STATUS.DRAFT;
+      if (SCORE_STATUS_ALIASES[status]) {
+        status = SCORE_STATUS_ALIASES[status];
+      }
+
+      // rationale is required by database - provide default if not given
+      const rationale = scoreData.rationale || 'Score entered without rationale';
+
       const dataToSave = {
         evaluation_project_id: scoreData.evaluation_project_id,
         vendor_id: scoreData.vendor_id,
         criterion_id: scoreData.criterion_id,
         evaluator_id: scoreData.evaluator_id,
         score_value: scoreData.score_value,
-        rationale: scoreData.rationale || null,
-        status: scoreData.status || SCORE_STATUS.DRAFT,
-        scored_at: new Date().toISOString()
+        rationale: rationale,  // Required NOT NULL in migration
+        status: status
+        // Note: 'scored_at' doesn't exist in migration - use 'submitted_at' when submitting
       };
+
+      // Add AI suggestion tracking if provided
+      if (scoreData.ai_suggested_score !== undefined) {
+        dataToSave.ai_suggested_score = scoreData.ai_suggested_score;
+        dataToSave.ai_suggestion_rationale = scoreData.ai_suggestion_rationale || null;
+        dataToSave.ai_suggestion_confidence = scoreData.ai_suggestion_confidence || null;
+        dataToSave.ai_analysis_id = scoreData.ai_analysis_id || null;
+
+        // Determine if suggestion was accepted (exact match) or modified
+        if (scoreData.ai_suggested_score !== null) {
+          dataToSave.ai_suggestion_accepted =
+            scoreData.score_value === Math.round(scoreData.ai_suggested_score);
+        }
+      }
+
+      // Link to vendor response if provided
+      if (scoreData.vendor_response_id) {
+        dataToSave.vendor_response_id = scoreData.vendor_response_id;
+      }
 
       let result;
       if (existing) {
@@ -254,6 +290,23 @@ export class ScoresService extends EvaluatorBaseService {
       console.error('ScoresService saveScore failed:', error);
       throw error;
     }
+  }
+
+  /**
+   * Save a score from AI suggestion
+   * Convenience method that automatically tracks AI suggestion data
+   * @param {Object} scoreData - Basic score data
+   * @param {Object} aiSuggestion - AI suggestion from analyzeResponse
+   * @returns {Promise<Object>} Created/updated score
+   */
+  async saveScoreFromAISuggestion(scoreData, aiSuggestion) {
+    return this.saveScore({
+      ...scoreData,
+      ai_suggested_score: aiSuggestion.value,
+      ai_suggestion_rationale: aiSuggestion.rationale,
+      ai_suggestion_confidence: aiSuggestion.confidence || 'medium',
+      ai_analysis_id: aiSuggestion.analysis_id || null
+    });
   }
 
   /**
@@ -520,10 +573,10 @@ export class ScoresService extends EvaluatorBaseService {
         await this.updateConsensusSources(result.id, consensusData.sourceScoreIds);
       }
 
-      // Mark related individual scores as reconciled
+      // Mark related individual scores as locked (consensus reached)
       await supabase
         .from('scores')
-        .update({ status: SCORE_STATUS.RECONCILED })
+        .update({ status: SCORE_STATUS.LOCKED })
         .eq('vendor_id', consensusData.vendor_id)
         .eq('criterion_id', consensusData.criterion_id);
 
@@ -821,6 +874,126 @@ export class ScoresService extends EvaluatorBaseService {
       }));
     } catch (error) {
       console.error('ScoresService getVendorRanking failed:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // AI SUGGESTION ANALYTICS
+  // ============================================================================
+
+  /**
+   * Get AI suggestion acceptance statistics
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @returns {Promise<Object>} AI suggestion statistics
+   */
+  async getAISuggestionStats(evaluationProjectId) {
+    try {
+      const { data, error } = await supabase
+        .from('scores')
+        .select('ai_suggested_score, ai_suggestion_accepted, score_value, ai_suggestion_confidence')
+        .eq('evaluation_project_id', evaluationProjectId)
+        .not('ai_suggested_score', 'is', null);
+
+      if (error) throw error;
+
+      const scores = data || [];
+      const total = scores.length;
+
+      if (total === 0) {
+        return {
+          total: 0,
+          accepted: 0,
+          modified: 0,
+          acceptanceRate: 0,
+          averageDeviation: 0,
+          byConfidence: { low: { total: 0, accepted: 0 }, medium: { total: 0, accepted: 0 }, high: { total: 0, accepted: 0 } }
+        };
+      }
+
+      const accepted = scores.filter(s => s.ai_suggestion_accepted === true).length;
+      const modified = scores.filter(s => s.ai_suggestion_accepted === false).length;
+
+      // Calculate average deviation when modified
+      const deviations = scores
+        .filter(s => s.ai_suggestion_accepted === false)
+        .map(s => Math.abs(s.score_value - s.ai_suggested_score));
+      const averageDeviation = deviations.length > 0
+        ? deviations.reduce((a, b) => a + b, 0) / deviations.length
+        : 0;
+
+      // Group by confidence level
+      const byConfidence = { low: { total: 0, accepted: 0 }, medium: { total: 0, accepted: 0 }, high: { total: 0, accepted: 0 } };
+      scores.forEach(s => {
+        const conf = s.ai_suggestion_confidence || 'medium';
+        if (byConfidence[conf]) {
+          byConfidence[conf].total++;
+          if (s.ai_suggestion_accepted) byConfidence[conf].accepted++;
+        }
+      });
+
+      // Calculate acceptance rate per confidence level
+      Object.keys(byConfidence).forEach(key => {
+        byConfidence[key].acceptanceRate = byConfidence[key].total > 0
+          ? Math.round((byConfidence[key].accepted / byConfidence[key].total) * 100)
+          : 0;
+      });
+
+      return {
+        total,
+        accepted,
+        modified,
+        acceptanceRate: Math.round((accepted / total) * 100),
+        averageDeviation: Math.round(averageDeviation * 10) / 10,
+        byConfidence
+      };
+    } catch (error) {
+      console.error('ScoresService getAISuggestionStats failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get AI suggestion accuracy (how close suggestions are to final scores)
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @returns {Promise<Object>} Accuracy metrics
+   */
+  async getAISuggestionAccuracy(evaluationProjectId) {
+    try {
+      const { data, error } = await supabase
+        .from('scores')
+        .select('ai_suggested_score, score_value, ai_suggestion_confidence')
+        .eq('evaluation_project_id', evaluationProjectId)
+        .not('ai_suggested_score', 'is', null);
+
+      if (error) throw error;
+
+      const scores = data || [];
+      if (scores.length === 0) {
+        return { total: 0, exactMatch: 0, withinOne: 0, meanAbsoluteError: 0 };
+      }
+
+      let exactMatch = 0;
+      let withinOne = 0;
+      let totalError = 0;
+
+      scores.forEach(s => {
+        const diff = Math.abs(s.score_value - s.ai_suggested_score);
+        if (diff === 0) exactMatch++;
+        if (diff <= 1) withinOne++;
+        totalError += diff;
+      });
+
+      return {
+        total: scores.length,
+        exactMatch,
+        exactMatchRate: Math.round((exactMatch / scores.length) * 100),
+        withinOne,
+        withinOneRate: Math.round((withinOne / scores.length) * 100),
+        meanAbsoluteError: Math.round((totalError / scores.length) * 100) / 100
+      };
+    } catch (error) {
+      console.error('ScoresService getAISuggestionAccuracy failed:', error);
       throw error;
     }
   }

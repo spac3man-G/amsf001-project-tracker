@@ -4,8 +4,9 @@
  * Runs daily to check upcoming deadlines and send reminder notifications.
  * Designed to be triggered by Vercel Cron.
  *
- * @version 1.0
+ * @version 1.1
  * @created January 9, 2026
+ * @updated 09 January 2026 - Added email notifications via Supabase Edge Function
  * @phase Phase 1 - Feature 1.1: Smart Notifications & Deadline Reminders
  */
 
@@ -17,6 +18,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }
 );
+
+const BASE_URL = process.env.VITE_APP_URL || 'https://tracker.progressive.gg';
 
 // Notification templates
 const NOTIFICATION_TEMPLATES = {
@@ -182,7 +185,7 @@ async function processProjectDeadlines(project, results) {
       // Determine recipients based on deadline type
       const recipients = getRecipientsForDeadline(deadline, teamMembers);
 
-      // Create notifications
+      // Create in-app notifications
       const notifications = await createDeadlineNotifications(
         project,
         deadline,
@@ -192,6 +195,9 @@ async function processProjectDeadlines(project, results) {
       );
 
       results.notifications_created += notifications.length;
+
+      // Send email notifications
+      await sendDeadlineEmails(project, deadline, daysUntil, recipients, results);
 
       // Update deadline reminder tracking
       await supabase
@@ -391,8 +397,9 @@ async function checkImplicitDeadlines(project, schedules, teamMembers, results) 
         ...(attendees || []).map(a => a.user_id).filter(Boolean)
       ];
 
+      const uniqueRecipients = [...new Set(recipients)];
       const template = NOTIFICATION_TEMPLATES.workshop_reminder;
-      const notifications = [...new Set(recipients)].map(userId => ({
+      const notifications = uniqueRecipients.map(userId => ({
         user_id: userId,
         evaluation_project_id: project.id,
         type: 'workshop_reminder',
@@ -417,6 +424,9 @@ async function checkImplicitDeadlines(project, schedules, teamMembers, results) 
           .select();
 
         results.notifications_created += (data?.length || 0);
+
+        // Send email notifications for workshop reminders
+        await sendWorkshopEmails(project, workshop, daysUntil, uniqueRecipients, results);
       }
     }
   }
@@ -433,4 +443,172 @@ async function markMissedDeadlines() {
     .update({ status: 'missed' })
     .eq('status', 'pending')
     .lt('deadline_date', now);
+}
+
+/**
+ * Send email notification via Supabase Edge Function
+ * @param {string} notificationType - Type of notification (deadline_reminder, workshop_reminder, etc.)
+ * @param {Object} recipient - { email, name }
+ * @param {Object} data - Email template data
+ * @param {string} evaluationProjectId - Project ID for tracking
+ */
+async function sendEmailNotification(notificationType, recipient, data, evaluationProjectId) {
+  if (!recipient?.email) return { success: false, reason: 'No recipient email' };
+
+  try {
+    const { data: result, error } = await supabase.functions.invoke(
+      'send-evaluator-notification',
+      {
+        body: {
+          notificationType,
+          recipient,
+          data,
+          evaluationProjectId
+        }
+      }
+    );
+
+    if (error) {
+      console.error(`Email send failed for ${recipient.email}:`, error);
+      return { success: false, error };
+    }
+
+    return { success: true, messageId: result?.messageId };
+  } catch (err) {
+    console.error(`Email send error for ${recipient.email}:`, err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Check if user has email notifications enabled
+ * @param {string} userId - User UUID
+ * @param {string} notificationType - Notification type
+ * @returns {Promise<boolean>} Whether email is enabled
+ */
+async function isEmailEnabledForUser(userId, notificationType) {
+  try {
+    const { data } = await supabase
+      .from('notification_preferences')
+      .select('email_enabled, type_preferences')
+      .eq('user_id', userId)
+      .single();
+
+    if (!data) return true; // Default to enabled
+
+    // Check global toggle
+    if (!data.email_enabled) return false;
+
+    // Check type-specific preference
+    const typePrefs = data.type_preferences || {};
+    if (typePrefs[notificationType]?.email === false) return false;
+
+    return true;
+  } catch {
+    return true; // Default to enabled on error
+  }
+}
+
+/**
+ * Send emails for deadline notifications
+ * @param {Object} project - Project details
+ * @param {Object} deadline - Deadline details
+ * @param {number} daysUntil - Days until deadline
+ * @param {Array} recipientUserIds - Array of user IDs to notify
+ * @param {Object} results - Results tracking object
+ */
+async function sendDeadlineEmails(project, deadline, daysUntil, recipientUserIds, results) {
+  // Get user details for recipients
+  const { data: users } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', recipientUserIds);
+
+  if (!users || users.length === 0) return;
+
+  const actionUrl = `${BASE_URL}/evaluator/${deadline.entity_type || 'dashboard'}`;
+  const dueDate = new Date(deadline.deadline_date).toLocaleDateString('en-AU', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  for (const user of users) {
+    // Check if user has email enabled for this type
+    const emailEnabled = await isEmailEnabledForUser(user.id, 'deadline_reminder');
+    if (!emailEnabled) continue;
+
+    const emailResult = await sendEmailNotification(
+      'deadline_reminder',
+      { email: user.email, name: user.full_name },
+      {
+        deadlineTitle: deadline.title,
+        daysLeft: daysUntil,
+        dueDate,
+        deadlineType: deadline.deadline_type,
+        description: deadline.description,
+        evaluationName: project.name,
+        actionUrl
+      },
+      project.id
+    );
+
+    if (emailResult.success) {
+      results.emails_queued++;
+    }
+  }
+}
+
+/**
+ * Send emails for workshop reminders
+ * @param {Object} project - Project details
+ * @param {Object} workshop - Workshop details
+ * @param {number} daysUntil - Days until workshop
+ * @param {Array} recipientUserIds - Array of user IDs to notify
+ * @param {Object} results - Results tracking object
+ */
+async function sendWorkshopEmails(project, workshop, daysUntil, recipientUserIds, results) {
+  // Get user details for recipients
+  const { data: users } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', recipientUserIds);
+
+  if (!users || users.length === 0) return;
+
+  const workshopUrl = `${BASE_URL}/evaluator/workshops/${workshop.id}`;
+  const dateTime = new Date(workshop.scheduled_date).toLocaleString('en-AU', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  for (const user of users) {
+    // Check if user has email enabled for this type
+    const emailEnabled = await isEmailEnabledForUser(user.id, 'workshop_reminder');
+    if (!emailEnabled) continue;
+
+    const emailResult = await sendEmailNotification(
+      'workshop_reminder',
+      { email: user.email, name: user.full_name },
+      {
+        workshopName: workshop.name,
+        daysLeft: daysUntil,
+        dateTime,
+        location: workshop.location || 'TBD',
+        duration: workshop.duration_minutes ? `${workshop.duration_minutes} minutes` : 'TBD',
+        agenda: workshop.agenda,
+        workshopUrl
+      },
+      project.id
+    );
+
+    if (emailResult.success) {
+      results.emails_queued++;
+    }
+  }
 }

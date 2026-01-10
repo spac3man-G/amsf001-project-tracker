@@ -1,0 +1,260 @@
+/**
+ * PhaseGateProgress Styles
+ * @created 09 January 2026
+ */
+
+.phase-gate-progress {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+}
+
+/* Progress Line */
+.progress-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Gate Item */
+.gate-item {
+  position: relative;
+}
+
+.gate-item .connector {
+  position: absolute;
+  left: 17px;
+  top: -20px;
+  width: 2px;
+  height: 20px;
+  background: var(--border-color);
+}
+
+.gate-item .connector.active {
+  background: var(--success);
+}
+
+/* Gate Node Button */
+.gate-node {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.gate-node:hover {
+  background: var(--bg-hover);
+}
+
+.gate-item.current .gate-node {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.gate-item.expanded .gate-node {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Gate Icon */
+.gate-icon {
+  flex-shrink: 0;
+}
+
+.icon-passed {
+  color: var(--success);
+}
+
+.icon-progress {
+  color: var(--warning);
+}
+
+.icon-pending {
+  color: var(--text-tertiary);
+}
+
+/* Gate Info */
+.gate-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.gate-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.gate-rate {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.gate-expand {
+  color: var(--text-secondary);
+}
+
+/* Gate Details */
+.gate-details {
+  padding: 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  margin-bottom: 0.75rem;
+}
+
+.gate-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem 0;
+}
+
+.threshold-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.threshold-value {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* Area Approvals */
+.area-approvals {
+  margin-bottom: 1rem;
+}
+
+.area-approvals h4 {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem 0;
+}
+
+.approval-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.approval-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.approval-item.approved {
+  background: var(--success-light);
+}
+
+.approval-status .icon-approved {
+  color: var(--success);
+}
+
+.approval-status .icon-pending {
+  color: var(--text-tertiary);
+}
+
+.approval-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.area-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.area-weight {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.approval-date {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.approval-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.approval-actions .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.no-areas {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Gate Summary */
+.gate-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.gate-summary.passed {
+  background: var(--success-light);
+  color: var(--success-dark);
+}
+
+.gate-summary.not-passed {
+  background: var(--warning-light);
+  color: var(--warning-dark);
+}
+
+/* All Passed Banner */
+.all-passed-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--success-light);
+  border: 1px solid var(--success);
+  border-radius: 8px;
+  color: var(--success-dark);
+  font-weight: 500;
+  margin-top: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .approval-item {
+    flex-wrap: wrap;
+  }
+
+  .approval-actions {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}

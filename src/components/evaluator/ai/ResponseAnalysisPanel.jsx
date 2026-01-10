@@ -8,9 +8,13 @@
  * - Suggested score with rationale
  * - Follow-up questions
  *
- * @version 1.0
+ * Enhanced with score modification support - evaluators can accept
+ * AI suggestions directly or modify them before saving.
+ *
+ * @version 1.1
  * @created January 9, 2026
- * @phase Evaluator Product Roadmap v1.1 - Feature 1.1.2
+ * @updated 09 January 2026 - Added score modification UI
+ * @phase Evaluator Product Roadmap v1.0.x - Feature 0.7: AI Response Scoring
  */
 
 import React, { useState, useCallback } from 'react';
@@ -20,9 +24,11 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Edit3,
   HelpCircle,
   Lightbulb,
   RefreshCw,
+  Save,
   Sparkles,
   Star,
   TrendingUp,
@@ -166,13 +172,21 @@ function ResponseAnalysisPanel({
   initialAnalysis = null,
   onClose,
   onScoreApply,
-  compact = false
+  onScoreApplyModified,  // New: callback for modified scores (finalScore, aiScore, aiRationale, userRationale)
+  compact = false,
+  allowScoreEdit = true  // New: allow editing AI score before applying
 }) {
   const { user } = useAuth();
   const [analysis, setAnalysis] = useState(initialAnalysis);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isExpanded, setIsExpanded] = useState(!compact);
+
+  // Score editing state
+  const [isEditingScore, setIsEditingScore] = useState(false);
+  const [editedScore, setEditedScore] = useState(null);
+  const [editRationale, setEditRationale] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Analyze the response
   const runAnalysis = useCallback(async (forceRefresh = false) => {
@@ -202,10 +216,66 @@ function ResponseAnalysisPanel({
     }
   }, [responseId, initialAnalysis, runAnalysis]);
 
-  // Handle applying the suggested score
-  const handleApplyScore = () => {
-    if (analysis?.suggestedScore && onScoreApply) {
-      onScoreApply(analysis.suggestedScore.value, analysis.suggestedScore.rationale);
+  // Handle applying the suggested score (exact AI suggestion)
+  const handleApplyScore = async () => {
+    if (!analysis?.suggestedScore) return;
+
+    setIsSaving(true);
+    try {
+      if (onScoreApply) {
+        await onScoreApply(
+          analysis.suggestedScore.value,
+          analysis.suggestedScore.rationale,
+          { confidence: analysis.confidence }
+        );
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Start editing the score
+  const handleStartEdit = () => {
+    if (analysis?.suggestedScore) {
+      setEditedScore(analysis.suggestedScore.value);
+      setEditRationale('');
+      setIsEditingScore(true);
+    }
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setIsEditingScore(false);
+    setEditedScore(null);
+    setEditRationale('');
+  };
+
+  // Apply modified score
+  const handleApplyModifiedScore = async () => {
+    if (editedScore === null || !analysis?.suggestedScore) return;
+
+    setIsSaving(true);
+    try {
+      if (onScoreApplyModified) {
+        // Use the modified callback if provided
+        await onScoreApplyModified(
+          editedScore,
+          analysis.suggestedScore.value,
+          analysis.suggestedScore.rationale,
+          editRationale || `Adjusted from AI suggestion (${analysis.suggestedScore.value})`,
+          { confidence: analysis.confidence }
+        );
+      } else if (onScoreApply) {
+        // Fall back to regular callback with modified values
+        await onScoreApply(
+          editedScore,
+          editRationale || `Adjusted from AI suggestion (${analysis.suggestedScore.value}): ${analysis.suggestedScore.rationale}`,
+          { confidence: analysis.confidence, wasModified: true, originalSuggestion: analysis.suggestedScore.value }
+        );
+      }
+      handleCancelEdit();
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -296,12 +366,77 @@ function ResponseAnalysisPanel({
                   {confidenceConfig.label}
                 </span>
               </div>
-              <ScoreGauge score={analysis.suggestedScore.value} />
-              <p className="score-rationale">{analysis.suggestedScore.rationale}</p>
-              {onScoreApply && (
-                <button className="apply-score-btn" onClick={handleApplyScore}>
-                  <Zap size={14} /> Apply Score
-                </button>
+
+              {/* Score editing mode */}
+              {isEditingScore ? (
+                <div className="score-edit-mode">
+                  <div className="score-edit-input">
+                    <label>Adjust Score (0-5):</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="1"
+                      value={editedScore ?? ''}
+                      onChange={(e) => setEditedScore(Math.min(5, Math.max(0, parseFloat(e.target.value) || 0)))}
+                    />
+                    <span className="original-score">
+                      AI suggested: {analysis.suggestedScore.value}
+                    </span>
+                  </div>
+                  <div className="score-edit-rationale">
+                    <label>Your rationale (optional):</label>
+                    <textarea
+                      value={editRationale}
+                      onChange={(e) => setEditRationale(e.target.value)}
+                      placeholder="Why are you adjusting the score?"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="score-edit-actions">
+                    <button
+                      className="save-score-btn"
+                      onClick={handleApplyModifiedScore}
+                      disabled={isSaving}
+                    >
+                      <Save size={14} /> {isSaving ? 'Saving...' : 'Save Score'}
+                    </button>
+                    <button
+                      className="cancel-edit-btn"
+                      onClick={handleCancelEdit}
+                      disabled={isSaving}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <ScoreGauge score={analysis.suggestedScore.value} />
+                  <p className="score-rationale">{analysis.suggestedScore.rationale}</p>
+                  {(onScoreApply || onScoreApplyModified) && (
+                    <div className="score-actions">
+                      <button
+                        className="apply-score-btn"
+                        onClick={handleApplyScore}
+                        disabled={isSaving}
+                        title="Accept AI score as-is"
+                      >
+                        <Zap size={14} /> {isSaving ? 'Applying...' : 'Accept Score'}
+                      </button>
+                      {allowScoreEdit && (
+                        <button
+                          className="edit-score-btn"
+                          onClick={handleStartEdit}
+                          disabled={isSaving}
+                          title="Modify score before saving"
+                        >
+                          <Edit3 size={14} /> Adjust
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -400,7 +535,9 @@ ResponseAnalysisPanel.propTypes = {
   initialAnalysis: PropTypes.object,
   onClose: PropTypes.func,
   onScoreApply: PropTypes.func,
-  compact: PropTypes.bool
+  onScoreApplyModified: PropTypes.func,
+  compact: PropTypes.bool,
+  allowScoreEdit: PropTypes.bool
 };
 
 export default ResponseAnalysisPanel;

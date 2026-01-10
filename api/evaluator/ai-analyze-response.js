@@ -23,7 +23,7 @@ export const config = {
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const MODEL = 'claude-sonnet-4-20250514';
+const MODEL = 'claude-opus-4-5-20251101';  // Updated to Opus 4.5 per BUG-007
 
 // Initialize Supabase client
 let supabaseClient = null;

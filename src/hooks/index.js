@@ -57,3 +57,6 @@ export {
 
 // UI Utilities
 export { default as useResizableColumns } from './useResizableColumns';
+
+// Evaluator - AI Scoring
+export { useAIScoring } from './evaluator/useAIScoring';

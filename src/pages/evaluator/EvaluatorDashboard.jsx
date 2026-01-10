@@ -33,7 +33,16 @@ import { PageHeader, LoadingSpinner, StatCard } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
 import CreateEvaluationModal from '../../components/evaluator/CreateEvaluationModal';
 import { NotificationCenter } from '../../components/evaluator/notifications';
-import { ScoreHeatmap, VendorRadarChart, EvaluationTimeline, RiskIndicators } from '../../components/evaluator/analytics';
+import {
+  ScoreHeatmap,
+  VendorRadarChart,
+  EvaluationTimeline,
+  RiskIndicators,
+  StakeholderParticipationChart,
+  QAActivityWidget,
+  ClientApprovalWidget,
+  SecurityStatusWidget
+} from '../../components/evaluator/analytics';
 import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService, workshopsService } from '../../services/evaluator';
 
 import './EvaluatorDashboard.css';
@@ -334,7 +343,23 @@ export default function EvaluatorDashboard() {
             </div>
           </div>
 
-          {/* Row 2: Heatmap */}
+          {/* Row 2: v1.1 Widgets - Stakeholder, Q&A, Approvals, Security */}
+          <div className="analytics-row four-col">
+            <div className="analytics-item widget-item">
+              <StakeholderParticipationChart evaluationProjectId={evaluationId} />
+            </div>
+            <div className="analytics-item widget-item">
+              <QAActivityWidget evaluationProjectId={evaluationId} />
+            </div>
+            <div className="analytics-item widget-item">
+              <ClientApprovalWidget evaluationProjectId={evaluationId} />
+            </div>
+            <div className="analytics-item widget-item">
+              <SecurityStatusWidget evaluationProjectId={evaluationId} />
+            </div>
+          </div>
+
+          {/* Row 3: Heatmap */}
           <div className="analytics-row full-width">
             <div className="analytics-item heatmap-item">
               <ScoreHeatmap
@@ -348,7 +373,7 @@ export default function EvaluatorDashboard() {
             </div>
           </div>
 
-          {/* Row 3: Radar Chart */}
+          {/* Row 4: Radar Chart */}
           <div className="analytics-row full-width">
             <div className="analytics-item radar-item">
               <VendorRadarChart evaluationProjectId={evaluationId} maxVendors={5} />

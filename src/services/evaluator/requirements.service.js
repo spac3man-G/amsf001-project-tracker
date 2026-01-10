@@ -1,17 +1,19 @@
 /**
  * Requirements Service
- * 
+ *
  * Handles all requirements-related data operations for the Evaluator tool.
  * Requirements are the core entity tracking what the client needs from their
  * new system, with full traceability to source (workshop, survey, document, AI).
- * 
- * @version 1.0
+ *
+ * @version 1.1
  * @created 01 January 2026
+ * @updated 09 January 2026 - Added notification triggers
  * @phase Phase 3 - Requirements Module (Task 3A.1)
  */
 
 import { EvaluatorBaseService } from './base.evaluator.service';
 import { supabase } from '../../lib/supabase';
+import { notificationTriggersService } from './notificationTriggers.service';
 
 export class RequirementsService extends EvaluatorBaseService {
   constructor() {
@@ -263,7 +265,19 @@ export class RequirementsService extends EvaluatorBaseService {
    * @returns {Promise<Object>} Updated requirement
    */
   async submitForReview(requirementId) {
-    return this.update(requirementId, { status: 'under_review' });
+    const requirement = await this.update(requirementId, { status: 'under_review' });
+
+    // Trigger notification for client stakeholders
+    if (requirement?.evaluation_project_id) {
+      notificationTriggersService.onRequirementsSubmittedForApproval(
+        requirement.evaluation_project_id,
+        [requirementId],
+        null, // submittedBy - would need to be passed in
+        requirement.stakeholder_area_id
+      ).catch(err => console.error('Notification trigger failed:', err));
+    }
+
+    return requirement;
   }
 
   /**
@@ -681,6 +695,35 @@ export class RequirementsService extends EvaluatorBaseService {
     }
   }
 
+
+  /**
+   * Bulk submit requirements for review with notification
+   * @param {string} evaluationProjectId - Evaluation project UUID
+   * @param {Array<string>} requirementIds - Array of requirement UUIDs
+   * @param {string} submittedBy - User who submitted
+   * @param {string} stakeholderAreaId - Optional stakeholder area filter
+   * @returns {Promise<Array>} Updated requirements
+   */
+  async bulkSubmitForReview(evaluationProjectId, requirementIds, submittedBy = null, stakeholderAreaId = null) {
+    try {
+      const updated = await this.bulkUpdate(requirementIds, { status: 'under_review' });
+
+      // Trigger single notification for all requirements
+      if (updated.length > 0) {
+        notificationTriggersService.onRequirementsSubmittedForApproval(
+          evaluationProjectId,
+          requirementIds,
+          submittedBy,
+          stakeholderAreaId
+        ).catch(err => console.error('Notification trigger failed:', err));
+      }
+
+      return updated;
+    } catch (error) {
+      console.error('RequirementsService bulkSubmitForReview failed:', error);
+      throw error;
+    }
+  }
 
   /**
    * Bulk update requirements (e.g., change category for multiple)

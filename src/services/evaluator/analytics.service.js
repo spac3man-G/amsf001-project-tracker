@@ -582,6 +582,330 @@ class AnalyticsService {
 
     return Math.round(score);
   }
+
+  // ============================================================================
+  // Q&A ACTIVITY METRICS (v1.1 Feature 1.3)
+  // ============================================================================
+
+  /**
+   * Get Q&A activity metrics
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @returns {Promise<Object>} Q&A activity statistics
+   */
+  async getQAActivityMetrics(evaluationProjectId) {
+    try {
+      // Get all Q&A entries
+      const { data: qaEntries } = await supabase
+        .from('vendor_qa')
+        .select(`
+          id,
+          status,
+          asked_at,
+          answered_at,
+          shared_at,
+          vendor:vendors!vendor_id(id, name)
+        `)
+        .eq('evaluation_project_id', evaluationProjectId);
+
+      const entries = qaEntries || [];
+      const total = entries.length;
+      const pending = entries.filter(q => q.status === 'pending').length;
+      const answered = entries.filter(q => q.status === 'answered').length;
+      const shared = entries.filter(q => q.status === 'shared').length;
+
+      // Calculate average response time (in hours)
+      const answeredWithTime = entries.filter(q => q.asked_at && q.answered_at);
+      const avgResponseTimeHours = answeredWithTime.length > 0
+        ? answeredWithTime.reduce((sum, q) => {
+            const asked = new Date(q.asked_at);
+            const answered = new Date(q.answered_at);
+            return sum + (answered - asked) / (1000 * 60 * 60);
+          }, 0) / answeredWithTime.length
+        : 0;
+
+      // Questions by vendor
+      const byVendor = {};
+      entries.forEach(q => {
+        const vendorName = q.vendor?.name || 'Unknown';
+        if (!byVendor[vendorName]) {
+          byVendor[vendorName] = { total: 0, pending: 0, answered: 0 };
+        }
+        byVendor[vendorName].total++;
+        if (q.status === 'pending') byVendor[vendorName].pending++;
+        if (q.status === 'answered' || q.status === 'shared') byVendor[vendorName].answered++;
+      });
+
+      // Questions over time (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const recentQuestions = entries.filter(q =>
+        q.asked_at && new Date(q.asked_at) >= thirtyDaysAgo
+      );
+
+      // Group by day
+      const questionsByDay = {};
+      recentQuestions.forEach(q => {
+        const day = new Date(q.asked_at).toISOString().split('T')[0];
+        questionsByDay[day] = (questionsByDay[day] || 0) + 1;
+      });
+
+      return {
+        total,
+        pending,
+        answered,
+        shared,
+        responseRate: total > 0 ? Math.round(((answered + shared) / total) * 100) : 0,
+        avgResponseTimeHours: Math.round(avgResponseTimeHours * 10) / 10,
+        byVendor: Object.entries(byVendor).map(([name, stats]) => ({ name, ...stats })),
+        trend: Object.entries(questionsByDay)
+          .map(([date, count]) => ({ date, count }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+      };
+    } catch (error) {
+      console.error('AnalyticsService.getQAActivityMetrics failed:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // CLIENT APPROVAL PROGRESS (v1.1 Feature 1.3)
+  // ============================================================================
+
+  /**
+   * Get client approval progress metrics
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @returns {Promise<Object>} Client approval statistics
+   */
+  async getClientApprovalProgress(evaluationProjectId) {
+    try {
+      // Get requirements with approval status
+      const { data: requirements } = await supabase
+        .from('requirements')
+        .select(`
+          id,
+          title,
+          status,
+          priority,
+          stakeholder_area:stakeholder_areas!stakeholder_area_id(id, name, color),
+          requirement_approvals(id, status, client_name, approved_at, stakeholder_area_id)
+        `)
+        .eq('evaluation_project_id', evaluationProjectId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      const reqs = requirements || [];
+      const total = reqs.length;
+
+      // Count by approval status
+      let clientApproved = 0;
+      let clientPending = 0;
+      let changesRequested = 0;
+      let noReview = 0;
+
+      reqs.forEach(req => {
+        const approvals = req.requirement_approvals || [];
+        if (approvals.length === 0) {
+          noReview++;
+        } else {
+          // Get latest status
+          const latestApproval = approvals[0];
+          switch (latestApproval.status) {
+            case 'approved':
+              clientApproved++;
+              break;
+            case 'changes_requested':
+              changesRequested++;
+              break;
+            default:
+              clientPending++;
+          }
+        }
+      });
+
+      // Get stakeholder area approvals (final sign-offs)
+      const { data: areaApprovals } = await supabase
+        .from('stakeholder_area_approvals')
+        .select(`
+          id,
+          stakeholder_area:stakeholder_areas!stakeholder_area_id(id, name, color),
+          approved_by_name,
+          approved_at,
+          total_requirements,
+          approved_count
+        `)
+        .eq('evaluation_project_id', evaluationProjectId);
+
+      // Get stakeholder areas
+      const { data: areas } = await supabase
+        .from('stakeholder_areas')
+        .select('id, name, color')
+        .eq('evaluation_project_id', evaluationProjectId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      // Calculate approval by area
+      const byArea = (areas || []).map(area => {
+        const areaReqs = reqs.filter(r => r.stakeholder_area?.id === area.id);
+        const areaApproved = areaReqs.filter(r => {
+          const approvals = r.requirement_approvals || [];
+          return approvals.some(a => a.status === 'approved');
+        }).length;
+        const finalApproval = (areaApprovals || []).find(a => a.stakeholder_area?.id === area.id);
+
+        return {
+          id: area.id,
+          name: area.name,
+          color: area.color,
+          total: areaReqs.length,
+          approved: areaApproved,
+          percentage: areaReqs.length > 0 ? Math.round((areaApproved / areaReqs.length) * 100) : 0,
+          hasFinalApproval: !!finalApproval,
+          finalApprovalDate: finalApproval?.approved_at,
+          finalApprovalBy: finalApproval?.approved_by_name
+        };
+      });
+
+      return {
+        total,
+        clientApproved,
+        clientPending,
+        changesRequested,
+        noReview,
+        overallProgress: total > 0 ? Math.round((clientApproved / total) * 100) : 0,
+        reviewProgress: total > 0 ? Math.round(((clientApproved + changesRequested) / total) * 100) : 0,
+        byArea,
+        areasWithFinalApproval: byArea.filter(a => a.hasFinalApproval).length,
+        totalAreas: byArea.length
+      };
+    } catch (error) {
+      console.error('AnalyticsService.getClientApprovalProgress failed:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // SECURITY ASSESSMENT STATUS (v1.1 Feature 1.3)
+  // ============================================================================
+
+  /**
+   * Get security assessment status across all vendors
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @returns {Promise<Object>} Security assessment statistics
+   */
+  async getSecurityAssessmentStatus(evaluationProjectId) {
+    try {
+      // Get vendors
+      const { data: vendors } = await supabase
+        .from('vendors')
+        .select('id, name, status')
+        .eq('evaluation_project_id', evaluationProjectId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      // Get security assessments
+      const { data: assessments } = await supabase
+        .from('security_assessments')
+        .select(`
+          id,
+          vendor_id,
+          stage,
+          status,
+          overall_score,
+          risk_level,
+          submitted_at,
+          reviewed_at
+        `)
+        .eq('evaluation_project_id', evaluationProjectId);
+
+      // Get security findings
+      const { data: findings } = await supabase
+        .from('security_findings')
+        .select(`
+          id,
+          vendor_id,
+          severity,
+          status,
+          category
+        `)
+        .eq('evaluation_project_id', evaluationProjectId);
+
+      const vendorList = vendors || [];
+      const assessmentList = assessments || [];
+      const findingList = findings || [];
+
+      // Stage completion by vendor
+      const stages = ['rfp', 'technical_review', 'poc'];
+      const vendorStatus = vendorList.map(vendor => {
+        const vendorAssessments = assessmentList.filter(a => a.vendor_id === vendor.id);
+        const vendorFindings = findingList.filter(f => f.vendor_id === vendor.id);
+
+        const stageStatus = {};
+        stages.forEach(stage => {
+          const assessment = vendorAssessments.find(a => a.stage === stage);
+          stageStatus[stage] = assessment ? {
+            status: assessment.status,
+            score: assessment.overall_score,
+            riskLevel: assessment.risk_level
+          } : null;
+        });
+
+        const openFindings = vendorFindings.filter(f => f.status === 'open' || f.status === 'in_progress');
+        const criticalFindings = openFindings.filter(f => f.severity === 'critical');
+
+        return {
+          vendorId: vendor.id,
+          vendorName: vendor.name,
+          stages: stageStatus,
+          completedStages: stages.filter(s => stageStatus[s]?.status === 'complete').length,
+          openFindings: openFindings.length,
+          criticalFindings: criticalFindings.length,
+          overallRisk: this.calculateOverallSecurityRisk(stageStatus, openFindings)
+        };
+      });
+
+      // Aggregate stats
+      const totalAssessments = assessmentList.length;
+      const completedAssessments = assessmentList.filter(a => a.status === 'complete').length;
+
+      const findingsBySeverity = {
+        critical: findingList.filter(f => f.severity === 'critical').length,
+        high: findingList.filter(f => f.severity === 'high').length,
+        medium: findingList.filter(f => f.severity === 'medium').length,
+        low: findingList.filter(f => f.severity === 'low').length
+      };
+
+      const openFindings = findingList.filter(f => f.status === 'open' || f.status === 'in_progress').length;
+      const resolvedFindings = findingList.filter(f => f.status === 'resolved').length;
+
+      return {
+        vendorCount: vendorList.length,
+        totalAssessments,
+        completedAssessments,
+        assessmentProgress: totalAssessments > 0 ? Math.round((completedAssessments / totalAssessments) * 100) : 0,
+        totalFindings: findingList.length,
+        openFindings,
+        resolvedFindings,
+        findingsBySeverity,
+        vendorStatus: vendorStatus.sort((a, b) => b.criticalFindings - a.criticalFindings),
+        vendorsWithCritical: vendorStatus.filter(v => v.criticalFindings > 0).length,
+        vendorsCleared: vendorStatus.filter(v => v.completedStages === 3 && v.openFindings === 0).length
+      };
+    } catch (error) {
+      console.error('AnalyticsService.getSecurityAssessmentStatus failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate overall security risk for a vendor
+   */
+  calculateOverallSecurityRisk(stageStatus, openFindings) {
+    const criticalCount = openFindings.filter(f => f.severity === 'critical').length;
+    const highCount = openFindings.filter(f => f.severity === 'high').length;
+
+    if (criticalCount > 0) return 'critical';
+    if (highCount >= 3) return 'high';
+    if (highCount > 0 || openFindings.length >= 5) return 'medium';
+    return 'low';
+  }
 }
 
 // Export singleton instance

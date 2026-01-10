@@ -112,3 +112,6 @@ export {
   SessionTimeout,
   useSessionTimeout
 } from './shared';
+
+// v1.1: Vendor Intelligence
+export { default as VendorIntelligencePanel } from './VendorIntelligencePanel';

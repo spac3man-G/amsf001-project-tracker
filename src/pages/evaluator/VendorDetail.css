@@ -689,6 +689,17 @@
   color: var(--text-muted, #64748b);
 }
 
+/* ============================================================================
+   INTELLIGENCE TAB
+   ============================================================================ */
+
+.vendor-detail-intelligence {
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .vendor-detail {

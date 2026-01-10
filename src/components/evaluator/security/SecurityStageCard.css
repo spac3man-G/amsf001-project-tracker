@@ -1,0 +1,186 @@
+/**
+ * SecurityStageCard Styles
+ * @created 09 January 2026
+ */
+
+.security-stage-card {
+  padding: 1rem;
+  background: var(--bg-primary);
+}
+
+.security-stage-card.compact {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+/* Card Header */
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.stage-icon {
+  flex-shrink: 0;
+}
+
+.stage-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.stage-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.stage-status {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Compact Mode */
+.security-stage-card.compact .stage-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.security-stage-card.compact .stage-label {
+  font-size: 0.8125rem;
+}
+
+.security-stage-card.compact .stage-score {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Assessment Results */
+.assessment-results {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.score-display {
+  display: flex;
+  align-items: baseline;
+}
+
+.score-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.score-max {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Risk Badge */
+.risk-badge {
+  display: inline-flex;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* Waived Reason */
+.waived-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--warning-light);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--warning-dark);
+  margin-bottom: 0.75rem;
+}
+
+.waived-reason svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Start Button */
+.start-btn {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+/* In Progress Indicator */
+.in-progress-indicator {
+  margin-bottom: 0.75rem;
+}
+
+.progress-bar {
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.375rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--warning);
+  border-radius: 2px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.progress-label {
+  font-size: 0.6875rem;
+  color: var(--warning);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Duration */
+.stage-duration {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+}
+
+/* Status Colors */
+.status-completed { color: var(--success); }
+.status-progress { color: var(--warning); }
+.status-waived { color: var(--text-secondary); }
+.status-pending { color: var(--text-tertiary); }
+
+/* Status Border Accents */
+.security-stage-card.status-completed {
+  border-left: 3px solid var(--success);
+}
+
+.security-stage-card.status-in_progress {
+  border-left: 3px solid var(--warning);
+}
+
+.security-stage-card.status-waived {
+  border-left: 3px solid var(--text-tertiary);
+}
+
+.security-stage-card.status-pending {
+  border-left: 3px solid transparent;
+}

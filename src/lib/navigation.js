@@ -43,7 +43,16 @@ import {
   UsersRound,
   Scale,
   Calculator,
-  FolderKanban
+  FolderKanban,
+  // Evaluator icons
+  ListChecks,
+  Store,
+  HelpCircle,
+  MessageSquare,
+  Target,
+  GitBranch,
+  BarChart3,
+  Cog
 } from 'lucide-react';
 
 import { ROLES } from './permissions';
@@ -176,11 +185,84 @@ export const NAV_ITEMS = {
     readOnlyRoles: [],
     section: 'planner'
   },
-  evaluator: {
-    id: 'evaluator',
-    path: '/evaluator',
+  // Evaluator Module - Sub-navigation items (ARCH-001)
+  evaluatorDashboard: {
+    id: 'evaluatorDashboard',
+    path: '/evaluator/dashboard',
     icon: ClipboardCheck,
-    label: 'Evaluator',
+    label: 'Dashboard',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
+  },
+  evaluatorRequirements: {
+    id: 'evaluatorRequirements',
+    path: '/evaluator/requirements',
+    icon: ListChecks,
+    label: 'Requirements',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
+  },
+  evaluatorVendors: {
+    id: 'evaluatorVendors',
+    path: '/evaluator/vendors',
+    icon: Store,
+    label: 'Vendors',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
+  },
+  evaluatorQuestions: {
+    id: 'evaluatorQuestions',
+    path: '/evaluator/questions',
+    icon: HelpCircle,
+    label: 'Questions',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
+  },
+  evaluatorQA: {
+    id: 'evaluatorQA',
+    path: '/evaluator/qa',
+    icon: MessageSquare,
+    label: 'Q&A',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
+  },
+  evaluatorScoring: {
+    id: 'evaluatorScoring',
+    path: '/evaluator/evaluation',
+    icon: Target,
+    label: 'Evaluation',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
+  },
+  evaluatorTraceability: {
+    id: 'evaluatorTraceability',
+    path: '/evaluator/traceability',
+    icon: GitBranch,
+    label: 'Traceability',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
+  },
+  evaluatorReports: {
+    id: 'evaluatorReports',
+    path: '/evaluator/reports',
+    icon: BarChart3,
+    label: 'Reports',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    readOnlyRoles: [],
+    section: 'evaluator'
+  },
+  evaluatorSettings: {
+    id: 'evaluatorSettings',
+    path: '/evaluator/settings',
+    icon: Cog,
+    label: 'Settings',
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
@@ -298,7 +380,15 @@ export const ROLE_NAV_ORDER = {
     'benchmarking',
     'estimator',
     { section: 'evaluator' },
-    'evaluator',
+    'evaluatorDashboard',
+    'evaluatorRequirements',
+    'evaluatorVendors',
+    'evaluatorQuestions',
+    'evaluatorQA',
+    'evaluatorScoring',
+    'evaluatorTraceability',
+    'evaluatorReports',
+    'evaluatorSettings',
     { section: 'settings' },
     'settings',
     'projectManagement',
@@ -319,7 +409,15 @@ export const ROLE_NAV_ORDER = {
     'benchmarking',
     'estimator',
     { section: 'evaluator' },
-    'evaluator',
+    'evaluatorDashboard',
+    'evaluatorRequirements',
+    'evaluatorVendors',
+    'evaluatorQuestions',
+    'evaluatorQA',
+    'evaluatorScoring',
+    'evaluatorTraceability',
+    'evaluatorReports',
+    'evaluatorSettings',
     { section: 'settings' },
     'settings',
     'projectManagement',
