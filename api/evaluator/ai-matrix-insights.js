@@ -6,51 +6,57 @@
  * about vendor performance, evaluation coverage, and recommendations.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
 export const config = {
-  runtime: 'edge',
+  maxDuration: 60,
 };
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const MODEL = 'claude-opus-4-5-20251101';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Initialize Supabase client
+let supabaseClient = null;
+function getSupabase() {
+  if (!supabaseClient && SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  }
+  return supabaseClient;
+}
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!ANTHROPIC_API_KEY) {
+    console.error('Missing ANTHROPIC_API_KEY');
+    return res.status(500).json({ error: 'AI service not configured' });
+  }
+
+  const supabase = getSupabase();
+  if (!supabase) {
+    console.error('Missing Supabase configuration');
+    return res.status(500).json({ error: 'Database service not configured' });
   }
 
   try {
-    const { evaluationProjectId, userId, analysisType = 'comprehensive' } = await req.json();
+    const { evaluationProjectId, userId, analysisType = 'comprehensive' } = req.body;
 
     if (!evaluationProjectId) {
-      return new Response(JSON.stringify({ error: 'Evaluation project ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(400).json({ error: 'Evaluation project ID is required' });
     }
 
     // Fetch comprehensive matrix data
-    const matrixData = await fetchMatrixData(evaluationProjectId);
+    const matrixData = await fetchMatrixData(supabase, evaluationProjectId);
 
     if (!matrixData.requirements.length || !matrixData.vendors.length) {
-      return new Response(JSON.stringify({
+      return res.status(400).json({
         error: 'Insufficient data for analysis',
         message: 'Need at least one requirement and one vendor with scores'
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -58,8 +64,8 @@ export default async function handler(req) {
     const insights = await generateAIInsights(matrixData, analysisType);
 
     // Save insights to database
-    if (insights.length > 0) {
-      const insightsToSave = insights.map(insight => ({
+    if (insights.data && insights.data.length > 0) {
+      const insightsToSave = insights.data.map(insight => ({
         evaluation_project_id: evaluationProjectId,
         insight_type: insight.type,
         title: insight.title,
@@ -83,35 +89,30 @@ export default async function handler(req) {
       }
     }
 
-    return new Response(JSON.stringify({
+    return res.status(200).json({
       success: true,
-      insights,
+      insights: insights.data,
       summary: {
-        totalInsights: insights.length,
+        totalInsights: insights.data.length,
         byPriority: {
-          critical: insights.filter(i => i.priority === 'critical').length,
-          high: insights.filter(i => i.priority === 'high').length,
-          medium: insights.filter(i => i.priority === 'medium').length,
-          low: insights.filter(i => i.priority === 'low').length,
+          critical: insights.data.filter(i => i.priority === 'critical').length,
+          high: insights.data.filter(i => i.priority === 'high').length,
+          medium: insights.data.filter(i => i.priority === 'medium').length,
+          low: insights.data.filter(i => i.priority === 'low').length,
         },
-        byType: insights.reduce((acc, i) => {
+        byType: insights.data.reduce((acc, i) => {
           acc[i.type] = (acc[i.type] || 0) + 1;
           return acc;
         }, {}),
       },
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      usage: insights.usage,
     });
 
   } catch (error) {
     console.error('AI Matrix Insights error:', error);
-    return new Response(JSON.stringify({
+    return res.status(500).json({
       error: 'Failed to generate insights',
       message: error.message
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
     });
   }
 }
@@ -119,7 +120,7 @@ export default async function handler(req) {
 /**
  * Fetch all matrix data needed for analysis
  */
-async function fetchMatrixData(evaluationProjectId) {
+async function fetchMatrixData(supabase, evaluationProjectId) {
   // Fetch project details
   const { data: project } = await supabase
     .from('evaluation_projects')
@@ -300,86 +301,104 @@ ${analyzeScoreDistribution(matrixData)}
 
 Generate ${analysisType === 'quick' ? '3-5' : '8-12'} insights. For each insight, provide the data in the exact JSON format requested.`;
 
-  const response = await anthropic.messages.create({
-    model: 'claude-opus-4-5-20251101',  // Updated to Opus 4.5 per BUG-007
-    max_tokens: 4096,
-    system: systemPrompt,
-    tools: [
-      {
-        name: 'generate_insights',
-        description: 'Generate structured insights about the evaluation matrix',
-        input_schema: {
-          type: 'object',
-          properties: {
-            insights: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  type: {
-                    type: 'string',
-                    enum: [
-                      'vendor_strength',
-                      'vendor_weakness',
-                      'category_leader',
-                      'consensus_needed',
-                      'coverage_gap',
-                      'risk_area',
-                      'differentiator',
-                      'common_strength',
-                      'progress_update',
-                      'recommendation'
-                    ],
-                    description: 'The type of insight'
-                  },
-                  title: {
-                    type: 'string',
-                    description: 'Short title for the insight (max 100 chars)'
-                  },
-                  description: {
-                    type: 'string',
-                    description: 'Detailed description of the insight and recommended action'
-                  },
-                  priority: {
-                    type: 'string',
-                    enum: ['low', 'medium', 'high', 'critical'],
-                    description: 'How important this insight is'
-                  },
-                  confidence: {
-                    type: 'number',
-                    minimum: 0,
-                    maximum: 1,
-                    description: 'Confidence score (0-1) based on data quality'
-                  },
-                  vendorName: {
-                    type: 'string',
-                    description: 'Name of related vendor if applicable'
-                  },
-                  categoryName: {
-                    type: 'string',
-                    description: 'Name of related category if applicable'
-                  },
-                  supportingData: {
-                    type: 'object',
-                    description: 'Any supporting metrics or data points'
-                  }
+  const tools = [
+    {
+      name: 'generate_insights',
+      description: 'Generate structured insights about the evaluation matrix',
+      input_schema: {
+        type: 'object',
+        properties: {
+          insights: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  enum: [
+                    'vendor_strength',
+                    'vendor_weakness',
+                    'category_leader',
+                    'consensus_needed',
+                    'coverage_gap',
+                    'risk_area',
+                    'differentiator',
+                    'common_strength',
+                    'progress_update',
+                    'recommendation'
+                  ],
+                  description: 'The type of insight'
                 },
-                required: ['type', 'title', 'description', 'priority', 'confidence']
-              }
+                title: {
+                  type: 'string',
+                  description: 'Short title for the insight (max 100 chars)'
+                },
+                description: {
+                  type: 'string',
+                  description: 'Detailed description of the insight and recommended action'
+                },
+                priority: {
+                  type: 'string',
+                  enum: ['low', 'medium', 'high', 'critical'],
+                  description: 'How important this insight is'
+                },
+                confidence: {
+                  type: 'number',
+                  minimum: 0,
+                  maximum: 1,
+                  description: 'Confidence score (0-1) based on data quality'
+                },
+                vendorName: {
+                  type: 'string',
+                  description: 'Name of related vendor if applicable'
+                },
+                categoryName: {
+                  type: 'string',
+                  description: 'Name of related category if applicable'
+                },
+                supportingData: {
+                  type: 'object',
+                  description: 'Any supporting metrics or data points'
+                }
+              },
+              required: ['type', 'title', 'description', 'priority', 'confidence']
             }
-          },
-          required: ['insights']
-        }
+          }
+        },
+        required: ['insights']
       }
-    ],
-    tool_choice: { type: 'tool', name: 'generate_insights' },
-    messages: [{ role: 'user', content: userPrompt }],
+    }
+  ];
+
+  // Call Claude API using fetch
+  const apiResponse = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 4096,
+      system: systemPrompt,
+      tools,
+      tool_choice: { type: 'tool', name: 'generate_insights' },
+      messages: [{ role: 'user', content: userPrompt }]
+    })
   });
+
+  if (!apiResponse.ok) {
+    const errorText = await apiResponse.text();
+    throw new Error(`Claude API error: ${apiResponse.status} - ${errorText}`);
+  }
+
+  const response = await apiResponse.json();
 
   // Extract tool use result
   const toolUse = response.content.find(c => c.type === 'tool_use');
   if (!toolUse || !toolUse.input?.insights) {
-    return [];
+    return { data: [], usage: response.usage };
   }
 
   // Map vendor/category names to IDs
@@ -403,7 +422,7 @@ Generate ${analysisType === 'quick' ? '3-5' : '8-12'} insights. For each insight
     };
   });
 
-  return insights;
+  return { data: insights, usage: response.usage };
 }
 
 /**
