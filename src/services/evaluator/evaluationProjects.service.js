@@ -184,9 +184,10 @@ export class EvaluationProjectsService {
   /**
    * Create a new evaluation project
    * @param {Object} projectData - Project data including organisation_id
+   * @param {string} createdByUserId - User ID of the creator (will be added as admin)
    * @returns {Promise<Object>} Created evaluation project
    */
-  async create(projectData) {
+  async create(projectData, createdByUserId = null) {
     try {
       if (!projectData.organisation_id) {
         throw new Error('organisation_id is required');
@@ -211,7 +212,27 @@ export class EvaluationProjectsService {
         throw new Error('Failed to create evaluation project');
       }
 
-      return data[0];
+      const createdProject = data[0];
+
+      // Automatically add the creator as an admin to the evaluation project
+      // This ensures RLS policies work correctly for subsequent operations
+      if (createdByUserId) {
+        try {
+          await supabase
+            .from('evaluation_project_users')
+            .insert({
+              evaluation_project_id: createdProject.id,
+              user_id: createdByUserId,
+              role: 'admin',
+              is_default: true
+            });
+        } catch (addUserError) {
+          // Log but don't fail - the project was created successfully
+          console.warn('Failed to add creator as admin:', addUserError);
+        }
+      }
+
+      return createdProject;
     } catch (error) {
       console.error('EvaluationProjectsService create failed:', error);
       throw error;

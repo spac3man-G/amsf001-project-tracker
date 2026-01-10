@@ -94,7 +94,9 @@ function VendorResponseViewer({
       }
     } catch (err) {
       console.error('Failed to load responses:', err);
-      setError('Failed to load vendor responses');
+      // Show more descriptive error message including the actual error
+      const errorMessage = err?.message || err?.error?.message || 'Unknown error';
+      setError(`Failed to load vendor responses: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
