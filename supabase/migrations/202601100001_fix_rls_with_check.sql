@@ -181,6 +181,44 @@ USING (EXISTS (
 ));
 
 -- ============================================================================
+-- VENDOR_QUESTION_LINKS TABLE (junction table)
+-- ============================================================================
+
+DROP POLICY IF EXISTS "vendor_question_links_all" ON vendor_question_links;
+
+CREATE POLICY "vendor_question_links_select" ON vendor_question_links
+FOR SELECT TO authenticated
+USING (EXISTS (
+  SELECT 1 FROM vendor_questions q WHERE q.id = vendor_question_links.question_id
+  AND can_access_evaluation(q.evaluation_project_id)
+));
+
+CREATE POLICY "vendor_question_links_insert" ON vendor_question_links
+FOR INSERT TO authenticated
+WITH CHECK (EXISTS (
+  SELECT 1 FROM vendor_questions q WHERE q.id = vendor_question_links.question_id
+  AND has_evaluation_role(q.evaluation_project_id, ARRAY['admin', 'evaluator'])
+));
+
+CREATE POLICY "vendor_question_links_update" ON vendor_question_links
+FOR UPDATE TO authenticated
+USING (EXISTS (
+  SELECT 1 FROM vendor_questions q WHERE q.id = vendor_question_links.question_id
+  AND has_evaluation_role(q.evaluation_project_id, ARRAY['admin', 'evaluator'])
+))
+WITH CHECK (EXISTS (
+  SELECT 1 FROM vendor_questions q WHERE q.id = vendor_question_links.question_id
+  AND has_evaluation_role(q.evaluation_project_id, ARRAY['admin', 'evaluator'])
+));
+
+CREATE POLICY "vendor_question_links_delete" ON vendor_question_links
+FOR DELETE TO authenticated
+USING (EXISTS (
+  SELECT 1 FROM vendor_questions q WHERE q.id = vendor_question_links.question_id
+  AND has_evaluation_role(q.evaluation_project_id, ARRAY['admin', 'evaluator'])
+));
+
+-- ============================================================================
 -- COMMENT
 -- ============================================================================
 COMMENT ON POLICY "requirements_insert" ON requirements IS

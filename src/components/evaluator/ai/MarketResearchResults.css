@@ -664,6 +664,28 @@
 .badge.target-teal { background: #ccfbf1; color: #0d9488; }
 .badge.target-green { background: #dcfce7; color: #16a34a; }
 
+/* Clickable badges */
+.badge.badge-clickable {
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.badge.badge-clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.badge.badge-clickable.position-purple:hover { border-color: #7c3aed; background: #ddd6fe; }
+.badge.badge-clickable.position-blue:hover { border-color: #2563eb; background: #bfdbfe; }
+.badge.badge-clickable.position-teal:hover { border-color: #0d9488; background: #99f6e4; }
+.badge.badge-clickable.position-green:hover { border-color: #059669; background: #a7f3d0; }
+
+.badge.badge-clickable.target-purple:hover { border-color: #9333ea; background: #e9d5ff; }
+.badge.badge-clickable.target-blue:hover { border-color: #0284c7; background: #bae6fd; }
+.badge.badge-clickable.target-teal:hover { border-color: #0d9488; background: #99f6e4; }
+.badge.badge-clickable.target-green:hover { border-color: #16a34a; background: #bbf7d0; }
+
 .vendor-description {
   margin: 0;
   font-size: 0.875rem;
@@ -876,4 +898,44 @@
   .detail-columns {
     grid-template-columns: 1fr;
   }
+}
+
+/* ============================================================================
+   ERROR BANNER
+   ============================================================================ */
+
+.market-research-modal .error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-top: 1px solid #fca5a5;
+  color: #991b1b;
+  font-size: 0.875rem;
+}
+
+.market-research-modal .error-banner svg {
+  flex-shrink: 0;
+  color: #dc2626;
+}
+
+.market-research-modal .error-banner span {
+  flex: 1;
+}
+
+.market-research-modal .error-banner .dismiss-error {
+  background: none;
+  border: none;
+  color: #991b1b;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.market-research-modal .error-banner .dismiss-error:hover {
+  background: rgba(153, 27, 27, 0.1);
 }

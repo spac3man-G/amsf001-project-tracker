@@ -254,10 +254,38 @@
 
 .evaluation-stat-card-clickable {
   cursor: pointer;
+  position: relative;
+}
+
+/* Arrow indicator for clickable cards */
+.evaluation-stat-card-clickable::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--ds-text-secondary);
+  border-bottom: 2px solid var(--ds-text-secondary);
+  transform: translateY(-50%) rotate(-45deg);
+  opacity: 0.5;
+  transition: all 0.2s ease;
 }
 
 .evaluation-stat-card-clickable:hover {
   background: var(--ds-teal-light);
+  border-color: var(--ds-teal);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.evaluation-stat-card-clickable:hover::after {
+  opacity: 1;
+  right: 12px;
+  border-color: var(--ds-teal);
+}
+
+.evaluation-stat-card-clickable:active {
+  transform: translateY(0);
 }
 
 .evaluation-stat-card-clickable:focus {

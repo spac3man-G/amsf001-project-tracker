@@ -336,8 +336,8 @@ export function EvaluationCategoriesManager({
         <span className="weight-value">{weightInfo.total}%</span>
         {!weightInfo.isValid && (
           <span className="weight-remaining">
-            {weightInfo.remaining > 0 
-              ? `(${weightInfo.remaining}% remaining)` 
+            {weightInfo.remaining > 0
+              ? `(${weightInfo.remaining}% remaining)`
               : `(${Math.abs(weightInfo.remaining)}% over)`}
           </span>
         )}
@@ -347,7 +347,32 @@ export function EvaluationCategoriesManager({
         {!weightInfo.isValid && (
           <AlertCircle size={14} className="invalid-icon" />
         )}
+        {!weightInfo.isValid && !isEditingWeights && categories.length > 0 && (
+          <button
+            className="btn btn-warning btn-sm fix-weights-btn"
+            onClick={handleDistributeEvenly}
+            disabled={saving}
+            title="Distribute weights evenly to reach 100%"
+          >
+            <RefreshCw size={14} />
+            Fix Weights
+          </button>
+        )}
       </div>
+
+      {/* Weight Warning Banner for invalid weights */}
+      {!weightInfo.isValid && categories.length > 0 && !isEditingWeights && (
+        <div className="weight-warning-banner">
+          <AlertCircle size={16} />
+          <span>
+            <strong>Action Required:</strong> Category weights must total exactly 100% for scoring to work correctly.
+            {weightInfo.total > 100
+              ? ` Current total (${weightInfo.total}%) exceeds 100%. Please reduce weights.`
+              : ` Current total (${weightInfo.total}%) is below 100%. Please adjust weights.`
+            }
+          </span>
+        </div>
+      )}
 
 
       {/* Weight Edit Mode Actions */}

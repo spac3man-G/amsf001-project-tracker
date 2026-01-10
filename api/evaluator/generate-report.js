@@ -553,21 +553,21 @@ async function generateComparisonReport(evaluationProjectId, project, format) {
  * Generate Evidence Register Export
  */
 async function generateEvidenceReport(evaluationProjectId, project, format) {
-  const { data: evidence, error } = await supabase
-    .from('evaluation_evidence')
+  const { data: evidenceData, error } = await supabase
+    .from('evidence')
     .select(`
       id,
-      evidence_type,
+      type,
       title,
-      description,
-      file_url,
+      content,
+      source_url,
       confidence_level,
       captured_at,
       vendor:vendor_id(name),
       created_at
     `)
     .eq('evaluation_project_id', evaluationProjectId)
-    .or('is_deleted.is.null,is_deleted.eq.false')
+    .eq('is_deleted', false)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -576,20 +576,20 @@ async function generateEvidenceReport(evaluationProjectId, project, format) {
     'Title',
     'Type',
     'Vendor',
-    'Description',
+    'Content',
     'Confidence Level',
-    'File URL',
+    'Source URL',
     'Captured At',
     'Created At'
   ];
 
-  const rows = (evidence || []).map(e => [
+  const rows = (evidenceData || []).map(e => [
     e.title || '',
-    e.evidence_type || '',
+    e.type || '',
     e.vendor?.name || '',
-    e.description || '',
+    e.content || '',
     e.confidence_level || '',
-    e.file_url || '',
+    e.source_url || '',
     formatDate(e.captured_at),
     formatDate(e.created_at)
   ]);
@@ -626,13 +626,13 @@ async function fetchRequirements(evaluationProjectId) {
 async function fetchVendors(evaluationProjectId) {
   const { data, error } = await supabase
     .from('vendors')
-    .select('id, name, status, status')
+    .select('id, name, status')
     .eq('evaluation_project_id', evaluationProjectId)
     .or('is_deleted.is.null,is_deleted.eq.false')
     .order('name');
 
   if (error) throw error;
-  return data;
+  return data || [];
 }
 
 async function fetchCategories(evaluationProjectId) {
@@ -664,24 +664,23 @@ async function fetchCriteria(evaluationProjectId) {
 
 async function fetchConsensusScores(evaluationProjectId) {
   const { data, error } = await supabase
-    .from('evaluation_scores')
+    .from('consensus_scores')
     .select(`
       id,
       vendor_id,
-      requirement_id,
-      score,
-      notes,
-      rag_status
+      criterion_id,
+      consensus_value,
+      consensus_rationale,
+      consensus_method
     `)
-    .eq('evaluation_project_id', evaluationProjectId)
-    .eq('is_consensus', true);
+    .eq('evaluation_project_id', evaluationProjectId);
 
   if (error) throw error;
   // Map to expected format
   return (data || []).map(s => ({
     ...s,
-    consensus_score: s.score,
-    rationale: s.notes
+    consensus_score: s.consensus_value,
+    rationale: s.consensus_rationale
   }));
 }
 

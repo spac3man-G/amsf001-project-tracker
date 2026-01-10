@@ -105,10 +105,24 @@ function FitScoreGauge({ score }) {
   );
 }
 
-function VendorCard({ vendor, index, isSelected, isExpanded, onToggleSelect, onToggleExpand }) {
+function VendorCard({ vendor, index, isSelected, isExpanded, onToggleSelect, onToggleExpand, onFilterPosition, onFilterTarget }) {
   const positionConfig = MARKET_POSITION_CONFIG[vendor.market_position] || MARKET_POSITION_CONFIG.niche;
   const PositionIcon = positionConfig.icon;
   const targetConfig = TARGET_MARKET_CONFIG[vendor.target_market] || TARGET_MARKET_CONFIG.all_segments;
+
+  const handlePositionClick = (e) => {
+    e.stopPropagation();
+    if (onFilterPosition && vendor.market_position) {
+      onFilterPosition(vendor.market_position);
+    }
+  };
+
+  const handleTargetClick = (e) => {
+    e.stopPropagation();
+    if (onFilterTarget && vendor.target_market) {
+      onFilterTarget(vendor.target_market);
+    }
+  };
 
   return (
     <div className={`vendor-card ${isSelected ? 'selected' : ''}`}>
@@ -116,24 +130,32 @@ function VendorCard({ vendor, index, isSelected, isExpanded, onToggleSelect, onT
         <button className="select-checkbox" onClick={() => onToggleSelect(index)}>
           {isSelected ? <CheckCircle className="checked" size={20} /> : <Plus size={20} />}
         </button>
-        
+
         <div className="vendor-main-info">
           <div className="vendor-title-row">
             <h4 className="vendor-name">{vendor.name}</h4>
             <FitScoreGauge score={vendor.fit_score} />
           </div>
-          
+
           <div className="vendor-badges">
-            <span className={`badge position-${positionConfig.color}`}>
+            <button
+              className={`badge badge-clickable position-${positionConfig.color}`}
+              onClick={handlePositionClick}
+              title={`Filter by ${positionConfig.label}`}
+            >
               <PositionIcon size={12} />
               {positionConfig.label}
-            </span>
-            <span className={`badge target-${targetConfig.color}`}>
+            </button>
+            <button
+              className={`badge badge-clickable target-${targetConfig.color}`}
+              onClick={handleTargetClick}
+              title={`Filter by ${targetConfig.label}`}
+            >
               <Users size={12} />
               {targetConfig.label}
-            </span>
+            </button>
           </div>
-          
+
           <p className="vendor-description">{vendor.description}</p>
         </div>
 
@@ -200,34 +222,40 @@ function MarketResearchResults({ isOpen, onClose, researchResults, onAddVendors 
   const [selectedIndices, setSelectedIndices] = useState(new Set());
   const [expandedIndices, setExpandedIndices] = useState(new Set());
   const [filterPosition, setFilterPosition] = useState('all');
+  const [filterTarget, setFilterTarget] = useState('all');
   const [filterMinFit, setFilterMinFit] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [adding, setAdding] = useState(false);
+  const [error, setError] = useState(null);
 
   const vendors = researchResults?.vendor_recommendations || [];
   const marketOverview = researchResults?.market_overview || {};
   
   const filteredVendors = useMemo(() => {
     let result = vendors;
-    
+
     if (filterPosition !== 'all') {
       result = result.filter(v => v.market_position === filterPosition);
     }
-    
+
+    if (filterTarget !== 'all') {
+      result = result.filter(v => v.target_market === filterTarget);
+    }
+
     if (filterMinFit > 0) {
       result = result.filter(v => v.fit_score >= filterMinFit);
     }
-    
+
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      result = result.filter(v => 
+      result = result.filter(v =>
         v.name.toLowerCase().includes(search) ||
         v.description?.toLowerCase().includes(search)
       );
     }
-    
+
     return result;
-  }, [vendors, filterPosition, filterMinFit, searchTerm]);
+  }, [vendors, filterPosition, filterTarget, filterMinFit, searchTerm]);
 
   const handleToggleSelect = (index) => {
     setSelectedIndices(prev => {
@@ -258,13 +286,16 @@ function MarketResearchResults({ isOpen, onClose, researchResults, onAddVendors 
   const handleAddSelected = async () => {
     if (selectedIndices.size === 0) return;
     setAdding(true);
+    setError(null); // Clear previous errors
     try {
       const selectedVendors = vendors.filter((_, i) => selectedIndices.has(i));
       await onAddVendors(selectedVendors);
       setSelectedIndices(new Set());
       onClose();
-    } catch (error) {
-      console.error('Failed to add vendors:', error);
+    } catch (err) {
+      console.error('Failed to add vendors:', err);
+      const errorMessage = err?.message || 'An unexpected error occurred while adding vendors.';
+      setError(`Failed to add vendors: ${errorMessage}`);
     } finally {
       setAdding(false);
     }
@@ -406,6 +437,17 @@ function MarketResearchResults({ isOpen, onClose, researchResults, onAddVendors 
                 </div>
 
                 <div className="filter-group">
+                  <Users size={16} />
+                  <select value={filterTarget} onChange={e => setFilterTarget(e.target.value)}>
+                    <option value="all">All Markets</option>
+                    <option value="enterprise">Enterprise</option>
+                    <option value="mid_market">Mid-Market</option>
+                    <option value="smb">SMB</option>
+                    <option value="all_segments">All Segments</option>
+                  </select>
+                </div>
+
+                <div className="filter-group">
                   <Star size={16} />
                   <select value={filterMinFit} onChange={e => setFilterMinFit(Number(e.target.value))}>
                     <option value="0">Any Fit Score</option>
@@ -439,6 +481,8 @@ function MarketResearchResults({ isOpen, onClose, researchResults, onAddVendors 
                       isExpanded={expandedIndices.has(index)}
                       onToggleSelect={handleToggleSelect}
                       onToggleExpand={handleToggleExpand}
+                      onFilterPosition={setFilterPosition}
+                      onFilterTarget={setFilterTarget}
                     />
                   ))
                 )}
@@ -446,6 +490,16 @@ function MarketResearchResults({ isOpen, onClose, researchResults, onAddVendors 
             </div>
           )}
         </div>
+
+        {error && (
+          <div className="error-banner">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+            <button className="dismiss-error" onClick={() => setError(null)}>
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose}>Close</button>

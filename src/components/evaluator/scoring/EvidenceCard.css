@@ -15,11 +15,47 @@
   padding: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
 }
 
 .evidence-card:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-color: #3b82f6;
+  background: #f8fafc;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.evidence-card:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Click indicator arrow */
+.evidence-card::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #d1d5db;
+  border-bottom: 2px solid #d1d5db;
+  transform: translateY(-50%) rotate(-45deg);
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.evidence-card:hover::after {
+  opacity: 1;
+  border-color: #3b82f6;
+  right: 12px;
+}
+
+/* Hide arrow when menu button is present or card is selectable */
+.evidence-card:has(.evidence-card-menu)::after,
+.evidence-card-selectable::after {
+  display: none;
 }
 
 .evidence-card-compact {
