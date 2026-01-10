@@ -70,12 +70,12 @@ CREATE TABLE IF NOT EXISTS vendor_qa (
 -- INDEXES
 -- ============================================================================
 
-CREATE INDEX idx_vendor_qa_project ON vendor_qa(evaluation_project_id);
-CREATE INDEX idx_vendor_qa_vendor ON vendor_qa(vendor_id);
-CREATE INDEX idx_vendor_qa_status ON vendor_qa(status);
-CREATE INDEX idx_vendor_qa_shared ON vendor_qa(evaluation_project_id, is_shared) WHERE is_shared = true;
-CREATE INDEX idx_vendor_qa_pending ON vendor_qa(evaluation_project_id, status) WHERE status = 'pending';
-CREATE INDEX idx_vendor_qa_submitted ON vendor_qa(submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vendor_qa_project ON vendor_qa(evaluation_project_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_qa_vendor ON vendor_qa(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_qa_status ON vendor_qa(status);
+CREATE INDEX IF NOT EXISTS idx_vendor_qa_shared ON vendor_qa(evaluation_project_id, is_shared) WHERE is_shared = true;
+CREATE INDEX IF NOT EXISTS idx_vendor_qa_pending ON vendor_qa(evaluation_project_id, status) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_vendor_qa_submitted ON vendor_qa(submitted_at DESC);
 
 -- ============================================================================
 -- ROW LEVEL SECURITY
@@ -84,6 +84,7 @@ CREATE INDEX idx_vendor_qa_submitted ON vendor_qa(submitted_at DESC);
 ALTER TABLE vendor_qa ENABLE ROW LEVEL SECURITY;
 
 -- Evaluation team can see all Q&A for their projects
+DROP POLICY IF EXISTS "vendor_qa_select_team" ON vendor_qa;
 CREATE POLICY "vendor_qa_select_team" ON vendor_qa
     FOR SELECT USING (
         EXISTS (
@@ -94,34 +95,41 @@ CREATE POLICY "vendor_qa_select_team" ON vendor_qa
     );
 
 -- Vendors can see their own questions and shared Q&A
+-- Note: Vendors are represented in evaluation_project_users with role='vendor'
+DROP POLICY IF EXISTS "vendor_qa_select_vendor" ON vendor_qa;
 CREATE POLICY "vendor_qa_select_vendor" ON vendor_qa
     FOR SELECT USING (
-        -- Own questions
+        -- Own questions (vendor users can see questions for their assigned vendor)
         EXISTS (
-            SELECT 1 FROM vendor_portal_access vpa
-            WHERE vpa.vendor_id = vendor_qa.vendor_id
-            AND vpa.user_id = auth.uid()
+            SELECT 1 FROM evaluation_project_users epu
+            JOIN vendors v ON v.evaluation_project_id = epu.evaluation_project_id
+            WHERE v.id = vendor_qa.vendor_id
+            AND epu.user_id = auth.uid()
+            AND epu.role = 'vendor'
         )
         OR
         -- Shared Q&A (from any vendor in same evaluation)
         (
             vendor_qa.is_shared = true
             AND EXISTS (
-                SELECT 1 FROM vendor_portal_access vpa
-                JOIN vendors v ON v.id = vpa.vendor_id
-                WHERE v.evaluation_project_id = vendor_qa.evaluation_project_id
-                AND vpa.user_id = auth.uid()
+                SELECT 1 FROM evaluation_project_users epu
+                WHERE epu.evaluation_project_id = vendor_qa.evaluation_project_id
+                AND epu.user_id = auth.uid()
+                AND epu.role = 'vendor'
             )
         )
     );
 
 -- Vendors can insert questions for their vendor
+DROP POLICY IF EXISTS "vendor_qa_insert_vendor" ON vendor_qa;
 CREATE POLICY "vendor_qa_insert_vendor" ON vendor_qa
     FOR INSERT WITH CHECK (
         EXISTS (
-            SELECT 1 FROM vendor_portal_access vpa
-            WHERE vpa.vendor_id = vendor_qa.vendor_id
-            AND vpa.user_id = auth.uid()
+            SELECT 1 FROM evaluation_project_users epu
+            JOIN vendors v ON v.evaluation_project_id = epu.evaluation_project_id
+            WHERE v.id = vendor_qa.vendor_id
+            AND epu.user_id = auth.uid()
+            AND epu.role = 'vendor'
         )
         AND
         -- Check Q&A is still open
@@ -135,13 +143,16 @@ CREATE POLICY "vendor_qa_insert_vendor" ON vendor_qa
     );
 
 -- Vendors can update their own pending questions (withdraw)
+DROP POLICY IF EXISTS "vendor_qa_update_vendor" ON vendor_qa;
 CREATE POLICY "vendor_qa_update_vendor" ON vendor_qa
     FOR UPDATE USING (
         vendor_qa.status = 'pending'
         AND EXISTS (
-            SELECT 1 FROM vendor_portal_access vpa
-            WHERE vpa.vendor_id = vendor_qa.vendor_id
-            AND vpa.user_id = auth.uid()
+            SELECT 1 FROM evaluation_project_users epu
+            JOIN vendors v ON v.evaluation_project_id = epu.evaluation_project_id
+            WHERE v.id = vendor_qa.vendor_id
+            AND epu.user_id = auth.uid()
+            AND epu.role = 'vendor'
         )
     )
     WITH CHECK (
@@ -150,6 +161,7 @@ CREATE POLICY "vendor_qa_update_vendor" ON vendor_qa
     );
 
 -- Evaluation team can update Q&A (answer, reject, share)
+DROP POLICY IF EXISTS "vendor_qa_update_team" ON vendor_qa;
 CREATE POLICY "vendor_qa_update_team" ON vendor_qa
     FOR UPDATE USING (
         EXISTS (
@@ -161,6 +173,7 @@ CREATE POLICY "vendor_qa_update_team" ON vendor_qa
     );
 
 -- Evaluation team can delete Q&A
+DROP POLICY IF EXISTS "vendor_qa_delete_team" ON vendor_qa;
 CREATE POLICY "vendor_qa_delete_team" ON vendor_qa
     FOR DELETE USING (
         EXISTS (
@@ -176,6 +189,7 @@ CREATE POLICY "vendor_qa_delete_team" ON vendor_qa
 -- ============================================================================
 
 -- Update timestamp trigger
+DROP TRIGGER IF EXISTS update_vendor_qa_updated_at ON vendor_qa;
 CREATE TRIGGER update_vendor_qa_updated_at
     BEFORE UPDATE ON vendor_qa
     FOR EACH ROW

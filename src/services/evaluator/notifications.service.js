@@ -87,7 +87,7 @@ class NotificationsService {
       .range(offset, offset + limit - 1);
 
     if (unreadOnly) {
-      query = query.eq('read', false);
+      query = query.eq('is_read', false);
     }
 
     if (type) {
@@ -111,7 +111,7 @@ class NotificationsService {
     const { count, error } = await supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
-      .eq('read', false);
+      .eq('is_read', false);
 
     if (error) {
       console.error('NotificationsService.getUnreadCount failed:', error);
@@ -128,7 +128,7 @@ class NotificationsService {
     const { data, error } = await supabase
       .from('notifications')
       .update({
-        read: true,
+        is_read: true,
         read_at: new Date().toISOString()
       })
       .eq('id', notificationId)
@@ -150,10 +150,10 @@ class NotificationsService {
     const { error } = await supabase
       .from('notifications')
       .update({
-        read: true,
+        is_read: true,
         read_at: new Date().toISOString()
       })
-      .eq('read', false);
+      .eq('is_read', false);
 
     if (error) {
       console.error('NotificationsService.markAllAsRead failed:', error);
@@ -190,7 +190,7 @@ class NotificationsService {
     const { error } = await supabase
       .from('notifications')
       .delete()
-      .eq('read', true)
+      .eq('is_read', true)
       .lt('created_at', cutoffDate.toISOString());
 
     if (error) {
