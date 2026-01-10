@@ -852,10 +852,12 @@ export class VendorQuestionsService extends EvaluatorBaseService {
         vendor_id: vendorId,
         question_id: questionId,
         response_text: responseData.response_text || null,
-        response_data: responseData.response_data || null, // JSONB for structured responses
-        file_url: responseData.file_url || null,
-        responded_at: new Date().toISOString(),
-        responded_by: responseData.responded_by || null
+        response_value: responseData.response_value || responseData.response_data || null, // JSONB for structured responses
+        compliance_level: responseData.compliance_level || null,
+        compliance_notes: responseData.compliance_notes || null,
+        status: responseData.status || 'submitted',
+        submitted_at: new Date().toISOString(),
+        submitted_by: responseData.submitted_by || responseData.responded_by || null
       };
 
       if (existing?.[0]) {

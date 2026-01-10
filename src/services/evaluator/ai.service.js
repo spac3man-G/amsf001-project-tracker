@@ -220,7 +220,7 @@ class AIService {
         status: 'identified',
         status_changed_at: new Date().toISOString(),
         status_changed_by: userId,
-        notes: this._formatVendorNotes(vendor),
+        internal_notes: this._formatVendorNotes(vendor),
         portal_enabled: false
       }));
 

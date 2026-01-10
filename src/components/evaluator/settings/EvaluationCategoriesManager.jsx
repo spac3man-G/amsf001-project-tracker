@@ -112,6 +112,23 @@ export function EvaluationCategoriesManager({
       return;
     }
 
+    // Validate total weights - calculate what the new total would be
+    const newWeight = parseFloat(editForm.weight) || 0;
+    const currentCategory = categories.find(c => c.id === editingId);
+    const oldWeight = currentCategory ? (parseFloat(currentCategory.weight) || 0) : 0;
+    const otherWeights = categories
+      .filter(c => c.id !== editingId)
+      .reduce((sum, c) => sum + (parseFloat(c.weight) || 0), 0);
+    const newTotal = otherWeights + newWeight;
+
+    if (newTotal > 100.01) {
+      setToast({
+        type: 'error',
+        message: `Weight would exceed 100%. Current other categories: ${otherWeights.toFixed(1)}%. Maximum for this category: ${(100 - otherWeights).toFixed(1)}%`
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       await onSave({
@@ -119,7 +136,7 @@ export function EvaluationCategoriesManager({
         name: editForm.name.trim(),
         description: editForm.description.trim(),
         color: editForm.color,
-        weight: parseFloat(editForm.weight) || 0
+        weight: newWeight
       });
       setToast({ type: 'success', message: 'Category updated' });
       handleCancelEdit();
@@ -128,7 +145,7 @@ export function EvaluationCategoriesManager({
     } finally {
       setSaving(false);
     }
-  }, [editingId, editForm, onSave, handleCancelEdit]);
+  }, [editingId, editForm, categories, onSave, handleCancelEdit]);
 
   // Start creating
   const handleStartCreate = useCallback(() => {
@@ -154,6 +171,19 @@ export function EvaluationCategoriesManager({
       return;
     }
 
+    // Validate total weights - calculate what the new total would be
+    const newWeight = parseFloat(createForm.weight) || 0;
+    const currentTotal = categories.reduce((sum, c) => sum + (parseFloat(c.weight) || 0), 0);
+    const newTotal = currentTotal + newWeight;
+
+    if (newTotal > 100.01) {
+      setToast({
+        type: 'error',
+        message: `Weight would exceed 100%. Current total: ${currentTotal.toFixed(1)}%. Maximum for new category: ${(100 - currentTotal).toFixed(1)}%`
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       await onSave({
@@ -161,7 +191,7 @@ export function EvaluationCategoriesManager({
         name: createForm.name.trim(),
         description: createForm.description.trim(),
         color: createForm.color,
-        weight: parseFloat(createForm.weight) || 0
+        weight: newWeight
       });
       setToast({ type: 'success', message: 'Category created' });
       handleCancelCreate();
@@ -170,7 +200,7 @@ export function EvaluationCategoriesManager({
     } finally {
       setSaving(false);
     }
-  }, [createForm, evaluationProjectId, onSave, handleCancelCreate]);
+  }, [createForm, categories, evaluationProjectId, onSave, handleCancelCreate]);
 
 
   // Confirm delete

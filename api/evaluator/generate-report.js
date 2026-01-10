@@ -14,7 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client with service role for admin access
 const supabase = createClient(
-  process.env.SUPABASE_URL,
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
@@ -230,9 +230,9 @@ async function generateSummaryReport(evaluationProjectId, project, format) {
       ['Total Requirements', requirements.length],
       ['Approved Requirements', requirements.filter(r => r.status === 'approved').length],
       ['Total Vendors', vendors.length],
-      ['Shortlisted Vendors', vendors.filter(v => v.pipeline_stage === 'shortlist').length],
-      ['Vendors in Evaluation', vendors.filter(v => v.pipeline_stage === 'evaluation').length],
-      ['Finalist Vendors', vendors.filter(v => v.pipeline_stage === 'finalist').length],
+      ['Shortlisted Vendors', vendors.filter(v => v.status === 'shortlisted').length],
+      ['Vendors in Evaluation', vendors.filter(v => v.status === 'active').length],
+      ['Finalist Vendors', vendors.filter(v => v.status === 'finalist').length],
       ['Total Scores Entered', scores.length],
       ['Report Generated', new Date().toISOString()]
     ];
@@ -303,7 +303,7 @@ async function generateSummaryReport(evaluationProjectId, project, format) {
       <tr class="rank-${i + 1}">
         <td>#${i + 1}</td>
         <td>${v.name}</td>
-        <td>${v.pipeline_stage}</td>
+        <td>${v.status}</td>
         <td>${v.weightedScore.toFixed(2)}</td>
       </tr>
     `).join('')}
@@ -336,10 +336,10 @@ async function generateTraceabilityReport(evaluationProjectId, project, format) 
 
   if (format === 'csv') {
     // CSV format
-    const headers = ['Requirement ID', 'Requirement Name', 'Category', 'Priority', ...vendors.map(v => v.name)];
+    const headers = ['Reference Code', 'Title', 'Category', 'Priority', ...vendors.map(v => v.name)];
     const rows = requirements.map(req => [
-      req.requirement_id,
-      req.name,
+      req.reference_code || '',
+      req.title || '',
       req.category?.name || '',
       req.priority || '',
       ...vendors.map(v => {
@@ -376,11 +376,11 @@ async function generateTraceabilityReport(evaluationProjectId, project, format) 
 <body>
   <h1>Traceability Matrix</h1>
   <p class="meta">${project.name} | Generated: ${formatDate(new Date())}</p>
-  
+
   <table>
     <thead>
       <tr>
-        <th>ID</th>
+        <th>Ref</th>
         <th>Requirement</th>
         <th>Category</th>
         <th>Priority</th>
@@ -390,8 +390,8 @@ async function generateTraceabilityReport(evaluationProjectId, project, format) 
     <tbody>
       ${requirements.map(req => `
         <tr>
-          <td>${req.requirement_id}</td>
-          <td>${req.name}</td>
+          <td>${req.reference_code || ''}</td>
+          <td>${req.title || ''}</td>
           <td>${req.category?.name || '-'}</td>
           <td>${req.priority || '-'}</td>
           ${vendors.map(v => {
@@ -415,28 +415,24 @@ async function generateRequirementsReport(evaluationProjectId, project, format) 
   const requirements = await fetchRequirements(evaluationProjectId);
 
   const headers = [
-    'Requirement ID',
-    'Name',
+    'Reference Code',
+    'Title',
     'Description',
     'Category',
-    'Criterion',
     'Stakeholder Area',
     'Priority',
-    'MoSCoW',
     'Status',
     'Created At'
   ];
 
   const rows = requirements.map(req => [
-    req.requirement_id,
-    req.name,
+    req.reference_code || '',
+    req.title || '',
     req.description || '',
     req.category?.name || '',
-    req.criterion?.name || '',
     req.stakeholder_area?.name || '',
     req.priority || '',
-    req.mos_cow || '',
-    req.status,
+    req.status || '',
     formatDate(req.created_at)
   ]);
 
@@ -497,7 +493,7 @@ async function generateComparisonReport(evaluationProjectId, project, format) {
     const rows = vendorRankings.map((v, i) => [
       i + 1,
       v.name,
-      v.pipeline_stage,
+      v.status,
       v.weightedScore.toFixed(2),
       ...categories.map(c => v.categoryScores[c.id]?.toFixed(2) || '')
     ]);
@@ -541,7 +537,7 @@ async function generateComparisonReport(evaluationProjectId, project, format) {
         <tr class="${i === 0 ? 'rank-1' : ''}">
           <td><strong>#${i + 1}</strong></td>
           <td>${v.name}</td>
-          <td>${v.pipeline_stage}</td>
+          <td>${v.status}</td>
           <td class="score"><strong>${v.weightedScore.toFixed(2)}</strong></td>
           ${categories.map(c => `<td class="score">${v.categoryScores[c.id]?.toFixed(2) || '-'}</td>`).join('')}
         </tr>
@@ -558,14 +554,13 @@ async function generateComparisonReport(evaluationProjectId, project, format) {
  */
 async function generateEvidenceReport(evaluationProjectId, project, format) {
   const { data: evidence, error } = await supabase
-    .from('evidence')
+    .from('evaluation_evidence')
     .select(`
       id,
-      type,
+      evidence_type,
       title,
-      content,
-      summary,
-      source_url,
+      description,
+      file_url,
       confidence_level,
       captured_at,
       vendor:vendor_id(name),
@@ -581,22 +576,20 @@ async function generateEvidenceReport(evaluationProjectId, project, format) {
     'Title',
     'Type',
     'Vendor',
-    'Summary',
+    'Description',
     'Confidence Level',
-    'Content',
-    'Source URL',
+    'File URL',
     'Captured At',
     'Created At'
   ];
 
   const rows = (evidence || []).map(e => [
-    e.title,
-    e.type,
+    e.title || '',
+    e.evidence_type || '',
     e.vendor?.name || '',
-    e.summary || '',
+    e.description || '',
     e.confidence_level || '',
-    e.content || '',
-    e.source_url || '',
+    e.file_url || '',
     formatDate(e.captured_at),
     formatDate(e.created_at)
   ]);
@@ -610,32 +603,30 @@ async function generateEvidenceReport(evaluationProjectId, project, format) {
 
 async function fetchRequirements(evaluationProjectId) {
   const { data, error } = await supabase
-    .from('evaluation_requirements')
+    .from('requirements')
     .select(`
       id,
-      requirement_id,
-      name,
+      reference_code,
+      title,
       description,
       priority,
       status,
-      mos_cow,
       category:category_id(id, name),
-      criterion:criterion_id(id, name),
       stakeholder_area:stakeholder_area_id(id, name),
       created_at
     `)
     .eq('evaluation_project_id', evaluationProjectId)
     .eq('is_deleted', false)
-    .order('requirement_id');
+    .order('reference_code');
 
   if (error) throw error;
-  return data;
+  return data || [];
 }
 
 async function fetchVendors(evaluationProjectId) {
   const { data, error } = await supabase
     .from('vendors')
-    .select('id, name, pipeline_stage, status')
+    .select('id, name, status, status')
     .eq('evaluation_project_id', evaluationProjectId)
     .or('is_deleted.is.null,is_deleted.eq.false')
     .order('name');
@@ -673,19 +664,25 @@ async function fetchCriteria(evaluationProjectId) {
 
 async function fetchConsensusScores(evaluationProjectId) {
   const { data, error } = await supabase
-    .from('consensus_scores')
+    .from('evaluation_scores')
     .select(`
       id,
       vendor_id,
-      criterion_id,
       requirement_id,
-      consensus_score,
-      rationale
+      score,
+      notes,
+      rag_status
     `)
-    .eq('evaluation_project_id', evaluationProjectId);
+    .eq('evaluation_project_id', evaluationProjectId)
+    .eq('is_consensus', true);
 
   if (error) throw error;
-  return data || [];
+  // Map to expected format
+  return (data || []).map(s => ({
+    ...s,
+    consensus_score: s.score,
+    rationale: s.notes
+  }));
 }
 
 /**
