@@ -147,21 +147,28 @@ export default function EvaluatorDashboard() {
       {/* Analytics Section */}
       <div className="dashboard-analytics">
         <div className="analytics-grid">
-          {/* Row 1: Overall Rankings */}
+          {/* Row 1: Evaluation Progress Timeline (horizontal) */}
+          <div className="analytics-row full-width">
+            <div className="analytics-item timeline-item">
+              <EvaluationTimeline evaluationProjectId={evaluationId} />
+            </div>
+          </div>
+
+          {/* Row 2: Overall Rankings */}
           <div className="analytics-row full-width">
             <div className="analytics-item rankings-item">
               <OverallRankings evaluationProjectId={evaluationId} maxVendors={8} />
             </div>
           </div>
 
-          {/* Row 2: Vendor Comparison Radar Chart */}
+          {/* Row 3: Vendor Comparison Radar Chart */}
           <div className="analytics-row full-width">
             <div className="analytics-item radar-item">
               <VendorRadarChart evaluationProjectId={evaluationId} maxVendors={5} />
             </div>
           </div>
 
-          {/* Row 3: Score Heatmap */}
+          {/* Row 4: Score Heatmap */}
           <div className="analytics-row full-width">
             <div className="analytics-item heatmap-item">
               <ScoreHeatmap
@@ -175,17 +182,14 @@ export default function EvaluatorDashboard() {
             </div>
           </div>
 
-          {/* Row 4: Timeline and Risk */}
-          <div className="analytics-row">
-            <div className="analytics-item timeline-item">
-              <EvaluationTimeline evaluationProjectId={evaluationId} />
-            </div>
+          {/* Row 5: Risk Indicators */}
+          <div className="analytics-row full-width">
             <div className="analytics-item risk-item">
               <RiskIndicators evaluationProjectId={evaluationId} />
             </div>
           </div>
 
-          {/* Row 5: v1.1 Widgets - Stakeholder, Q&A, Approvals, Security */}
+          {/* Row 6: v1.1 Widgets - Stakeholder, Q&A, Approvals, Security */}
           <div className="analytics-row four-col">
             <div className="analytics-item widget-item">
               <StakeholderParticipationChart evaluationProjectId={evaluationId} />

@@ -1,11 +1,12 @@
 /**
  * EvaluationTimeline Component
  *
- * Displays a visual timeline of evaluation progress including milestones,
+ * Displays a horizontal visual timeline of evaluation progress including milestones,
  * scoring completion, and vendor pipeline status.
  *
- * @version 1.0
+ * @version 1.1
  * @created January 9, 2026
+ * @updated January 11, 2026 - Redesigned to horizontal layout
  * @phase Evaluator Product Roadmap v1.1 - Feature 1.1.3
  */
 
@@ -15,12 +16,12 @@ import { analyticsService } from '../../../services/evaluator';
 import './EvaluationTimeline.css';
 
 const PHASE_CONFIG = {
-  setup: { label: 'Setup', color: '#8b5cf6', icon: Circle },
-  requirements: { label: 'Requirements', color: '#3b82f6', icon: Circle },
-  vendors: { label: 'Vendor Selection', color: '#06b6d4', icon: Circle },
-  evaluation: { label: 'Evaluation', color: '#f59e0b', icon: Circle },
-  scoring: { label: 'Scoring', color: '#10b981', icon: Circle },
-  decision: { label: 'Decision', color: '#ef4444', icon: Flag }
+  setup: { label: 'Setup', color: '#8b5cf6' },
+  requirements: { label: 'Requirements', color: '#3b82f6' },
+  vendors: { label: 'Vendor Selection', color: '#06b6d4' },
+  evaluation: { label: 'Evaluation', color: '#f59e0b' },
+  scoring: { label: 'Scoring', color: '#10b981' },
+  decision: { label: 'Decision', color: '#ef4444' }
 };
 
 function EvaluationTimeline({ evaluationProjectId }) {
@@ -50,17 +51,17 @@ function EvaluationTimeline({ evaluationProjectId }) {
 
   if (loading) {
     return (
-      <div className="evaluation-timeline loading">
-        <RefreshCw className="spinning" size={24} />
-        <span>Loading timeline...</span>
+      <div className="evaluation-timeline horizontal loading">
+        <RefreshCw className="spinning" size={20} />
+        <span>Loading progress...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="evaluation-timeline error">
-        <AlertCircle size={24} />
+      <div className="evaluation-timeline horizontal error">
+        <AlertCircle size={20} />
         <span>{error}</span>
         <button onClick={loadData}>Retry</button>
       </div>
@@ -69,8 +70,8 @@ function EvaluationTimeline({ evaluationProjectId }) {
 
   if (!data) {
     return (
-      <div className="evaluation-timeline empty">
-        <Calendar size={32} />
+      <div className="evaluation-timeline horizontal empty">
+        <Calendar size={24} />
         <p>No timeline data available</p>
       </div>
     );
@@ -82,141 +83,63 @@ function EvaluationTimeline({ evaluationProjectId }) {
     : 0;
 
   return (
-    <div className="evaluation-timeline">
-      <div className="timeline-header">
-        <h3>
+    <div className="evaluation-timeline horizontal">
+      <div className="timeline-header-horizontal">
+        <div className="timeline-title">
           <Calendar size={18} />
-          Evaluation Progress
-        </h3>
-        <div className="overall-progress">
-          <div className="progress-bar">
+          <h3>Evaluation Progress</h3>
+        </div>
+        <div className="overall-progress-horizontal">
+          <div className="progress-bar-horizontal">
             <div
-              className="progress-fill"
+              className="progress-fill-horizontal"
               style={{ width: `${overallProgress}%` }}
             />
           </div>
-          <span className="progress-label">{overallProgress}% Complete</span>
+          <span className="progress-label-horizontal">{overallProgress}%</span>
         </div>
       </div>
 
-      <div className="timeline-phases">
+      <div className="timeline-phases-horizontal">
         {data.phases.map((phase, index) => {
           const config = PHASE_CONFIG[phase.id] || PHASE_CONFIG.setup;
-          const PhaseIcon = phase.status === 'complete' ? CheckCircle2 :
-                          phase.status === 'in_progress' ? Clock : config.icon;
+          const isComplete = phase.status === 'complete';
+          const isInProgress = phase.status === 'in_progress';
+          const PhaseIcon = isComplete ? CheckCircle2 : isInProgress ? Clock : Circle;
 
           return (
-            <div
-              key={phase.id}
-              className={`phase-item ${phase.status}`}
-              style={{ '--phase-color': config.color }}
-            >
-              <div className="phase-connector">
-                {index > 0 && <div className="connector-line" />}
-                <div className="phase-icon">
+            <React.Fragment key={phase.id}>
+              <div
+                className={`phase-item-horizontal ${phase.status}`}
+                style={{ '--phase-color': config.color }}
+              >
+                <div className={`phase-icon-horizontal ${phase.status}`}>
                   <PhaseIcon size={16} />
                 </div>
-                {index < data.phases.length - 1 && <div className="connector-line" />}
-              </div>
-              <div className="phase-content">
-                <div className="phase-header">
-                  <span className="phase-name">{config.label}</span>
-                  <span className={`phase-status ${phase.status}`}>
-                    {phase.status === 'complete' ? 'Done' :
-                     phase.status === 'in_progress' ? 'In Progress' : 'Pending'}
+                <div className="phase-details-horizontal">
+                  <span className="phase-name-horizontal">{config.label}</span>
+                  <span className="phase-percent-horizontal">
+                    {Math.round(phase.completion || 0)}%
                   </span>
                 </div>
-                {phase.completion !== undefined && (
-                  <div className="phase-progress">
-                    <div className="mini-progress-bar">
-                      <div
-                        className="mini-progress-fill"
-                        style={{ width: `${phase.completion}%` }}
-                      />
-                    </div>
-                    <span className="phase-progress-text">{Math.round(phase.completion)}%</span>
-                  </div>
-                )}
-                {phase.metrics && (
-                  <div className="phase-stats">
-                    {Object.entries(phase.metrics).map(([key, value]) => (
-                      <span key={key} className="stat-item">
-                        {formatStatLabel(key)}: {value}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className="phase-progress-horizontal">
+                  <div
+                    className="phase-progress-fill-horizontal"
+                    style={{ width: `${phase.completion || 0}%` }}
+                  />
+                </div>
               </div>
-            </div>
+              {index < data.phases.length - 1 && (
+                <div className={`connector-horizontal ${isComplete ? 'completed' : ''}`}>
+                  <div className="connector-line-horizontal" />
+                </div>
+              )}
+            </React.Fragment>
           );
         })}
       </div>
-
-      {data.milestones && data.milestones.length > 0 && (
-        <div className="timeline-milestones">
-          <div className="milestones-title">Key Milestones</div>
-          <div className="milestones-list">
-            {data.milestones.map((milestone, index) => (
-              <div
-                key={index}
-                className={`milestone-item ${milestone.completed ? 'completed' : ''}`}
-              >
-                <div className="milestone-indicator">
-                  {milestone.completed ? (
-                    <CheckCircle2 size={14} />
-                  ) : (
-                    <Circle size={14} />
-                  )}
-                </div>
-                <div className="milestone-content">
-                  <span className="milestone-label">{milestone.label}</span>
-                  {milestone.date && (
-                    <span className="milestone-date">
-                      {formatDate(milestone.date)}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.nextActions && data.nextActions.length > 0 && (
-        <div className="timeline-actions">
-          <div className="actions-title">Next Actions</div>
-          <ul className="actions-list">
-            {data.nextActions.map((action, index) => (
-              <li key={index} className="action-item">{action}</li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
-}
-
-function formatStatLabel(key) {
-  const labels = {
-    total: 'Total',
-    completed: 'Completed',
-    pending: 'Pending',
-    active: 'Active',
-    scored: 'Scored',
-    vendors: 'Vendors',
-    requirements: 'Requirements'
-  };
-  return labels[key] || key.charAt(0).toUpperCase() + key.slice(1);
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-AU', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
 }
 
 export default EvaluationTimeline;
