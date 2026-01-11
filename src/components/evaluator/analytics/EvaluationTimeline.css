@@ -1,29 +1,29 @@
 /**
- * EvaluationTimeline Styles - Horizontal Layout
- * @version 1.1
+ * EvaluationTimeline Styles - Enhanced Horizontal Layout
+ * @version 1.2
  * @created January 9, 2026
- * @updated January 11, 2026 - Horizontal redesign
+ * @updated January 11, 2026 - Enhanced with expandable cards and CTAs
  */
 
-.evaluation-timeline.horizontal {
+.evaluation-timeline-enhanced {
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px 20px;
 }
 
-.evaluation-timeline.horizontal.loading,
-.evaluation-timeline.horizontal.error,
-.evaluation-timeline.horizontal.empty {
+.evaluation-timeline-enhanced.loading,
+.evaluation-timeline-enhanced.error,
+.evaluation-timeline-enhanced.empty {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 80px;
+  min-height: 100px;
   color: #6b7280;
 }
 
-.evaluation-timeline.horizontal.loading .spinning {
+.evaluation-timeline-enhanced.loading .spinning {
   animation: spin 1s linear infinite;
 }
 
@@ -31,7 +31,7 @@
   to { transform: rotate(360deg); }
 }
 
-.evaluation-timeline.horizontal.error button {
+.evaluation-timeline-enhanced.error button {
   padding: 4px 12px;
   background: #f3f4f6;
   border: 1px solid #d1d5db;
@@ -41,213 +41,411 @@
 }
 
 /* Header */
-.timeline-header-horizontal {
+.timeline-header-enhanced {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
 }
 
-.timeline-title {
+.timeline-title-enhanced {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.timeline-title svg {
+.timeline-title-enhanced svg {
   color: #6b7280;
 }
 
-.timeline-title h3 {
+.timeline-title-enhanced h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #374151;
 }
 
-.overall-progress-horizontal {
+.overall-progress-enhanced {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.progress-bar-horizontal {
-  width: 120px;
-  height: 6px;
+.progress-bar-enhanced {
+  width: 140px;
+  height: 8px;
   background: #e5e7eb;
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
-.progress-fill-horizontal {
+.progress-fill-enhanced {
   height: 100%;
   background: linear-gradient(90deg, #3b82f6, #10b981);
-  border-radius: 3px;
+  border-radius: 4px;
   transition: width 0.3s ease;
 }
 
-.progress-label-horizontal {
+.progress-label-enhanced {
   font-size: 13px;
   font-weight: 600;
   color: #374151;
 }
 
 /* Phases - Horizontal Layout */
-.timeline-phases-horizontal {
+.timeline-phases-enhanced {
   display: flex;
   align-items: flex-start;
   gap: 0;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding: 8px 0;
 }
 
-.phase-item-horizontal {
+/* Phase Card */
+.phase-card-enhanced {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  min-width: 100px;
+  min-width: 120px;
+  max-width: 160px;
   flex: 1;
-}
-
-.phase-icon-horizontal {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #f3f4f6;
-  color: #9ca3af;
-  margin-bottom: 8px;
-  flex-shrink: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.phase-icon-horizontal.complete {
-  background: var(--phase-color, #10b981);
+.phase-card-enhanced:hover {
+  background: #f5f5f5;
+  border-color: #d1d5db;
+}
+
+.phase-card-enhanced.current {
+  background: color-mix(in srgb, var(--phase-color) 5%, white);
+  border-color: var(--phase-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--phase-color) 10%, transparent);
+}
+
+.phase-card-enhanced.expanded {
+  min-width: 200px;
+  max-width: 240px;
+}
+
+.phase-card-enhanced.complete {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+/* Phase Header */
+.phase-header-enhanced {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.phase-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.phase-status-icon.complete {
+  background: #10b981;
   color: white;
 }
 
-.phase-icon-horizontal.in_progress {
-  background: color-mix(in srgb, var(--phase-color, #f59e0b) 15%, white);
-  color: var(--phase-color, #f59e0b);
+.phase-status-icon.in_progress {
+  background: color-mix(in srgb, var(--phase-color) 15%, white);
+  color: var(--phase-color);
   animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3); }
-  50% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
 }
 
-.phase-details-horizontal {
+.phase-title-enhanced {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  margin-bottom: 6px;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
 }
 
-.phase-name-horizontal {
+.phase-name-enhanced {
   font-size: 12px;
   font-weight: 600;
   color: #374151;
-  text-align: center;
-  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.phase-percent-horizontal {
+.phase-percent-enhanced {
   font-size: 11px;
   font-weight: 500;
   color: #6b7280;
 }
 
-.phase-item-horizontal.complete .phase-percent-horizontal {
+.phase-card-enhanced.complete .phase-percent-enhanced {
   color: #059669;
 }
 
-.phase-item-horizontal.in_progress .phase-percent-horizontal {
-  color: var(--phase-color, #f59e0b);
+.phase-card-enhanced.in_progress .phase-percent-enhanced {
+  color: var(--phase-color);
 }
 
-.phase-progress-horizontal {
+/* Progress Bar */
+.phase-progress-bar-enhanced {
   width: 100%;
-  max-width: 80px;
   height: 4px;
   background: #e5e7eb;
   border-radius: 2px;
   overflow: hidden;
+  margin-bottom: 6px;
 }
 
-.phase-progress-fill-horizontal {
+.phase-progress-fill-enhanced {
   height: 100%;
   background: var(--phase-color, #3b82f6);
   border-radius: 2px;
   transition: width 0.3s ease;
 }
 
-/* Connector between phases */
-.connector-horizontal {
+.phase-card-enhanced.complete .phase-progress-fill-enhanced {
+  background: #10b981;
+}
+
+/* Quick Metrics */
+.phase-quick-metrics {
+  font-size: 10px;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Expanded Details */
+.phase-details-enhanced {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.phase-description {
+  font-size: 11px;
+  color: #6b7280;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.phase-criteria {
+  font-size: 11px;
+  color: #374151;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: #f9fafb;
+  border-radius: 4px;
+}
+
+.phase-criteria strong {
+  color: #6b7280;
+}
+
+.phase-next-action {
   display: flex;
   align-items: center;
-  padding-top: 16px;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--phase-color);
+  margin-bottom: 10px;
+}
+
+.phase-next-action svg {
   flex-shrink: 0;
 }
 
-.connector-line-horizontal {
-  width: 24px;
+.phase-link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: white;
+  background: var(--phase-color);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.phase-link-btn:hover {
+  opacity: 0.9;
+}
+
+/* Connector */
+.connector-enhanced {
+  display: flex;
+  align-items: center;
+  padding-top: 20px;
+  flex-shrink: 0;
+}
+
+.connector-line-enhanced {
+  width: 16px;
   height: 2px;
   background: #e5e7eb;
 }
 
-.connector-horizontal.completed .connector-line-horizontal {
+.connector-enhanced.completed .connector-line-enhanced {
   background: #10b981;
 }
 
+/* Current Phase CTA */
+.current-phase-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+}
+
+.cta-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cta-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0369a1;
+  white-space: nowrap;
+}
+
+.cta-action {
+  font-size: 12px;
+  color: #0c4a6e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cta-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  background: #0284c7;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.cta-button:hover {
+  background: #0369a1;
+}
+
 /* Responsive */
+@media (max-width: 900px) {
+  .phase-card-enhanced {
+    min-width: 100px;
+  }
+
+  .phase-card-enhanced.expanded {
+    min-width: 160px;
+    max-width: 180px;
+  }
+
+  .connector-line-enhanced {
+    width: 12px;
+  }
+}
+
 @media (max-width: 768px) {
-  .timeline-header-horizontal {
+  .timeline-header-enhanced {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
 
-  .overall-progress-horizontal {
+  .overall-progress-enhanced {
     width: 100%;
   }
 
-  .progress-bar-horizontal {
+  .progress-bar-enhanced {
     flex: 1;
   }
 
-  .phase-item-horizontal {
-    min-width: 80px;
+  .phase-card-enhanced {
+    min-width: 90px;
   }
 
-  .phase-name-horizontal {
-    font-size: 10px;
+  .phase-name-enhanced {
+    font-size: 11px;
   }
 
-  .phase-icon-horizontal {
-    width: 28px;
-    height: 28px;
+  .current-phase-cta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 
-  .phase-icon-horizontal svg {
-    width: 14px;
-    height: 14px;
+  .cta-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .cta-action {
+    white-space: normal;
   }
 }
 
 @media (max-width: 480px) {
-  .timeline-phases-horizontal {
+  .timeline-phases-enhanced {
     padding-bottom: 8px;
   }
 
-  .phase-item-horizontal {
-    min-width: 70px;
+  .phase-card-enhanced {
+    min-width: 80px;
+    padding: 8px;
   }
 
-  .connector-line-horizontal {
-    width: 16px;
+  .phase-status-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .phase-status-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .connector-line-enhanced {
+    width: 8px;
   }
 }
