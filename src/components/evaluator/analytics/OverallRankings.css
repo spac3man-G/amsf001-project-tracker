@@ -74,7 +74,26 @@
 }
 
 .rankings-list.enhanced {
-  gap: 10px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.rankings-list.enhanced::-webkit-scrollbar {
+  height: 6px;
+}
+
+.rankings-list.enhanced::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rankings-list.enhanced::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
 }
 
 /* Ranking Card (Enhanced) */
@@ -86,7 +105,8 @@
   border-radius: 8px;
   overflow: hidden;
   transition: all 0.2s ease;
-  min-width: 140px;
+  min-width: 130px;
+  flex-shrink: 0;
 }
 
 .ranking-card:hover {
@@ -95,9 +115,8 @@
 }
 
 .ranking-card.expanded {
-  min-width: 280px;
-  max-width: 320px;
-  flex-grow: 1;
+  min-width: 260px;
+  max-width: 300px;
 }
 
 .ranking-card.rank-1 {
@@ -356,16 +375,17 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .rankings-list.enhanced {
-    flex-direction: column;
+    /* Keep single row with scroll on mobile */
+    flex-wrap: nowrap;
   }
 
   .ranking-card {
-    min-width: 100%;
+    min-width: 120px;
   }
 
   .ranking-card.expanded {
-    min-width: 100%;
-    max-width: 100%;
+    min-width: 240px;
+    max-width: 280px;
   }
 
   .category-scores-grid {

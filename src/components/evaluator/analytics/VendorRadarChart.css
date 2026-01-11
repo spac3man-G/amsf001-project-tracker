@@ -41,6 +41,25 @@
   cursor: pointer;
 }
 
+/* Compact variant */
+.vendor-radar-chart.compact {
+  padding: 16px;
+}
+
+.vendor-radar-chart.compact .radar-header {
+  padding: 0 0 12px 0;
+  border-bottom: none;
+  background: transparent;
+}
+
+.vendor-radar-chart.compact .radar-header h3 {
+  font-size: 14px;
+}
+
+.vendor-radar-chart.compact .radar-container {
+  padding: 0;
+}
+
 .radar-header {
   display: flex;
   align-items: flex-start;

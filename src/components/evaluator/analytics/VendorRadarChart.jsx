@@ -132,37 +132,21 @@ function VendorRadarChart({ evaluationProjectId, maxVendors = 5 }) {
   }
 
   return (
-    <div className="vendor-radar-chart">
+    <div className="vendor-radar-chart compact">
       <div className="radar-header">
         <h3>
           <Hexagon size={18} />
           Vendor Comparison
         </h3>
-        <div className="vendor-toggles">
-          {data.vendors.map((vendor, index) => (
-            <button
-              key={vendor.id}
-              className={`vendor-toggle ${visibleVendors[vendor.id] ? 'active' : ''}`}
-              onClick={() => toggleVendor(vendor.id)}
-              style={{
-                '--vendor-color': VENDOR_COLORS[index % VENDOR_COLORS.length]
-              }}
-            >
-              {visibleVendors[vendor.id] ? <Eye size={14} /> : <EyeOff size={14} />}
-              <span className="vendor-toggle-name">{vendor.name}</span>
-              <span className="vendor-toggle-score">{Math.round(vendor.overallScore)}%</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="radar-container">
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={350}>
           <RadarChart data={data.chartData} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
             <PolarGrid stroke="#e5e7eb" />
             <PolarAngleAxis
               dataKey="category"
-              tick={{ fontSize: 12, fill: '#6b7280' }}
+              tick={{ fontSize: 11, fill: '#6b7280' }}
               tickLine={false}
             />
             <PolarRadiusAxis
@@ -186,26 +170,11 @@ function VendorRadarChart({ evaluationProjectId, maxVendors = 5 }) {
             ))}
             <Tooltip content={<CustomTooltip vendors={data.vendors} />} />
             <Legend
-              wrapperStyle={{ paddingTop: 20 }}
-              formatter={(value) => <span style={{ color: '#374151', fontSize: 12 }}>{value}</span>}
+              wrapperStyle={{ paddingTop: 10 }}
+              formatter={(value) => <span style={{ color: '#374151', fontSize: 11 }}>{value}</span>}
             />
           </RadarChart>
         </ResponsiveContainer>
-      </div>
-
-      <div className="radar-summary">
-        <div className="summary-title">Overall Rankings</div>
-        <div className="ranking-list">
-          {data.vendors
-            .sort((a, b) => b.overallScore - a.overallScore)
-            .map((vendor, index) => (
-              <div key={vendor.id} className="ranking-item">
-                <span className="rank">#{index + 1}</span>
-                <span className="vendor-name">{vendor.name}</span>
-                <span className="overall-score">{Math.round(vendor.overallScore)}%</span>
-              </div>
-            ))}
-        </div>
       </div>
     </div>
   );
