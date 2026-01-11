@@ -89,9 +89,7 @@ class VendorQAService {
       .from('vendor_qa')
       .select(`
         *,
-        vendor:vendors(id, name),
-        submitted_by_user:profiles!vendor_qa_submitted_by_fkey(id, full_name, email),
-        answered_by_user:profiles!vendor_qa_answered_by_fkey(id, full_name, email)
+        vendor:vendors(id, name)
       `)
       .eq('evaluation_project_id', evaluationProjectId)
       .order('submitted_at', { ascending: false });
@@ -147,10 +145,7 @@ class VendorQAService {
     // Get own questions
     const { data: ownQuestions, error: ownError } = await supabase
       .from('vendor_qa')
-      .select(`
-        *,
-        answered_by_user:profiles!vendor_qa_answered_by_fkey(id, full_name)
-      `)
+      .select('*')
       .eq('vendor_id', vendorId)
       .order('submitted_at', { ascending: false });
 
@@ -164,8 +159,7 @@ class VendorQAService {
       .from('vendor_qa')
       .select(`
         id, question_text, question_category, question_reference,
-        status, answer_text, answered_at, is_shared, shared_at,
-        answered_by_user:profiles!vendor_qa_answered_by_fkey(id, full_name)
+        status, answer_text, answered_at, is_shared, shared_at
       `)
       .eq('evaluation_project_id', evaluationProjectId)
       .eq('is_shared', true)
@@ -195,9 +189,7 @@ class VendorQAService {
       .from('vendor_qa')
       .select(`
         *,
-        vendor:vendors(id, name),
-        submitted_by_user:profiles!vendor_qa_submitted_by_fkey(id, full_name, email),
-        answered_by_user:profiles!vendor_qa_answered_by_fkey(id, full_name, email)
+        vendor:vendors(id, name)
       `)
       .eq('id', qaId)
       .single();

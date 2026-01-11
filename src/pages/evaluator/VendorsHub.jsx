@@ -56,7 +56,7 @@ function VendorsHub() {
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState(searchParams.get('view') || 'pipeline');
+  const [viewMode, setViewMode] = useState(searchParams.get('view') || 'list');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   

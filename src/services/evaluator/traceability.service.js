@@ -231,10 +231,9 @@ export class TraceabilityService extends EvaluatorBaseService {
           vendor_id,
           criterion_id,
           evaluator_id,
-          score,
+          score_value,
           rationale,
-          status,
-          is_consensus
+          status
         `)
         .eq('evaluation_project_id', evaluationProjectId);
 
@@ -441,7 +440,7 @@ export class TraceabilityService extends EvaluatorBaseService {
       if (scoreData) {
         if (scoreData.consensus) {
           // If any linked criterion has consensus, use it
-          consensusScore = scoreData.consensus.score;
+          consensusScore = scoreData.consensus.score_value;
         }
         allScores.push(...(scoreData.scores || []));
       }
@@ -462,7 +461,7 @@ export class TraceabilityService extends EvaluatorBaseService {
       ragStatus = this.getRAGStatus(consensusScore);
     } else if (allScores.length > 0) {
       cellType = CELL_TYPES.SCORED;
-      averageScore = allScores.reduce((sum, s) => sum + s.score, 0) / allScores.length;
+      averageScore = allScores.reduce((sum, s) => sum + s.score_value, 0) / allScores.length;
       ragStatus = this.getRAGStatus(averageScore);
     }
 
@@ -762,16 +761,16 @@ export class TraceabilityService extends EvaluatorBaseService {
     return {
       individual: individual.map(s => ({
         ...s,
-        ragStatus: this.getRAGStatus(s.score),
-        ragConfig: RAG_CONFIG[this.getRAGStatus(s.score)]
+        ragStatus: this.getRAGStatus(s.score_value),
+        ragConfig: RAG_CONFIG[this.getRAGStatus(s.score_value)]
       })),
       consensus: consensus ? {
         ...consensus,
-        ragStatus: this.getRAGStatus(consensus.score),
-        ragConfig: RAG_CONFIG[this.getRAGStatus(consensus.score)]
+        ragStatus: this.getRAGStatus(consensus.score_value),
+        ragConfig: RAG_CONFIG[this.getRAGStatus(consensus.score_value)]
       } : null,
       average: individual.length > 0
-        ? individual.reduce((sum, s) => sum + s.score, 0) / individual.length
+        ? individual.reduce((sum, s) => sum + s.score_value, 0) / individual.length
         : null,
       variance: this.calculateVariance(individual)
     };
@@ -782,8 +781,8 @@ export class TraceabilityService extends EvaluatorBaseService {
    */
   calculateVariance(scores) {
     if (scores.length < 2) return 0;
-    const avg = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
-    const squaredDiffs = scores.map(s => Math.pow(s.score - avg, 2));
+    const avg = scores.reduce((sum, s) => sum + s.score_value, 0) / scores.length;
+    const squaredDiffs = scores.map(s => Math.pow(s.score_value - avg, 2));
     return Math.sqrt(squaredDiffs.reduce((sum, d) => sum + d, 0) / scores.length);
   }
 
@@ -864,9 +863,9 @@ export class TraceabilityService extends EvaluatorBaseService {
       scoreLevel.items.push({
         type: 'score',
         id: score.id,
-        label: `${score.evaluator?.full_name || 'Evaluator'}: ${score.score}/5`,
-        score: score.score,
-        ragStatus: this.getRAGStatus(score.score)
+        label: `${score.evaluator?.full_name || 'Evaluator'}: ${score.score_value}/5`,
+        score: score.score_value,
+        ragStatus: this.getRAGStatus(score.score_value)
       });
     });
 
@@ -875,9 +874,9 @@ export class TraceabilityService extends EvaluatorBaseService {
       scoreLevel.items.push({
         type: 'consensus',
         id: consensus.id,
-        label: `Consensus: ${consensus.score}/5`,
-        score: consensus.score,
-        ragStatus: this.getRAGStatus(consensus.score)
+        label: `Consensus: ${consensus.score_value}/5`,
+        score: consensus.score_value,
+        ragStatus: this.getRAGStatus(consensus.score_value)
       });
     }
 
@@ -1315,7 +1314,7 @@ export class TraceabilityService extends EvaluatorBaseService {
 
         row.cells.forEach((cell, idx) => {
           if (cell.individualScores && cell.individualScores.length >= 2) {
-            const scores = cell.individualScores.map(s => s.score);
+            const scores = cell.individualScores.map(s => s.score_value);
             const variance = this.calculateVariance(cell.individualScores);
 
             if (variance > 1.0 && !cell.consensusScore) {
