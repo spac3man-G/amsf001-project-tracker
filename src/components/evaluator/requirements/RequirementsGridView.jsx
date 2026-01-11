@@ -775,7 +775,7 @@ export default function RequirementsGridView({
     }
   }, [canManage, selectedRows, getSelectedIds, rows, evaluationId, user?.id, onDataChange]);
 
-  // Column definitions
+  // Column definitions - using react-data-grid v7 API
   const columns = useMemo(() => {
     const cols = [
       {
@@ -783,7 +783,7 @@ export default function RequirementsGridView({
         name: '',
         width: 40,
         frozen: true,
-        headerRenderer: () => (
+        renderHeaderCell: () => (
           <input
             type="checkbox"
             checked={selectedRows.size === rows.length && rows.length > 0}
@@ -796,7 +796,7 @@ export default function RequirementsGridView({
             }}
           />
         ),
-        formatter: ({ row }) => (
+        renderCell: ({ row }) => (
           <input
             type="checkbox"
             checked={selectedRows.has(row.id)}
@@ -824,7 +824,7 @@ export default function RequirementsGridView({
         name: 'Title',
         width: 250,
         resizable: true,
-        editor: TextEditor,
+        renderEditCell: TextEditor,
         editable: canManage,
         cellClass: (row) => validationErrors[row.id]?.title ? 'rdg-cell-error' : ''
       },
@@ -833,7 +833,7 @@ export default function RequirementsGridView({
         name: 'Description',
         width: 300,
         resizable: true,
-        editor: TextAreaEditor,
+        renderEditCell: TextAreaEditor,
         editable: canManage
       },
       {
@@ -841,9 +841,9 @@ export default function RequirementsGridView({
         name: 'Priority',
         width: 120,
         resizable: true,
-        editor: (p) => <DropdownEditor {...p} options={PRIORITY_OPTIONS} />,
+        renderEditCell: (p) => <DropdownEditor {...p} options={PRIORITY_OPTIONS} />,
         editable: canManage,
-        formatter: ({ row }) => {
+        renderCell: ({ row }) => {
           const opt = PRIORITY_OPTIONS.find(o => o.value === row.priority);
           return <span className={`priority-badge priority-${row.priority}`}>{opt?.label || row.priority}</span>;
         }
@@ -853,9 +853,9 @@ export default function RequirementsGridView({
         name: 'Category',
         width: 150,
         resizable: true,
-        editor: (p) => <CategoryEditor {...p} categories={categories} />,
+        renderEditCell: (p) => <CategoryEditor {...p} categories={categories} />,
         editable: canManage,
-        formatter: ({ row }) => row.category ? (
+        renderCell: ({ row }) => row.category ? (
           <span
             className="category-badge"
             style={{ backgroundColor: row.category.color || '#6B7280' }}
@@ -869,9 +869,9 @@ export default function RequirementsGridView({
         name: 'Stakeholder',
         width: 150,
         resizable: true,
-        editor: (p) => <StakeholderAreaEditor {...p} stakeholderAreas={stakeholderAreas} />,
+        renderEditCell: (p) => <StakeholderAreaEditor {...p} stakeholderAreas={stakeholderAreas} />,
         editable: canManage,
-        formatter: ({ row }) => row.stakeholder_area ? (
+        renderCell: ({ row }) => row.stakeholder_area ? (
           <span
             className="stakeholder-badge"
             style={{ borderColor: row.stakeholder_area.color || '#6B7280' }}
@@ -885,9 +885,9 @@ export default function RequirementsGridView({
         name: 'Status',
         width: 120,
         resizable: true,
-        editor: (p) => <DropdownEditor {...p} options={STATUS_OPTIONS} />,
+        renderEditCell: (p) => <DropdownEditor {...p} options={STATUS_OPTIONS} />,
         editable: canManage,
-        formatter: ({ row }) => {
+        renderCell: ({ row }) => {
           const opt = STATUS_OPTIONS.find(o => o.value === row.status);
           return <span className={`status-badge status-${row.status}`}>{opt?.label || row.status}</span>;
         }
@@ -897,9 +897,9 @@ export default function RequirementsGridView({
         name: 'Source Type',
         width: 130,
         resizable: true,
-        editor: (p) => <DropdownEditor {...p} options={SOURCE_TYPE_OPTIONS} />,
+        renderEditCell: (p) => <DropdownEditor {...p} options={SOURCE_TYPE_OPTIONS} />,
         editable: canManage,
-        formatter: ({ row }) => {
+        renderCell: ({ row }) => {
           const opt = SOURCE_TYPE_OPTIONS.find(o => o.value === row.source_type);
           return opt?.label || row.source_type || '—';
         }
@@ -909,7 +909,7 @@ export default function RequirementsGridView({
         name: 'Source Ref',
         width: 150,
         resizable: true,
-        editor: TextEditor,
+        renderEditCell: TextEditor,
         editable: canManage
       },
       {
@@ -917,7 +917,7 @@ export default function RequirementsGridView({
         name: 'Acceptance Criteria',
         width: 250,
         resizable: true,
-        editor: TextAreaEditor,
+        renderEditCell: TextAreaEditor,
         editable: canManage
       },
       {
@@ -925,9 +925,9 @@ export default function RequirementsGridView({
         name: 'Weight',
         width: 80,
         resizable: true,
-        editor: NumberEditor,
+        renderEditCell: NumberEditor,
         editable: canManage,
-        formatter: ({ row }) => row.weighting || 0
+        renderCell: ({ row }) => row.weighting || 0
       }
     ];
 

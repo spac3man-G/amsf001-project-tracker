@@ -186,36 +186,58 @@
   to { transform: rotate(360deg); }
 }
 
-/* Data Grid Styling */
+/* Data Grid Styling - Excel-like appearance */
 .requirements-data-grid {
   flex: 1;
   font-size: 13px;
+  border: 1px solid #d1d5db;
 }
 
 .requirements-data-grid .rdg-header-row {
-  background: var(--bg-tertiary);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   font-weight: 600;
+  border-bottom: 2px solid #cbd5e1;
+}
+
+.requirements-data-grid .rdg-header-row .rdg-cell {
+  border-right: 1px solid #cbd5e1;
+  color: #374151;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .requirements-data-grid .rdg-cell {
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
   padding: 0 8px;
   display: flex;
   align-items: center;
+  background: white;
 }
 
 .requirements-data-grid .rdg-cell:focus {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid #3b82f6;
   outline-offset: -2px;
+  background: #eff6ff;
+}
+
+.requirements-data-grid .rdg-row:nth-child(even) .rdg-cell {
+  background: #fafafa;
 }
 
 .requirements-data-grid .rdg-row:hover .rdg-cell {
-  background: var(--bg-secondary);
+  background: #f0f9ff;
 }
 
 .requirements-data-grid .rdg-row-selected .rdg-cell {
-  background: rgba(59, 130, 246, 0.1);
+  background: #dbeafe !important;
+}
+
+/* Editable cell indicator */
+.requirements-data-grid .rdg-cell[aria-readonly="false"]:hover {
+  cursor: cell;
+  background: #f5f5f5;
 }
 
 /* Cell Error State */
@@ -415,14 +437,30 @@
   justify-content: center;
 }
 
-/* React Data Grid theme overrides */
+/* React Data Grid theme overrides - Excel-like */
 .rdg-light {
-  --rdg-header-background-color: var(--bg-tertiary);
-  --rdg-background-color: var(--bg-primary);
-  --rdg-row-hover-background-color: var(--bg-secondary);
-  --rdg-selection-color: var(--primary-color);
-  --rdg-border-color: var(--border-color);
+  --rdg-header-background-color: #f1f5f9;
+  --rdg-background-color: white;
+  --rdg-row-hover-background-color: #f0f9ff;
+  --rdg-selection-color: #3b82f6;
+  --rdg-border-color: #e5e7eb;
   --rdg-font-size: 13px;
+  --rdg-header-row-height: 44px;
+  --rdg-row-height: 40px;
+}
+
+/* Additional Excel-like styling */
+.rdg {
+  border-collapse: separate;
+}
+
+.rdg-header-row {
+  font-weight: 600 !important;
+}
+
+/* Make cells look more like Excel */
+.rdg-cell {
+  contain: none !important;
 }
 
 /* Frozen columns styling */
