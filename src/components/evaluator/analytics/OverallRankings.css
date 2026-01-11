@@ -1,5 +1,7 @@
 /**
  * OverallRankings Component Styles
+ * @version 1.1
+ * @updated January 11, 2026 - Added expandable card styles
  */
 
 .overall-rankings {
@@ -7,6 +9,11 @@
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   padding: 16px;
+}
+
+.overall-rankings.enhanced {
+  padding: 16px 20px;
+  border-radius: 12px;
 }
 
 .overall-rankings.loading,
@@ -54,12 +61,261 @@
   color: #f59e0b;
 }
 
+.rankings-subtitle {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* Rankings List */
 .rankings-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+.rankings-list.enhanced {
+  gap: 10px;
+}
+
+/* Ranking Card (Enhanced) */
+.ranking-card {
+  display: flex;
+  flex-direction: column;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+
+.ranking-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.ranking-card.expanded {
+  min-width: 280px;
+  max-width: 320px;
+  flex-grow: 1;
+}
+
+.ranking-card.rank-1 {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+}
+
+.ranking-card.rank-2 {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-color: #94a3b8;
+}
+
+.ranking-card.rank-3 {
+  background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+  border-color: #ea580c;
+}
+
+/* Card Header */
+.ranking-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ranking-card-header:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.rank-badge {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--rank-color, #6b7280);
+  min-width: 28px;
+}
+
+.ranking-card.rank-1 .rank-badge {
+  color: #b45309;
+}
+
+.ranking-card.rank-2 .rank-badge {
+  color: #475569;
+}
+
+.ranking-card.rank-3 .rank-badge {
+  color: #9a3412;
+}
+
+.ranking-card-header .vendor-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-card-header .vendor-score {
+  font-weight: 600;
+  font-size: 13px;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.expand-icon {
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+}
+
+/* Card Details (Expanded) */
+.ranking-card-details {
+  padding: 12px;
+  border-top: 1px solid #e5e7eb;
+  background: white;
+}
+
+/* Vendor Status */
+.vendor-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.vendor-status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.vendor-status.status-pipeline {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.vendor-status.status-under_evaluation {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.vendor-status.status-short_list {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.vendor-status.status-selected {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.vendor-status.status-rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Category Scores Grid */
+.category-scores-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.category-score-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.category-name {
+  font-size: 10px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-score-bar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.category-score-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.category-score-value {
+  font-size: 10px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Vendor Insights */
+.vendor-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.insight-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.insight-item.strength {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.insight-item.weakness {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.insight-item svg {
+  flex-shrink: 0;
+}
+
+/* View Button */
+.view-vendor-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+  background: #3b82f6;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.view-vendor-btn:hover {
+  background: #2563eb;
+}
+
+/* Legacy styles for non-enhanced mode */
 .ranking-item {
   display: flex;
   align-items: center;
@@ -92,42 +348,6 @@
   border-color: #ea580c;
 }
 
-.rank-badge {
-  font-weight: 700;
-  color: var(--rank-color, #6b7280);
-  min-width: 24px;
-}
-
-.ranking-item.rank-1 .rank-badge {
-  color: #b45309;
-}
-
-.ranking-item.rank-2 .rank-badge {
-  color: #475569;
-}
-
-.ranking-item.rank-3 .rank-badge {
-  color: #9a3412;
-}
-
-.vendor-name {
-  color: #374151;
-  font-weight: 500;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vendor-score {
-  margin-left: auto;
-  font-weight: 600;
-  color: #059669;
-  background: rgba(5, 150, 105, 0.1);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -135,16 +355,20 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .rankings-list {
+  .rankings-list.enhanced {
     flex-direction: column;
   }
 
-  .ranking-item {
-    width: 100%;
+  .ranking-card {
+    min-width: 100%;
   }
 
-  .vendor-name {
-    max-width: none;
-    flex: 1;
+  .ranking-card.expanded {
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .category-scores-grid {
+    grid-template-columns: 1fr;
   }
 }
