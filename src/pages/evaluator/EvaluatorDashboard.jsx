@@ -30,8 +30,6 @@ import {
   EvaluationTimeline,
   RiskIndicators,
   StakeholderParticipationChart,
-  QAActivityWidget,
-  ClientApprovalWidget,
   SecurityStatusWidget,
   OverallRankings
 } from '../../components/evaluator/analytics';
@@ -189,16 +187,10 @@ export default function EvaluatorDashboard() {
             </div>
           </div>
 
-          {/* Row 6: v1.1 Widgets - Stakeholder, Q&A, Approvals, Security */}
-          <div className="analytics-row four-col">
+          {/* Row 6: Stakeholder Participation and Security */}
+          <div className="analytics-row two-col">
             <div className="analytics-item widget-item">
               <StakeholderParticipationChart evaluationProjectId={evaluationId} />
-            </div>
-            <div className="analytics-item widget-item">
-              <QAActivityWidget evaluationProjectId={evaluationId} />
-            </div>
-            <div className="analytics-item widget-item">
-              <ClientApprovalWidget evaluationProjectId={evaluationId} />
             </div>
             <div className="analytics-item widget-item">
               <SecurityStatusWidget evaluationProjectId={evaluationId} />
