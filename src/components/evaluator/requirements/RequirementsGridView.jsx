@@ -578,23 +578,6 @@ export default function RequirementsGridView({
     setRowData(nextState);
   }, [redoStack, rowData]);
 
-  // Custom context menu handler (AG Grid's getContextMenuItems is Enterprise only)
-  const handleContextMenu = useCallback((event) => {
-    event.preventDefault();
-    const rowNode = event.node;
-    const rowIndex = rowNode?.rowIndex;
-
-    if (rowIndex !== undefined && rowIndex !== null) {
-      setContextMenu({
-        show: true,
-        x: event.event.clientX,
-        y: event.event.clientY,
-        rowIndex: rowIndex,
-        rowData: rowNode?.data
-      });
-    }
-  }, []);
-
   // Close context menu
   const closeContextMenu = useCallback(() => {
     setContextMenu({ show: false, x: 0, y: 0, rowIndex: null, rowData: null });
@@ -782,7 +765,33 @@ export default function RequirementsGridView({
       </div>
 
       {/* AG Grid */}
-      <div className="ag-grid-wrapper">
+      <div
+        className="ag-grid-wrapper"
+        onContextMenu={(e) => {
+          // Prevent browser context menu on the grid
+          e.preventDefault();
+
+          // Get row info from AG Grid API
+          const api = gridRef.current?.api;
+          if (!api || !canManage) return;
+
+          // Find the row element from the click target
+          const rowElement = e.target.closest('.ag-row');
+          if (rowElement) {
+            const rowIndex = parseInt(rowElement.getAttribute('row-index'), 10);
+            const rowNode = api.getDisplayedRowAtIndex(rowIndex);
+            if (rowNode) {
+              setContextMenu({
+                show: true,
+                x: e.clientX,
+                y: e.clientY,
+                rowIndex: rowIndex,
+                rowData: rowNode.data
+              });
+            }
+          }
+        }}
+      >
         <div
           className="ag-theme-alpine"
           style={{ width: '100%', height: isFullscreen ? 'calc(100vh - 110px)' : '600px' }}
@@ -798,7 +807,6 @@ export default function RequirementsGridView({
             onGridReady={onGridReady}
             onCellValueChanged={onCellValueChanged}
             onRowDragEnd={onRowDragEnd}
-            onCellContextMenu={handleContextMenu}
             suppressContextMenu={true}
             getRowId={(params) => String(params.data.id)}
             rowHeight={40}
