@@ -186,58 +186,36 @@
   to { transform: rotate(360deg); }
 }
 
-/* Data Grid Styling - Excel-like appearance */
-.requirements-data-grid {
+/* AG Grid Container */
+.grid-container {
   flex: 1;
-  font-size: 13px;
-  border: 1px solid #d1d5db;
+  width: 100%;
+  height: calc(100vh - 380px);
+  min-height: 400px;
 }
 
-.requirements-data-grid .rdg-header-row {
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  font-weight: 600;
-  border-bottom: 2px solid #cbd5e1;
-}
-
-.requirements-data-grid .rdg-header-row .rdg-cell {
-  border-right: 1px solid #cbd5e1;
-  color: #374151;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.requirements-data-grid .rdg-cell {
-  border-right: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0 8px;
+/* Drag Handle */
+.drag-handle {
   display: flex;
   align-items: center;
-  background: white;
+  justify-content: center;
+  cursor: grab;
+  color: #9ca3af;
+  transition: color 0.15s;
 }
 
-.requirements-data-grid .rdg-cell:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: -2px;
-  background: #eff6ff;
+.drag-handle:hover {
+  color: #374151;
 }
 
-.requirements-data-grid .rdg-row:nth-child(even) .rdg-cell {
-  background: #fafafa;
+.drag-cell {
+  padding: 0 !important;
 }
 
-.requirements-data-grid .rdg-row:hover .rdg-cell {
-  background: #f0f9ff;
-}
-
-.requirements-data-grid .rdg-row-selected .rdg-cell {
-  background: #dbeafe !important;
-}
-
-/* Editable cell indicator */
-.requirements-data-grid .rdg-cell[aria-readonly="false"]:hover {
-  cursor: cell;
-  background: #f5f5f5;
+/* Status bar hint */
+.grid-status-bar .hint {
+  color: #9ca3af;
+  font-size: 11px;
 }
 
 /* Cell Error State */
@@ -437,45 +415,55 @@
   justify-content: center;
 }
 
-/* React Data Grid theme overrides - Excel-like */
-.rdg-light {
-  --rdg-header-background-color: #f1f5f9;
-  --rdg-background-color: white;
-  --rdg-row-hover-background-color: #f0f9ff;
-  --rdg-selection-color: #3b82f6;
-  --rdg-border-color: #e5e7eb;
-  --rdg-font-size: 13px;
-  --rdg-header-row-height: 44px;
-  --rdg-row-height: 40px;
+/* AG Grid Theme Customization */
+.ag-theme-alpine {
+  --ag-header-height: 44px;
+  --ag-row-height: 40px;
+  --ag-header-background-color: #f8fafc;
+  --ag-odd-row-background-color: #fafafa;
+  --ag-row-hover-color: #f0f9ff;
+  --ag-selected-row-background-color: #dbeafe;
+  --ag-range-selection-border-color: #3b82f6;
+  --ag-input-focus-border-color: #3b82f6;
+  --ag-font-size: 13px;
+  --ag-font-family: inherit;
 }
 
-/* Additional Excel-like styling */
-.rdg {
-  border-collapse: separate;
+.ag-theme-alpine .ag-header-cell {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
-.rdg-header-row {
-  font-weight: 600 !important;
+.ag-theme-alpine .ag-row-drag {
+  cursor: grab;
 }
 
-/* Make cells look more like Excel */
-.rdg-cell {
-  contain: none !important;
+.ag-theme-alpine .ag-row-dragging {
+  opacity: 0.8;
+  background: #e0f2fe !important;
 }
 
-/* Frozen columns styling */
-.rdg-cell-frozen {
-  background: var(--bg-secondary);
+/* Context menu styling */
+.ag-theme-alpine .ag-menu {
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
-.rdg-cell-frozen::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
+.ag-theme-alpine .ag-menu-option-active {
+  background: #f0f9ff;
+}
+
+/* Cell editor popup */
+.ag-theme-alpine .ag-popup-editor {
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ag-theme-alpine .ag-large-text-input {
+  min-height: 120px;
+  font-family: inherit;
 }
 
 /* Keyboard Help Button in Status Bar */
