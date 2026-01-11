@@ -1,7 +1,7 @@
 # Evaluator Module - User Manual & UAT Guide
 
-**Version**: 1.0
-**Last Updated**: 09 January 2026
+**Version**: 1.1
+**Last Updated**: 10 January 2026
 **Purpose**: Training documentation and User Acceptance Testing guide
 
 ---
@@ -17,9 +17,8 @@
 7. [Phase 5: Evaluation & Scoring](#7-phase-5-evaluation--scoring)
 8. [Phase 6: Analysis & Decision Support](#8-phase-6-analysis--decision-support)
 9. [Phase 7: Stakeholder Approvals](#9-phase-7-stakeholder-approvals)
-10. [Phase 8: Post-Selection Workflow](#10-phase-8-post-selection-workflow)
-11. [UAT Test Scenarios](#11-uat-test-scenarios)
-12. [Appendix: Quick Reference](#12-appendix-quick-reference)
+10. [UAT Test Scenarios](#10-uat-test-scenarios)
+11. [Appendix: Quick Reference](#11-appendix-quick-reference)
 
 ---
 
@@ -40,11 +39,11 @@ The Evaluator module is a comprehensive IT vendor procurement and evaluation pla
 | Benefit | Description |
 |---------|-------------|
 | **Structured Process** | Industry best-practice procurement workflow |
-| **AI Assistance** | Automated gap detection, response scoring, anomaly flagging |
+| **AI Assistance** | Automated gap detection, response scoring, vendor intelligence |
 | **Full Traceability** | Audit trail from requirements through to decision |
-| **Stakeholder Engagement** | Portals for client approval and vendor response |
-| **Financial Analysis** | TCO calculation and sensitivity analysis |
-| **Risk Management** | Integrated risk tracking and security assessments |
+| **Excel-Like Grid** | Bulk requirements entry with spreadsheet-style editing |
+| **Real-time Analytics** | Dashboard widgets showing progress and insights |
+| **Portal Access** | Secure portals for vendors and client stakeholders |
 
 ### 1.3 User Roles
 
@@ -52,16 +51,31 @@ The Evaluator module is a comprehensive IT vendor procurement and evaluation pla
 |------|--------------|---------------|
 | **Admin** | Full access to all features | System administrators |
 | **Supplier PM** | Full access to all features | Procurement leads, evaluation managers |
+| **Contributor** | Edit assigned areas | Team members helping with evaluation |
+| **Viewer** | Read-only access | Observers and reviewers |
+
+**External Portal Roles:**
+| Role | Portal | Description |
+|------|--------|-------------|
+| **Vendor Lead** | Vendor Portal | Primary vendor contact for RFP responses |
+| **Vendor Contributor** | Vendor Portal | Vendor team submitting responses |
+| **Client Stakeholder** | Client Portal | External stakeholder for requirement approvals |
 
 ### 1.4 Navigation Overview
 
-Access the Evaluator module from the sidebar menu under "Evaluator". The main dashboard provides quick-action tiles for all major features:
+Access the Evaluator module from the sidebar menu under "Evaluator". The main dashboard provides:
 
-- **Requirements** - Manage evaluation requirements
-- **Vendors** - Track vendor pipeline
-- **Questions** - Create RFP questions
-- **Q&A** - Vendor question management
-- **Evaluation** - Score vendor responses
+- **Quick Actions** - Tile-based navigation to all major features
+- **Statistics Cards** - Summary metrics (requirements, vendors, workshops, categories)
+- **Analytics Widgets** - Visual progress indicators, heatmaps, and charts
+- **Evaluation Switcher** - Quick switch between evaluation projects
+
+**Main Features:**
+- **Requirements** - Manage evaluation requirements (including Grid View)
+- **Vendors** - Track vendor pipeline with Kanban view
+- **Questions** - Create RFP questions linked to requirements
+- **Q&A** - Vendor question management during RFP period
+- **Evaluation** - Score vendor responses with AI assistance
 - **Traceability** - View requirements-to-scores matrix
 - **Reports** - Generate evaluation reports
 - **Settings** - Configure project parameters
@@ -80,12 +94,37 @@ If no evaluation projects exist, you'll see an empty state prompting you to crea
 
 ### 2.2 Understanding the Dashboard
 
-The dashboard provides:
+The dashboard provides a comprehensive overview:
 
-- **Evaluation Switcher** - Select between multiple evaluation projects (top of page)
-- **Quick Actions** - Tile-based navigation to all features
-- **Statistics Cards** - Summary metrics (requirements, vendors, workshops, categories)
-- **Analytics Widgets** - Visual progress indicators and charts
+**Header Section:**
+- **Evaluation Status Banner** - Shows current phase (Setup, Discovery, Requirements, Evaluation, Complete)
+- **Evaluation Switcher** - Dropdown to switch between evaluation projects
+
+**Quick Stats Cards (4):**
+| Card | Shows |
+|------|-------|
+| Requirements | Total count and approved percentage |
+| Workshops | Total and completed count |
+| Vendors | Total and shortlisted count |
+| Categories | Total count and weight validation status |
+
+**Analytics Widgets (Multi-row layout):**
+
+| Row | Widgets |
+|-----|---------|
+| Row 1 | Evaluation Timeline + Risk Indicators |
+| Row 2 | Stakeholder Participation + Q&A Activity + Client Approval + Security Status |
+| Row 3 | Score Heatmap (full-width, clickable cells) |
+| Row 4 | Vendor Radar Chart (comparison view) |
+
+**UAT Checkpoint: EV-DASH-001 - Verify Dashboard**
+
+1. Access the Evaluator Dashboard
+2. Verify all 4 stats cards display data
+3. Verify analytics widgets render correctly
+4. Click on Score Heatmap cells - should navigate to vendor detail
+
+**Expected Result**: Dashboard loads with real-time data. Heatmap cells are interactive.
 
 ---
 
@@ -101,7 +140,7 @@ The dashboard provides:
 | Field | Example Value | Description |
 |-------|---------------|-------------|
 | Project Name | CSP Entity Management System | Name of the procurement project |
-| Description | Procurement of entity management software for CSP operations | Brief description |
+| Description | Procurement of entity management software | Brief description |
 | Client Name | Carey Olsen Partners | Client or organisation name |
 | Status | Planning | Current phase (Planning, Active, On Hold, Completed) |
 
@@ -129,10 +168,10 @@ Categories define the areas against which vendors will be evaluated. Each catego
 | Vendor Viability | 6% | Financial stability, market position |
 | Commercial Terms | 7% | Pricing, licensing, support terms |
 
-3. Verify the **Total Weight = 100%** (validation will prevent saving if not)
+3. Verify the **Total Weight = 100%** (validation will warn if not)
 4. Click **Save Categories**
 
-**Expected Result**: Categories are saved. Dashboard shows "100%" for category weight validation.
+**Expected Result**: Categories are saved. Dashboard shows weight validation status.
 
 ---
 
@@ -145,37 +184,36 @@ Stakeholder areas represent the groups who will contribute requirements and prov
 1. Navigate to **Settings** → **Stakeholder Areas**
 2. Click **Add Stakeholder Area** and create:
 
-| Area Name | Weight | Approval Threshold | Primary Contact |
-|-----------|--------|-------------------|-----------------|
-| Finance | 36% | 75% | [Select user] |
-| IT | 30% | 75% | [Select user] |
-| Compliance | 21% | 75% | [Select user] |
-| Operations | 13% | 75% | [Select user] |
+| Area Name | Color | Primary Contact |
+|-----------|-------|-----------------|
+| Finance | Blue | [Select user] |
+| IT | Green | [Select user] |
+| Compliance | Orange | [Select user] |
+| Operations | Purple | [Select user] |
 
 3. Click **Save**
 
-**Expected Result**: Stakeholder areas are created. Phase gate approvals will require sign-off from each area.
+**Expected Result**: Stakeholder areas are created with color coding.
 
 ---
 
-### 3.4 Configuring Phase Gates
+### 3.4 Configuring Deadline Reminders
 
-Phase gates are approval checkpoints that require stakeholder sign-off before proceeding.
+**UAT Checkpoint: EV-004 - Configure Reminders**
 
-**UAT Checkpoint: EV-004 - Configure Phase Gates**
+1. Navigate to **Settings** → **Deadline Reminders**
+2. Configure reminder frequencies for:
 
-1. Navigate to **Settings** → **Approval Workflow**
-2. Configure the following phase gates:
-
-| Phase Gate | Enabled | Threshold | Description |
-|------------|---------|-----------|-------------|
-| Requirements Approved | Yes | 75% | All stakeholder areas must approve requirements |
-| RFP Ready | Yes | 75% | Approval before sending RFP to vendors |
-| Vendor Selected | Yes | 80% | Final approval for vendor selection |
+| Reminder Type | Options |
+|---------------|---------|
+| Scoring Deadlines | None / 1 day / 3 days / 7 days before |
+| Review Deadlines | None / 1 day / 3 days / 7 days before |
+| Q&A Period End | None / 1 day / 3 days / 7 days before |
+| Approval Deadlines | None / 1 day / 3 days / 7 days before |
 
 3. Click **Save**
 
-**Expected Result**: Phase gates are configured. Progress will be tracked in the dashboard.
+**Expected Result**: Reminder configurations saved. Notifications will trigger automatically.
 
 ---
 
@@ -185,124 +223,201 @@ Phase gates are approval checkpoints that require stakeholder sign-off before pr
 
 Requirements are the needs and specifications that vendors must address. Each requirement has:
 
-- **Reference Code** - Unique identifier (e.g., REQ-001)
-- **Title** - Short descriptive name
-- **Description** - Detailed specification
+- **Reference Code** - Unique identifier (auto-generated, e.g., REQ-001)
+- **Title** - Short descriptive name (required, max 255 chars)
+- **Description** - Detailed specification (max 5000 chars)
 - **Category** - Which evaluation category it belongs to
 - **Stakeholder Area** - Which stakeholder group contributed it
 - **Priority** - MoSCoW prioritisation (Must/Should/Could/Won't Have)
 - **Status** - Workflow status (Draft, Under Review, Approved, Rejected)
+- **Source Type** - How the requirement was captured
+- **Weighting** - Individual requirement weighting (0-100)
 
 ---
 
-### 4.2 Creating Requirements
+### 4.2 Requirements Grid View (Excel-Like Interface)
 
-**UAT Checkpoint: EV-005 - Create Requirements**
+The Requirements Grid View provides a spreadsheet-style interface for efficient bulk entry and editing.
+
+**UAT Checkpoint: EV-005 - Grid View Basics**
 
 1. Navigate to **Requirements** from the dashboard
-2. Click **Add Requirement**
-3. Enter the following example requirements:
+2. Click **Grid View** to switch to spreadsheet mode
+3. Observe the Excel-like interface with:
+   - Frozen reference code column
+   - Resizable columns
+   - Row selection checkboxes
+   - Toolbar with actions
 
-**Requirement 1: Entity Register**
-| Field | Value |
-|-------|-------|
-| Reference Code | REQ-001 |
-| Title | Maintain Entity Register |
-| Description | System must maintain a comprehensive register of all entities including companies, trusts, and partnerships with full ownership hierarchy |
-| Category | Functional Requirements |
-| Stakeholder Area | Operations |
-| Priority | Must Have |
-
-**Requirement 2: AEOI Automation**
-| Field | Value |
-|-------|-------|
-| Reference Code | REQ-002 |
-| Title | AEOI Automated Reporting |
-| Description | System must automatically generate AEOI (CRS/FATCA) reports with validation rules and submission to tax authorities |
-| Category | Compliance & Regulatory |
-| Stakeholder Area | Compliance |
-| Priority | Must Have |
-
-**Requirement 3: API Integration**
-| Field | Value |
-|-------|-------|
-| Reference Code | REQ-003 |
-| Title | REST API for Integration |
-| Description | System must provide documented REST APIs for integration with existing practice management and accounting systems |
-| Category | Integration Requirements |
-| Stakeholder Area | IT |
-| Priority | Must Have |
-
-**Requirement 4: Real-time Reporting**
-| Field | Value |
-|-------|-------|
-| Reference Code | REQ-004 |
-| Title | Real-time Dashboard Reporting |
-| Description | System should provide real-time dashboards showing entity status, upcoming deadlines, and compliance metrics |
-| Category | Functional Requirements |
-| Stakeholder Area | Finance |
-| Priority | Should Have |
-
-**Requirement 5: Data Migration**
-| Field | Value |
-|-------|-------|
-| Reference Code | REQ-005 |
-| Title | Legacy Data Migration |
-| Description | Vendor must provide tools and support for migrating data from existing entity management spreadsheets and systems |
-| Category | Integration Requirements |
-| Stakeholder Area | IT |
-| Priority | Must Have |
-
-4. Click **Save** after each requirement
-
-**Expected Result**: Requirements appear in the list with "Draft" status. Dashboard shows requirement count updated.
+**Expected Result**: Grid displays with virtualized scrolling for large datasets.
 
 ---
 
-### 4.3 Using AI Gap Analysis
+### 4.3 Adding Requirements via Grid
 
-The AI Gap Analysis feature identifies potential missing requirements based on your evaluation context.
+**UAT Checkpoint: EV-006 - Add Requirements in Grid**
 
-**UAT Checkpoint: EV-006 - Run AI Gap Analysis**
+1. In Grid View, click **Add Row** (or press `Ctrl+Insert`)
+2. A new row appears with "NEW" reference code
+3. Fill in the following columns:
+
+| Column | Value | Notes |
+|--------|-------|-------|
+| Title | Maintain Entity Register | Required field |
+| Description | System must maintain comprehensive register... | Optional |
+| Priority | Must Have | Dropdown selection |
+| Category | Functional Requirements | Dropdown with color badges |
+| Stakeholder | Operations | Dropdown with color badges |
+| Status | Draft | Default value |
+| Source Type | Manual | How requirement was captured |
+| Weighting | 10 | 0-100 scale |
+
+4. Press Enter or Tab to move between cells
+5. Observe auto-save indicator in toolbar
+
+**Expected Result**: New requirement is created with auto-generated REQ-XXX reference code. Save status shows "Saved".
+
+---
+
+### 4.4 Grid Keyboard Shortcuts
+
+**UAT Checkpoint: EV-007 - Keyboard Navigation**
+
+1. Press `?` key to open Keyboard Shortcuts help modal
+2. Test the following shortcuts:
+
+| Shortcut | Action | Test Result |
+|----------|--------|-------------|
+| `Tab` / `Shift+Tab` | Next/Previous cell | |
+| `Enter` / `Shift+Enter` | Move down/up | |
+| `Arrow keys` | Move in direction | |
+| `Home` / `End` | First/Last cell in row | |
+| `F2` | Edit current cell | |
+| `Escape` | Cancel edit | |
+| `Ctrl+Z` | Undo | |
+| `Ctrl+Y` | Redo | |
+| `Ctrl+Insert` | Add new row | |
+| `Delete` | Delete selected rows | |
+| `Ctrl+C` | Copy selected rows | |
+| `Ctrl+V` | Paste (opens wizard) | |
+
+**Expected Result**: All keyboard shortcuts work. Help modal displays organized shortcuts.
+
+---
+
+### 4.5 Bulk Operations in Grid
+
+**UAT Checkpoint: EV-008 - Bulk Operations**
+
+1. Select multiple rows using checkboxes or `Ctrl+Click`
+2. Selection count appears in toolbar
+3. Click **Bulk Actions** dropdown
+4. Test each bulk operation:
+
+| Operation | Test Steps |
+|-----------|------------|
+| Set Status | Select rows → Bulk Actions → Set Status → Under Review |
+| Set Priority | Select rows → Bulk Actions → Set Priority → Must Have |
+| Set Category | Select rows → Bulk Actions → Set Category → [Select] |
+| Set Stakeholder | Select rows → Bulk Actions → Set Stakeholder → [Select] |
+| Submit for Approval | Select draft rows → Submit for Approval button |
+| Delete | Select rows → Delete button → Confirm |
+
+5. Observe progress indicator during bulk operations
+
+**Expected Result**: Bulk operations complete with progress feedback. All selected rows updated.
+
+---
+
+### 4.6 Import from Excel/CSV
+
+**UAT Checkpoint: EV-009 - File Import**
+
+1. Click **Import** button in toolbar
+2. Import Wizard opens with steps:
+
+| Step | Description |
+|------|-------------|
+| 1. Upload | Drag & drop or browse for .xlsx/.csv file |
+| 2. Sheet | Select which sheet to import (Excel only) |
+| 3. Map Columns | Match file columns to requirement fields |
+| 4. Validate | Review validation results (errors & warnings) |
+| 5. Complete | See import summary |
+
+3. Upload a test file with requirement data
+4. Map columns (wizard auto-detects common names)
+5. Review validation:
+   - **Errors** (red) - Rows that cannot be imported
+   - **Warnings** (yellow) - Rows with potential issues
+6. Click **Import** - observe progress bar
+7. Click **Close** when complete
+
+**Expected Result**: Requirements imported. Progress bar shows batch progress. Validation catches issues.
+
+---
+
+### 4.7 Paste from Clipboard
+
+**UAT Checkpoint: EV-010 - Paste Wizard**
+
+1. Copy data from Excel (multiple rows, tab-separated)
+2. With Grid View focused, press `Ctrl+V`
+3. Paste Wizard opens:
+   - Raw data preview table
+   - "First row is header" checkbox
+   - Column mapping dropdowns
+   - Toggle between raw and mapped preview
+   - Validation summary
+
+4. Map columns to fields
+5. Review validation warnings
+6. Click **Import**
+
+**Expected Result**: Paste wizard correctly parses clipboard data. Mapping applies. Data imported.
+
+---
+
+### 4.8 Undo/Redo Operations
+
+**UAT Checkpoint: EV-011 - Undo/Redo**
+
+1. Make several edits (add rows, change values)
+2. Observe undo/redo buttons with badge counts
+3. Hover over undo button - tooltip shows operation description
+4. Click **Undo** or press `Ctrl+Z`
+5. Hover over redo button - tooltip shows operation description
+6. Click **Redo** or press `Ctrl+Y`
+
+**Expected Result**: Undo/redo work with descriptive tooltips. Badge shows stack depth.
+
+---
+
+### 4.9 Using AI Gap Analysis
+
+The AI Gap Analysis feature identifies potential missing requirements.
+
+**UAT Checkpoint: EV-012 - Run AI Gap Analysis**
 
 1. In the Requirements hub, click **AI Gap Analysis**
 2. Review the AI-suggested requirements:
    - Missing security requirements?
    - Missing training/support requirements?
    - Missing performance requirements?
-3. For each suggestion, click **Add** to create as a new requirement or **Dismiss** to ignore
+3. For each suggestion, click **Add** to create or **Dismiss** to ignore
 
-**Expected Result**: AI identifies 3-5 potential gaps. You can add relevant suggestions as new requirements.
+**Expected Result**: AI identifies 3-5 potential gaps. You can add suggestions as new requirements.
 
 ---
 
-### 4.4 Submitting Requirements for Review
+### 4.10 Submitting Requirements for Review
 
-Once requirements are complete, submit them for stakeholder approval.
+**UAT Checkpoint: EV-013 - Submit for Review**
 
-**UAT Checkpoint: EV-007 - Submit for Review**
-
-1. Select requirements to submit (use checkboxes for bulk selection)
-2. Click **Submit for Review**
+1. In Grid View, select draft requirements
+2. Click **Submit for Approval** button
 3. Confirm the submission
 
 **Expected Result**: Selected requirements change status from "Draft" to "Under Review".
-
----
-
-### 4.5 Filtering and Searching Requirements
-
-**UAT Checkpoint: EV-008 - Filter Requirements**
-
-1. Use the filter panel to:
-   - Filter by Category: Select "Functional Requirements"
-   - Filter by Priority: Select "Must Have"
-   - Filter by Status: Select "Under Review"
-   - Search: Type "entity" in the search box
-
-2. Click **Clear Filters** to reset
-
-**Expected Result**: Requirements list updates to show only matching items. Filter badges show active filters.
 
 ---
 
@@ -310,88 +425,105 @@ Once requirements are complete, submit them for stakeholder approval.
 
 ### 5.1 Adding Vendors
 
-**UAT Checkpoint: EV-009 - Add Vendors**
+**UAT Checkpoint: EV-014 - Add Vendors**
 
 1. Navigate to **Vendors** from the dashboard
 2. Click **Add Vendor**
-3. Create the following test vendors:
+3. Create vendor with fields:
 
-**Vendor 1: Vistra Technology**
-| Field | Value |
-|-------|-------|
+| Field | Example Value |
+|-------|---------------|
 | Name | Vistra Technology |
-| Description | Global entity management software provider specialising in corporate services |
+| Description | Global entity management software provider |
 | Website | https://vistra.com |
-| Primary Contact Name | John Smith |
-| Primary Contact Email | john.smith@vistra.com |
-| Primary Contact Phone | +44 20 1234 5678 |
 
-**Vendor 2: CSC Global**
-| Field | Value |
-|-------|-------|
-| Name | CSC Global |
-| Description | Enterprise entity management and compliance platform |
-| Website | https://cscglobal.com |
-| Primary Contact Name | Sarah Johnson |
-| Primary Contact Email | sarah.johnson@csc.com |
+4. Click **Save**
 
-**Vendor 3: Diligent Entities**
-| Field | Value |
-|-------|-------|
-| Name | Diligent Entities |
-| Description | Board and entity management software with compliance automation |
-| Website | https://diligent.com |
-| Primary Contact Name | Michael Brown |
-| Primary Contact Email | m.brown@diligent.com |
-
-4. Click **Save** after each vendor
-
-**Expected Result**: Vendors appear in the list with "Lead" status.
+**Expected Result**: Vendor appears in list with "Prospect" status.
 
 ---
 
 ### 5.2 Managing Vendor Pipeline
 
-The vendor pipeline shows vendors progressing through evaluation stages.
-
-**UAT Checkpoint: EV-010 - Manage Pipeline**
+**UAT Checkpoint: EV-015 - Pipeline View**
 
 1. Click **Pipeline View** toggle (Kanban view)
-2. Observe the columns: Lead → In Pipeline → Shortlist → Under Evaluation → Selected
-3. Drag "Vistra Technology" from Lead to "In Pipeline"
-4. Drag "CSC Global" from Lead to "In Pipeline"
-5. Drag "Diligent Entities" from Lead to "In Pipeline"
+2. Observe columns:
+   - Prospect → Pipeline → Shortlisted → Finalist → Selected
+3. Drag vendor cards between columns
+4. Status updates automatically
 
-**Expected Result**: Vendors move between columns. Status is updated automatically.
-
----
-
-### 5.3 AI Market Research
-
-Use AI to discover additional vendors based on your requirements.
-
-**UAT Checkpoint: EV-011 - AI Market Research**
-
-1. Click **Market Research** button
-2. Review the AI-generated vendor suggestions
-3. For promising vendors, click **Add to Evaluation**
-
-**Expected Result**: AI suggests 3-5 relevant vendors based on your requirements. You can add them directly to the evaluation.
+**Expected Result**: Kanban board displays vendors. Drag-and-drop updates status.
 
 ---
 
-### 5.4 Generating Vendor Portal Access
+### 5.3 Vendor Detail Page
 
-Vendors need portal access to submit their RFP responses.
-
-**UAT Checkpoint: EV-012 - Generate Portal Access**
+**UAT Checkpoint: EV-016 - Vendor Details**
 
 1. Click on a vendor card to open details
-2. Click **Portal Access** tab
-3. Click **Generate Access Code**
-4. Copy the generated access URL
+2. Observe three tabs:
+   - **Details** - Basic info, status, contacts
+   - **Responses** - RFP responses with AI analysis
+   - **Intelligence** - External intelligence data
 
-**Expected Result**: A unique access code is generated. The URL can be shared with the vendor for portal access.
+3. Test the following in Details tab:
+   - Edit vendor information
+   - Add/edit/delete contacts
+   - Set primary contact
+   - Change vendor status
+
+**Expected Result**: All vendor management actions work. Status changes are logged.
+
+---
+
+### 5.4 Vendor Portal Access
+
+**UAT Checkpoint: EV-017 - Portal Access**
+
+1. In Vendor Detail, locate **Portal Access** section
+2. Click **Generate Access Code** (if not already generated)
+3. Observe:
+   - Access Code (8 characters)
+   - Expiry Date
+   - "Extend 14 days" button
+   - "Revoke Access" button
+4. Copy access code
+
+**Expected Result**: Access code generated. Can extend or revoke access.
+
+---
+
+### 5.5 AI Market Research
+
+**UAT Checkpoint: EV-018 - Market Research**
+
+1. Click **Market Research** button
+2. Review AI-generated content:
+   - Market Summary with maturity indicator
+   - Vendor count breakdown (Leaders, Challengers, Niche)
+   - Key Market Trends
+   - Buyer Considerations
+   - Vendor suggestions with fit scores
+3. Click **Add to Evaluation** for promising vendors
+
+**Expected Result**: AI suggests relevant vendors. Can add directly to evaluation.
+
+---
+
+### 5.6 Vendor Intelligence Panel
+
+**UAT Checkpoint: EV-019 - Vendor Intelligence**
+
+1. Navigate to Vendor Detail → Intelligence tab
+2. Review sections:
+   - Financial Health (revenue, growth, profitability)
+   - Compliance (certifications, audit status)
+   - Market Data (position, ratings, reviews)
+3. Click **Generate Assessment** for AI analysis
+4. Review viability score and recommendations
+
+**Expected Result**: Intelligence data displays. AI assessment provides actionable insights.
 
 ---
 
@@ -399,121 +531,77 @@ Vendors need portal access to submit their RFP responses.
 
 ### 6.1 Creating RFP Questions
 
-RFP questions are sent to vendors and mapped to requirements.
-
-**UAT Checkpoint: EV-013 - Create RFP Questions**
+**UAT Checkpoint: EV-020 - Create Questions**
 
 1. Navigate to **Questions** from the dashboard
 2. Click **Add Question**
-3. Create the following questions:
+3. Fill in:
 
-**Question 1:**
 | Field | Value |
 |-------|-------|
-| Question Text | Describe your entity register functionality including support for different entity types (companies, trusts, partnerships) and ownership hierarchies. |
-| Category | Functional Requirements |
-| Linked Requirements | REQ-001 |
-| Order | 1 |
+| Question | Describe your entity register functionality... |
+| Question Type | Textarea (long response) |
+| Section | Functional Requirements |
+| Help Text | Include support for different entity types |
+| Required | Yes (checked) |
+| Linked Requirement | REQ-001 |
 
-**Question 2:**
-| Field | Value |
-|-------|-------|
-| Question Text | Explain your AEOI (CRS/FATCA) automated reporting capabilities including validation rules, submission formats, and supported jurisdictions. |
-| Category | Compliance & Regulatory |
-| Linked Requirements | REQ-002 |
-| Order | 2 |
+4. Click **Save**
 
-**Question 3:**
-| Field | Value |
-|-------|-------|
-| Question Text | Provide technical documentation for your REST API including authentication, available endpoints, rate limits, and integration patterns. |
-| Category | Integration Requirements |
-| Linked Requirements | REQ-003 |
-| Order | 3 |
+**Expected Result**: Question created with requirement linkage.
 
-**Question 4:**
-| Field | Value |
-|-------|-------|
-| Question Text | Describe your approach to data migration from legacy systems including tools provided, typical timelines, and support offered. |
-| Category | Integration Requirements |
-| Linked Requirements | REQ-005 |
-| Order | 4 |
-
-**Question 5:**
-| Field | Value |
-|-------|-------|
-| Question Text | Provide a detailed pricing breakdown including licensing model, implementation costs, annual support fees, and any additional charges. |
-| Category | Commercial Terms |
-| Order | 5 |
-
-4. Click **Save** after each question
-
-**Expected Result**: Questions appear in the list, linked to their respective requirements and categories.
+**Question Types Available:**
+- Text (short answer)
+- Textarea (long answer)
+- Yes/No (boolean)
+- Multiple Choice (single selection)
+- Multi-Select (multiple selections)
+- Number (numeric input)
+- Date (date picker)
+- File Upload (document attachment)
+- Compliance (compliance declaration)
 
 ---
 
 ### 6.2 Vendor Portal - Submitting Responses
 
-This simulates what vendors see when accessing their portal.
+**UAT Checkpoint: EV-021 - Vendor Portal Experience**
 
-**UAT Checkpoint: EV-014 - Vendor Portal Experience**
+1. Open new browser window (or incognito)
+2. Navigate to `/vendor-portal`
+3. Enter vendor access code
+4. Observe vendor portal:
+   - RFP questions by section
+   - Response text areas
+   - File upload capability
+   - Progress indicator
+5. Enter test responses
+6. Submit responses
 
-1. Open a new browser window (or incognito mode)
-2. Navigate to the vendor portal URL: `/vendor-portal`
-3. Enter the access code generated for Vistra Technology
-4. Observe:
-   - RFP questions are displayed
-   - Response text areas are available
-   - Document upload option is present
-   - Submission progress is tracked
-
-5. Enter test responses:
-
-**Response to Question 1 (Entity Register):**
-> Vistra's Entity Management platform provides comprehensive entity register functionality supporting:
-> - Companies (private, public, holding)
-> - Trusts (discretionary, unit, charitable)
-> - Partnerships (limited, general, LLP)
-> - Foundations and associations
->
-> Our multi-level ownership hierarchy supports unlimited levels with visual org chart representation. Key features include beneficial ownership tracking, UBO identification, and automatic ownership percentage calculations.
-
-**Response to Question 2 (AEOI):**
-> Our AEOI module delivers fully automated CRS and FATCA reporting:
-> - Supports 100+ jurisdictions
-> - Automatic data validation against schema requirements
-> - Direct XML generation in OECD-compliant format
-> - Integration with tax authority portals where available
->
-> Annual licence includes unlimited report generation. Implementation typically takes 2-4 weeks.
-
-6. Click **Submit Response** for each question
-7. Click **Final Submission** when all responses are complete
-
-**Expected Result**: Vendor can view questions, enter responses, upload documents, and submit. Submission status updates to "Submitted".
+**Expected Result**: Vendor can view questions, enter responses, upload files, and submit.
 
 ---
 
 ### 6.3 Managing Vendor Q&A
 
-Vendors can submit clarifying questions during the RFP period.
-
-**UAT Checkpoint: EV-015 - Vendor Q&A Management**
+**UAT Checkpoint: EV-022 - Q&A Management**
 
 1. Navigate to **Q&A** from the dashboard
-2. Observe any questions submitted by vendors
-3. To answer a question:
-   - Click on the question
-   - Enter your response
-   - Choose whether to **Share with All Vendors** (anonymised)
+2. View Q&A statistics:
+   - Total questions
+   - Pending / In Progress / Answered
+   - Shared count
+3. Expand a question to see full text
+4. Respond to a question:
+   - Enter response text
+   - Toggle "Share with all vendors" (anonymized)
    - Click **Submit Answer**
-
-4. To enable/disable Q&A period:
-   - Click **Q&A Settings**
+5. Configure Q&A period:
+   - Click **Settings** (gear icon)
    - Set start and end dates
-   - Toggle **Q&A Period Active**
+   - Toggle period active/inactive
 
-**Expected Result**: Questions are answered and optionally shared with all vendors. Q&A period can be controlled.
+**Expected Result**: Q&A workflow works. Shared questions anonymized for other vendors.
 
 ---
 
@@ -521,190 +609,100 @@ Vendors can submit clarifying questions during the RFP period.
 
 ### 7.1 Understanding the Scoring System
 
-Vendors are scored on a 0-5 scale for each criterion:
+Vendors are scored on a 1-5 scale for each criterion:
 
-| Score | Meaning |
-|-------|---------|
-| 0 | Not addressed / No response |
-| 1 | Does not meet requirement |
-| 2 | Partially meets requirement |
-| 3 | Meets requirement |
-| 4 | Exceeds requirement |
-| 5 | Significantly exceeds requirement |
+| Score | Label | Description |
+|-------|-------|-------------|
+| 1 | Does Not Meet | Fails to meet requirement |
+| 2 | Partially Meets | Addresses some aspects |
+| 3 | Meets | Fully addresses requirement |
+| 4 | Exceeds | Goes beyond requirement |
+| 5 | Exceptional | Outstanding response |
 
 ---
 
 ### 7.2 Scoring Vendor Responses
 
-**UAT Checkpoint: EV-016 - Score Vendor Responses**
+**UAT Checkpoint: EV-023 - Score Responses**
 
 1. Navigate to **Evaluation** from the dashboard
-2. Select **Scoring** tab
-3. Select "Vistra Technology" from the vendor dropdown
-4. For each question/criterion, review the vendor response and assign a score:
+2. Select a vendor from the dropdown
+3. For each question/criterion:
+   - Read vendor response
+   - Click **AI Assist** for AI analysis
+   - Enter score (1-5)
+   - Add rationale
+   - Click **Save Score**
+4. Observe score progress indicator
 
-| Question | Response Summary | Score | Rationale |
-|----------|-----------------|-------|-----------|
-| Entity Register | Comprehensive support for all entity types, ownership hierarchy | 4 | Exceeds requirements with visual org charts |
-| AEOI Reporting | Full automation, 100+ jurisdictions | 5 | Significantly exceeds with direct portal integration |
-| REST API | Documentation provided, standard patterns | 3 | Meets requirements |
-| Data Migration | Tools provided, 2-4 week timeline | 4 | Exceeds with dedicated migration support |
-| Pricing | Clear breakdown, competitive rates | 3 | Meets expectations |
-
-5. Click **Save Score** after each entry
-
-**Expected Result**: Scores are saved. Vendor progress indicator updates. Average score calculates.
+**Expected Result**: Scores save successfully. Progress updates.
 
 ---
 
-### 7.3 Using AI Score Suggestions
+### 7.3 AI Response Analysis Panel
 
-The AI can analyse vendor responses and suggest appropriate scores.
+**UAT Checkpoint: EV-024 - AI Analysis**
 
-**UAT Checkpoint: EV-017 - AI Score Suggestions**
+1. In Scoring view, click **AI Assist** for a response
+2. Review the AI Analysis panel:
 
-1. In the Scoring tab, click **AI Analysis** for a vendor response
-2. Review the AI panel showing:
-   - **Summary**: Brief summary of the response
-   - **Key Points**: Extracted highlights
-   - **Gaps**: Identified missing elements
-   - **Strengths**: Notable positives
-   - **Suggested Score**: AI-recommended score with confidence level
-   - **Rationale**: Explanation for the suggestion
+| Section | Description |
+|---------|-------------|
+| Score Gauge | Visual 1-5 score display with color coding |
+| Key Points | Extracted highlights from response |
+| Identified Gaps | Missing elements with severity (Minor/Moderate/Major) |
+| Strengths | Positive aspects identified |
+| Suggested Score | AI recommendation with confidence level |
+| Follow-up Questions | Suggested clarification questions |
 
-3. Choose to:
-   - **Accept** the AI suggestion (applies score automatically)
-   - **Modify** the suggestion (adjust and save with your rationale)
-   - **Ignore** and enter your own score
+3. Choose action:
+   - **Accept** - Apply AI suggested score
+   - **Modify** - Adjust score before saving
+   - **Ignore** - Enter your own score
 
-**Expected Result**: AI provides analysis and score suggestion. You can accept, modify, or override.
+**Expected Result**: AI provides detailed analysis. Can accept or modify suggestions.
 
 ---
 
 ### 7.4 Adding Evidence
 
-Support your scores with evidence from vendor submissions.
+**UAT Checkpoint: EV-025 - Add Evidence**
 
-**UAT Checkpoint: EV-018 - Add Evidence**
-
-1. Select **Evidence** tab
-2. Click **Add Evidence**
-3. Complete the form:
+1. In Evaluation view, click **Add Evidence**
+2. Complete form:
 
 | Field | Value |
 |-------|-------|
 | Vendor | Vistra Technology |
-| Criterion | Entity Register |
-| Evidence Type | Document Reference |
-| Description | Technical specification document page 12-15 demonstrates entity hierarchy capability |
-| Document | [Upload or link to document] |
-| Sentiment | Positive |
+| Criteria | Select applicable criteria (checkboxes) |
+| Evidence Type | Document Reference / Demo Notes / etc. |
+| Description | Technical spec document pages 12-15... |
+| Confidence Level | High / Medium / Low |
+| File | Upload supporting document |
 
-4. Click **Save**
+3. Click **Save**
 
-**Expected Result**: Evidence is linked to the vendor/criterion combination. Appears in evidence list and scoring context.
-
----
-
-### 7.5 Multi-Evaluator Score Reconciliation
-
-When multiple evaluators score the same vendor, reconciliation ensures consensus.
-
-**UAT Checkpoint: EV-019 - Score Reconciliation**
-
-1. Select **Reconciliation** tab
-2. View the reconciliation matrix showing:
-   - Evaluator scores side-by-side
-   - Variance indicators (highlight discrepancies > 1 point)
-   - Discussion thread for each criterion
-
-3. For items with variance:
-   - Click to expand discussion
-   - Add comments explaining your score
-   - Propose a consensus score
-   - Other evaluators can agree or counter-propose
-
-4. Click **Set Consensus Score** when agreement is reached
-
-**Expected Result**: Discrepancies are highlighted. Discussion facilitates consensus. Final consensus score is recorded.
+**Expected Result**: Evidence linked to vendor/criteria. Appears in evidence list.
 
 ---
 
-### 7.6 AI Gap Detection
+### 7.5 Viewing Response Gaps
 
-AI automatically identifies gaps in vendor responses.
+**UAT Checkpoint: EV-026 - Response Gaps**
 
-**UAT Checkpoint: EV-020 - Review Response Gaps**
+1. Navigate to Vendor Detail → Responses tab
+2. Look for gap indicators on responses
+3. Gaps show:
+   - **Severity** - Minor (yellow), Moderate (orange), Major (red)
+   - **Description** - What's missing
+   - **Requirement** - Which requirement affected
+4. Actions per gap:
+   - Request Clarification
+   - Accept Risk
+   - Resolve
+   - Dismiss
 
-1. Navigate to **Evaluation** → **Gaps** tab
-2. Review the gap panel showing:
-   - **Gap Type**: Scope, Ambiguity, Exclusion, Risk, Incomplete, Commitment, Compliance
-   - **Severity**: Low, Medium, High, Critical
-   - **Description**: What's missing or unclear
-   - **Requirement**: Which requirement is affected
-
-3. For each gap:
-   - **Request Clarification**: Send question to vendor
-   - **Accept Risk**: Acknowledge and proceed
-   - **Resolve**: Mark as addressed
-   - **Dismiss**: Remove if not valid
-
-**Expected Result**: Gaps are listed with severity. You can manage resolution workflow for each.
-
----
-
-### 7.7 Anomaly Detection
-
-Statistical analysis flags outliers that may indicate issues.
-
-**UAT Checkpoint: EV-021 - Review Anomalies**
-
-1. Navigate to **Evaluation** → **Anomalies** tab (or Dashboard widget)
-2. Review flagged anomalies:
-
-| Type | Example | Risk |
-|------|---------|------|
-| Price | Vistra 30% below median pricing | May indicate scope gap |
-| Schedule | Vendor promising 50% faster implementation | May be unrealistic |
-| Compliance | Missing SOC 2 certification | May require clarification |
-
-3. For each anomaly:
-   - Click to expand details
-   - View comparison data
-   - Choose action: **Investigate**, **Accept Risk**, **Dismiss**
-
-**Expected Result**: Statistical outliers are highlighted. You can investigate or accept with documented rationale.
-
----
-
-### 7.8 Security Assessments
-
-Multi-stage security evaluation throughout the procurement process.
-
-**UAT Checkpoint: EV-022 - Security Assessment**
-
-1. Navigate to **Evaluation** → **Security** tab (or from Dashboard)
-2. Observe the three assessment stages:
-
-| Stage | When | Focus |
-|-------|------|-------|
-| Initial RFP | With RFP submission | Basic security questionnaire |
-| Technical Review | Shortlisted vendors | Architecture review, pen test reports |
-| POC Validation | Final vendor | Sandbox testing, integration security |
-
-3. For Stage 1 (Initial RFP):
-   - Click **Send Questionnaire** for a vendor
-   - Review submitted responses
-   - Score the assessment (0-10)
-   - Assign risk level (Low/Medium/High/Critical)
-
-4. For identified issues:
-   - Click **Add Finding**
-   - Enter finding details, severity, remediation required
-   - Assign owner and due date
-   - Track resolution status
-
-**Expected Result**: Security questionnaires are sent and tracked. Findings are logged with remediation workflow.
+**Expected Result**: Gaps visible with severity indicators. Actions available.
 
 ---
 
@@ -712,398 +710,133 @@ Multi-stage security evaluation throughout the procurement process.
 
 ### 8.1 Traceability Matrix
 
-The traceability matrix provides complete visibility from requirements to scores.
-
-**UAT Checkpoint: EV-023 - Traceability Matrix**
+**UAT Checkpoint: EV-027 - Traceability View**
 
 1. Navigate to **Traceability** from the dashboard
-2. Observe the matrix:
-   - **Rows**: Requirements (grouped by category)
+2. View the enhanced matrix:
+   - **Rows**: Requirements grouped by category
    - **Columns**: Vendors
-   - **Cells**: Color-coded scores (green=high, yellow=medium, red=low)
-
-3. Use filters to focus:
-   - Category: "Functional Requirements"
-   - Priority: "Must Have"
-   - RAG Status: "Red" (to see problem areas)
-
-4. Click on a cell to see:
-   - Original requirement text
-   - RFP question asked
+   - **Cells**: RAG color-coded scores (Green ≥4, Amber 3-4, Red <3)
+3. Use filters panel:
+   - Category filter
+   - Priority filter
+   - MoSCoW filter
+   - RAG Status filter
+   - Vendor checkboxes
+4. Click on a cell to drill down:
+   - Original requirement
+   - RFP question
    - Vendor response
-   - Score with rationale
-   - Supporting evidence
-
+   - Score and rationale
+   - Evidence
 5. Click **Generate Insights** for AI analysis
-6. Click **Export CSV** to download the matrix
+6. Export: **CSV**, **Excel**, or **PDF**
 
-**Expected Result**: Matrix displays with filters. Cell drill-down shows full context. Export generates CSV file.
-
----
-
-### 8.2 Risk Dashboard
-
-Track procurement risks and issues throughout the evaluation.
-
-**UAT Checkpoint: EV-024 - Risk Dashboard**
-
-1. Navigate to **Risks** (from Dashboard or side panel)
-2. View the risk matrix (Probability × Impact)
-3. Click **Add Risk** and create:
-
-| Field | Value |
-|-------|-------|
-| Title | Vendor Integration Complexity |
-| Description | Vistra's API documentation suggests complex integration patterns that may extend implementation timeline |
-| Category | Integration |
-| Probability | Medium |
-| Impact | High |
-| Mitigation Plan | Request detailed integration workshop during POC phase |
-| Owner | [Select user] |
-| Due Date | [Select date] |
-
-4. Click **Save**
-5. View the risk on the matrix (position based on probability/impact)
-6. Update status as mitigation progresses
-
-**Expected Result**: Risk is created and positioned on matrix. Can track mitigation status.
+**Expected Result**: Matrix displays with interactive filters. Cell drill-down shows context.
 
 ---
 
-### 8.3 Financial Analysis (TCO)
+### 8.2 AI-Generated Insights
 
-Calculate Total Cost of Ownership for vendor comparison.
+**UAT Checkpoint: EV-028 - Matrix Insights**
 
-**UAT Checkpoint: EV-025 - TCO Analysis**
+1. In Traceability view, click **Generate Insights**
+2. Review insight cards:
 
-1. Navigate to **Financial Analysis** (from Dashboard or Reports)
-2. Select **Cost Breakdown** tab
-3. Click **Add Cost** for Vistra Technology:
+| Insight Type | Description |
+|--------------|-------------|
+| Vendor Strength | Areas where vendor excels |
+| Vendor Weakness | Areas needing attention |
+| Category Leader | Top performer per category |
+| Consensus Needed | High variance in scores |
+| Coverage Gap | Missing data points |
+| Risk Area | Identified risks |
+| Differentiator | Unique vendor capabilities |
+| Recommendation | AI recommendations |
 
-| Category | Year 1 | Year 2 | Year 3 | Year 4 | Year 5 |
-|----------|--------|--------|--------|--------|--------|
-| License | £180,000 | £180,000 | £185,400 | £185,400 | £190,962 |
-| Implementation | £120,000 | - | - | - | - |
-| Data Migration | £50,000 | - | - | - | - |
-| Training | £30,000 | £5,000 | £5,000 | £5,000 | £5,000 |
-| Support | £45,000 | £45,000 | £46,350 | £46,350 | £47,741 |
-| Infrastructure | £20,000 | £20,000 | £20,000 | £20,000 | £20,000 |
-
-4. Click **Calculate TCO** to see:
-   - 5-Year TCO
-   - Net Present Value (NPV)
-   - Cost per user per month
-   - Vendor ranking by TCO
-
-5. Repeat for other vendors to enable comparison
-
-**Expected Result**: TCO calculates for each vendor. Comparison chart shows ranking.
+**Expected Result**: Insights generate with icons and descriptions.
 
 ---
 
-### 8.4 Sensitivity Analysis
+### 8.3 Dashboard Analytics
 
-Model "what if" scenarios to test decision robustness.
+**UAT Checkpoint: EV-029 - Analytics Widgets**
 
-**UAT Checkpoint: EV-026 - Sensitivity Analysis**
+Test each dashboard widget:
 
-1. In Financial Analysis, select **Sensitivity** tab
-2. Click **Create Scenario**
-3. Enter scenario details:
+| Widget | Test |
+|--------|------|
+| Evaluation Timeline | Shows phases and milestones |
+| Risk Indicators | Displays risk summary with RAG |
+| Stakeholder Participation | Engagement heatmap by area |
+| Q&A Activity | Question counts and response rate |
+| Client Approval | Progress ring with approval % |
+| Security Status | Assessment stage and findings |
+| Score Heatmap | Interactive vendor × category grid |
+| Vendor Radar | Spider chart comparison |
 
-| Field | Value |
-|-------|-------|
-| Scenario Name | Implementation Overrun 20% |
-| Variable | Implementation Cost |
-| Adjustment Type | Percent |
-| Adjustment Value | +20% |
-
-4. Click **Run Analysis**
-5. Review impact:
-   - Does the ranking change?
-   - What's the TCO impact?
-   - Which vendors are most sensitive?
-
-**Expected Result**: Scenario is applied. Impact on vendor ranking is shown. Sensitivity to different variables is visible.
+**Expected Result**: All widgets render with real-time data.
 
 ---
 
-### 8.5 ROI Calculation
+### 8.4 Generating Reports
 
-Calculate return on investment for the selected solution.
-
-**UAT Checkpoint: EV-027 - ROI Calculation**
-
-1. In Financial Analysis, select **ROI** tab
-2. Click **Add Benefit** and enter expected benefits:
-
-| Benefit Category | Annual Value | Description |
-|-----------------|--------------|-------------|
-| Efficiency Gains | £150,000 | Staff time saved on manual entity management |
-| Risk Reduction | £50,000 | Avoided compliance penalties |
-| Revenue Enablement | £30,000 | Faster client onboarding |
-
-3. Click **Calculate ROI** to see:
-   - Total 5-year benefits
-   - Net ROI
-   - Payback period
-   - ROI percentage
-
-**Expected Result**: ROI calculates based on costs and benefits. Payback period shows when investment recovers.
-
----
-
-### 8.6 Vendor Intelligence
-
-Review external intelligence on shortlisted vendors.
-
-**UAT Checkpoint: EV-028 - Vendor Intelligence**
-
-1. Navigate to Vendor details for a shortlisted vendor
-2. Select **Intelligence** tab
-3. Review available data sections:
-
-| Section | Data |
-|---------|------|
-| Financial Health | Funding rounds, revenue estimates, employee count |
-| Compliance | Certifications (SOC 2, ISO 27001), sanctions check |
-| Reviews | G2, Capterra, Gartner ratings |
-| Market Intel | Recent news, partnerships, awards |
-
-4. Click **Generate AI Assessment** to get:
-   - Viability score (0-100)
-   - Risk factors
-   - Strengths and weaknesses
-   - Due diligence recommendations
-
-**Expected Result**: Intelligence data is displayed. AI assessment provides viability scoring with recommendations.
-
----
-
-### 8.7 Generating Reports
-
-Create comprehensive evaluation reports.
-
-**UAT Checkpoint: EV-029 - Generate Reports**
+**UAT Checkpoint: EV-030 - Generate Reports**
 
 1. Navigate to **Reports** from the dashboard
 2. Select report type:
 
-| Report | Purpose |
-|--------|---------|
-| Executive Summary | High-level recommendation with rationale |
-| Detailed Evaluation | Complete scoring breakdown by vendor/category |
-| Financial Analysis | TCO comparison and ROI analysis |
-| Risk Assessment | Risk matrix and mitigation status |
-| Traceability Report | Full audit trail |
+| Report | Format | Description |
+|--------|--------|-------------|
+| Executive Summary | PDF | High-level recommendation |
+| Traceability Matrix | PDF, CSV | Requirements-to-scores mapping |
+| Requirements Export | CSV | All requirements data |
+| Vendor Scores | CSV | Detailed scoring data |
+| Vendor Comparison | PDF, CSV | Side-by-side comparison |
+| Evidence Register | CSV | All evidence collected |
 
-3. Configure options:
-   - Include/exclude vendors
-   - Date range
-   - Sections to include
+3. Click **Generate**
+4. Download when ready
 
-4. Click **Generate Report**
-5. Choose format: **PDF** or **Excel**
-
-**Expected Result**: Report generates with selected content. Download is available in chosen format.
+**Expected Result**: Report generates and downloads in selected format.
 
 ---
 
 ## 9. Phase 7: Stakeholder Approvals
 
-### 9.1 Understanding Phase Gates
+### 9.1 Client Portal Overview
 
-Phase gates require stakeholder sign-off before proceeding to the next phase:
+The Client Portal allows external stakeholders to review and approve requirements.
 
-| Phase Gate | Purpose | Threshold |
-|------------|---------|-----------|
-| Requirements Approved | Confirm requirements are complete and accurate | 75% of stakeholder areas |
-| RFP Ready | Approve RFP for distribution to vendors | 75% of stakeholder areas |
-| Vendor Selected | Final approval of vendor recommendation | 80% of stakeholder areas |
+**UAT Checkpoint: EV-031 - Client Portal Access**
 
----
-
-### 9.2 Generating Client Portal Access
-
-Create tokens for external stakeholders to access the approval portal.
-
-**UAT Checkpoint: EV-030 - Create Client Portal Access**
-
-1. Navigate to **Settings** → **Client Portal Access**
-2. Click **Generate Token**
-3. Enter stakeholder details:
-
-| Field | Value |
-|-------|-------|
-| Stakeholder Name | Jane Wilson |
-| Email | jane.wilson@client.com |
-| Stakeholder Area | Finance |
-| Expiry | 14 days from now |
-
-4. Click **Generate**
-5. Copy the portal URL and token
-6. Send to the stakeholder
-
-**Expected Result**: Unique token is generated. URL can be shared with external stakeholder.
+1. Generate access token (admin function)
+2. Share portal URL with stakeholder
+3. Stakeholder accesses portal with token
+4. Portal features:
+   - Dashboard with progress
+   - Requirements list with approval actions
+   - Approval status tracking
+   - Comment/revision requests
 
 ---
 
-### 9.3 Client Portal - Approving Requirements
+### 9.2 Tracking Approval Progress
 
-This simulates what external stakeholders see in the approval portal.
+**UAT Checkpoint: EV-032 - Approval Widget**
 
-**UAT Checkpoint: EV-031 - Client Portal Approval**
-
-1. Open a new browser window (or incognito mode)
-2. Navigate to the client portal URL with token parameter
-3. Observe:
-   - Welcome message with stakeholder name
-   - Requirements grouped by category
-   - Approval status indicators
-   - Progress bar showing overall approval %
-
-4. For each requirement:
-   - Click to expand details
-   - Review title, description, priority
-   - Click **Approve** or **Request Revision**
-   - If requesting revision, enter note explaining what's needed
-
-5. When all requirements reviewed, click **Submit Final Approval**
-6. Optionally add signature/sign-off note
-
-**Expected Result**: Client can review and approve requirements. Final approval is recorded. Team is notified.
-
----
-
-### 9.4 Tracking Approval Progress
-
-Monitor stakeholder approvals from the internal dashboard.
-
-**UAT Checkpoint: EV-032 - Track Approvals**
-
-1. View the **Client Approval Widget** on the dashboard
-2. See progress ring showing overall approval %
+1. View **Client Approval Widget** on dashboard
+2. See progress ring with overall approval %
 3. View breakdown by stakeholder area
-4. Click to expand and see:
-   - Which stakeholders have approved
-   - Which stakeholders have pending approvals
-   - Any revision requests
+4. Click to see which stakeholders have approved
 
-5. Navigate to **Settings** → **Approval Status** for detailed view
-
-**Expected Result**: Approval progress is visible. Can identify which stakeholders need follow-up.
+**Expected Result**: Approval progress visible with stakeholder breakdown.
 
 ---
 
-### 9.5 Phase Gate Sign-off
+## 10. UAT Test Scenarios
 
-When thresholds are met, phase gates can be formally closed.
-
-**UAT Checkpoint: EV-033 - Phase Gate Approval**
-
-1. Navigate to **Settings** → **Phase Gates**
-2. View the phase gate status:
-   - **Requirements Approved**: Shows % of stakeholder areas approved
-   - When threshold met, **Complete Phase Gate** button appears
-
-3. Click **Complete Phase Gate**
-4. Add sign-off notes if required
-5. Confirm completion
-
-**Expected Result**: Phase gate is marked complete. Project progresses to next phase. Activity is logged.
-
----
-
-## 10. Phase 8: Post-Selection Workflow
-
-### 10.1 Understanding Procurement Workflow
-
-After vendor selection, the procurement workflow tracks progress to contract award.
-
-**Workflow Stages:**
-1. **Evaluation Complete** - Vendor selected
-2. **Contract Negotiation** - Commercial terms, security addendum, SLA
-3. **Reference Checks** - Customer references, financial stability
-4. **Legal Review** - Contract review, regulatory approval
-5. **Contract Signed** - Final execution
-6. **Onboarding Kickoff** - Implementation planning begins
-
----
-
-### 10.2 Creating a Procurement Workflow
-
-**UAT Checkpoint: EV-034 - Create Workflow**
-
-1. Navigate to **Workflow** (from Dashboard or after vendor selection)
-2. Click **Create Workflow**
-3. Select options:
-
-| Field | Value |
-|-------|-------|
-| Vendor | Vistra Technology |
-| Template | Standard Software Procurement |
-| Start Date | [Today] |
-
-4. Click **Create**
-5. Review the generated stages and milestones
-
-**Expected Result**: Workflow is created from template. All stages and milestones are populated.
-
----
-
-### 10.3 Managing Workflow Stages
-
-Progress through workflow stages as procurement advances.
-
-**UAT Checkpoint: EV-035 - Manage Workflow**
-
-1. View the workflow timeline
-2. For the first stage (Contract Negotiation):
-   - Click **Start Stage**
-   - Assign owner
-   - Review milestones
-
-3. Complete milestones as they're achieved:
-   - Click milestone checkbox
-   - Add completion notes if needed
-
-4. When all milestones complete:
-   - Click **Complete Stage**
-   - Stage moves to "Completed" status
-   - Next stage becomes available
-
-5. If blocked:
-   - Click **Block Stage**
-   - Enter blocking reason
-   - Stage shows as "Blocked" until resolved
-
-**Expected Result**: Stages progress through workflow. Milestones track completion. Activity is logged.
-
----
-
-### 10.4 Workflow Activity Log
-
-All workflow changes are logged for audit purposes.
-
-**UAT Checkpoint: EV-036 - View Activity Log**
-
-1. In the workflow view, click **Activity Log** tab
-2. Review logged activities:
-   - Stage started/completed
-   - Milestones completed
-   - Blocks and resolutions
-   - Owner changes
-   - Notes added
-
-**Expected Result**: Complete audit trail of workflow changes is visible.
-
----
-
-## 11. UAT Test Scenarios
-
-### 11.1 Complete End-to-End Scenario
-
-This scenario walks through a complete procurement cycle.
+### 10.1 Complete End-to-End Scenario
 
 **Scenario: CSP Entity Management System Procurement**
 
@@ -1111,95 +844,118 @@ This scenario walks through a complete procurement cycle.
 |------|--------|-----------------|-----------|
 | 1 | Create evaluation project "CSP Entity Management" | Project created, dashboard loads | |
 | 2 | Configure 6 evaluation categories (total 100%) | Categories saved, validation passes | |
-| 3 | Configure 4 stakeholder areas | Areas created with weights and thresholds | |
-| 4 | Create 5 requirements (REQ-001 to REQ-005) | Requirements appear with Draft status | |
-| 5 | Run AI Gap Analysis | AI suggests additional requirements | |
-| 6 | Submit requirements for review | Status changes to Under Review | |
-| 7 | Add 3 vendors (Vistra, CSC, Diligent) | Vendors appear with Lead status | |
-| 8 | Move vendors to "In Pipeline" | Status updates in pipeline view | |
-| 9 | Create 5 RFP questions linked to requirements | Questions created with mappings | |
-| 10 | Generate vendor portal access | Access codes created for each vendor | |
-| 11 | Submit vendor responses (via portal) | Responses recorded, status is Submitted | |
-| 12 | Score vendor responses (3 vendors × 5 questions) | Scores saved, averages calculate | |
-| 13 | Use AI score suggestions | AI provides analysis and suggestions | |
-| 14 | Add evidence for key scores | Evidence linked to vendor/criterion | |
-| 15 | Review AI gap detection | Gaps identified with severity levels | |
-| 16 | Review anomaly detection | Outliers flagged if present | |
-| 17 | View traceability matrix | Matrix displays with filters working | |
-| 18 | Create procurement risk | Risk appears on risk matrix | |
-| 19 | Enter TCO data for vendors | TCO calculates and ranks vendors | |
-| 20 | Generate client portal token | Token created with expiry | |
-| 21 | Approve requirements (via client portal) | Approvals recorded, progress updates | |
-| 22 | Complete phase gate (Requirements Approved) | Phase gate marked complete | |
-| 23 | Move top vendor to "Selected" | Vendor status updates | |
-| 24 | Create procurement workflow | Workflow stages populated | |
-| 25 | Progress through workflow stages | Stages complete with milestones | |
-| 26 | Generate executive summary report | Report generates with recommendations | |
+| 3 | Configure 4 stakeholder areas | Areas created with colors | |
+| 4 | Open Requirements Grid View | Excel-like interface displays | |
+| 5 | Add 5 requirements using keyboard shortcuts | Requirements created with ref codes | |
+| 6 | Test Undo/Redo functionality | Operations reverse/restore correctly | |
+| 7 | Import 10 requirements from Excel file | Import wizard completes with progress | |
+| 8 | Paste 5 requirements from clipboard | Paste wizard maps and imports | |
+| 9 | Use bulk operations to set category | All selected rows updated | |
+| 10 | Run AI Gap Analysis | AI suggests additional requirements | |
+| 11 | Submit requirements for review | Status changes to Under Review | |
+| 12 | Add 3 vendors | Vendors appear with Prospect status | |
+| 13 | Move vendors through pipeline | Kanban updates vendor status | |
+| 14 | Generate vendor portal access | Access codes created | |
+| 15 | Create 5 RFP questions linked to requirements | Questions created with mappings | |
+| 16 | Submit vendor responses (via portal) | Responses recorded | |
+| 17 | Score vendor responses with AI assist | Scores saved with AI analysis | |
+| 18 | Add evidence for key scores | Evidence linked | |
+| 19 | View traceability matrix | Matrix displays with RAG colors | |
+| 20 | Generate AI insights | Insights display | |
+| 21 | Export traceability report | CSV/PDF downloads | |
+| 22 | Generate executive summary report | Report generates | |
 
 ---
 
-### 11.2 Role-Based Test Scenarios
+### 10.2 Requirements Grid View Test Scenarios
 
-**Scenario A: Procurement Lead**
-- Create and configure evaluation project
-- Manage vendors and RFP
-- Oversee evaluation progress
-- Generate reports
+**Scenario: Grid Navigation & Editing**
 
-**Scenario B: Technical Evaluator**
-- Score vendor responses
-- Add technical evidence
-- Participate in score reconciliation
-- Review security assessments
+| Test | Steps | Expected |
+|------|-------|----------|
+| Cell navigation | Tab through cells | Moves left-to-right, top-to-bottom |
+| Edit cell | Press F2 or start typing | Cell enters edit mode |
+| Cancel edit | Press Escape | Edit cancelled, original value restored |
+| Save edit | Press Enter or Tab | Edit saved, auto-save triggers |
+| Add row | Press Ctrl+Insert | New row added at bottom |
+| Delete rows | Select rows, press Delete | Rows removed after confirm |
+| Undo | Press Ctrl+Z | Previous state restored |
+| Redo | Press Ctrl+Y | Undone change reapplied |
+| Copy rows | Select rows, Ctrl+C | Tab-separated data to clipboard |
+| Paste data | Ctrl+V with tabular data | Paste wizard opens |
 
-**Scenario C: External Stakeholder (Client Portal)**
-- Access portal via token
-- Review requirements
-- Approve or request revisions
-- Submit final sign-off
+**Scenario: Bulk Operations**
 
-**Scenario D: Vendor (Vendor Portal)**
-- Access portal via code
-- View RFP questions
-- Submit responses
-- Participate in Q&A
+| Test | Steps | Expected |
+|------|-------|----------|
+| Select all | Click header checkbox | All rows selected |
+| Multi-select | Ctrl+Click multiple rows | Multiple rows selected |
+| Range select | Shift+Click | Range of rows selected |
+| Bulk status | Select → Bulk Actions → Set Status | All selected updated |
+| Bulk priority | Select → Bulk Actions → Set Priority | All selected updated |
+| Bulk category | Select → Bulk Actions → Set Category | All selected updated |
+| Bulk stakeholder | Select → Bulk Actions → Set Stakeholder | All selected updated |
+| Submit for approval | Select draft rows → Submit | Status changes to Under Review |
 
 ---
 
-### 11.3 Error Handling Scenarios
+### 10.3 Error Handling Scenarios
 
 | Scenario | Action | Expected Behavior |
 |----------|--------|-------------------|
-| Invalid category weights | Save categories totaling 95% | Error: "Weights must total 100%" |
-| Duplicate requirement code | Create requirement with existing code | Error: "Reference code already exists" |
+| Missing title | Save row without title | Cell shows error, row not saved |
+| Title too long | Enter >255 characters | Validation error displayed |
+| Invalid category weights | Save categories totaling ≠100% | Warning displayed |
 | Expired portal token | Access client portal with expired token | Error: "Token has expired" |
-| Missing required fields | Save vendor without name | Error: "Name is required" |
-| Delete vendor with responses | Attempt to delete vendor with submissions | Warning: "Vendor has responses. Confirm delete?" |
+| Delete vendor with responses | Attempt delete | Warning with confirmation |
+| Network error during save | Disconnect during save | Error status shown, retry available |
 
 ---
 
-### 11.4 Performance Test Scenarios
+### 10.4 Performance Test Scenarios
 
 | Scenario | Test | Acceptable Threshold |
 |----------|------|---------------------|
-| Load 100 requirements | Time to display list | < 2 seconds |
-| Load traceability matrix (50 req × 5 vendors) | Time to render | < 3 seconds |
+| Load 100 requirements in grid | Time to display | < 2 seconds |
+| Bulk update 50 rows | Time to complete | < 5 seconds |
+| Import 100 row Excel file | Import time | < 10 seconds |
+| Load traceability matrix (50 req × 5 vendors) | Render time | < 3 seconds |
 | Generate AI analysis | Response time | < 10 seconds |
 | Export large report | Generation time | < 30 seconds |
 
 ---
 
-## 12. Appendix: Quick Reference
+## 11. Appendix: Quick Reference
 
-### 12.1 Keyboard Shortcuts
+### 11.1 Keyboard Shortcuts
+
+**Requirements Grid:**
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl/Cmd + S` | Save current form |
-| `Escape` | Close modal/dialog |
-| `Enter` | Confirm action in dialogs |
+| `Tab` / `Shift+Tab` | Next/Previous cell |
+| `Enter` / `Shift+Enter` | Move down/up |
+| `Arrow keys` | Move in direction |
+| `Home` / `End` | First/Last cell in row |
+| `Page Up` / `Page Down` | Scroll page |
+| `F2` | Edit cell |
+| `Escape` | Cancel edit |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` or `Ctrl+Shift+Z` | Redo |
+| `Ctrl+Insert` | Add new row |
+| `Delete` | Delete selected rows |
+| `Ctrl+C` | Copy selected rows |
+| `Ctrl+V` | Paste (opens wizard) |
+| `?` | Show keyboard help |
 
-### 12.2 Status Definitions
+**Global:**
+
+| Shortcut | Action |
+|----------|--------|
+| `Escape` | Close modal/dialog |
+| `Enter` | Confirm action |
+
+### 11.2 Status Definitions
 
 **Requirement Status:**
 | Status | Description |
@@ -1212,34 +968,33 @@ This scenario walks through a complete procurement cycle.
 **Vendor Status:**
 | Status | Description |
 |--------|-------------|
-| Lead | Initial contact, not yet engaged |
-| In Pipeline | Actively being considered |
-| Shortlist | Selected for detailed evaluation |
-| Under Evaluation | Currently being scored |
+| Prospect | Initial lead |
+| Pipeline | Under evaluation |
+| Shortlisted | Selected for detailed evaluation |
+| Finalist | Final candidates |
 | Selected | Chosen vendor |
 | Rejected | Not proceeding |
+| Archived | Historical record |
 
-**Workflow Stage Status:**
+**Q&A Status:**
 | Status | Description |
 |--------|-------------|
-| Pending | Not yet started |
-| In Progress | Currently active |
-| Blocked | Waiting on issue resolution |
-| Completed | Successfully finished |
-| Skipped | Bypassed (not required) |
+| Pending | Awaiting response |
+| In Progress | Being answered |
+| Answered | Response provided |
+| Rejected | Question rejected |
 
-### 12.3 Score Definitions
+### 11.3 Score Definitions
 
 | Score | Label | Description |
 |-------|-------|-------------|
-| 0 | Not Addressed | No response provided |
 | 1 | Does Not Meet | Fails to meet requirement |
 | 2 | Partially Meets | Addresses some aspects |
 | 3 | Meets | Fully addresses requirement |
 | 4 | Exceeds | Goes beyond requirement |
-| 5 | Significantly Exceeds | Exceptional response |
+| 5 | Exceptional | Outstanding response |
 
-### 12.4 MoSCoW Priority Definitions
+### 11.4 MoSCoW Priority Definitions
 
 | Priority | Description |
 |----------|-------------|
@@ -1248,44 +1003,69 @@ This scenario walks through a complete procurement cycle.
 | Could Have | Desirable if time/budget allows |
 | Won't Have | Out of scope for this evaluation |
 
-### 12.5 Gap Severity Definitions
+### 11.5 RAG Status Colors
 
-| Severity | Description | Action |
-|----------|-------------|--------|
-| Low | Minor omission | Document and monitor |
-| Medium | Notable gap | Request clarification |
-| High | Significant issue | Must be addressed |
-| Critical | Deal-breaker | Cannot proceed without resolution |
+| Status | Color | Criteria |
+|--------|-------|----------|
+| Green | #dcfce7 | Score ≥ 4 |
+| Amber | #fef3c7 | Score 3-4 |
+| Red | #fee2e2 | Score < 3 |
+| None | #f3f4f6 | No score |
 
-### 12.6 Common Workflows
+### 11.6 Gap Severity Definitions
+
+| Severity | Color | Description |
+|----------|-------|-------------|
+| Minor | Yellow | Small omission |
+| Moderate | Orange | Notable gap |
+| Major | Red | Significant issue |
+
+### 11.7 Source Types
+
+| Type | Description |
+|------|-------------|
+| Manual | Manually entered |
+| Workshop | Captured in workshop |
+| Interview | From stakeholder interview |
+| Document | Extracted from document |
+| Survey | From survey response |
+| Market Analysis | From market research |
+| Competitor Analysis | From competitive analysis |
+| AI | AI-generated suggestion |
+
+### 11.8 Common Workflows
 
 **Creating a New Evaluation:**
 ```
 Settings → Create Project → Configure Categories →
-Configure Stakeholder Areas → Add Requirements →
-Add Vendors → Create RFP Questions → Distribute RFP
+Configure Stakeholder Areas → Open Requirements →
+Add via Grid View or Import → Submit for Review
+```
+
+**Bulk Requirements Entry:**
+```
+Requirements → Grid View → Add Row (Ctrl+Insert) →
+Fill cells (Tab to navigate) → Auto-save →
+Select rows → Bulk Actions → Set Category/Priority
+```
+
+**Import from Excel:**
+```
+Grid View → Import → Upload file → Select sheet →
+Map columns → Validate → Import → Close
 ```
 
 **Scoring a Vendor:**
 ```
-Evaluation Hub → Select Vendor → Review Response →
-View AI Analysis → Enter Score → Add Rationale →
-Add Evidence → Save
+Evaluation → Select Vendor → Review Response →
+Click AI Assist → Review Analysis →
+Accept/Modify Score → Add Rationale → Save
 ```
 
 **Client Approval:**
 ```
-Generate Token → Send to Client → Client Accesses Portal →
-Reviews Requirements → Approves/Requests Revision →
-Submits Final Approval → Phase Gate Closes
-```
-
-**Vendor Selection:**
-```
-Complete Scoring → Review Traceability Matrix →
-Review Risks → Review TCO → Generate Report →
-Present to Steering Committee → Get Approvals →
-Select Vendor → Create Workflow
+Generate Token → Send to Client → Client Reviews →
+Approves/Requests Revision → Track in Dashboard
 ```
 
 ---
@@ -1295,6 +1075,7 @@ Select Vendor → Create Workflow
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 09 Jan 2026 | System | Initial creation |
+| 1.1 | 10 Jan 2026 | System | Added Requirements Grid View (FE-007), updated analytics, fixed bug status |
 
 ---
 

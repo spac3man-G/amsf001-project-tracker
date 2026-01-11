@@ -180,15 +180,11 @@ export default function EvaluatorDashboard() {
             </div>
           </div>
 
-          {/* Row 5: Risk Indicators */}
-          <div className="analytics-row full-width">
-            <div className="analytics-item risk-item">
+          {/* Row 5: Risk, Stakeholder Participation, and Security */}
+          <div className="analytics-row three-col">
+            <div className="analytics-item widget-item">
               <RiskIndicators evaluationProjectId={evaluationId} />
             </div>
-          </div>
-
-          {/* Row 6: Stakeholder Participation and Security */}
-          <div className="analytics-row two-col">
             <div className="analytics-item widget-item">
               <StakeholderParticipationChart evaluationProjectId={evaluationId} />
             </div>

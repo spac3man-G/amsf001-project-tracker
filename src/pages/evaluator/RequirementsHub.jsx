@@ -13,13 +13,14 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ClipboardList, 
-  Plus, 
-  Filter, 
+import {
+  ClipboardList,
+  Plus,
+  Filter,
   Download,
   Grid3X3,
   List,
+  Table2,
   Search,
   ChevronDown,
   MoreVertical,
@@ -48,7 +49,7 @@ import {
   Toast
 } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
-import { RequirementFilters, RequirementForm, RequirementMatrix } from '../../components/evaluator/requirements';
+import { RequirementFilters, RequirementForm, RequirementMatrix, RequirementsGridView } from '../../components/evaluator/requirements';
 import { GapAnalysisResults } from '../../components/evaluator/ai';
 import { requirementsService, stakeholderAreasService, evaluationCategoriesService, aiService } from '../../services/evaluator';
 
@@ -82,7 +83,7 @@ export default function RequirementsHub() {
   const [stakeholderAreas, setStakeholderAreas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'matrix'
+  const [viewMode, setViewMode] = useState('list'); // 'list', 'grid', or 'matrix'
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -732,6 +733,13 @@ export default function RequirementsHub() {
               <List size={18} />
             </button>
             <button
+              className={`btn-icon ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid view (Excel-like)"
+            >
+              <Table2 size={18} />
+            </button>
+            <button
               className={`btn-icon ${viewMode === 'matrix' ? 'active' : ''}`}
               onClick={() => setViewMode('matrix')}
               title="Matrix view"
@@ -799,7 +807,7 @@ export default function RequirementsHub() {
                   : "No requirements match your current filters."}
               </p>
               {canManageRequirements && requirements.length === 0 && (
-                <button 
+                <button
                   className="btn btn-primary"
                   onClick={handleOpenCreate}
                 >
@@ -810,6 +818,17 @@ export default function RequirementsHub() {
             </div>
           )}
         </Card>
+      )}
+
+      {/* Grid View (Excel-like) */}
+      {viewMode === 'grid' && (
+        <RequirementsGridView
+          requirements={filteredRequirements}
+          categories={categories}
+          stakeholderAreas={stakeholderAreas}
+          onDataChange={loadData}
+          canManage={canManageRequirements}
+        />
       )}
 
       {/* Matrix View */}

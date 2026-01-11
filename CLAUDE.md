@@ -4,91 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## Evaluator UAT Remediation Plan (Active)
+## Evaluator Module UAT Testing
 
-UAT completed 10 January 2026 identified **20 bugs** and **25 feature gaps**. Full details in `docs/EVALUATOR-UAT-FINDINGS.md`.
+**Status**: Ready for UAT Round 2
 
-**At session start, offer:**
-> "The Evaluator UAT Remediation Plan is active. Current sprint: [check document]
-> Would you like to continue with bug fixes, or work on something else?"
+When the user wants to run UAT testing on the Evaluator module, use these documents:
 
-### Sprint Structure
+| Document | Purpose |
+|----------|---------|
+| `docs/EVALUATOR-USER-MANUAL.md` | User manual with 32 UAT checkpoints (EV-001 to EV-032) |
+| `docs/EVALUATOR-UAT-FINDINGS.md` | Bug status, feature status, and UAT Round 2 test plan |
 
-| Sprint | Focus | Bugs | Status |
-|--------|-------|------|--------|
-| Sprint 1 | Root Cause Investigation | - | **Next** |
-| Sprint 2 | Core CRUD (Requirements, Vendors, Questions) | BUG-003,004,005,008,009 | Pending |
-| Sprint 3 | Data Loading (Q&A, Traceability, Reports) | BUG-012,013,018,019,020 | Pending |
-| Sprint 4 | UI/Interaction Fixes | BUG-001,002,006,010,011,014-17 | Pending |
-| Sprint 5 | AI Config (Opus 4.5) | BUG-007 | Pending |
-| Sprint 6+ | Feature Enhancements | FE-001 to FE-025 | Future |
-
-### Sprint 1: Root Cause Investigation
-
-Many bugs are "Failed to load/save" errors - likely share common cause. Investigate first:
-
-1. Check browser DevTools console for JS errors
-2. Check Network tab for failed API calls (look for 4xx/5xx responses)
-3. Check Supabase dashboard for database errors
-4. Verify evaluator tables exist and have correct RLS policies
-5. Test services directly to isolate frontend vs backend issues
-
-**Key files:**
-```
-src/services/evaluator/*.service.js
-src/pages/evaluator/*.jsx
-supabase/migrations/202601090*.sql
-```
-
-**Hypothesis:** Missing migrations, RLS policy issues, or project context not passed correctly.
-
-### Critical Bugs (Fix First)
-
-| Bug | Component | Issue |
-|-----|-----------|-------|
-| BUG-003 | Requirements | Create Requirement silent failure |
-| BUG-008 | Questions | Failed to load questions |
-| BUG-009 | Questions | Failed to save question |
-| BUG-012 | Q&A | Failed to load Q&A data |
-| BUG-018 | Traceability | Failed to load traceability data |
-| BUG-019 | Reports | Failed to generate report |
-
-### When Resuming
-
-1. Read `docs/EVALUATOR-UAT-FINDINGS.md` for full bug list and current sprint status
-2. Check the "Remediation Plan" section for detailed sprint tasks
-3. Update bug status as fixes are completed
-
-### Architectural Decisions (from UAT)
-
-- **ARCH-001**: Unified sidebar navigation with collapsible app sections (TRACKER, PLANNER, EVALUATOR)
-- **ARCH-002**: Consolidated role system - Option C (Separate roles per app, consistent naming: Admin, PM, Finance, Contributor, Viewer)
-- **Role Assignment**: At PROJECT level (not organisation)
-- **Customer Access**: Customer PM/Contributor use full app (not Client Portal)
-
-### Evaluator Key Files
-
-```
-src/services/evaluator/
-├── requirements.service.js    # BUG-003
-├── vendors.service.js         # BUG-004,005
-├── questions.service.js       # BUG-008,009
-├── vendorQA.service.js        # BUG-012
-├── traceability.service.js    # BUG-018
-├── scores.service.js
-└── index.js
-
-src/pages/evaluator/
-├── EvaluatorDashboard.jsx
-├── VendorDetail.jsx
-└── ClientPortal.jsx
-
-api/evaluator/
-├── ai-gap-analysis.js         # Needs Opus 4.5
-├── ai-market-research.js      # Needs Opus 4.5
-├── ai-analyze-response.js     # Needs Opus 4.5
-└── [6 more AI endpoints]      # All need Opus 4.5
-```
+**At session start, if user mentions Evaluator UAT:**
+> "Ready for Evaluator UAT testing. The test documents are:
+> - `docs/EVALUATOR-USER-MANUAL.md` - 32 checkpoints across 7 phases
+> - `docs/EVALUATOR-UAT-FINDINGS.md` - Current bug/feature status
+>
+> Would you like to run specific checkpoints, or do a full end-to-end test?"
 
 ---
 

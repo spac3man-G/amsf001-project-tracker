@@ -205,6 +205,10 @@
   grid-template-columns: 1fr;
 }
 
+.analytics-row.three-col {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .analytics-row.four-col {
   grid-template-columns: repeat(4, 1fr);
 }
@@ -255,6 +259,10 @@
 
   .analytics-row {
     grid-template-columns: 1fr;
+  }
+
+  .analytics-row.three-col {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .analytics-row.four-col {

@@ -726,6 +726,77 @@ export class RequirementsService extends EvaluatorBaseService {
   }
 
   /**
+   * Bulk create requirements (for grid import)
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @param {Array<Object>} requirements - Array of requirement data objects
+   * @returns {Promise<Object>} Result with created count and any errors
+   */
+  async bulkCreate(evaluationProjectId, requirements) {
+    try {
+      if (!requirements || requirements.length === 0) {
+        return { created: 0, errors: [] };
+      }
+
+      const errors = [];
+      const toCreate = [];
+
+      // Generate reference codes and validate each requirement
+      for (let i = 0; i < requirements.length; i++) {
+        const req = requirements[i];
+
+        // Skip empty rows
+        if (!req.title || req.title.trim() === '') {
+          continue;
+        }
+
+        // Generate reference code
+        const existingCount = await this.getNextReferenceCode(evaluationProjectId);
+        const baseNum = parseInt(existingCount.match(/\d+/)?.[0] || '0', 10);
+        const refCode = `REQ-${String(baseNum + toCreate.length).padStart(3, '0')}`;
+
+        toCreate.push({
+          evaluation_project_id: evaluationProjectId,
+          reference_code: refCode,
+          title: req.title.trim(),
+          description: req.description?.trim() || null,
+          priority: req.priority || 'should_have',
+          status: req.status || 'draft',
+          category_id: req.category_id || null,
+          stakeholder_area_id: req.stakeholder_area_id || null,
+          source_type: req.source_type || 'manual',
+          source_reference: req.source_reference || null,
+          acceptance_criteria: req.acceptance_criteria || null,
+          weighting: req.weighting || 0
+        });
+      }
+
+      if (toCreate.length === 0) {
+        return { created: 0, errors: ['No valid requirements to create'] };
+      }
+
+      // Batch insert
+      const { data, error } = await supabase
+        .from('requirements')
+        .insert(toCreate)
+        .select();
+
+      if (error) {
+        console.error('Bulk create error:', error);
+        throw error;
+      }
+
+      return {
+        created: data?.length || 0,
+        requirements: data || [],
+        errors
+      };
+    } catch (error) {
+      console.error('RequirementsService bulkCreate failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Bulk update requirements (e.g., change category for multiple)
    * @param {Array<string>} requirementIds - Array of requirement UUIDs
    * @param {Object} updates - Fields to update
