@@ -36,7 +36,11 @@ import {
   Loader2,
   Keyboard,
   X,
-  GripVertical
+  GripVertical,
+  Maximize2,
+  Minimize2,
+  ArrowUpFromLine,
+  ArrowDownFromLine
 } from 'lucide-react';
 import { requirementsService } from '../../../services/evaluator';
 import { useEvaluation } from '../../../contexts/EvaluationContext';
@@ -160,6 +164,12 @@ export default function RequirementsGridView({
   const [showPasteWizard, setShowPasteWizard] = useState(false);
   const [pasteData, setPasteData] = useState(null);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
+  // Custom context menu state (since AG Grid context menu is Enterprise only)
+  const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, rowIndex: null, rowData: null });
+
+  // Fullscreen mode
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Sync rows with requirements prop
   useEffect(() => {
@@ -568,52 +578,54 @@ export default function RequirementsGridView({
     setRowData(nextState);
   }, [redoStack, rowData]);
 
-  // Context menu
-  const getContextMenuItems = useCallback((params) => {
-    if (!canManage) return [];
+  // Custom context menu handler (AG Grid's getContextMenuItems is Enterprise only)
+  const handleContextMenu = useCallback((event) => {
+    event.preventDefault();
+    const rowNode = event.node;
+    const rowIndex = rowNode?.rowIndex;
 
-    const rowIndex = params.node?.rowIndex;
+    if (rowIndex !== undefined && rowIndex !== null) {
+      setContextMenu({
+        show: true,
+        x: event.event.clientX,
+        y: event.event.clientY,
+        rowIndex: rowIndex,
+        rowData: rowNode?.data
+      });
+    }
+  }, []);
 
-    return [
-      {
-        name: 'Insert Row Above',
-        action: () => handleInsertRow(rowIndex, 'above'),
-        icon: '<span class="ag-icon ag-icon-plus"></span>'
-      },
-      {
-        name: 'Insert Row Below',
-        action: () => handleInsertRow(rowIndex, 'below'),
-        icon: '<span class="ag-icon ag-icon-plus"></span>'
-      },
-      'separator',
-      {
-        name: 'Copy',
-        action: handleCopy,
-        shortcut: 'Ctrl+C',
-        icon: '<span class="ag-icon ag-icon-copy"></span>'
-      },
-      {
-        name: 'Paste',
-        action: handlePaste,
-        shortcut: 'Ctrl+V',
-        icon: '<span class="ag-icon ag-icon-paste"></span>'
-      },
-      'separator',
-      {
-        name: 'Delete Row(s)',
-        action: handleDeleteSelected,
-        shortcut: 'Del',
-        icon: '<span class="ag-icon ag-icon-cancel"></span>',
-        cssClasses: ['text-danger']
-      },
-      'separator',
-      'copy',
-      'copyWithHeaders',
-      'paste',
-      'separator',
-      'export'
-    ];
-  }, [canManage, handleInsertRow, handleCopy, handlePaste, handleDeleteSelected]);
+  // Close context menu
+  const closeContextMenu = useCallback(() => {
+    setContextMenu({ show: false, x: 0, y: 0, rowIndex: null, rowData: null });
+  }, []);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.show) {
+        closeContextMenu();
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [contextMenu.show, closeContextMenu]);
+
+  // Toggle fullscreen mode
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+  }, []);
+
+  // Handle escape key for fullscreen
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -671,7 +683,7 @@ export default function RequirementsGridView({
   }, []);
 
   return (
-    <div className="requirements-grid-view">
+    <div className={`requirements-grid-view ${isFullscreen ? 'fullscreen-mode' : ''}`}>
       {/* Toolbar */}
       <div className="grid-toolbar">
         <div className="toolbar-left">
@@ -740,6 +752,15 @@ export default function RequirementsGridView({
             </button>
           </div>
 
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen mode'}
+          >
+            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            {isFullscreen ? 'Exit' : 'Fullscreen'}
+          </button>
+
           <div className="save-status">
             {saveStatus === 'saving' && (
               <span className="status-saving">
@@ -764,7 +785,7 @@ export default function RequirementsGridView({
       <div className="ag-grid-wrapper">
         <div
           className="ag-theme-alpine"
-          style={{ width: '100%', height: '600px' }}
+          style={{ width: '100%', height: isFullscreen ? 'calc(100vh - 110px)' : '600px' }}
         >
           <AgGridReact
             ref={gridRef}
@@ -777,13 +798,89 @@ export default function RequirementsGridView({
             onGridReady={onGridReady}
             onCellValueChanged={onCellValueChanged}
             onRowDragEnd={onRowDragEnd}
-            getContextMenuItems={getContextMenuItems}
+            onCellContextMenu={handleContextMenu}
+            suppressContextMenu={true}
             getRowId={(params) => String(params.data.id)}
             rowHeight={40}
             headerHeight={44}
           />
         </div>
       </div>
+
+      {/* Custom Context Menu */}
+      {contextMenu.show && canManage && (
+        <div
+          className="custom-context-menu"
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            zIndex: 9999
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              handleInsertRow(contextMenu.rowIndex, 'above');
+              closeContextMenu();
+            }}
+          >
+            <ArrowUpFromLine size={14} />
+            Insert Row Above
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              handleInsertRow(contextMenu.rowIndex, 'below');
+              closeContextMenu();
+            }}
+          >
+            <ArrowDownFromLine size={14} />
+            Insert Row Below
+          </button>
+          <div className="context-menu-divider" />
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              handleCopy();
+              closeContextMenu();
+            }}
+          >
+            <Copy size={14} />
+            Copy
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              handlePaste();
+              closeContextMenu();
+            }}
+          >
+            <ClipboardPaste size={14} />
+            Paste
+          </button>
+          <div className="context-menu-divider" />
+          <button
+            className="context-menu-item context-menu-item-danger"
+            onClick={() => {
+              // Select the current row if nothing is selected
+              const api = gridRef.current?.api;
+              if (api) {
+                const selectedRows = api.getSelectedRows();
+                if (selectedRows.length === 0 && contextMenu.rowData) {
+                  api.getRowNode(String(contextMenu.rowData.id))?.setSelected(true);
+                }
+              }
+              handleDeleteSelected();
+              closeContextMenu();
+            }}
+          >
+            <Trash2 size={14} />
+            Delete Row(s)
+          </button>
+        </div>
+      )}
 
       {/* Status bar */}
       <div className="grid-status-bar">
