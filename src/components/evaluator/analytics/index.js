@@ -14,6 +14,7 @@ export { default as ScoreHeatmap } from './ScoreHeatmap';
 export { default as VendorRadarChart } from './VendorRadarChart';
 export { default as EvaluationTimeline } from './EvaluationTimeline';
 export { default as RiskIndicators } from './RiskIndicators';
+export { default as OverallRankings } from './OverallRankings';
 
 // Dashboard widgets (v1.1 Feature 1.3)
 export { default as StakeholderParticipationChart } from './StakeholderParticipationChart';

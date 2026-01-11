@@ -18,12 +18,7 @@ import {
   Users,
   Building2,
   CheckSquare,
-  GitBranch,
-  FileText,
-  Settings,
-  Plus,
-  BarChart3,
-  MessageSquare
+  Plus
 } from 'lucide-react';
 
 import { useEvaluation } from '../../contexts/EvaluationContext';
@@ -41,7 +36,8 @@ import {
   StakeholderParticipationChart,
   QAActivityWidget,
   ClientApprovalWidget,
-  SecurityStatusWidget
+  SecurityStatusWidget,
+  OverallRankings
 } from '../../components/evaluator/analytics';
 import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService, workshopsService } from '../../services/evaluator';
 
@@ -225,52 +221,6 @@ export default function EvaluatorDashboard() {
         )}
       </div>
 
-      {/* Quick Actions - Compact Grid */}
-      <div className="quick-actions-compact">
-        <QuickActionTile
-          icon={<ClipboardList size={20} />}
-          title="Requirements"
-          onClick={() => navigate('/evaluator/requirements')}
-        />
-        <QuickActionTile
-          icon={<Building2 size={20} />}
-          title="Vendors"
-          onClick={() => navigate('/evaluator/vendors')}
-        />
-        <QuickActionTile
-          icon={<FileText size={20} />}
-          title="Questions"
-          onClick={() => navigate('/evaluator/questions')}
-        />
-        <QuickActionTile
-          icon={<MessageSquare size={20} />}
-          title="Q&A"
-          onClick={() => navigate('/evaluator/qa')}
-        />
-        <QuickActionTile
-          icon={<CheckSquare size={20} />}
-          title="Evaluation"
-          onClick={() => navigate('/evaluator/evaluation')}
-        />
-        <QuickActionTile
-          icon={<GitBranch size={20} />}
-          title="Traceability"
-          onClick={() => navigate('/evaluator/traceability')}
-        />
-        <QuickActionTile
-          icon={<FileText size={20} />}
-          title="Reports"
-          onClick={() => navigate('/evaluator/reports')}
-        />
-        {canEditEvaluation && (
-          <QuickActionTile
-            icon={<Settings size={20} />}
-            title="Settings"
-            onClick={() => navigate('/evaluator/settings')}
-          />
-        )}
-      </div>
-
       {/* Quick Stats */}
       <div className="dashboard-stats">
         <StatCard
@@ -325,15 +275,36 @@ export default function EvaluatorDashboard() {
 
       {/* Analytics Section */}
       <div className="dashboard-analytics">
-        <div className="analytics-header">
-          <h2>
-            <BarChart3 size={20} />
-            Analytics Overview
-          </h2>
-        </div>
-
         <div className="analytics-grid">
-          {/* Row 1: Timeline and Risk */}
+          {/* Row 1: Overall Rankings */}
+          <div className="analytics-row full-width">
+            <div className="analytics-item rankings-item">
+              <OverallRankings evaluationProjectId={evaluationId} maxVendors={8} />
+            </div>
+          </div>
+
+          {/* Row 2: Vendor Comparison Radar Chart */}
+          <div className="analytics-row full-width">
+            <div className="analytics-item radar-item">
+              <VendorRadarChart evaluationProjectId={evaluationId} maxVendors={5} />
+            </div>
+          </div>
+
+          {/* Row 3: Score Heatmap */}
+          <div className="analytics-row full-width">
+            <div className="analytics-item heatmap-item">
+              <ScoreHeatmap
+                evaluationProjectId={evaluationId}
+                onCellClick={(vendor, category) => {
+                  navigate(`/evaluator/vendors/${vendor.id}`, {
+                    state: { highlightCategory: category.id }
+                  });
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Row 4: Timeline and Risk */}
           <div className="analytics-row">
             <div className="analytics-item timeline-item">
               <EvaluationTimeline evaluationProjectId={evaluationId} />
@@ -343,7 +314,7 @@ export default function EvaluatorDashboard() {
             </div>
           </div>
 
-          {/* Row 2: v1.1 Widgets - Stakeholder, Q&A, Approvals, Security */}
+          {/* Row 5: v1.1 Widgets - Stakeholder, Q&A, Approvals, Security */}
           <div className="analytics-row four-col">
             <div className="analytics-item widget-item">
               <StakeholderParticipationChart evaluationProjectId={evaluationId} />
@@ -358,42 +329,9 @@ export default function EvaluatorDashboard() {
               <SecurityStatusWidget evaluationProjectId={evaluationId} />
             </div>
           </div>
-
-          {/* Row 3: Heatmap */}
-          <div className="analytics-row full-width">
-            <div className="analytics-item heatmap-item">
-              <ScoreHeatmap
-                evaluationProjectId={evaluationId}
-                onCellClick={(vendor, category) => {
-                  navigate(`/evaluator/vendors/${vendor.id}`, {
-                    state: { highlightCategory: category.id }
-                  });
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Row 4: Radar Chart */}
-          <div className="analytics-row full-width">
-            <div className="analytics-item radar-item">
-              <VendorRadarChart evaluationProjectId={evaluationId} maxVendors={5} />
-            </div>
-          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * QuickActionTile - Compact square tile for dashboard actions
- */
-function QuickActionTile({ icon, title, onClick }) {
-  return (
-    <button className="quick-action-tile" onClick={onClick}>
-      <div className="quick-action-tile-icon">{icon}</div>
-      <span className="quick-action-tile-title">{title}</span>
-    </button>
   );
 }
 

@@ -1,0 +1,150 @@
+/**
+ * OverallRankings Component Styles
+ */
+
+.overall-rankings {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 16px;
+}
+
+.overall-rankings.loading,
+.overall-rankings.error,
+.overall-rankings.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 80px;
+  color: #6b7280;
+}
+
+.overall-rankings.loading .spinning {
+  animation: spin 1s linear infinite;
+}
+
+.overall-rankings.error button {
+  padding: 4px 12px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rankings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.rankings-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.rankings-header h3 svg {
+  color: #f59e0b;
+}
+
+.rankings-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ranking-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.ranking-item.rank-1 {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+}
+
+.ranking-item.rank-2 {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-color: #94a3b8;
+}
+
+.ranking-item.rank-3 {
+  background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+  border-color: #ea580c;
+}
+
+.rank-badge {
+  font-weight: 700;
+  color: var(--rank-color, #6b7280);
+  min-width: 24px;
+}
+
+.ranking-item.rank-1 .rank-badge {
+  color: #b45309;
+}
+
+.ranking-item.rank-2 .rank-badge {
+  color: #475569;
+}
+
+.ranking-item.rank-3 .rank-badge {
+  color: #9a3412;
+}
+
+.vendor-name {
+  color: #374151;
+  font-weight: 500;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vendor-score {
+  margin-left: auto;
+  font-weight: 600;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rankings-list {
+    flex-direction: column;
+  }
+
+  .ranking-item {
+    width: 100%;
+  }
+
+  .vendor-name {
+    max-width: none;
+    flex: 1;
+  }
+}
