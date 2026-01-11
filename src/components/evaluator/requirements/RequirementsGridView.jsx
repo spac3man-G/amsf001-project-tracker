@@ -17,6 +17,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { AgGridReact } from 'ag-grid-react';
+import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import {
@@ -43,6 +44,9 @@ import { useAuth } from '../../../contexts/AuthContext';
 import ImportWizard from './ImportWizard';
 import PasteWizard from './PasteWizard';
 import './RequirementsGridView.css';
+
+// Register AG Grid Community modules (required for v31+)
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Priority options
 const PRIORITY_OPTIONS = [
