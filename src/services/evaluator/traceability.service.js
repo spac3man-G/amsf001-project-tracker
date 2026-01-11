@@ -277,10 +277,10 @@ export class TraceabilityService extends EvaluatorBaseService {
           type,
           confidence_level,
           vendor_id,
-          requirement_links:evidence_requirements(requirement_id),
-          criterion_links:evidence_criteria(criterion_id)
+          links:evidence_links(requirement_id, criterion_id)
         `)
-        .eq('evaluation_project_id', evaluationProjectId);
+        .eq('evaluation_project_id', evaluationProjectId)
+        .eq('is_deleted', false);
 
       if (error) throw error;
 
@@ -291,22 +291,25 @@ export class TraceabilityService extends EvaluatorBaseService {
       };
 
       (data || []).forEach(ev => {
-        // Index by vendor + requirement
-        (ev.requirement_links || []).forEach(link => {
-          const key = `${ev.vendor_id}_${link.requirement_id}`;
-          if (!indexed.byVendorRequirement[key]) {
-            indexed.byVendorRequirement[key] = [];
+        // Process all links
+        (ev.links || []).forEach(link => {
+          // Index by vendor + requirement if requirement_id exists
+          if (link.requirement_id) {
+            const key = `${ev.vendor_id}_${link.requirement_id}`;
+            if (!indexed.byVendorRequirement[key]) {
+              indexed.byVendorRequirement[key] = [];
+            }
+            indexed.byVendorRequirement[key].push(ev);
           }
-          indexed.byVendorRequirement[key].push(ev);
-        });
 
-        // Index by vendor + criterion
-        (ev.criterion_links || []).forEach(link => {
-          const key = `${ev.vendor_id}_${link.criterion_id}`;
-          if (!indexed.byVendorCriterion[key]) {
-            indexed.byVendorCriterion[key] = [];
+          // Index by vendor + criterion if criterion_id exists
+          if (link.criterion_id) {
+            const key = `${ev.vendor_id}_${link.criterion_id}`;
+            if (!indexed.byVendorCriterion[key]) {
+              indexed.byVendorCriterion[key] = [];
+            }
+            indexed.byVendorCriterion[key].push(ev);
           }
-          indexed.byVendorCriterion[key].push(ev);
         });
       });
 
@@ -617,25 +620,26 @@ export class TraceabilityService extends EvaluatorBaseService {
           *,
           captured_by_user:captured_by(id, full_name)
         `)
-        .eq('vendor_id', vendorId);
+        .eq('vendor_id', vendorId)
+        .eq('is_deleted', false);
 
       if (evError) throw evError;
 
       // Filter evidence linked to this requirement
-      const evidenceIds = evidenceData.map(e => e.id);
-      
+      const evidenceIds = (evidenceData || []).map(e => e.id);
+
       let linkedEvidence = [];
       if (evidenceIds.length > 0) {
         const { data: links, error: linkError } = await supabase
-          .from('evidence_requirements')
+          .from('evidence_links')
           .select('evidence_id')
           .eq('requirement_id', requirementId)
           .in('evidence_id', evidenceIds);
 
         if (linkError) throw linkError;
 
-        const linkedIds = new Set(links.map(l => l.evidence_id));
-        linkedEvidence = evidenceData.filter(e => linkedIds.has(e.id));
+        const linkedIds = new Set((links || []).map(l => l.evidence_id));
+        linkedEvidence = (evidenceData || []).filter(e => linkedIds.has(e.id));
       }
 
       // Get vendor responses related to this criterion/requirement

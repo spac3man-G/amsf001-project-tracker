@@ -11,3 +11,4 @@
 export { default as VendorCard } from './VendorCard';
 export { default as VendorPipeline } from './VendorPipeline';
 export { default as VendorForm } from './VendorForm';
+export { default as VendorsGridView } from './VendorsGridView';

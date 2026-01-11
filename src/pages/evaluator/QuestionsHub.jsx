@@ -23,7 +23,9 @@ import {
   Trash2,
   Link,
   X,
-  ChevronRight
+  ChevronRight,
+  List as ListIcon,
+  Table
 } from 'lucide-react';
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,7 +36,7 @@ import {
   QUESTION_SECTIONS,
   QUESTION_SECTION_CONFIG
 } from '../../services/evaluator';
-import { QuestionList, QuestionForm } from '../../components/evaluator';
+import { QuestionList, QuestionForm, QuestionsGridView } from '../../components/evaluator';
 import './QuestionsHub.css';
 
 function QuestionsHub() {
@@ -50,6 +52,7 @@ function QuestionsHub() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sectionFilter, setSectionFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
   
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -303,7 +306,7 @@ function QuestionsHub() {
         <div className="questions-hub-filters">
           <div className="questions-filter-group">
             <Filter size={16} />
-            <select 
+            <select
               value={sectionFilter}
               onChange={e => setSectionFilter(e.target.value)}
             >
@@ -314,6 +317,23 @@ function QuestionsHub() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="questions-view-toggle">
+            <button
+              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+              title="List View"
+            >
+              <ListIcon size={18} />
+            </button>
+            <button
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid View (Excel-like)"
+            >
+              <Table size={18} />
+            </button>
           </div>
         </div>
       </div>
@@ -330,15 +350,26 @@ function QuestionsHub() {
 
       {/* Content */}
       <div className="questions-hub-content">
-        <QuestionList
-          questionsBySection={filteredSections}
-          onQuestionClick={handleQuestionClick}
-          onQuestionMenuClick={handleQuestionMenuClick}
-          onAddQuestion={handleAddQuestion}
-          onReorder={handleReorderQuestions}
-          loading={loading}
-          emptyMessage="Add questions that will be sent to vendors during the RFP process"
-        />
+        {viewMode === 'grid' ? (
+          <QuestionsGridView
+            questions={filteredSections}
+            requirements={requirements}
+            criteria={criteria}
+            onDataChange={fetchData}
+            onQuestionClick={handleQuestionClick}
+            canManage={true}
+          />
+        ) : (
+          <QuestionList
+            questionsBySection={filteredSections}
+            onQuestionClick={handleQuestionClick}
+            onQuestionMenuClick={handleQuestionMenuClick}
+            onAddQuestion={handleAddQuestion}
+            onReorder={handleReorderQuestions}
+            loading={loading}
+            emptyMessage="Add questions that will be sent to vendors during the RFP process"
+          />
+        )}
       </div>
 
       {/* Context Menu */}

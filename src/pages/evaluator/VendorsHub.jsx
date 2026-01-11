@@ -21,6 +21,7 @@ import {
   Filter,
   LayoutGrid,
   List as ListIcon,
+  Table,
   RefreshCw,
   Download,
   MoreVertical,
@@ -41,7 +42,7 @@ import {
   VENDOR_STATUS_CONFIG,
   PIPELINE_STAGES
 } from '../../services/evaluator';
-import { VendorPipeline, VendorCard, VendorForm } from '../../components/evaluator';
+import { VendorPipeline, VendorCard, VendorForm, VendorsGridView } from '../../components/evaluator';
 import { MarketResearchResults } from '../../components/evaluator/ai';
 import './VendorsHub.css';
 
@@ -427,9 +428,16 @@ function VendorsHub() {
             <button
               className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
               onClick={() => setViewMode('list')}
-              title="List View"
+              title="Card View"
             >
               <ListIcon size={18} />
+            </button>
+            <button
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid View (Excel-like)"
+            >
+              <Table size={18} />
             </button>
           </div>
         </div>
@@ -457,7 +465,7 @@ function VendorsHub() {
 
       {/* Content */}
       <div className="vendors-hub-content">
-        {viewMode === 'pipeline' ? (
+        {viewMode === 'pipeline' && (
           <VendorPipeline
             vendors={vendors}
             loading={loading}
@@ -466,30 +474,41 @@ function VendorsHub() {
             onVendorMenuClick={handleVendorMenuClick}
             onAddVendor={() => setShowAddModal(true)}
           />
-        ) : (
+        )}
+
+        {viewMode === 'grid' && (
+          <VendorsGridView
+            vendors={filteredVendors}
+            onDataChange={fetchVendors}
+            onVendorClick={handleVendorClick}
+            canManage={true}
+          />
+        )}
+
+        {viewMode === 'list' && (
           <div className="vendors-list-view">
             {loading && <div className="vendors-loading">Loading vendors...</div>}
-            
+
             {!loading && filteredVendors.length === 0 && (
               <div className="vendors-empty">
                 <Building2 size={48} />
                 <h3>No vendors found</h3>
                 <p>
-                  {searchTerm || statusFilter !== 'all' 
+                  {searchTerm || statusFilter !== 'all'
                     ? 'Try adjusting your filters'
                     : 'Get started by adding your first vendor'
                   }
                 </p>
                 {!searchTerm && statusFilter === 'all' && (
                   <div className="vendors-empty-actions">
-                    <button 
+                    <button
                       className="vendors-hub-btn vendors-hub-btn-primary"
                       onClick={() => setShowAddModal(true)}
                     >
                       <Plus size={16} />
                       Add Vendor
                     </button>
-                    <button 
+                    <button
                       className="vendors-hub-btn vendors-hub-btn-ai"
                       onClick={handleRunMarketResearch}
                       disabled={runningResearch}

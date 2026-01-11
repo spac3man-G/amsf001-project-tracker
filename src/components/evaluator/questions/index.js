@@ -12,5 +12,6 @@
 export { default as QuestionCard } from './QuestionCard';
 export { default as QuestionForm } from './QuestionForm';
 export { default as QuestionList } from './QuestionList';
+export { default as QuestionsGridView } from './QuestionsGridView';
 export { default as VendorResponseForm } from './VendorResponseForm';
 export { default as VendorResponseViewer } from './VendorResponseViewer';

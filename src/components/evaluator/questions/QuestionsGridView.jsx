@@ -1,13 +1,8 @@
 /**
- * VendorsGridView
+ * QuestionsGridView
  *
- * Excel-like spreadsheet interface for vendor management.
- * Uses AG Grid Community for full Excel-like functionality including:
- * - Drag and drop row reordering
- * - Right-click context menu
- * - Copy/paste from Excel
- * - Cell editing
- * - Row selection
+ * Excel-like spreadsheet interface for vendor questions management.
+ * Uses AG Grid Community for full Excel-like functionality.
  *
  * @version 1.0
  * @created 11 January 2026
@@ -15,7 +10,6 @@
  */
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -35,101 +29,112 @@ import {
   Minimize2,
   ArrowUpFromLine,
   ArrowDownFromLine,
-  ExternalLink,
-  Key
+  Link
 } from 'lucide-react';
-import { vendorsService, VENDOR_STATUSES, VENDOR_STATUS_CONFIG } from '../../../services/evaluator';
+import {
+  vendorQuestionsService,
+  QUESTION_TYPES,
+  QUESTION_TYPE_CONFIG,
+  QUESTION_SECTIONS,
+  QUESTION_SECTION_CONFIG
+} from '../../../services/evaluator';
 import { useEvaluation } from '../../../contexts/EvaluationContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import './VendorsGridView.css';
+import './QuestionsGridView.css';
 
-// Register AG Grid Community modules (required for v31+)
+// Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Status options for dropdown
-const STATUS_OPTIONS = Object.entries(VENDOR_STATUS_CONFIG).map(([value, config]) => ({
+// Type options
+const TYPE_OPTIONS = Object.entries(QUESTION_TYPE_CONFIG).map(([value, config]) => ({
   value,
-  label: config.label,
-  color: config.color
+  label: config.label
 }));
 
-// Custom cell renderer for status badges
-const StatusCellRenderer = (props) => {
-  const config = VENDOR_STATUS_CONFIG[props.value];
-  if (!config) return props.value || '—';
+// Section options
+const SECTION_OPTIONS = Object.entries(QUESTION_SECTION_CONFIG).map(([value, config]) => ({
+  value,
+  label: config.label,
+  order: config.order
+})).sort((a, b) => a.order - b.order);
 
+// Type badge renderer
+const TypeCellRenderer = (props) => {
+  const config = QUESTION_TYPE_CONFIG[props.value];
+  if (!config) return props.value || '—';
   return (
-    <span
-      className="vendor-status-badge"
-      style={{
-        backgroundColor: `${config.color}20`,
-        color: config.color,
-        borderColor: config.color
-      }}
-    >
+    <span className="question-type-badge">
       {config.label}
     </span>
   );
 };
 
-// Custom cell renderer for portal status
-const PortalStatusCellRenderer = (props) => {
-  const { portal_enabled, portal_access_expires_at } = props.data || {};
-
-  if (!portal_enabled) {
-    return <span className="portal-status portal-disabled">Disabled</span>;
-  }
-
-  const expiresAt = portal_access_expires_at ? new Date(portal_access_expires_at) : null;
-  const isExpired = expiresAt && expiresAt < new Date();
-
-  if (isExpired) {
-    return <span className="portal-status portal-expired">Expired</span>;
-  }
-
-  return <span className="portal-status portal-active">Active</span>;
-};
-
-// Custom cell renderer for website links
-const WebsiteCellRenderer = (props) => {
-  if (!props.value) return <span className="text-muted">—</span>;
-
+// Section badge renderer
+const SectionCellRenderer = (props) => {
+  const config = QUESTION_SECTION_CONFIG[props.value];
+  if (!config) return props.value || '—';
   return (
-    <a
-      href={props.value.startsWith('http') ? props.value : `https://${props.value}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="website-link"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {props.value.replace(/^https?:\/\//, '')}
-      <ExternalLink size={12} />
-    </a>
+    <span className="question-section-badge">
+      {config.label}
+    </span>
   );
 };
 
-// Custom cell renderer for primary contact
-const ContactCellRenderer = (props) => {
-  const contact = props.data?.primaryContact;
-  if (!contact?.name && !contact?.email) {
+// Required badge renderer
+const RequiredCellRenderer = (props) => {
+  return props.value ? (
+    <span className="required-badge required-yes">Required</span>
+  ) : (
+    <span className="required-badge required-no">Optional</span>
+  );
+};
+
+// Linked item renderer
+const LinkedItemCellRenderer = (props) => {
+  const { requirement, criterion } = props.data || {};
+  if (requirement) {
+    return (
+      <span className="linked-item linked-requirement">
+        <Link size={12} />
+        {requirement.reference_code}
+      </span>
+    );
+  }
+  if (criterion) {
+    return (
+      <span className="linked-item linked-criterion">
+        <Link size={12} />
+        {criterion.name}
+      </span>
+    );
+  }
+  return <span className="text-muted">—</span>;
+};
+
+// Options preview renderer
+const OptionsCellRenderer = (props) => {
+  const options = props.value;
+  if (!options || !Array.isArray(options) || options.length === 0) {
     return <span className="text-muted">—</span>;
   }
-
+  const displayOptions = options.slice(0, 2).join(', ');
+  const remaining = options.length - 2;
   return (
-    <div className="contact-cell">
-      {contact.name && <span className="contact-name">{contact.name}</span>}
-      {contact.email && <span className="contact-email">{contact.email}</span>}
-    </div>
+    <span className="options-preview">
+      {displayOptions}
+      {remaining > 0 && <span className="options-more">+{remaining} more</span>}
+    </span>
   );
 };
 
-export default function VendorsGridView({
-  vendors,
+export default function QuestionsGridView({
+  questions,
+  requirements = [],
+  criteria = [],
   onDataChange,
-  onVendorClick,
+  onQuestionClick,
   canManage = true
 }) {
-  const navigate = useNavigate();
   const { evaluationId } = useEvaluation();
   const { user } = useAuth();
   const gridRef = useRef(null);
@@ -144,10 +149,19 @@ export default function VendorsGridView({
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, rowIndex: null, rowData: null });
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Sync rows with vendors prop
+  // Flatten questions from sections
   useEffect(() => {
-    setRowData(vendors.map(v => ({ ...v, _isDirty: false })));
-  }, [vendors]);
+    const flatQuestions = questions.flatMap(section =>
+      section.questions.map((q, idx) => ({
+        ...q,
+        sectionKey: section.key,
+        sectionLabel: section.label,
+        questionNumber: `Q${idx + 1}`,
+        _isDirty: false
+      }))
+    );
+    setRowData(flatQuestions);
+  }, [questions]);
 
   // Save debounce timer
   const saveTimerRef = useRef(null);
@@ -158,11 +172,13 @@ export default function VendorsGridView({
 
     setSaveStatus('saving');
     try {
-      await vendorsService.updateVendor(row.id, {
-        name: row.name,
-        description: row.description,
-        website: row.website,
-        notes: row.notes
+      await vendorQuestionsService.updateQuestion(row.id, {
+        question_text: row.question_text,
+        help_text: row.help_text,
+        question_type: row.question_type,
+        section: row.section,
+        is_required: row.is_required,
+        options: row.options
       });
 
       setRowData(prev => prev.map(r =>
@@ -190,74 +206,83 @@ export default function VendorsGridView({
   // Column definitions
   const columnDefs = useMemo(() => [
     {
-      headerName: 'Name',
-      field: 'name',
-      width: 200,
-      pinned: 'left',
-      editable: canManage,
-      cellEditor: 'agTextCellEditor'
+      headerName: '#',
+      field: 'sort_order',
+      width: 60,
+      editable: false,
+      valueFormatter: (params) => `Q${params.rowIndex + 1}`
     },
     {
-      headerName: 'Status',
-      field: 'status',
-      width: 140,
-      editable: canManage,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: STATUS_OPTIONS.map(o => o.value)
-      },
-      cellRenderer: StatusCellRenderer,
-      valueFormatter: (params) => {
-        const opt = STATUS_OPTIONS.find(o => o.value === params.value);
-        return opt?.label || params.value;
-      }
-    },
-    {
-      headerName: 'Description',
-      field: 'description',
-      width: 300,
+      headerName: 'Question Text',
+      field: 'question_text',
+      width: 350,
       editable: canManage,
       cellEditor: 'agLargeTextCellEditor',
       cellEditorPopup: true
     },
     {
-      headerName: 'Website',
-      field: 'website',
-      width: 200,
+      headerName: 'Type',
+      field: 'question_type',
+      width: 130,
       editable: canManage,
-      cellRenderer: WebsiteCellRenderer
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: TYPE_OPTIONS.map(o => o.value)
+      },
+      cellRenderer: TypeCellRenderer,
+      valueFormatter: (params) => {
+        const opt = TYPE_OPTIONS.find(o => o.value === params.value);
+        return opt?.label || params.value;
+      }
     },
     {
-      headerName: 'Primary Contact',
-      field: 'primaryContact',
-      width: 200,
-      editable: false,
-      cellRenderer: ContactCellRenderer
+      headerName: 'Section',
+      field: 'section',
+      width: 160,
+      editable: canManage,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: SECTION_OPTIONS.map(o => o.value)
+      },
+      cellRenderer: SectionCellRenderer,
+      valueFormatter: (params) => {
+        const opt = SECTION_OPTIONS.find(o => o.value === params.value);
+        return opt?.label || params.value;
+      }
     },
     {
-      headerName: 'Portal Status',
-      field: 'portal_enabled',
-      width: 120,
-      editable: false,
-      cellRenderer: PortalStatusCellRenderer
+      headerName: 'Required',
+      field: 'is_required',
+      width: 100,
+      editable: canManage,
+      cellRenderer: RequiredCellRenderer,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: [true, false]
+      },
+      valueFormatter: (params) => params.value ? 'Yes' : 'No'
     },
     {
-      headerName: 'Notes',
-      field: 'notes',
+      headerName: 'Help Text',
+      field: 'help_text',
       width: 250,
       editable: canManage,
       cellEditor: 'agLargeTextCellEditor',
       cellEditorPopup: true
     },
     {
-      headerName: 'Created',
-      field: 'created_at',
-      width: 120,
+      headerName: 'Linked To',
+      field: 'linked',
+      width: 140,
       editable: false,
-      valueFormatter: (params) => {
-        if (!params.value) return '—';
-        return new Date(params.value).toLocaleDateString();
-      }
+      cellRenderer: LinkedItemCellRenderer
+    },
+    {
+      headerName: 'Options',
+      field: 'options',
+      width: 180,
+      editable: false,
+      cellRenderer: OptionsCellRenderer
     }
   ], [canManage]);
 
@@ -272,40 +297,60 @@ export default function VendorsGridView({
   // Handle cell value change
   const onCellValueChanged = useCallback((event) => {
     const updatedRow = { ...event.data, _isDirty: true };
-
-    // Handle status change specially
-    if (event.colDef.field === 'status' && event.oldValue !== event.newValue) {
-      vendorsService.updateStatus(event.data.id, event.newValue, user?.id)
-        .then(() => {
-          setSaveStatus('saved');
-          setTimeout(() => setSaveStatus(null), 2000);
-          onDataChange?.();
-        })
-        .catch(err => {
-          console.error('Status update error:', err);
-          setSaveStatus('error');
-        });
-      return;
-    }
-
     setRowData(prev => prev.map(r => r.id === updatedRow.id ? updatedRow : r));
     debouncedSave(updatedRow);
-  }, [debouncedSave, user?.id, onDataChange]);
+  }, [debouncedSave]);
 
-  // Handle row click to navigate to detail
+  // Handle row click
   const onRowClicked = useCallback((event) => {
-    if (event.event.target.closest('a')) return; // Don't navigate if clicking a link
-    if (onVendorClick) {
-      onVendorClick(event.data);
-    } else {
-      navigate(`/evaluator/vendors/${event.data.id}`);
+    if (onQuestionClick) {
+      onQuestionClick(event.data);
     }
-  }, [navigate, onVendorClick]);
+  }, [onQuestionClick]);
 
   // Handle grid ready
   const onGridReady = useCallback((params) => {
     params.api.sizeColumnsToFit();
   }, []);
+
+  // Add new row
+  const handleAddRow = useCallback(async () => {
+    if (!canManage || !evaluationId) return;
+
+    try {
+      const newQuestion = await vendorQuestionsService.createQuestion({
+        evaluation_project_id: evaluationId,
+        question_text: 'New Question',
+        question_type: QUESTION_TYPES.TEXT,
+        section: QUESTION_SECTIONS.OTHER,
+        is_required: false
+      });
+
+      onDataChange?.();
+    } catch (err) {
+      console.error('Add question error:', err);
+    }
+  }, [canManage, evaluationId, onDataChange]);
+
+  // Insert row at position
+  const handleInsertRow = useCallback(async (index, position = 'below') => {
+    if (!canManage || !evaluationId) return;
+
+    try {
+      const targetRow = rowData[index];
+      const newQuestion = await vendorQuestionsService.createQuestion({
+        evaluation_project_id: evaluationId,
+        question_text: 'New Question',
+        question_type: QUESTION_TYPES.TEXT,
+        section: targetRow?.section || QUESTION_SECTIONS.OTHER,
+        is_required: false
+      });
+
+      onDataChange?.();
+    } catch (err) {
+      console.error('Insert question error:', err);
+    }
+  }, [canManage, evaluationId, rowData, onDataChange]);
 
   // Delete selected rows
   const handleDeleteSelected = useCallback(async () => {
@@ -317,11 +362,11 @@ export default function VendorsGridView({
     const selectedRows = api.getSelectedRows();
     if (selectedRows.length === 0) return;
 
-    if (!confirm(`Delete ${selectedRows.length} vendor(s)?`)) return;
+    if (!confirm(`Delete ${selectedRows.length} question(s)?`)) return;
 
     try {
       for (const row of selectedRows) {
-        await vendorsService.delete(row.id, user?.id);
+        await vendorQuestionsService.delete(row.id, user?.id);
       }
       onDataChange?.();
     } catch (err) {
@@ -337,13 +382,13 @@ export default function VendorsGridView({
     const selectedRows = api.getSelectedRows();
     if (selectedRows.length === 0) return;
 
-    const headers = ['Name', 'Status', 'Description', 'Website', 'Notes'];
+    const headers = ['Question', 'Type', 'Section', 'Required', 'Help Text'];
     const csvRows = selectedRows.map(r => [
-      r.name || '',
-      VENDOR_STATUS_CONFIG[r.status]?.label || r.status || '',
-      r.description || '',
-      r.website || '',
-      r.notes || ''
+      r.question_text || '',
+      QUESTION_TYPE_CONFIG[r.question_type]?.label || r.question_type || '',
+      QUESTION_SECTION_CONFIG[r.section]?.label || r.section || '',
+      r.is_required ? 'Yes' : 'No',
+      r.help_text || ''
     ].join('\t'));
 
     const csv = [headers.join('\t'), ...csvRows].join('\n');
@@ -389,20 +434,13 @@ export default function VendorsGridView({
     setIsFullscreen(prev => !prev);
   }, []);
 
-  // Handle escape key for fullscreen
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isFullscreen]);
-
-  // Keyboard shortcuts
+  // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isFullscreen) setIsFullscreen(false);
+        if (showKeyboardHelp) setShowKeyboardHelp(false);
+      }
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
@@ -415,43 +453,29 @@ export default function VendorsGridView({
         e.preventDefault();
         setShowKeyboardHelp(true);
       }
-      if (e.key === 'Escape' && showKeyboardHelp) {
-        setShowKeyboardHelp(false);
-      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, showKeyboardHelp]);
-
-  // Enable portal access
-  const handleEnablePortal = useCallback(async (vendor) => {
-    try {
-      await vendorsService.generatePortalAccessCode(vendor.id);
-      onDataChange?.();
-    } catch (err) {
-      console.error('Enable portal error:', err);
-    }
-    closeContextMenu();
-  }, [onDataChange, closeContextMenu]);
+  }, [isFullscreen, showKeyboardHelp, handleUndo, handleRedo]);
 
   return (
-    <div className={`vendors-grid-view ${isFullscreen ? 'fullscreen-mode' : ''}`}>
+    <div className={`questions-grid-view ${isFullscreen ? 'fullscreen-mode' : ''}`}>
       {/* Toolbar */}
       <div className="grid-toolbar">
         <div className="toolbar-left">
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={handleCopy}
-          >
+          {canManage && (
+            <button className="btn btn-primary btn-sm" onClick={handleAddRow}>
+              <Plus size={14} />
+              Add Question
+            </button>
+          )}
+          <button className="btn btn-secondary btn-sm" onClick={handleCopy}>
             <Copy size={14} />
             Copy
           </button>
           {canManage && (
-            <button
-              className="btn btn-danger btn-sm"
-              onClick={handleDeleteSelected}
-            >
+            <button className="btn btn-danger btn-sm" onClick={handleDeleteSelected}>
               <Trash2 size={14} />
               Delete Selected
             </button>
@@ -460,7 +484,7 @@ export default function VendorsGridView({
 
         <div className="toolbar-center">
           <span className="grid-info">
-            {rowData.length} vendors • Click row to view details
+            {rowData.length} questions • Click row to edit details
           </span>
         </div>
 
@@ -574,27 +598,24 @@ export default function VendorsGridView({
           <button
             className="context-menu-item"
             onClick={() => {
-              if (onVendorClick) {
-                onVendorClick(contextMenu.rowData);
-              } else {
-                navigate(`/evaluator/vendors/${contextMenu.rowData.id}`);
-              }
+              handleInsertRow(contextMenu.rowIndex, 'above');
               closeContextMenu();
             }}
           >
-            <ExternalLink size={14} />
-            View Details
+            <ArrowUpFromLine size={14} />
+            Insert Above
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              handleInsertRow(contextMenu.rowIndex, 'below');
+              closeContextMenu();
+            }}
+          >
+            <ArrowDownFromLine size={14} />
+            Insert Below
           </button>
           <div className="context-menu-divider" />
-          {!contextMenu.rowData?.portal_enabled && (
-            <button
-              className="context-menu-item"
-              onClick={() => handleEnablePortal(contextMenu.rowData)}
-            >
-              <Key size={14} />
-              Enable Portal Access
-            </button>
-          )}
           <button
             className="context-menu-item"
             onClick={() => {
@@ -621,15 +642,15 @@ export default function VendorsGridView({
             }}
           >
             <Trash2 size={14} />
-            Delete Vendor(s)
+            Delete Question(s)
           </button>
         </div>
       )}
 
       {/* Status bar */}
       <div className="grid-status-bar">
-        <span>Showing {rowData.length} vendors</span>
-        <span className="hint">Click row to view details • Right-click for options</span>
+        <span>Showing {rowData.length} questions</span>
+        <span className="hint">Right-click for options • Click row to edit</span>
         <button
           className="keyboard-help-btn"
           onClick={() => setShowKeyboardHelp(true)}
@@ -658,10 +679,6 @@ export default function VendorsGridView({
                   <div className="shortcut-item">
                     <kbd>Tab</kbd> / <kbd>Shift+Tab</kbd>
                     <span>Next/Previous cell</span>
-                  </div>
-                  <div className="shortcut-item">
-                    <kbd>Enter</kbd>
-                    <span>View vendor details</span>
                   </div>
                   <div className="shortcut-item">
                     <kbd>Arrow keys</kbd>

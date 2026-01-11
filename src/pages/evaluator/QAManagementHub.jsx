@@ -28,7 +28,9 @@ import {
   AlertCircle,
   Settings,
   Calendar,
-  Building2
+  Building2,
+  List as ListIcon,
+  Table
 } from 'lucide-react';
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,6 +42,7 @@ import {
   vendorsService
 } from '../../services/evaluator';
 import { formatDistanceToNow, format } from 'date-fns';
+import { QAGridView } from '../../components/evaluator';
 import './QAManagementHub.css';
 
 function QAManagementHub() {
@@ -55,6 +58,7 @@ function QAManagementHub() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [vendorFilter, setVendorFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
 
   // Expanded rows
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -406,6 +410,23 @@ function QAManagementHub() {
               ))}
             </select>
           </div>
+
+          <div className="qa-view-toggle">
+            <button
+              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+              title="List View"
+            >
+              <ListIcon size={18} />
+            </button>
+            <button
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid View (Excel-like)"
+            >
+              <Table size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -436,6 +457,29 @@ function QAManagementHub() {
                 : 'No questions match your filters.'}
             </p>
           </div>
+        ) : viewMode === 'grid' ? (
+          <QAGridView
+            questions={filteredQuestions}
+            vendors={vendors}
+            onDataChange={fetchData}
+            onQuestionClick={(question) => {
+              setExpandedIds(prev => new Set([...prev, question.id]));
+              handleStartResponding(question, 'answer');
+            }}
+            onAnswer={(question) => handleStartResponding(question, 'answer')}
+            onShare={(question) => setSharingQuestion(question)}
+            onDelete={async (question) => {
+              if (confirm('Are you sure you want to delete this Q&A item?')) {
+                try {
+                  await vendorQAService.delete(question.id);
+                  fetchData();
+                } catch (err) {
+                  setError('Failed to delete Q&A item.');
+                }
+              }
+            }}
+            canManage={true}
+          />
         ) : (
           <div className="qa-list">
             {filteredQuestions.map((question) => {

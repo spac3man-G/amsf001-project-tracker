@@ -54,10 +54,11 @@ export {
 // Future components (will be added in later phases)
 
 // Phase 5: Vendors
-export { 
-  VendorCard, 
+export {
+  VendorCard,
   VendorPipeline,
-  VendorForm
+  VendorForm,
+  VendorsGridView
 } from './vendors';
 
 // Phase 5: Questions
@@ -65,6 +66,7 @@ export {
   QuestionCard,
   QuestionForm,
   QuestionList,
+  QuestionsGridView,
   VendorResponseForm,
   VendorResponseViewer
 } from './questions';
@@ -112,6 +114,11 @@ export {
   SessionTimeout,
   useSessionTimeout
 } from './shared';
+
+// Q&A Components (FE-007)
+export {
+  QAGridView
+} from './qa';
 
 // v1.1: Vendor Intelligence
 export { default as VendorIntelligencePanel } from './VendorIntelligencePanel';
