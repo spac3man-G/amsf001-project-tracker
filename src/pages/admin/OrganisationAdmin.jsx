@@ -577,10 +577,28 @@ function MembersTab({
 
   const handleResendInvitation = async (invitation) => {
     try {
-      await invitationService.resendInvitation(invitation.id);
-      showSuccess('Invitation resent');
+      // Regenerate token and extend expiry
+      const updatedInvitation = await invitationService.resendInvitation(invitation.id);
+
+      if (updatedInvitation) {
+        // Send the email with new token
+        const acceptUrl = `${window.location.origin}/accept-invite?token=${updatedInvitation.token}`;
+        await emailService.sendInvitationEmail({
+          email: invitation.email,
+          orgName: organisation.name,
+          orgDisplayName: organisation.display_name || organisation.name,
+          inviterName: user.full_name || user.email,
+          role: invitation.org_role,
+          acceptUrl: acceptUrl,
+        });
+        showSuccess('Invitation resent');
+      } else {
+        showError('Failed to regenerate invitation');
+      }
+
       fetchPendingInvitations();
     } catch (error) {
+      console.error('Resend error:', error);
       showError('Failed to resend invitation');
     }
   };
