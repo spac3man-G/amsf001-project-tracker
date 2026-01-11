@@ -401,6 +401,13 @@ export default function RequirementsGridView({
     console.log('Row drag end:', event);
   }, []);
 
+  // Handle grid ready
+  const onGridReady = useCallback((params) => {
+    console.log('AG Grid ready, rowData:', rowData?.length);
+    // Auto-size columns to fit content
+    params.api.sizeColumnsToFit();
+  }, [rowData]);
+
   // Add new row
   const handleAddRow = useCallback(() => {
     if (!canManage) return;
@@ -750,34 +757,28 @@ export default function RequirementsGridView({
       </div>
 
       {/* AG Grid */}
-      <div
-        className="ag-theme-alpine grid-container"
-        style={{ height: '500px', width: '100%' }}
-      >
-        <AgGridReact
-          ref={gridRef}
-          rowData={rowData}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          rowSelection="multiple"
-          rowDragManaged={true}
-          animateRows={true}
-          enableCellTextSelection={true}
-          ensureDomOrder={true}
-          suppressRowClickSelection={false}
-          rowDragMultiRow={true}
-          onCellValueChanged={onCellValueChanged}
-          onRowDragEnd={onRowDragEnd}
-          getContextMenuItems={getContextMenuItems}
-          getRowId={(params) => params.data.id}
-          rowHeight={40}
-          headerHeight={44}
-          suppressCopyRowsToClipboard={false}
-          undoRedoCellEditing={true}
-          undoRedoCellEditingLimit={50}
-          stopEditingWhenCellsLoseFocus={true}
-          domLayout="normal"
-        />
+      <div className="ag-grid-wrapper">
+        <div
+          className="ag-theme-alpine"
+          style={{ width: '100%', height: '600px' }}
+        >
+          <AgGridReact
+            ref={gridRef}
+            rowData={rowData}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            rowSelection="multiple"
+            rowDragManaged={true}
+            animateRows={true}
+            onGridReady={onGridReady}
+            onCellValueChanged={onCellValueChanged}
+            onRowDragEnd={onRowDragEnd}
+            getContextMenuItems={getContextMenuItems}
+            getRowId={(params) => String(params.data.id)}
+            rowHeight={40}
+            headerHeight={44}
+          />
+        </div>
       </div>
 
       {/* Status bar */}
