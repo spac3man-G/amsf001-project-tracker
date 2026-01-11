@@ -3,15 +3,6 @@
  * @phase FE-007 - Excel-Like Requirements Grid Interface
  */
 
-.requirements-grid-view {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
 .requirements-grid-view:focus {
   outline: none;
 }
@@ -190,8 +181,17 @@
 .grid-container {
   flex: 1;
   width: 100%;
-  height: calc(100vh - 380px);
-  min-height: 400px;
+  min-height: 500px;
+}
+
+.requirements-grid-view {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 600px;
 }
 
 /* Drag Handle */

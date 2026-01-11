@@ -750,7 +750,10 @@ export default function RequirementsGridView({
       </div>
 
       {/* AG Grid */}
-      <div className="ag-theme-alpine grid-container">
+      <div
+        className="ag-theme-alpine grid-container"
+        style={{ height: '500px', width: '100%' }}
+      >
         <AgGridReact
           ref={gridRef}
           rowData={rowData}
@@ -761,7 +764,7 @@ export default function RequirementsGridView({
           animateRows={true}
           enableCellTextSelection={true}
           ensureDomOrder={true}
-          suppressRowClickSelection={true}
+          suppressRowClickSelection={false}
           rowDragMultiRow={true}
           onCellValueChanged={onCellValueChanged}
           onRowDragEnd={onRowDragEnd}
@@ -770,10 +773,10 @@ export default function RequirementsGridView({
           rowHeight={40}
           headerHeight={44}
           suppressCopyRowsToClipboard={false}
-          enableRangeSelection={false}
           undoRedoCellEditing={true}
           undoRedoCellEditingLimit={50}
           stopEditingWhenCellsLoseFocus={true}
+          domLayout="normal"
         />
       </div>
 
