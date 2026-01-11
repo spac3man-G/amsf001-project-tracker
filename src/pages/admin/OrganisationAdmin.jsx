@@ -515,12 +515,14 @@ function MembersTab({
       if (result.isNewUser) {
         // New user - send invitation email
         try {
+          const acceptUrl = `${window.location.origin}/accept-invite?token=${result.invitation.token}`;
           await emailService.sendInvitationEmail({
-            to: inviteEmail.trim(),
-            organisationName: organisation.display_name || organisation.name,
-            inviterName: user.email,
-            token: result.invitation.token,
+            email: inviteEmail.trim(),
+            orgName: organisation.name,
+            orgDisplayName: organisation.display_name || organisation.name,
+            inviterName: user.full_name || user.email,
             role: inviteRole,
+            acceptUrl: acceptUrl,
           });
           const projectMsg = projectAssignments.length > 0
             ? ` with ${projectAssignments.length} project assignment(s)`
