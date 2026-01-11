@@ -808,6 +808,20 @@ export class VendorsService extends EvaluatorBaseService {
   }
 
   /**
+   * Get all vendors for an evaluation project (simple list)
+   * @param {string} evaluationProjectId - Evaluation Project UUID
+   * @returns {Promise<Array>} Array of vendors
+   */
+  async getByEvaluationProject(evaluationProjectId) {
+    try {
+      return await this.getAllWithDetails(evaluationProjectId);
+    } catch (error) {
+      console.error('VendorsService getByEvaluationProject failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get vendor summary statistics for dashboard
    * @param {string} evaluationProjectId - Evaluation Project UUID
    * @returns {Promise<Object>} Summary statistics
