@@ -1,17 +1,19 @@
 /**
  * Invitation Service
- * 
+ *
  * Manages organisation invitations for users who don't yet have accounts.
- * 
+ *
  * Features:
  * - Create invitations with secure tokens
  * - Validate and retrieve invitations by token
  * - Accept invitations (create user_organisations record)
  * - Revoke/resend invitations
  * - List pending invitations for an organisation
- * 
- * @version 1.0
+ * - Support project pre-assignments with invitations
+ *
+ * @version 2.0
  * @created 24 December 2025
+ * @updated 11 January 2026 - Added project assignments support
  */
 
 import { supabase } from '../lib/supabase';
@@ -44,9 +46,10 @@ class InvitationService {
    * @param {string} params.orgRole - Role to assign (org_admin, org_member)
    * @param {string} params.invitedBy - User ID of person sending invite
    * @param {number} params.expiryDays - Days until expiry (default 7)
+   * @param {Array<{projectId: string, role: string}>} params.projectAssignments - Optional project assignments
    * @returns {Promise<Object>} Created invitation with token
    */
-  async createInvitation({ organisationId, email, orgRole = 'org_member', invitedBy, expiryDays = 7, skipLimitCheck = false }) {
+  async createInvitation({ organisationId, email, orgRole = 'org_member', invitedBy, expiryDays = 7, skipLimitCheck = false, projectAssignments = [] }) {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
@@ -123,17 +126,21 @@ class InvitationService {
       // Check if user already exists
       const { data: existingUser } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, full_name, email')
         .eq('email', normalizedEmail)
         .single();
-      
+
       if (existingUser) {
-        return {
-          success: false,
-          error: 'USER_EXISTS',
-          message: 'User already has an account',
-          userId: existingUser.id
-        };
+        // User exists - add them immediately to org and projects
+        return this.addExistingUserToOrgAndProjects({
+          organisationId,
+          userId: existingUser.id,
+          userEmail: existingUser.email,
+          userName: existingUser.full_name,
+          orgRole,
+          invitedBy,
+          projectAssignments
+        });
       }
       
       // Check if there's already a pending invitation for this email + org
@@ -181,14 +188,175 @@ class InvitationService {
         console.error('Error creating invitation:', error);
         throw error;
       }
-      
+
+      // Add project assignments if provided
+      if (invitation && projectAssignments.length > 0) {
+        const { error: assignmentError } = await supabase
+          .from('invitation_project_assignments')
+          .insert(
+            projectAssignments.map(pa => ({
+              invitation_id: invitation.id,
+              project_id: pa.projectId,
+              role: pa.role
+            }))
+          );
+
+        if (assignmentError) {
+          console.error('Error creating project assignments:', assignmentError);
+          // Non-fatal - invitation still created, but warn about failed assignments
+        }
+      }
+
       return {
         success: true,
-        invitation: invitation
+        invitation: invitation,
+        isNewUser: true,
+        projectAssignmentsCount: projectAssignments.length
       };
     } catch (error) {
       console.error('InvitationService.createInvitation error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Add existing user to organisation and projects immediately
+   * Called when inviting a user who already has an account
+   * @param {Object} params
+   * @returns {Promise<Object>}
+   */
+  async addExistingUserToOrgAndProjects({
+    organisationId,
+    userId,
+    userEmail,
+    userName,
+    orgRole,
+    invitedBy,
+    projectAssignments = []
+  }) {
+    try {
+      // 1. Check if already a member
+      const { data: existingMembership } = await supabase
+        .from('user_organisations')
+        .select('id, is_active')
+        .eq('organisation_id', organisationId)
+        .eq('user_id', userId)
+        .single();
+
+      if (existingMembership) {
+        if (existingMembership.is_active) {
+          return {
+            success: false,
+            error: 'ALREADY_MEMBER',
+            message: 'User is already a member of this organisation',
+            isNewUser: false
+          };
+        } else {
+          // Reactivate inactive membership
+          await supabase
+            .from('user_organisations')
+            .update({
+              is_active: true,
+              org_role: orgRole,
+              accepted_at: new Date().toISOString()
+            })
+            .eq('id', existingMembership.id);
+        }
+      } else {
+        // Add to organisation
+        const { error: orgError } = await supabase
+          .from('user_organisations')
+          .insert({
+            organisation_id: organisationId,
+            user_id: userId,
+            org_role: orgRole,
+            is_active: true,
+            is_default: false,
+            invited_by: invitedBy,
+            invited_at: new Date().toISOString(),
+            accepted_at: new Date().toISOString()
+          });
+
+        if (orgError) {
+          console.error('Error adding user to organisation:', orgError);
+          throw orgError;
+        }
+      }
+
+      // 2. Add to projects
+      const projectResults = [];
+
+      for (const pa of projectAssignments) {
+        try {
+          // Check if already assigned to this project
+          const { data: existingAssignment } = await supabase
+            .from('user_projects')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('project_id', pa.projectId)
+            .single();
+
+          if (existingAssignment) {
+            projectResults.push({
+              projectId: pa.projectId,
+              success: false,
+              error: 'Already assigned to this project'
+            });
+            continue;
+          }
+
+          // Add to project
+          const { error: projectError } = await supabase
+            .from('user_projects')
+            .insert({
+              user_id: userId,
+              project_id: pa.projectId,
+              role: pa.role,
+              is_default: false,
+              created_at: new Date().toISOString()
+            });
+
+          if (projectError) {
+            projectResults.push({
+              projectId: pa.projectId,
+              success: false,
+              error: projectError.message
+            });
+          } else {
+            projectResults.push({
+              projectId: pa.projectId,
+              success: true
+            });
+          }
+        } catch (err) {
+          projectResults.push({
+            projectId: pa.projectId,
+            success: false,
+            error: err.message
+          });
+        }
+      }
+
+      const successfulProjects = projectResults.filter(r => r.success).length;
+      const failedProjects = projectResults.filter(r => !r.success).length;
+
+      return {
+        success: true,
+        isNewUser: false,
+        userId: userId,
+        userName: userName,
+        userEmail: userEmail,
+        projectResults: projectResults,
+        message: failedProjects > 0
+          ? `Added to organisation. ${successfulProjects} project(s) assigned, ${failedProjects} failed.`
+          : `Added to organisation${successfulProjects > 0 ? ` and ${successfulProjects} project(s)` : ''}.`
+      };
+    } catch (error) {
+      console.error('Error adding existing user:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to add user'
+      };
     }
   }
 
@@ -326,6 +494,16 @@ class InvitationService {
           organisation:organisations (
             name,
             display_name
+          ),
+          project_assignments:invitation_project_assignments (
+            id,
+            project_id,
+            role,
+            project:projects (
+              id,
+              name,
+              reference
+            )
           )
         `)
         .eq('organisation_id', organisationId)

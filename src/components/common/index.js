@@ -31,3 +31,6 @@ export { default as MultiSelectList } from './MultiSelectList';
 // Subscription & Limits
 export { default as UpgradePrompt } from './UpgradePrompt';
 export { default as UsageMeter, UsageInline, UsageSummaryCard } from './UsageMeter';
+
+// Project/User Management
+export { default as ProjectAssignmentSelector } from './ProjectAssignmentSelector';

@@ -12,11 +12,11 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { 
+import {
   Mail, Clock, Copy, RefreshCw, X, Check,
-  AlertCircle, Shield, User
+  AlertCircle, Shield, User, FolderKanban
 } from 'lucide-react';
-import { ORG_ROLE_CONFIG } from '../../lib/permissionMatrix';
+import { ORG_ROLE_CONFIG, ROLE_CONFIG } from '../../lib/permissionMatrix';
 import './PendingInvitationCard.css';
 
 /**
@@ -161,6 +161,24 @@ export default function PendingInvitationCard({
               {invitation.invited_at && (
                 <> on {new Date(invitation.invited_at).toLocaleDateString()}</>
               )}
+            </div>
+          )}
+
+          {/* Project Assignments */}
+          {invitation.project_assignments && invitation.project_assignments.length > 0 && (
+            <div className="invitation-projects">
+              <FolderKanban size={12} />
+              <span className="projects-label">
+                {invitation.project_assignments.length} project{invitation.project_assignments.length !== 1 ? 's' : ''}:
+              </span>
+              <span className="projects-list">
+                {invitation.project_assignments.map((pa, idx) => (
+                  <span key={pa.id || idx} className="project-chip">
+                    {pa.project?.reference || 'Unknown'}
+                    <span className="project-role">({ROLE_CONFIG[pa.role]?.label || pa.role})</span>
+                  </span>
+                ))}
+              </span>
             </div>
           )}
         </div>

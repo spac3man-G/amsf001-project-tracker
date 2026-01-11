@@ -103,6 +103,52 @@
   color: #94a3b8;
 }
 
+/* Project Assignments */
+.invitation-projects {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.invitation-projects svg {
+  color: #8b5cf6;
+  flex-shrink: 0;
+}
+
+.projects-label {
+  font-weight: 500;
+  color: #64748b;
+}
+
+.projects-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.project-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background: #f3e8ff;
+  color: #7c3aed;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.project-chip .project-role {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
 /* Actions */
 .invitation-actions {
   display: flex;

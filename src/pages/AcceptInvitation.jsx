@@ -22,10 +22,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { invitationService } from '../services';
-import { 
-  Building2, Mail, Shield, User, CheckCircle, 
-  AlertCircle, Loader2, Eye, EyeOff, UserPlus
+import {
+  Building2, Mail, Shield, User, CheckCircle,
+  AlertCircle, Loader2, Eye, EyeOff, UserPlus, FolderKanban
 } from 'lucide-react';
+import { ROLE_CONFIG } from '../lib/permissionMatrix';
 
 // Styles
 const styles = {
@@ -128,6 +129,45 @@ const styles = {
     borderRadius: '6px',
     fontSize: '0.8125rem',
     fontWeight: '600',
+  },
+  projectsSection: {
+    marginTop: '0.75rem',
+    paddingTop: '0.75rem',
+    borderTop: '1px solid #e2e8f0',
+  },
+  projectsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    fontSize: '0.75rem',
+    color: '#64748b',
+    marginBottom: '0.5rem',
+  },
+  projectsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.375rem',
+  },
+  projectItem: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0.5rem 0.75rem',
+    backgroundColor: '#f8fafc',
+    borderRadius: '6px',
+    fontSize: '0.8125rem',
+  },
+  projectName: {
+    fontWeight: '500',
+    color: '#1e293b',
+  },
+  projectRoleBadge: {
+    padding: '0.125rem 0.5rem',
+    backgroundColor: '#f3e8ff',
+    color: '#7c3aed',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    fontWeight: '500',
   },
   formGroup: {
     marginBottom: '1.25rem',
@@ -493,7 +533,10 @@ export default function AcceptInvitation() {
             <h1 style={styles.invalidTitle}>Welcome!</h1>
             <p style={styles.invalidText}>
               Your account has been created and you've joined{' '}
-              <strong>{invitation.organisation_display_name || invitation.organisation_name}</strong>.
+              <strong>{invitation.organisation_display_name || invitation.organisation_name}</strong>
+              {invitation.project_assignments?.length > 0 && (
+                <> with access to {invitation.project_assignments.length} project{invitation.project_assignments.length !== 1 ? 's' : ''}</>
+              )}.
               <br />
               Redirecting to dashboard...
             </p>
@@ -550,13 +593,35 @@ export default function AcceptInvitation() {
               </div>
             </div>
             {invitation.inviter_name && (
-              <div style={styles.detailRowLast}>
+              <div style={invitation.project_assignments?.length > 0 ? styles.detailRow : styles.detailRowLast}>
                 <div style={styles.detailIcon}>
                   <User size={18} style={{ color: '#64748b' }} />
                 </div>
                 <div style={styles.detailText}>
                   <div style={styles.detailLabel}>Invited by</div>
                   <div style={styles.detailValue}>{invitation.inviter_name}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Project Assignments */}
+            {invitation.project_assignments && invitation.project_assignments.length > 0 && (
+              <div style={styles.projectsSection}>
+                <div style={styles.projectsHeader}>
+                  <FolderKanban size={14} style={{ color: '#8b5cf6' }} />
+                  <span>You'll have access to {invitation.project_assignments.length} project{invitation.project_assignments.length !== 1 ? 's' : ''}:</span>
+                </div>
+                <div style={styles.projectsList}>
+                  {invitation.project_assignments.map((pa, idx) => (
+                    <div key={pa.project_id || idx} style={styles.projectItem}>
+                      <span style={styles.projectName}>
+                        {pa.project_reference} - {pa.project_name}
+                      </span>
+                      <span style={styles.projectRoleBadge}>
+                        {ROLE_CONFIG[pa.role]?.label || pa.role}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

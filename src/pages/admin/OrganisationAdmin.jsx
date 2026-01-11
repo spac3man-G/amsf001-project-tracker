@@ -27,7 +27,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useProjectRole } from '../../hooks/useProjectRole';
 import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
-import { LoadingSpinner, ConfirmDialog } from '../../components/common';
+import { LoadingSpinner, ConfirmDialog, ProjectAssignmentSelector } from '../../components/common';
 import { PendingInvitationCard } from '../../components/organisation';
 import { hasOrgPermission, ORG_ROLES, ORG_ROLE_CONFIG, ROLE_CONFIG, ROLE_OPTIONS } from '../../lib/permissionMatrix';
 import { organisationService, invitationService, emailService, partnersService } from '../../services';
@@ -450,6 +450,7 @@ function MembersTab({
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState(ORG_ROLES.ORG_MEMBER);
+  const [projectAssignments, setProjectAssignments] = useState([]);
   const [inviting, setInviting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, member: null });
   const [roleDropdown, setRoleDropdown] = useState(null);
@@ -475,7 +476,7 @@ function MembersTab({
   const fetchPendingInvitations = useCallback(async () => {
     if (!organisation?.id) return;
     try {
-      const data = await invitationService.getPendingInvitations(organisation.id);
+      const data = await invitationService.listPendingInvitations(organisation.id);
       setPendingInvitations(data || []);
     } catch (error) {
       console.error('Error fetching invitations:', error);
@@ -493,30 +494,54 @@ function MembersTab({
 
     setInviting(true);
     try {
-      const result = await invitationService.createInvitation(
-        organisation.id,
-        inviteEmail.trim(),
-        inviteRole,
-        user.id
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to send invitation');
-      }
-
-      // Send email
-      await emailService.sendInvitationEmail({
-        to: inviteEmail.trim(),
-        organisationName: organisation.display_name || organisation.name,
-        inviterName: user.email,
-        token: result.invitation.token,
-        role: inviteRole,
+      const result = await invitationService.createInvitation({
+        organisationId: organisation.id,
+        email: inviteEmail.trim(),
+        orgRole: inviteRole,
+        invitedBy: user.id,
+        projectAssignments: projectAssignments
       });
 
-      showSuccess(`Invitation sent to ${inviteEmail}`);
+      if (!result.success) {
+        // Handle specific error types
+        if (result.error === 'ALREADY_MEMBER') {
+          showWarning(result.message || 'User is already a member of this organisation');
+        } else {
+          throw new Error(result.message || result.error || 'Failed to send invitation');
+        }
+        return;
+      }
+
+      if (result.isNewUser) {
+        // New user - send invitation email
+        try {
+          await emailService.sendInvitationEmail({
+            to: inviteEmail.trim(),
+            organisationName: organisation.display_name || organisation.name,
+            inviterName: user.email,
+            token: result.invitation.token,
+            role: inviteRole,
+          });
+          const projectMsg = projectAssignments.length > 0
+            ? ` with ${projectAssignments.length} project assignment(s)`
+            : '';
+          showSuccess(`Invitation sent to ${inviteEmail}${projectMsg}`);
+        } catch (emailErr) {
+          console.error('Email send failed:', emailErr);
+          showWarning(`Invitation created but email failed. Share the invitation link manually.`);
+        }
+        fetchPendingInvitations();
+      } else {
+        // Existing user - added immediately
+        showSuccess(result.message || `${result.userName || inviteEmail} added to organisation`);
+        fetchMembers();
+      }
+
+      // Reset form
       setInviteEmail('');
+      setInviteRole(ORG_ROLES.ORG_MEMBER);
+      setProjectAssignments([]);
       setShowInviteForm(false);
-      fetchPendingInvitations();
     } catch (error) {
       console.error('Error inviting:', error);
       showError(error.message);
@@ -598,31 +623,60 @@ function MembersTab({
         
         {showInviteForm && (
           <div className="section-body">
-            <form onSubmit={handleInvite} className="invite-form">
-              <div className="form-row">
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="Email address"
-                  required
-                />
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                >
-                  <option value={ORG_ROLES.ORG_MEMBER}>Member</option>
-                  <option value={ORG_ROLES.ORG_ADMIN}>Admin</option>
-                </select>
-                <button type="submit" className="btn-primary" disabled={inviting}>
-                  {inviting ? 'Sending...' : 'Send'}
-                </button>
-                <button 
-                  type="button" 
+            <form onSubmit={handleInvite} className="invite-form-expanded">
+              <div className="form-grid-2col">
+                <div className="form-group">
+                  <label htmlFor="inviteEmail">Email Address</label>
+                  <input
+                    type="email"
+                    id="inviteEmail"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="inviteOrgRole">Organisation Role</label>
+                  <select
+                    id="inviteOrgRole"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                  >
+                    <option value={ORG_ROLES.ORG_MEMBER}>Member</option>
+                    <option value={ORG_ROLES.ORG_ADMIN}>Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              <ProjectAssignmentSelector
+                organisationId={organisation.id}
+                assignments={projectAssignments}
+                onChange={setProjectAssignments}
+                disabled={inviting}
+                defaultRole="supplier_pm"
+              />
+
+              <div className="form-actions" style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
                   className="btn-secondary"
-                  onClick={() => setShowInviteForm(false)}
+                  onClick={() => {
+                    setShowInviteForm(false);
+                    setInviteEmail('');
+                    setInviteRole(ORG_ROLES.ORG_MEMBER);
+                    setProjectAssignments([]);
+                  }}
                 >
                   Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={inviting}>
+                  {inviting
+                    ? 'Adding...'
+                    : projectAssignments.length > 0
+                      ? `Add to Org + ${projectAssignments.length} Project${projectAssignments.length !== 1 ? 's' : ''}`
+                      : 'Add to Organisation'
+                  }
                 </button>
               </div>
             </form>
