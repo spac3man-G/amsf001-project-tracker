@@ -10,21 +10,17 @@
  * @phase Phase 2 - Core Infrastructure, Phase 3 - Requirements Module
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
-  ClipboardList,
-  Users,
-  Building2,
-  CheckSquare,
   Plus
 } from 'lucide-react';
 
 import { useEvaluation } from '../../contexts/EvaluationContext';
 import { useEvaluatorPermissions } from '../../hooks/useEvaluatorPermissions';
 import { useEvaluationRole } from '../../hooks/useEvaluationRole';
-import { PageHeader, LoadingSpinner, StatCard } from '../../components/common';
+import { PageHeader, LoadingSpinner } from '../../components/common';
 import EvaluationSwitcher from '../../components/evaluator/EvaluationSwitcher';
 import CreateEvaluationModal from '../../components/evaluator/CreateEvaluationModal';
 import { NotificationCenter } from '../../components/evaluator/notifications';
@@ -39,7 +35,6 @@ import {
   SecurityStatusWidget,
   OverallRankings
 } from '../../components/evaluator/analytics';
-import { requirementsService, evaluationCategoriesService, stakeholderAreasService, vendorsService, workshopsService } from '../../services/evaluator';
 
 import './EvaluatorDashboard.css';
 
@@ -64,78 +59,6 @@ export default function EvaluatorDashboard() {
 
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Stats state
-  const [stats, setStats] = useState({
-    requirements: { total: 0, approved: 0, pending: 0 },
-    categories: { total: 0, weightValid: false, weightTotal: 0 },
-    stakeholderAreas: { total: 0 },
-    vendors: { total: 0, shortlisted: 0, selected: 0, inPipeline: 0 },
-    workshops: { total: 0, scheduled: 0, complete: 0 },
-    isLoading: true
-  });
-
-  // Load stats
-  const loadStats = useCallback(async () => {
-    if (!evaluationId) {
-      console.log('loadStats: No evaluationId, skipping');
-      return;
-    }
-
-    console.log('loadStats: Loading stats for evaluation:', evaluationId);
-
-    try {
-      const [reqSummary, categories, areas, vendorSummary, workshopSummary] = await Promise.all([
-        requirementsService.getSummary(evaluationId),
-        evaluationCategoriesService.validateWeights(evaluationId),
-        stakeholderAreasService.getSummary(evaluationId),
-        vendorsService.getSummary(evaluationId),
-        workshopsService.getSummary(evaluationId)
-      ]);
-
-      console.log('loadStats: Categories result:', categories);
-
-      setStats({
-        requirements: {
-          total: reqSummary.total,
-          approved: reqSummary.byStatus.approved,
-          pending: reqSummary.byStatus.under_review + reqSummary.byStatus.draft,
-          byPriority: reqSummary.byPriority
-        },
-        categories: {
-          total: categories.categories.length,
-          weightValid: categories.valid,
-          weightTotal: categories.total
-        },
-        stakeholderAreas: {
-          total: areas.totalAreas
-        },
-        vendors: {
-          total: vendorSummary.total,
-          shortlisted: vendorSummary.shortlisted,
-          inPipeline: vendorSummary.inPipeline,
-          selected: vendorSummary.selected
-        },
-        workshops: {
-          total: workshopSummary.total,
-          scheduled: workshopSummary.byStatus?.scheduled || 0,
-          complete: workshopSummary.byStatus?.complete || 0
-        },
-        isLoading: false
-      });
-    } catch (err) {
-      console.error('Failed to load dashboard stats:', err);
-      setStats(prev => ({ ...prev, isLoading: false }));
-    }
-  }, [evaluationId]);
-
-  // Load stats when evaluationId changes
-  useEffect(() => {
-    if (evaluationId) {
-      console.log('useEffect triggered: Loading stats for', evaluationId);
-      loadStats();
-    }
-  }, [evaluationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (evaluationLoading) {
     return <LoadingSpinner message="Loading evaluation..." fullPage />;
@@ -219,58 +142,6 @@ export default function EvaluatorDashboard() {
             <span className="client-name">{currentEvaluation.client_name}</span>
           </div>
         )}
-      </div>
-
-      {/* Quick Stats */}
-      <div className="dashboard-stats">
-        <StatCard
-          title="Requirements"
-          value={stats.isLoading ? '--' : stats.requirements.total}
-          icon={<ClipboardList size={24} />}
-          subtitle={stats.isLoading ? 'Loading...' : `${stats.requirements.approved} approved`}
-          onClick={() => navigate('/evaluator/requirements')}
-          trend={stats.requirements.pending > 0 ? {
-            value: stats.requirements.pending,
-            label: 'pending review',
-            direction: 'neutral'
-          } : null}
-        />
-        <StatCard
-          title="Workshops"
-          value={stats.isLoading ? '--' : stats.workshops.total}
-          icon={<Users size={24} />}
-          subtitle={stats.isLoading ? 'Loading...' : `${stats.workshops.complete} completed`}
-          onClick={() => navigate('/evaluator/workshops')}
-          trend={stats.workshops.scheduled > 0 ? {
-            value: stats.workshops.scheduled,
-            label: 'scheduled',
-            direction: 'neutral'
-          } : null}
-        />
-        <StatCard
-          title="Vendors"
-          value={stats.isLoading ? '--' : stats.vendors.total}
-          icon={<Building2 size={24} />}
-          subtitle={stats.isLoading ? 'Loading...' : `${stats.vendors.shortlisted} shortlisted`}
-          onClick={() => navigate('/evaluator/vendors')}
-          trend={stats.vendors.inPipeline > 0 ? {
-            value: stats.vendors.inPipeline,
-            label: 'in pipeline',
-            direction: 'neutral'
-          } : null}
-        />
-        <StatCard
-          title="Categories"
-          value={stats.isLoading ? '--' : stats.categories.total}
-          icon={<CheckSquare size={24} />}
-          subtitle={stats.isLoading ? 'Loading...' : (
-            stats.categories.weightValid
-              ? 'Weights valid (100%)'
-              : `Weights: ${stats.categories.weightTotal}%`
-          )}
-          onClick={() => navigate('/evaluator/settings')}
-          status={stats.categories.weightValid ? 'success' : 'warning'}
-        />
       </div>
 
       {/* Analytics Section */}
