@@ -46,10 +46,13 @@ export function useDeliverablePermissions(deliverable = null) {
   } = usePermissions();
   
   // Core role checks - use effectiveRole from ViewAsContext (supports org admin hierarchy)
-  const isAdmin = effectiveRole === 'admin';
+  // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   const isSupplierPM = effectiveRole === 'supplier_pm';
   const isCustomerPM = effectiveRole === 'customer_pm';
   const isContributor = effectiveRole === 'contributor';
+
+  // For backward compatibility, isAdmin maps to supplier_pm capabilities
+  const isAdmin = isSupplierPM;
   
   // User identity
   const currentUserId = user?.id || null;

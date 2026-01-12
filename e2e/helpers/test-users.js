@@ -1,12 +1,18 @@
 /**
  * Test Users Configuration
  * Location: e2e/helpers/test-users.js
- * 
+ *
  * Centralized test user credentials and helper functions.
  * Used by auth.setup.js and test files.
- * 
+ *
  * IMPORTANT: This file imports from the app's permissionMatrix.js to ensure
  * tests stay in sync with actual application permissions.
+ *
+ * Role Model (v3.0 - January 2026):
+ * - Organisation roles: org_admin, supplier_pm, org_member
+ * - Project roles: supplier_pm, supplier_finance, customer_pm, customer_finance, contributor, viewer
+ * - supplier_pm has full admin capabilities at both org and project level
+ * - No separate "admin" project role - supplier_pm handles all admin functions
  */
 
 // Import from the app's single source of truth for permissions
@@ -33,18 +39,12 @@ export const TEST_PASSWORD = 'TestPass123!';
  * - This is intentional - failing tests serve as reminders to build the features
  */
 export const TEST_USERS = {
-  admin: {
-    email: 'e2e.admin@amsf001.test',
-    role: ROLES.ADMIN,
-    displayName: 'E2E Admin',
-    side: 'full',  // Has all permissions
-    workflowsImplemented: true,
-  },
+  // Note: v3.0 removed separate admin user - supplier_pm has full admin capabilities
   supplier_pm: {
     email: 'e2e.supplier.pm@amsf001.test',
     role: ROLES.SUPPLIER_PM,
     displayName: 'E2E Supplier PM',
-    side: 'supplier',
+    side: 'supplier',  // Has full admin permissions
     workflowsImplemented: true,
   },
   supplier_finance: {
@@ -99,10 +99,13 @@ export const PENDING_ROLES = Object.entries(TEST_USERS)
 
 // Role groupings - derived from permissionMatrix.js constants
 // These match the groupings in the app exactly
-export const SUPPLIER_SIDE = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE];
-export const CUSTOMER_SIDE = [ROLES.ADMIN, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE];
-export const MANAGERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM];
-export const WORKERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR];
+// Note: v3.0 removed ADMIN role - supplier_pm has full admin capabilities
+export const SUPPLIER_SIDE = [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE];
+export const CUSTOMER_SIDE = [ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE];
+export const MANAGERS = [ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM];
+export const WORKERS = [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR];
+// Full admin access (for tests that need highest privilege)
+export const FULL_ADMIN = [ROLES.SUPPLIER_PM];
 
 /**
  * Get auth state file path for a role
@@ -124,17 +127,20 @@ export function getUser(role) {
 export function getUsersByGroup(group) {
   switch (group) {
     case 'supplier':
-      return SUPPLIER_SIDE.map(r => TEST_USERS[r]);
+      return SUPPLIER_SIDE.map(r => TEST_USERS[r]).filter(Boolean);
     case 'customer':
-      return CUSTOMER_SIDE.map(r => TEST_USERS[r]);
+      return CUSTOMER_SIDE.map(r => TEST_USERS[r]).filter(Boolean);
     case 'managers':
-      return MANAGERS.map(r => TEST_USERS[r]);
+      return MANAGERS.map(r => TEST_USERS[r]).filter(Boolean);
     case 'workers':
-      return WORKERS.map(r => TEST_USERS[r]);
+      return WORKERS.map(r => TEST_USERS[r]).filter(Boolean);
+    case 'admin':
+    case 'full_admin':
+      return FULL_ADMIN.map(r => TEST_USERS[r]).filter(Boolean);
     case 'implemented':
-      return IMPLEMENTED_ROLES.map(r => TEST_USERS[r]);
+      return IMPLEMENTED_ROLES.map(r => TEST_USERS[r]).filter(Boolean);
     case 'pending':
-      return PENDING_ROLES.map(r => TEST_USERS[r]);
+      return PENDING_ROLES.map(r => TEST_USERS[r]).filter(Boolean);
     case 'all':
       return Object.values(TEST_USERS);
     default:

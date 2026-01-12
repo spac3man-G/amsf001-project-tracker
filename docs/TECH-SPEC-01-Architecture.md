@@ -45,7 +45,12 @@ The architecture follows a serverless approach, leveraging Vercel for hosting an
 - **Projects**: Belong to organisations, contain project data
 - **Entities**: Project-scoped data (milestones, deliverables, timesheets, etc.)
 
-Users can belong to multiple organisations with different roles (org_owner, org_admin, org_member), and within each organisation, can be assigned to multiple projects with project-specific roles.
+Users can belong to multiple organisations with different roles (org_admin, supplier_pm, org_member), and within each organisation, can be assigned to multiple projects with project-specific roles.
+
+> **Version 3.0 Role Simplification (January 2026):**
+> - Organisation roles: `org_admin` (emergency backup), `supplier_pm` (full admin + project work), `org_member`
+> - Project roles: `supplier_pm`, `supplier_finance`, `customer_pm`, `customer_finance`, `contributor`, `viewer`
+> - Removed separate project-level `admin` role - `supplier_pm` now has full admin capabilities
 
 ---
 
@@ -508,10 +513,10 @@ The application implements a **three-tier multi-tenancy model**:
 ┌─────────────────────────────────────────────────────┐
 │              ORGANISATION (Tier 1)                │
 │         Top-level tenant (e.g., company)          │
-│    Roles: org_owner, org_admin, org_member        │
+│    Roles: org_admin, supplier_pm, org_member      │
 ├─────────────────────────┬───────────────────────────┤
 │       PROJECT A (Tier 2)    │       PROJECT B (Tier 2)    │
-│   Roles: admin, supplier_pm,│   Roles: admin, supplier_pm,│
+│   Roles: supplier_pm,       │   Roles: supplier_pm,       │
 │   customer_pm, contributor  │   customer_pm, contributor  │
 ├─────────────┬─────────────┼─────────────┬─────────────┤
 │ Milestones  │ Resources   │ Milestones  │ Resources   │
@@ -600,13 +605,23 @@ The `OrganisationContext` manages the current organisation selection, and `Proje
 | Services | Project-scoped queries |
 | Database | RLS policies enforce access at SQL level |
 
-### 8.3 Role Hierarchy
+### 8.3 Role Hierarchy (v3.0 - January 2026)
 
+**Organisation Roles:**
 ```
-Admin → Full access to all features
-Project Manager → Project management, approvals
-Contributor → Data entry, limited views
-Viewer → Read-only access
+org_admin     → Emergency backup admin, full organisation access
+supplier_pm   → Full admin capabilities + active project participant
+org_member    → Access assigned projects only
+```
+
+**Project Roles:**
+```
+supplier_pm      → Full project management, financial access
+supplier_finance → Financial management (supplier side)
+customer_pm      → Customer-side project management, approvals
+customer_finance → Financial validation (customer side)
+contributor      → Data entry, deliverable updates
+viewer           → Read-only access
 ```
 
 ---
@@ -669,3 +684,4 @@ Viewer → Read-only access
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Updated to three-tier model, added OrganisationContext/OrganisationSwitcher, updated Multi-Tenancy Architecture section |
 | 2.1 | 6 Jan 2026 | Claude AI | Added Claude Opus 4, useResizableColumns, usePlanningIntegration |
 | 2.2 | 7 Jan 2026 | Claude AI | **Table count update**: 28 → 60+ tables (Evaluator module, Planning enhancements) |
+| 3.0 | 12 Jan 2026 | Claude AI | **Role Simplification**: Removed project-level 'admin' role; supplier_pm now org-level role with full admin capabilities; Updated role hierarchy documentation |

@@ -34,9 +34,9 @@ export { ROLES, ROLE_CONFIG, ROLE_OPTIONS, hasPermission, getPermissionsForRole,
 
 /**
  * Check if user has at least the specified role level
+ * Note: Simplified in v3.0 - admin role removed
  */
 const ROLE_LEVELS = {
-  [ROLES.ADMIN]: 7,
   [ROLES.SUPPLIER_PM]: 6,
   [ROLES.SUPPLIER_FINANCE]: 5,
   [ROLES.CUSTOMER_PM]: 4,
@@ -57,10 +57,11 @@ export function isOneOf(userRole, allowedRoles) {
 }
 
 /**
- * Check if user is admin or supplier PM (full management access)
+ * Check if user is supplier PM (full management access)
+ * Note: In v3.0, supplier_pm has full admin capabilities
  */
 export function isFullAdmin(userRole) {
-  return isOneOf(userRole, [ROLES.ADMIN, ROLES.SUPPLIER_PM]);
+  return userRole === ROLES.SUPPLIER_PM;
 }
 
 // ============================================
@@ -488,11 +489,11 @@ export function canManageSystem(userRole) {
 }
 
 export function canManageProjectItems(userRole) {
-  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM]);
 }
 
 export function canValidate(userRole) {
-  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM, ROLES.ADMIN]);
+  return isOneOf(userRole, [ROLES.CUSTOMER_PM, ROLES.SUPPLIER_PM]);
 }
 
 // ============================================

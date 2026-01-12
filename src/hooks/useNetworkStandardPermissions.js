@@ -26,12 +26,15 @@ export function useNetworkStandardPermissions(standard = null) {
   const { can } = usePermissions();
   
   // Core role checks
-  const isAdmin = userRole === 'admin';
+  // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   const isSupplierPM = userRole === 'supplier_pm';
   const isSupplierFinance = userRole === 'supplier_finance';
-  
+
+  // For backward compatibility, isAdmin maps to supplier_pm capabilities
+  const isAdmin = isSupplierPM;
+
   // Role groupings
-  const isSupplierSide = isAdmin || isSupplierPM || isSupplierFinance;
+  const isSupplierSide = isSupplierPM || isSupplierFinance;
   
   // User identity
   const currentUserId = user?.id || null;

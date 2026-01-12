@@ -1,20 +1,31 @@
 /**
  * AMSF001 Project Tracker - Permission Matrix
  * Location: src/lib/permissionMatrix.js
- * Version: 2.0 - Added organisation-level permissions
- * 
+ * Version: 3.0 - Simplified role model (January 2026)
+ *
  * SINGLE SOURCE OF TRUTH for all role-based permissions.
- * 
+ *
  * This matrix defines which roles can perform which actions on each entity.
  * All permission checks in the application should derive from this matrix.
- * 
+ *
  * When changing permissions:
  * 1. Update this matrix
  * 2. Run the corresponding SQL migration for RLS policies
- * 
- * Role Hierarchy:
- * - Organisation level: org_admin > org_member
- * - Project level: admin > supplier_pm > customer_pm > contributor > viewer
+ *
+ * VERSION 3.0 CHANGES (January 2026):
+ * - Removed project-level 'admin' role (redundant with supplier_pm)
+ * - Added 'supplier_pm' as an organisation-level role
+ * - supplier_pm now has full admin capabilities + does project work
+ * - org_admin is emergency backup role only
+ *
+ * Role Model:
+ * - Organisation level: org_admin, supplier_pm, org_member
+ *   - org_admin: Emergency backup admin (full access, doesn't do project work)
+ *   - supplier_pm: Full admin + active project participant (timesheets, etc.)
+ *   - org_member: Access assigned projects only (includes customers)
+ *
+ * - Project level: supplier_finance, customer_pm, customer_finance, contributor, viewer
+ *   - These are assigned per-project for specific capabilities
  */
 
 // ============================================
@@ -22,7 +33,7 @@
 // ============================================
 
 export const ROLES = {
-  ADMIN: 'admin',
+  // Note: 'admin' project role removed in v3.0 - use org_admin or supplier_pm org roles instead
   SUPPLIER_PM: 'supplier_pm',
   SUPPLIER_FINANCE: 'supplier_finance',
   CUSTOMER_PM: 'customer_pm',
@@ -37,21 +48,50 @@ export const ROLES = {
 
 export const ORG_ROLES = {
   ORG_ADMIN: 'org_admin',
+  SUPPLIER_PM: 'supplier_pm',
   ORG_MEMBER: 'org_member',
 };
 
-// Shorthand for common project role groupings
-const ALL_ROLES = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER];
-const AUTHENTICATED = ALL_ROLES; // Anyone logged in
-const MANAGERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM];
-const SUPPLIER_SIDE = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE];
-const CUSTOMER_SIDE = [ROLES.ADMIN, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE];
-const WORKERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR];
-const ADMIN_ONLY = [ROLES.ADMIN];
+// ============================================
+// PROJECT-LEVEL ROLE GROUPINGS
+// ============================================
 
-// Shorthand for common organisation role groupings
-const ALL_ORG_ROLES = [ORG_ROLES.ORG_ADMIN, ORG_ROLES.ORG_MEMBER];
-const ORG_ADMINS = [ORG_ROLES.ORG_ADMIN];
+// All project roles (for view-level permissions)
+const ALL_PROJECT_ROLES = [
+  ROLES.SUPPLIER_PM,
+  ROLES.SUPPLIER_FINANCE,
+  ROLES.CUSTOMER_PM,
+  ROLES.CUSTOMER_FINANCE,
+  ROLES.CONTRIBUTOR,
+  ROLES.VIEWER
+];
+const AUTHENTICATED = ALL_PROJECT_ROLES; // Anyone logged in with a project role
+
+// Manager roles (can manage project aspects)
+const MANAGERS = [ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM];
+
+// Supplier-side roles (internal team)
+const SUPPLIER_SIDE = [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE];
+
+// Customer-side roles (external customers)
+const CUSTOMER_SIDE = [ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE];
+
+// Workers (can submit timesheets/expenses)
+const WORKERS = [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR];
+
+// Full management (supplier_pm has full capabilities at project level)
+const FULL_MANAGEMENT = [ROLES.SUPPLIER_PM];
+
+// ============================================
+// ORGANISATION-LEVEL ROLE GROUPINGS
+// ============================================
+
+// All organisation roles
+const ALL_ORG_ROLES = [ORG_ROLES.ORG_ADMIN, ORG_ROLES.SUPPLIER_PM, ORG_ROLES.ORG_MEMBER];
+
+// Organisation admins (full org management capabilities)
+// Both org_admin and supplier_pm have equal management rights
+const ORG_ADMINS = [ORG_ROLES.ORG_ADMIN, ORG_ROLES.SUPPLIER_PM];
 
 // ============================================
 // PROJECT-LEVEL PERMISSION MATRIX
@@ -92,7 +132,7 @@ export const PERMISSION_MATRIX = {
     view: AUTHENTICATED,
     create: SUPPLIER_SIDE,
     edit: SUPPLIER_SIDE,
-    delete: ADMIN_ONLY,
+    delete: FULL_MANAGEMENT,  // Changed from ADMIN_ONLY to FULL_MANAGEMENT (supplier_pm)
     useGantt: SUPPLIER_SIDE,
     editBilling: SUPPLIER_SIDE,
   },
@@ -102,10 +142,10 @@ export const PERMISSION_MATRIX = {
   // ----------------------------------------
   deliverables: {
     view: AUTHENTICATED,
-    create: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
-    edit: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
+    create: [ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
+    edit: [ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
     delete: SUPPLIER_SIDE,
-    submit: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
+    submit: [ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
     review: CUSTOMER_SIDE,
     markDelivered: CUSTOMER_SIDE,
   },
@@ -139,7 +179,7 @@ export const PERMISSION_MATRIX = {
     view: AUTHENTICATED,
     create: MANAGERS,
     edit: MANAGERS,
-    delete: SUPPLIER_SIDE,
+    delete: FULL_MANAGEMENT,
     manage: MANAGERS,
     updateStatus: MANAGERS,
     assignOwner: MANAGERS,
@@ -152,7 +192,7 @@ export const PERMISSION_MATRIX = {
     view: AUTHENTICATED,
     create: SUPPLIER_SIDE,
     edit: SUPPLIER_SIDE,
-    delete: ADMIN_ONLY,
+    delete: FULL_MANAGEMENT,  // Changed from ADMIN_ONLY to FULL_MANAGEMENT (supplier_pm)
     manage: SUPPLIER_SIDE,
     seeCostPrice: SUPPLIER_SIDE,
     seeResourceType: SUPPLIER_SIDE,
@@ -215,10 +255,12 @@ export const PERMISSION_MATRIX = {
 
   // ----------------------------------------
   // PROJECT USERS (Team Members)
+  // Note: Full user management is done at org level by org_admin/supplier_pm
+  // This is for project-level team visibility
   // ----------------------------------------
   users: {
     view: SUPPLIER_SIDE,
-    manage: ADMIN_ONLY,
+    manage: FULL_MANAGEMENT,  // Changed from ADMIN_ONLY to FULL_MANAGEMENT (supplier_pm)
   },
 
   // ----------------------------------------
@@ -227,6 +269,19 @@ export const PERMISSION_MATRIX = {
   reports: {
     access: MANAGERS,
     viewWorkflowSummary: MANAGERS,
+  },
+
+  // ----------------------------------------
+  // AUDIT LOG & DELETED ITEMS
+  // ----------------------------------------
+  audit: {
+    view: FULL_MANAGEMENT,
+  },
+
+  deletedItems: {
+    view: FULL_MANAGEMENT,
+    restore: FULL_MANAGEMENT,
+    purge: FULL_MANAGEMENT,
   },
 };
 
@@ -240,10 +295,10 @@ export const ORG_PERMISSION_MATRIX = {
   // ----------------------------------------
   organisation: {
     view: ALL_ORG_ROLES,                      // All members can view org details
-    edit: ORG_ADMINS,                         // Only admins can edit org settings
-    delete: ORG_ADMINS,                       // Admins can delete organisation
-    manageBilling: ORG_ADMINS,                // Admins manage billing/subscription
-    viewBilling: ORG_ADMINS,                  // Admins can view billing info
+    edit: ORG_ADMINS,                         // org_admin and supplier_pm can edit
+    delete: [ORG_ROLES.ORG_ADMIN],            // Only org_admin can delete (emergency action)
+    manageBilling: ORG_ADMINS,                // Both can manage billing
+    viewBilling: ORG_ADMINS,                  // Both can view billing info
   },
 
   // ----------------------------------------
@@ -251,9 +306,10 @@ export const ORG_PERMISSION_MATRIX = {
   // ----------------------------------------
   orgMembers: {
     view: ALL_ORG_ROLES,                      // All members can see member list
-    invite: ORG_ADMINS,                       // Admins can invite new members
-    remove: ORG_ADMINS,                       // Admins can remove members
-    changeRole: ORG_ADMINS,                   // Admins can change roles
+    invite: ORG_ADMINS,                       // org_admin and supplier_pm can invite
+    remove: ORG_ADMINS,                       // org_admin and supplier_pm can remove
+    changeRole: ORG_ADMINS,                   // org_admin and supplier_pm can change roles
+    manageProjectAssignments: ORG_ADMINS,     // org_admin and supplier_pm can assign to projects
   },
 
   // ----------------------------------------
@@ -261,29 +317,29 @@ export const ORG_PERMISSION_MATRIX = {
   // ----------------------------------------
   orgProjects: {
     view: ALL_ORG_ROLES,                      // All members can see project list
-    create: ORG_ADMINS,                       // Only admins can create projects
-    delete: ORG_ADMINS,                       // Only admins can delete projects
-    assignMembers: ORG_ADMINS,                // Admins can assign members to projects
+    create: ORG_ADMINS,                       // org_admin and supplier_pm can create projects
+    delete: [ORG_ROLES.ORG_ADMIN],            // Only org_admin can delete (emergency action)
+    assignMembers: ORG_ADMINS,                // org_admin and supplier_pm can assign members
   },
 
   // ----------------------------------------
   // ORGANISATION SETTINGS
   // ----------------------------------------
   orgSettings: {
-    view: ORG_ADMINS,                         // Admins can view settings
-    edit: ORG_ADMINS,                         // Admins can edit settings
-    manageFeatures: ORG_ADMINS,               // Admins can enable/disable features
-    manageBranding: ORG_ADMINS,               // Admins can manage branding
+    view: ORG_ADMINS,                         // org_admin and supplier_pm can view settings
+    edit: ORG_ADMINS,                         // org_admin and supplier_pm can edit settings
+    manageFeatures: ORG_ADMINS,               // org_admin and supplier_pm can manage features
+    manageBranding: ORG_ADMINS,               // org_admin and supplier_pm can manage branding
   },
 };
 
 // ============================================
-// PROJECT PERMISSION CHECK FUNCTION
+// PERMISSION CHECK FUNCTIONS
 // ============================================
 
 /**
  * Check if a project role has permission to perform an action on an entity
- * 
+ *
  * @param {string} role - User's project role
  * @param {string} entity - Entity name (e.g., 'deliverables', 'timesheets')
  * @param {string} action - Action name (e.g., 'edit', 'delete', 'view')
@@ -305,20 +361,17 @@ export function hasPermission(role, entity, action) {
   return allowedRoles.includes(role);
 }
 
-// ============================================
-// ORGANISATION PERMISSION CHECK FUNCTION
-// ============================================
-
 /**
  * Check if an organisation role has permission to perform an action
- * 
- * @param {string} orgRole - User's organisation role (org_owner, org_admin, org_member)
+ *
+ * @param {string} orgRole - User's organisation role (org_admin, supplier_pm, org_member)
  * @param {string} entity - Entity name (e.g., 'organisation', 'orgMembers')
  * @param {string} action - Action name (e.g., 'edit', 'invite', 'view')
  * @returns {boolean} - Whether the org role has permission
- * 
+ *
  * @example
  * hasOrgPermission('org_admin', 'orgMembers', 'invite') // true
+ * hasOrgPermission('supplier_pm', 'orgMembers', 'invite') // true (v3.0)
  * hasOrgPermission('org_member', 'orgMembers', 'invite') // false
  */
 export function hasOrgPermission(orgRole, entity, action) {
@@ -338,25 +391,30 @@ export function hasOrgPermission(orgRole, entity, action) {
 }
 
 /**
- * Check if user is an org admin (owner or admin)
- * 
+ * Check if user has org admin capabilities (org_admin or supplier_pm)
+ *
  * @param {string} orgRole - User's organisation role
- * @returns {boolean} - Whether the user is an org admin
+ * @returns {boolean} - Whether the user has org admin capabilities
  */
 export function isOrgAdminRole(orgRole) {
   return ORG_ADMINS.includes(orgRole);
 }
 
 /**
- * Check if user is an org admin
- * @deprecated Use isOrgAdminRole() instead - org_owner role has been removed
- * 
+ * Check if user is specifically the emergency org_admin role
+ *
  * @param {string} orgRole - User's organisation role
- * @returns {boolean} - Whether the user is an org admin
+ * @returns {boolean} - Whether the user is org_admin
+ */
+export function isEmergencyAdmin(orgRole) {
+  return orgRole === ORG_ROLES.ORG_ADMIN;
+}
+
+/**
+ * @deprecated Use isOrgAdminRole() instead
  */
 export function isOrgOwnerRole(orgRole) {
-  // Deprecated: org_owner role removed, now just checks for org_admin
-  return orgRole === ORG_ROLES.ORG_ADMIN;
+  return isOrgAdminRole(orgRole);
 }
 
 // ============================================
@@ -368,14 +426,14 @@ export function isOrgOwnerRole(orgRole) {
  */
 export function getPermissionsForRole(role) {
   const result = {};
-  
+
   for (const [entity, actions] of Object.entries(PERMISSION_MATRIX)) {
     result[entity] = {};
     for (const [action, allowedRoles] of Object.entries(actions)) {
       result[entity][action] = allowedRoles.includes(role);
     }
   }
-  
+
   return result;
 }
 
@@ -384,14 +442,14 @@ export function getPermissionsForRole(role) {
  */
 export function getOrgPermissionsForRole(orgRole) {
   const result = {};
-  
+
   for (const [entity, actions] of Object.entries(ORG_PERMISSION_MATRIX)) {
     result[entity] = {};
     for (const [action, allowedRoles] of Object.entries(actions)) {
       result[entity][action] = allowedRoles.includes(orgRole);
     }
   }
-  
+
   return result;
 }
 
@@ -414,15 +472,16 @@ export function getOrgRolesForPermission(entity, action) {
  */
 export function generatePermissionSummary() {
   const summary = [];
-  
+
   for (const [entity, actions] of Object.entries(PERMISSION_MATRIX)) {
     summary.push(`\n## ${entity.charAt(0).toUpperCase() + entity.slice(1)}`);
     for (const [action, roles] of Object.entries(actions)) {
       const roleNames = roles.map(r => {
         switch(r) {
-          case ROLES.ADMIN: return 'Admin';
           case ROLES.SUPPLIER_PM: return 'Supplier PM';
+          case ROLES.SUPPLIER_FINANCE: return 'Supplier Finance';
           case ROLES.CUSTOMER_PM: return 'Customer PM';
+          case ROLES.CUSTOMER_FINANCE: return 'Customer Finance';
           case ROLES.CONTRIBUTOR: return 'Contributor';
           case ROLES.VIEWER: return 'Viewer';
           default: return r;
@@ -431,22 +490,52 @@ export function generatePermissionSummary() {
       summary.push(`- ${action}: ${roleNames}`);
     }
   }
-  
+
   return summary.join('\n');
 }
 
 // ============================================
-// ROLE DISPLAY CONFIGURATION
+// PROJECT ROLE DISPLAY CONFIGURATION
+// Note: These are for project-level role assignment dropdowns
 // ============================================
 
 export const ROLE_CONFIG = {
-  [ROLES.ADMIN]: { label: 'Admin', color: '#7c3aed', bg: '#f3e8ff' },
-  [ROLES.SUPPLIER_PM]: { label: 'Supplier PM', color: '#059669', bg: '#d1fae5' },
-  [ROLES.SUPPLIER_FINANCE]: { label: 'Supplier Finance', color: '#0d9488', bg: '#ccfbf1' },
-  [ROLES.CUSTOMER_PM]: { label: 'Customer PM', color: '#d97706', bg: '#fef3c7' },
-  [ROLES.CUSTOMER_FINANCE]: { label: 'Customer Finance', color: '#ea580c', bg: '#ffedd5' },
-  [ROLES.CONTRIBUTOR]: { label: 'Contributor', color: '#2563eb', bg: '#dbeafe' },
-  [ROLES.VIEWER]: { label: 'Viewer', color: '#64748b', bg: '#f1f5f9' },
+  [ROLES.SUPPLIER_PM]: {
+    label: 'Supplier PM',
+    color: '#059669',
+    bg: '#d1fae5',
+    description: 'Project manager - full project control and timesheet submission'
+  },
+  [ROLES.SUPPLIER_FINANCE]: {
+    label: 'Supplier Finance',
+    color: '#0d9488',
+    bg: '#ccfbf1',
+    description: 'Internal finance team - timesheet and expense management'
+  },
+  [ROLES.CUSTOMER_PM]: {
+    label: 'Customer PM',
+    color: '#d97706',
+    bg: '#fef3c7',
+    description: 'Customer project manager - approvals and sign-offs'
+  },
+  [ROLES.CUSTOMER_FINANCE]: {
+    label: 'Customer Finance',
+    color: '#ea580c',
+    bg: '#ffedd5',
+    description: 'Customer finance team - expense validation'
+  },
+  [ROLES.CONTRIBUTOR]: {
+    label: 'Contributor',
+    color: '#2563eb',
+    bg: '#dbeafe',
+    description: 'Team member - timesheet entry and deliverable updates'
+  },
+  [ROLES.VIEWER]: {
+    label: 'Viewer',
+    color: '#64748b',
+    bg: '#f1f5f9',
+    description: 'Read-only access to project data'
+  },
 };
 
 export const ROLE_OPTIONS = Object.entries(ROLE_CONFIG).map(([value, config]) => ({
@@ -459,15 +548,21 @@ export const ROLE_OPTIONS = Object.entries(ROLE_CONFIG).map(([value, config]) =>
 // ============================================
 
 export const ORG_ROLE_CONFIG = {
-  [ORG_ROLES.ORG_ADMIN]: { 
-    label: 'Admin', 
-    color: '#059669', 
-    bg: '#d1fae5',
-    description: 'Full organisation control - manage members, settings, and projects'
+  [ORG_ROLES.ORG_ADMIN]: {
+    label: 'Organisation Admin',
+    color: '#7c3aed',
+    bg: '#f3e8ff',
+    description: 'Emergency backup admin - full organisation control'
   },
-  [ORG_ROLES.ORG_MEMBER]: { 
-    label: 'Member', 
-    color: '#64748b', 
+  [ORG_ROLES.SUPPLIER_PM]: {
+    label: 'Supplier PM',
+    color: '#059669',
+    bg: '#d1fae5',
+    description: 'Full admin capabilities + active project participant'
+  },
+  [ORG_ROLES.ORG_MEMBER]: {
+    label: 'Member',
+    color: '#64748b',
     bg: '#f1f5f9',
     description: 'Access assigned projects only'
   },
@@ -477,3 +572,17 @@ export const ORG_ROLE_OPTIONS = Object.entries(ORG_ROLE_CONFIG).map(([value, con
   value,
   ...config
 }));
+
+// ============================================
+// BACKWARD COMPATIBILITY
+// For code that still references ROLES.ADMIN, map to supplier_pm
+// This should be removed once all code is updated
+// ============================================
+
+// Temporary backward compatibility - REMOVE after migration complete
+Object.defineProperty(ROLES, 'ADMIN', {
+  get() {
+    console.warn('ROLES.ADMIN is deprecated. Use ROLES.SUPPLIER_PM or org roles instead.');
+    return 'supplier_pm';
+  }
+});

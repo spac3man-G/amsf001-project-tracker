@@ -1,11 +1,16 @@
 // src/contexts/OrganisationContext.jsx
 // Provides organisation context to the entire application
-// Version 2.0 - Simplified to 2-role model (org_admin, org_member)
+// Version 3.0 - Simplified role model (January 2026)
+//
+// Organisation Roles:
+// - org_admin: Emergency backup admin (full access, doesn't do project work)
+// - supplier_pm: Full admin capabilities + active project participant
+// - org_member: Access assigned projects only (includes customers)
 //
 // This context manages:
 // - User's available organisations
 // - Current organisation selection
-// - Organisation-level role (org_admin, org_member)
+// - Organisation-level role
 // - Organisation settings and features
 //
 // Provider order: AuthProvider > OrganisationProvider > ProjectProvider
@@ -27,19 +32,26 @@ const ORG_STORAGE_KEY = 'amsf_current_organisation_id';
 
 export const ORG_ROLES = {
   ORG_ADMIN: 'org_admin',
+  SUPPLIER_PM: 'supplier_pm',
   ORG_MEMBER: 'org_member',
 };
 
 export const ORG_ROLE_CONFIG = {
-  [ORG_ROLES.ORG_ADMIN]: { 
-    label: 'Admin', 
-    color: '#059669', 
-    bg: '#d1fae5',
-    description: 'Full organisation control - manage members, settings, and projects'
+  [ORG_ROLES.ORG_ADMIN]: {
+    label: 'Organisation Admin',
+    color: '#7c3aed',
+    bg: '#f3e8ff',
+    description: 'Emergency backup admin - full organisation control'
   },
-  [ORG_ROLES.ORG_MEMBER]: { 
-    label: 'Member', 
-    color: '#64748b', 
+  [ORG_ROLES.SUPPLIER_PM]: {
+    label: 'Supplier PM',
+    color: '#059669',
+    bg: '#d1fae5',
+    description: 'Full admin capabilities + active project participant'
+  },
+  [ORG_ROLES.ORG_MEMBER]: {
+    label: 'Member',
+    color: '#64748b',
     bg: '#f1f5f9',
     description: 'Access assigned projects only'
   },
@@ -50,18 +62,25 @@ export const ORG_ROLE_CONFIG = {
 // ============================================
 
 /**
- * Check if a role is an admin-level role
+ * Check if a role has admin-level capabilities
+ * Both org_admin and supplier_pm have full admin rights
  */
 export function isOrgAdminRole(role) {
+  return role === ORG_ROLES.ORG_ADMIN || role === ORG_ROLES.SUPPLIER_PM;
+}
+
+/**
+ * Check if a role is specifically the emergency org_admin role
+ */
+export function isEmergencyAdmin(role) {
   return role === ORG_ROLES.ORG_ADMIN;
 }
 
 /**
- * Check if a role is an admin role (deprecated - use isOrgAdminRole)
- * @deprecated org_owner role removed in v2.0, now aliases isOrgAdminRole
+ * @deprecated Use isOrgAdminRole() instead
  */
 export function isOrgOwnerRole(role) {
-  return role === ORG_ROLES.ORG_ADMIN;
+  return isOrgAdminRole(role);
 }
 
 // ============================================

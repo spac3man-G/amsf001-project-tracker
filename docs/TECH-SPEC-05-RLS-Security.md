@@ -6,6 +6,14 @@
 **Session:** Documentation Review Phase 4  
 **Scope:** Row Level Security, Authentication, Authorization
 
+> **Version 5.0 Updates (12 January 2026):**
+> - **Role Simplification**: Removed project-level 'admin' role
+> - Added `supplier_pm` as organisation-level role with full admin capabilities
+> - Updated user_organisations CHECK constraint to include 'supplier_pm'
+> - Updated user_projects CHECK constraint to remove 'admin'
+> - Updated all policy examples to use 'supplier_pm' instead of 'admin'
+> - Updated Role Definitions and Role Hierarchy sections
+>
 > **Version 4.1 Updates (7 January 2026):**
 > - Added reference to TECH-SPEC-11 for Evaluator module RLS (Section 5.8)
 > - Added `supplier_finance` and `customer_finance` to Role Definitions table (Section 6.1)
@@ -162,11 +170,11 @@ AMSF001 implements a three-tier multi-tenancy model:
 ┌───────────────────────────────────────────────────────────┐
 │                    ORGANISATION                            │
 │         (Top-level tenant - e.g., "Acme Corp")              │
-│    Roles: org_owner, org_admin, org_member                  │
+│    Roles: org_admin, supplier_pm, org_member               │
 ├─────────────────────────────┬─────────────────────────────┤
 │          PROJECT A          │          PROJECT B          │
 │   (e.g., "Website Rebuild") │   (e.g., "Mobile App")       │
-│   Roles: admin, supplier_pm,│   Roles: admin, supplier_pm, │
+│   Roles: supplier_pm,       │   Roles: supplier_pm,        │
 │   customer_pm, contributor  │   customer_pm, contributor   │
 ├─────────────┬───────────────┼──────────────┬──────────────┤
 │ Milestones  │  Resources    │  Milestones  │  Resources   │
@@ -192,7 +200,7 @@ CREATE TABLE user_organisations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
-  org_role TEXT NOT NULL CHECK (org_role IN ('org_owner', 'org_admin', 'org_member')),
+  org_role TEXT NOT NULL CHECK (org_role IN ('org_admin', 'supplier_pm', 'org_member')),
   is_active BOOLEAN DEFAULT TRUE,
   invited_by UUID REFERENCES auth.users(id),
   invited_at TIMESTAMPTZ DEFAULT NOW(),
@@ -203,12 +211,13 @@ CREATE TABLE user_organisations (
 );
 ```
 
-**Organisation Roles (Simplified December 2025):**
+**Organisation Roles (v3.0 - January 2026):**
 
 | Role | Description | Capabilities |
 |------|-------------|-------------|
-| `org_admin` | Organisation administrator | Full control, manage members, access all projects, create projects |
-| `org_member` | Regular member | Access only assigned projects |
+| `org_admin` | Emergency backup admin | Full control, manage members, access all projects (doesn't do project work) |
+| `supplier_pm` | Supplier Project Manager | Full admin capabilities + active project participant (timesheets, deliverables) |
+| `org_member` | Regular member | Access only assigned projects (includes customers) |
 
 ### 2.3 The user_projects Junction Table
 
@@ -219,13 +228,16 @@ CREATE TABLE user_projects (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id),
   project_id UUID REFERENCES projects(id),
-  role TEXT CHECK (role IN ('admin', 'supplier_pm', 'supplier_finance', 
+  role TEXT CHECK (role IN ('supplier_pm', 'supplier_finance',
                             'customer_pm', 'customer_finance', 'contributor', 'viewer')),
   is_default BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ,
   UNIQUE(user_id, project_id)
 );
 ```
+
+> **Note (v3.0):** The 'admin' role has been removed from the project role constraint.
+> supplier_pm now handles all admin functions at both organisation and project levels.
 
 > **IMPORTANT: Dual Membership Requirement**
 >
@@ -235,7 +247,7 @@ CREATE TABLE user_projects (
 >
 > The `can_access_project()` function enforces this dual requirement.
 
-### 2.4 Access Hierarchy
+### 2.4 Access Hierarchy (v3.0 - January 2026)
 
 ```
 System Admin (profiles.role = 'admin')
@@ -243,17 +255,25 @@ System Admin (profiles.role = 'admin')
     └──► Can see System Users and System Admin pages
 
 Org Admin (user_organisations.org_role = 'org_admin')
+    └──► Emergency backup admin - doesn't do project work
     └──► Can access ALL projects in their organisation
-    └──► Has 'admin' effective role for permissions
+    └──► Full management capabilities for users, settings
     └──► CANNOT see System Users or System Admin pages
+
+Supplier PM (user_organisations.org_role = 'supplier_pm')
+    └──► Full admin capabilities + active project participant
+    └──► Can access ALL projects in their organisation
+    └──► Can do project work (timesheets, deliverables, etc.)
 
 Org Member (user_organisations.org_role = 'org_member')
     └──► Can access ONLY projects they are assigned to (user_projects)
     └──► Effective role is their project role from user_projects
+    └──► Customers are org_members with limited project visibility
 ```
 
-> **Key Point:** Org admins get `effectiveRole = 'admin'` in the frontend,
-> giving them full admin UI capabilities within their organisation.
+> **Key Point:** Both `org_admin` and `supplier_pm` have full admin UI capabilities
+> within their organisation. The difference is that `supplier_pm` can also
+> participate in project work (timesheets, expenses, etc.).
 
 ### 2.5 The can_access_project() Function
 
@@ -264,17 +284,17 @@ CREATE OR REPLACE FUNCTION can_access_project(p_project_id uuid)
 RETURNS boolean
 LANGUAGE sql SECURITY DEFINER STABLE
 AS $
-  SELECT 
+  SELECT
     -- System admin can access any project
     is_system_admin()
     OR
-    -- Org admins can access all projects in their organisation
+    -- Org admins (org_admin, supplier_pm) can access all projects in their organisation
     EXISTS (
       SELECT 1 FROM projects p
       JOIN user_organisations uo ON uo.organisation_id = p.organisation_id
       WHERE p.id = p_project_id
       AND uo.user_id = auth.uid()
-      AND uo.org_role IN ('org_owner', 'org_admin')
+      AND uo.org_role IN ('org_admin', 'supplier_pm')
       AND uo.is_active = TRUE
     )
     OR
@@ -954,19 +974,31 @@ The Evaluator module adds 17+ tables with comprehensive RLS policies for vendor 
 
 ## 6. Role-Based Access Control
 
-### 6.1 Role Definitions
+### 6.1 Role Definitions (v3.0 - January 2026)
 
-| Role | Scope | Description |
-|------|-------|-------------|
-| **admin** | Global & Project | Full system access, user management, project creation |
-| **supplier_pm** | Project | Supplier-side project manager, full project control |
-| **supplier_finance** | Project | Supplier-side financial management (timesheets, expenses, invoicing) |
-| **customer_pm** | Project | Customer-side project manager, validation and signing |
-| **customer_finance** | Project | Customer-side financial validation (timesheets, expenses approval) |
-| **contributor** | Project | Team member, can submit timesheets/expenses, update deliverables |
-| **viewer** | Project | Read-only access to project data |
+**Organisation Roles** (user_organisations.org_role):
 
-> **Note (December 2025):** `supplier_finance` and `customer_finance` roles provide contributor-level base permissions plus financial workflow capabilities. They can validate/approve financial transactions relevant to their side (supplier or customer).
+| Role | Description |
+|------|-------------|
+| **org_admin** | Emergency backup admin - full organisation access, doesn't do project work |
+| **supplier_pm** | Full admin capabilities + active project participant (timesheets, etc.) |
+| **org_member** | Regular member - access only assigned projects (includes customers) |
+
+**Project Roles** (user_projects.role):
+
+| Role | Description |
+|------|-------------|
+| **supplier_pm** | Supplier-side project manager, full project control, financial access |
+| **supplier_finance** | Supplier-side financial management (timesheets, expenses, invoicing) |
+| **customer_pm** | Customer-side project manager, validation and signing |
+| **customer_finance** | Customer-side financial validation (timesheets, expenses approval) |
+| **contributor** | Team member, can submit timesheets/expenses, update deliverables |
+| **viewer** | Read-only access to project data |
+
+> **Note (v3.0):** The 'admin' project role has been removed. `supplier_pm` now has full
+> admin capabilities at both organisation and project levels. For RLS policies, anywhere
+> you see `role IN ('admin', 'supplier_pm')` should be understood as `role = 'supplier_pm'`
+> or `org_role IN ('org_admin', 'supplier_pm')` for org-level checks.
 
 ### 6.2 Complete Permission Matrix
 
@@ -1047,25 +1079,31 @@ The Evaluator module adds 17+ tables with comprehensive RLS policies for vendor 
 | View quality standards | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Manage quality standards | ✅ | ✅ | ❌ | ❌ | ❌ |
 
-### 6.3 Role Hierarchy Concept
+### 6.3 Role Hierarchy Concept (v3.0 - January 2026)
 
 While roles are not strictly hierarchical in implementation, they follow a conceptual hierarchy:
 
+**Organisation Level:**
 ```
-admin (Level 6)
-   └── supplier_pm (Level 5)
-          ├── supplier_finance (Level 4)
-          └── customer_pm (Level 4)
-                 └── customer_finance (Level 3)
-                        └── contributor (Level 2)
-                               └── viewer (Level 1)
+org_admin (Level 6)     ← Emergency backup admin
+supplier_pm (Level 6)   ← Full admin + project work
+org_member (Level 1)    ← Assigned projects only
+```
+
+**Project Level:**
+```
+supplier_pm (Level 5)      ← Full project control
+   ├── supplier_finance (Level 4)
+   └── customer_pm (Level 4)
+          └── customer_finance (Level 3)
+                 └── contributor (Level 2)
+                        └── viewer (Level 1)
 ```
 
 The `hasMinRole()` utility function uses this hierarchy:
 
 ```javascript
 const ROLE_LEVELS = {
-  admin: 6,
   supplier_pm: 5,
   supplier_finance: 4,
   customer_pm: 4,
@@ -1074,6 +1112,9 @@ const ROLE_LEVELS = {
   viewer: 1
 };
 ```
+
+> **Note:** The 'admin' role has been removed from ROLE_LEVELS.
+> For backward compatibility, code accessing ROLES.ADMIN returns 'supplier_pm'.
 
 ---
 
@@ -1411,6 +1452,7 @@ EXISTS (
 | 2.0 | 23 Dec 2025 | Claude AI | **Organisation Multi-Tenancy**: Added org-level helper functions, organisation/user_organisations table policies, updated projects/user_projects policies for org-awareness, added profiles_org_members_can_view policy, updated multi-tenancy architecture to three-tier model |
 | 3.0 | 24 Dec 2025 | Claude AI | **Permission Hierarchy Fix**: Updated all SELECT policies to use can_access_project() helper (33 policies); Simplified organisation roles from 3 to 2 (org_admin, org_member); Removed is_org_owner() function; Updated access hierarchy |
 | 4.0 | 28 Dec 2025 | Claude AI | **Planning & Estimator Tools**: Added Section 5.7 with 22 new RLS policies for plan_items, estimates, estimate_components, estimate_tasks, estimate_resources, and benchmark_rates (global) |
+| 5.0 | 12 Jan 2026 | Claude AI | **Role Simplification (v3.0)**: Removed project-level 'admin' role; Added supplier_pm as org-level role with full admin capabilities; Updated CHECK constraints; Updated can_access_project() to include supplier_pm; Revised Role Definitions and Role Hierarchy sections |
 
 ---
 

@@ -64,8 +64,7 @@ npm run e2e:headed       # Run with visible browser
 npm run e2e:smoke        # Run smoke tests only
 
 # Run E2E for specific role
-npm run e2e:admin
-npm run e2e:supplier-pm
+npm run e2e:supplier-pm  # Has full admin capabilities
 npm run e2e:customer-pm
 npm run e2e:contributor
 npm run e2e:viewer
@@ -102,21 +101,23 @@ Three-tier isolation: **Organisation → Project → Entity**
 - RLS policies enforce data isolation at database level
 - Services extend `BaseService` which handles project scoping automatically
 
-### Role System
+### Role System (v3.0 - January 2026)
+
+**Organisation Roles** (from `user_organisations` table):
+- `org_admin` - Emergency backup admin, full org access (doesn't do project work)
+- `supplier_pm` - Full admin capabilities + active project participant
+- `org_member` - Access assigned projects only (includes customers)
 
 **Project Roles** (from `user_projects` table):
-- `admin` - Full access (system admin)
-- `supplier_pm` - Supplier project manager
+- `supplier_pm` - Supplier project manager with full admin capabilities
 - `supplier_finance` - Supplier finance team
 - `customer_pm` - Customer project manager
 - `customer_finance` - Customer finance team
 - `contributor` - Can log time/expenses, update deliverables
 - `viewer` - Read-only access
 
-**Organisation Roles** (from `user_organisations` table):
-- `org_owner` - Full org access
-- `org_admin` - Org admin privileges
-- `org_member` - Standard org member
+> **Note:** The project-level `admin` role has been removed. `supplier_pm` now has full
+> admin capabilities at both organisation and project levels.
 
 Role checks use `usePermissions()` hook or `src/lib/permissions.js` directly.
 
@@ -190,11 +191,13 @@ SUPABASE_SERVICE_ROLE_KEY=
 ### E2E Test Users
 
 Test users are defined in `e2e/helpers/test-users.js` with password `TestPass123!`:
-- `e2e.admin@amsf001.test`
-- `e2e.supplier.pm@amsf001.test`
+- `e2e.supplier.pm@amsf001.test` (has full admin capabilities)
 - `e2e.customer.pm@amsf001.test`
 - `e2e.contributor@amsf001.test`
 - `e2e.viewer@amsf001.test`
+
+> **Note (v3.0):** The separate admin test user has been removed.
+> `supplier_pm` now has all admin capabilities.
 
 ### Running Single Test File
 
