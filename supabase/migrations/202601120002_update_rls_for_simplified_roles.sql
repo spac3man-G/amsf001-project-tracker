@@ -70,9 +70,10 @@ USING (can_write_project(project_id, ARRAY['supplier_pm']));
 
 -- ============================================
 -- Step 3: Update has_project_role function to work with new role model
+-- Note: Using original parameter name p_roles to avoid recreation
 -- ============================================
 
-CREATE OR REPLACE FUNCTION has_project_role(p_project_id UUID, p_allowed_roles TEXT[])
+CREATE OR REPLACE FUNCTION has_project_role(p_project_id UUID, p_roles TEXT[])
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -101,7 +102,7 @@ BEGIN
     SELECT 1 FROM user_projects up
     WHERE up.project_id = p_project_id
     AND up.user_id = auth.uid()
-    AND up.role = ANY(p_allowed_roles)
+    AND up.role = ANY(p_roles)
   );
 END;
 $$;
@@ -327,6 +328,8 @@ USING (
 
 GRANT EXECUTE ON FUNCTION can_write_project(UUID, TEXT[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION has_project_role(UUID, TEXT[]) TO authenticated;
+
+-- Note: Grant uses function signature (UUID, TEXT[]) not parameter names
 
 COMMIT;
 
