@@ -83,6 +83,67 @@
   margin: 0 auto;
 }
 
+/* Billing Two-Column Layout */
+.billing-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.billing-column {
+  min-width: 0; /* Prevent grid blowout */
+}
+
+.billing-column .dashboard-widget {
+  height: 100%;
+}
+
+/* Make widgets equal height */
+.billing-column-milestone .billing-widget,
+.billing-column-expenses .expenses-billing-widget {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Expenses Billing Widget specific styles */
+.expenses-billing-widget .widget-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.expenses-billing-widget .widget-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expenses-billing-widget .widget-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #1e293b;
+  flex: 1;
+}
+
+.expenses-billing-widget .widget-total {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+/* Responsive - Stack columns on smaller screens */
+@media (max-width: 1200px) {
+  .billing-two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .finance-hub .hub-header {
