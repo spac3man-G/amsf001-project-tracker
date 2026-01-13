@@ -87,12 +87,22 @@
 .billing-two-column {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 0;
   align-items: start;
 }
 
 .billing-column {
   min-width: 0; /* Prevent grid blowout */
+  padding: 0 16px;
+}
+
+.billing-column-milestone {
+  border-right: 2px solid #e2e8f0;
+  padding-left: 0;
+}
+
+.billing-column-expenses {
+  padding-right: 0;
 }
 
 .billing-column .dashboard-widget {
@@ -141,6 +151,17 @@
 @media (max-width: 1200px) {
   .billing-two-column {
     grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .billing-column-milestone {
+    border-right: none;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 0 0 24px 0;
+  }
+
+  .billing-column-expenses {
+    padding: 0;
   }
 }
 

@@ -133,7 +133,7 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
         <div className="widget-icon" style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}>
           <PoundSterling size={20} />
         </div>
-        <span className="widget-title">Billing</span>
+        <span className="widget-title">Milestone Billing</span>
         <span className="widget-total" data-testid="billing-total">{formatCurrency(totalBillable)} Total</span>
       </div>
 
