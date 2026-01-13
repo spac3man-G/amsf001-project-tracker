@@ -4,6 +4,103 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## IN PROGRESS: Member Project Assignments Feature (13 January 2026)
+
+**Status**: BLOCKED - Database function error, needs debugging
+
+### What We're Building
+
+Adding the ability for org admins to manage member project assignments from the Organisation > Members tab:
+1. **Expandable member rows** - Click chevron to see project assignments
+2. **Project assignment management** - Add/remove members from projects, change roles
+3. **Resend invitation button** - Send new invitation email to existing members
+
+### What's Been Done
+
+**Frontend (committed and deployed):**
+- `src/pages/admin/OrganisationAdmin.jsx` - Updated MembersTab with:
+  - Expandable rows (chevron button)
+  - Projects column showing "X of Y" count
+  - Project assignments panel in expanded row
+  - Role dropdown and Add/Remove buttons
+  - Resend invite button (mail icon)
+- `src/services/organisation.service.js` - Added methods:
+  - `getMemberProjectAssignments()` - calls RPC function
+  - `addMemberToProject()` - calls RPC function
+  - `removeMemberFromProject()` - calls RPC function
+  - `changeMemberProjectRole()` - calls RPC function
+- `src/services/invitation.service.js` - Added `reinviteExistingMember()` method
+
+**Database migrations (pushed via `supabase db push`):**
+- `supabase/migrations/202601130001_add_org_admin_user_projects_function.sql`
+- `supabase/migrations/202601130002_fix_org_admin_role_check.sql`
+
+These create SECURITY DEFINER functions to bypass RLS:
+- `get_user_project_assignments_for_org(org_id, user_id)`
+- `add_user_to_project_as_org_admin(user_id, project_id, role)`
+- `remove_user_from_project_as_org_admin(user_id, project_id)`
+- `change_user_project_role_as_org_admin(user_id, project_id, new_role)`
+
+### Current Error
+
+"Failed to load project assignments" when clicking the expand chevron on any member row.
+
+### Suspected Issues (To Debug)
+
+1. **Database function may not exist or have errors**
+   - The migrations were pushed but the RPC call is failing
+   - Need to verify functions exist: Check Supabase Dashboard > Database > Functions
+   - Test the function directly in SQL Editor:
+     ```sql
+     SELECT * FROM get_user_project_assignments_for_org(
+       'YOUR_ORG_ID'::uuid,
+       'YOUR_USER_ID'::uuid
+     );
+     ```
+
+2. **Role mismatch**
+   - Function checks for `org_role IN ('org_owner', 'org_admin', 'supplier_pm')`
+   - Need to verify what role the current user actually has in `user_organisations`
+   - Check: `SELECT org_role FROM user_organisations WHERE user_id = 'YOUR_USER_ID'`
+
+3. **Browser/Vercel caching**
+   - User tested on both `tracker.progressive.gg` and `amsf001-project-tracker.vercel.app`
+   - Try hard refresh (Cmd+Shift+R) or incognito mode
+
+4. **Environment mismatch**
+   - Verify both URLs point to the same Supabase instance
+   - Check `.env` files for `VITE_SUPABASE_URL`
+
+### Files to Review
+
+| File | Purpose |
+|------|---------|
+| `src/pages/admin/OrganisationAdmin.jsx` | MembersTab component (lines 444-1200) |
+| `src/services/organisation.service.js` | Service methods (lines 700-812) |
+| `supabase/migrations/202601130001_*.sql` | Original DB functions |
+| `supabase/migrations/202601130002_*.sql` | Fix for org_owner role |
+
+### How to Debug
+
+1. Open browser DevTools > Network tab
+2. Expand a member row
+3. Look for the RPC call to `get_user_project_assignments_for_org`
+4. Check the response body for the actual error message
+
+Or check Supabase Dashboard > Logs for database errors.
+
+### Git Commits for This Feature
+
+```
+ef949568 fix: Include org_owner role in admin checks for backwards compatibility
+50e2756f fix: Add SECURITY DEFINER functions for org admin project management
+98f6fb3b fix: Use correct column name 'reference' for project code
+49b68fa8 fix: Add expandable rows to MembersTab in OrganisationAdmin
+e26da7ee feat: Add expandable member rows with project assignments and resend invite
+```
+
+---
+
 ## Evaluator Module UAT Testing
 
 **Status**: Ready for UAT Round 2
