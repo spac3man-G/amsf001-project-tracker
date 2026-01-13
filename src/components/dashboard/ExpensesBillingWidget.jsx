@@ -204,14 +204,38 @@ export default function ExpensesBillingWidget({ editable = false, fullPage = fal
 
   return (
     <div className="dashboard-widget expenses-billing-widget" data-testid="expenses-billing-widget">
-      <div className="widget-header">
-        <div className="widget-icon" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>
-          <Receipt size={20} />
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '1rem',
+        paddingBottom: '0.75rem',
+        borderBottom: '1px solid #e2e8f0'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            backgroundColor: '#fef3c7',
+            color: '#d97706',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Receipt size={20} />
+          </div>
+          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600', color: '#1e293b' }}>
+            Expenses Billing
+          </h3>
         </div>
-        <span className="widget-title">Expenses Billing</span>
-        <span className="widget-total" data-testid="expenses-billing-total">
-          {formatCurrency(totalChargeable)} Total
-        </span>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e293b' }} data-testid="expenses-billing-total">
+            {formatCurrency(totalChargeable)}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Total</div>
+        </div>
       </div>
 
       {/* Summary Row */}
@@ -221,7 +245,7 @@ export default function ExpensesBillingWidget({ editable = false, fullPage = fal
         padding: '0.75rem 1rem',
         backgroundColor: '#f8fafc',
         borderRadius: '8px',
-        marginBottom: '0.75rem',
+        marginBottom: '1rem',
         fontSize: '0.875rem'
       }}>
         <div>

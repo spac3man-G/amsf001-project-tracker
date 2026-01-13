@@ -129,22 +129,48 @@ export default function BillingWidget({ editable = false, fullPage = false, refr
       }}
       onClick={handleWidgetClick}
     >
-      <div className="widget-header">
-        <div className="widget-icon" style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}>
-          <PoundSterling size={20} />
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '1rem',
+        paddingBottom: '0.75rem',
+        borderBottom: '1px solid #e2e8f0'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            backgroundColor: '#dcfce7',
+            color: '#16a34a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <PoundSterling size={20} />
+          </div>
+          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600', color: '#1e293b' }}>
+            Milestone Billing
+          </h3>
         </div>
-        <span className="widget-title">Milestone Billing</span>
-        <span className="widget-total" data-testid="billing-total">{formatCurrency(totalBillable)} Total</span>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e293b' }} data-testid="billing-total">
+            {formatCurrency(totalBillable)}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Total</div>
+        </div>
       </div>
 
       {/* Summary Row */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '1.5rem', 
+      <div style={{
+        display: 'flex',
+        gap: '1.5rem',
         padding: '0.75rem 1rem',
         backgroundColor: '#f8fafc',
         borderRadius: '8px',
-        marginBottom: '0.75rem',
+        marginBottom: '1rem',
         fontSize: '0.875rem'
       }}>
         <div>
