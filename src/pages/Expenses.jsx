@@ -70,6 +70,12 @@ export default function Expenses() {
   const [filterChargeable, setFilterChargeable] = useState('all');
   const [filterProcurement, setFilterProcurement] = useState('all');
 
+  // New multi-select and date range filters
+  const [filterDateStart, setFilterDateStart] = useState('');
+  const [filterDateEnd, setFilterDateEnd] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedResources, setSelectedResources] = useState([]);
+
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, expenseId: null, expenseData: null });
   const [submitDialog, setSubmitDialog] = useState({ isOpen: false, expense: null });
   const [rejectDialog, setRejectDialog] = useState({ isOpen: false, expenseId: null });
@@ -293,8 +299,21 @@ export default function Expenses() {
   }
 
   const filteredExpenses = expenses.filter(e => {
-    if (filterCategory !== 'all' && e.category !== filterCategory) return false;
-    if (filterResource !== 'all' && e.resource_name !== filterResource) return false;
+    // Date range filter
+    if (filterDateStart && e.expense_date < filterDateStart) return false;
+    if (filterDateEnd && e.expense_date > filterDateEnd) return false;
+    // Multi-select category filter (use array if populated, else fall back to single select)
+    if (selectedCategories.length > 0) {
+      if (!selectedCategories.includes(e.category)) return false;
+    } else if (filterCategory !== 'all' && e.category !== filterCategory) {
+      return false;
+    }
+    // Multi-select resource filter
+    if (selectedResources.length > 0) {
+      if (!selectedResources.includes(e.resource_name)) return false;
+    } else if (filterResource !== 'all' && e.resource_name !== filterResource) {
+      return false;
+    }
     if (filterStatus !== 'all' && e.status !== filterStatus) return false;
     if (filterChargeable === 'chargeable' && e.chargeable_to_customer === false) return false;
     if (filterChargeable === 'non-chargeable' && e.chargeable_to_customer !== false) return false;
@@ -360,7 +379,12 @@ export default function Expenses() {
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterChargeable={filterChargeable} setFilterChargeable={setFilterChargeable}
             filterProcurement={filterProcurement} setFilterProcurement={setFilterProcurement}
+            filterDateStart={filterDateStart} setFilterDateStart={setFilterDateStart}
+            filterDateEnd={filterDateEnd} setFilterDateEnd={setFilterDateEnd}
+            selectedCategories={selectedCategories} setSelectedCategories={setSelectedCategories}
+            selectedResources={selectedResources} setSelectedResources={setSelectedResources}
             resourceNames={resourceNames} hasRole={hasRole}
+            expenses={expenses}
           />
         </div>
 
