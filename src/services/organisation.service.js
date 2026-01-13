@@ -708,7 +708,7 @@ export class OrganisationService {
       // First get all projects in the organisation
       const { data: orgProjects, error: projectsError } = await supabase
         .from('projects')
-        .select('id, name, code')
+        .select('id, name, reference')
         .eq('organisation_id', organisationId)
         .order('name');
 
@@ -744,7 +744,7 @@ export class OrganisationService {
       return orgProjects.map(project => ({
         project_id: project.id,
         project_name: project.name,
-        project_code: project.code,
+        project_code: project.reference,
         is_assigned: !!assignmentMap[project.id],
         assignment: assignmentMap[project.id] || null,
         project_role: assignmentMap[project.id]?.project_role || null,
