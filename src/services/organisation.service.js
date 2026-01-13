@@ -692,6 +692,169 @@ export class OrganisationService {
       throw error;
     }
   }
+
+  // ============================================
+  // PROJECT ASSIGNMENT MANAGEMENT
+  // ============================================
+
+  /**
+   * Get all project assignments for a specific member
+   * @param {string} organisationId - Organisation UUID
+   * @param {string} userId - User UUID
+   * @returns {Promise<Array>} Array of project assignments with project details
+   */
+  async getMemberProjectAssignments(organisationId, userId) {
+    try {
+      // First get all projects in the organisation
+      const { data: orgProjects, error: projectsError } = await supabase
+        .from('projects')
+        .select('id, name, code')
+        .eq('organisation_id', organisationId)
+        .order('name');
+
+      if (projectsError) {
+        console.error('getMemberProjectAssignments projects error:', projectsError);
+        throw projectsError;
+      }
+
+      if (!orgProjects || orgProjects.length === 0) {
+        return [];
+      }
+
+      // Get user's project assignments for these projects
+      const projectIds = orgProjects.map(p => p.id);
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from('user_projects')
+        .select('id, project_id, project_role, created_at')
+        .eq('user_id', userId)
+        .in('project_id', projectIds);
+
+      if (assignmentsError) {
+        console.error('getMemberProjectAssignments assignments error:', assignmentsError);
+        throw assignmentsError;
+      }
+
+      // Create a map of project assignments
+      const assignmentMap = {};
+      (assignments || []).forEach(a => {
+        assignmentMap[a.project_id] = a;
+      });
+
+      // Return projects with their assignment status
+      return orgProjects.map(project => ({
+        project_id: project.id,
+        project_name: project.name,
+        project_code: project.code,
+        is_assigned: !!assignmentMap[project.id],
+        assignment: assignmentMap[project.id] || null,
+        project_role: assignmentMap[project.id]?.project_role || null,
+      }));
+    } catch (error) {
+      console.error('getMemberProjectAssignments failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a member to a project
+   * @param {string} userId - User UUID
+   * @param {string} projectId - Project UUID
+   * @param {string} role - Project role (supplier_pm, customer_pm, contributor, viewer, etc.)
+   * @returns {Promise<Object>} Created assignment
+   */
+  async addMemberToProject(userId, projectId, role) {
+    try {
+      // Check if already assigned
+      const { data: existing } = await supabase
+        .from('user_projects')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('project_id', projectId)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        throw new Error('User is already assigned to this project');
+      }
+
+      const { data, error } = await supabase
+        .from('user_projects')
+        .insert({
+          user_id: userId,
+          project_id: projectId,
+          project_role: role,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('addMemberToProject error:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('addMemberToProject failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a member from a project
+   * @param {string} userId - User UUID
+   * @param {string} projectId - Project UUID
+   * @returns {Promise<boolean>} Success status
+   */
+  async removeMemberFromProject(userId, projectId) {
+    try {
+      const { error } = await supabase
+        .from('user_projects')
+        .delete()
+        .eq('user_id', userId)
+        .eq('project_id', projectId);
+
+      if (error) {
+        console.error('removeMemberFromProject error:', error);
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('removeMemberFromProject failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Change a member's role on a project
+   * @param {string} userId - User UUID
+   * @param {string} projectId - Project UUID
+   * @param {string} newRole - New project role
+   * @returns {Promise<Object>} Updated assignment
+   */
+  async changeMemberProjectRole(userId, projectId, newRole) {
+    try {
+      const { data, error } = await supabase
+        .from('user_projects')
+        .update({
+          project_role: newRole,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .eq('project_id', projectId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('changeMemberProjectRole error:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('changeMemberProjectRole failed:', error);
+      throw error;
+    }
+  }
 }
 
 // Singleton instance

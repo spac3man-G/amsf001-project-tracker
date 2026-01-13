@@ -630,6 +630,72 @@ class InvitationService {
     const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
     return `${baseUrl}/accept-invite?token=${token}`;
   }
+
+  /**
+   * Re-invite an existing member
+   * Creates a new invitation for someone already in the organisation.
+   * Useful for legacy users or those who need to reset their access.
+   * @param {Object} params - Parameters
+   * @param {string} params.organisationId - Organisation UUID
+   * @param {string} params.userId - User ID of existing member
+   * @param {string} params.email - Member's email
+   * @param {string} params.orgRole - Their current/desired org role
+   * @param {string} params.invitedBy - User ID of person sending invite
+   * @param {number} params.expiryDays - Days until expiry (default 7)
+   * @returns {Promise<Object>} Created invitation with token
+   */
+  async reinviteExistingMember({ organisationId, userId, email, orgRole = 'org_member', invitedBy, expiryDays = 7 }) {
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Revoke any existing pending invitations for this email
+      await supabase
+        .from(this.tableName)
+        .update({
+          status: 'revoked',
+          updated_at: new Date().toISOString()
+        })
+        .eq('organisation_id', organisationId)
+        .eq('email', normalizedEmail)
+        .eq('status', 'pending');
+
+      // Generate secure token
+      const token = generateSecureToken(64);
+
+      // Calculate expiry date
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiryDays);
+
+      // Create new invitation
+      const { data: invitation, error } = await supabase
+        .from(this.tableName)
+        .insert({
+          organisation_id: organisationId,
+          email: normalizedEmail,
+          org_role: orgRole,
+          token: token,
+          invited_by: invitedBy,
+          expires_at: expiresAt.toISOString(),
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating re-invitation:', error);
+        throw error;
+      }
+
+      return {
+        success: true,
+        invitation: invitation,
+        isReinvite: true
+      };
+    } catch (error) {
+      console.error('InvitationService.reinviteExistingMember error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

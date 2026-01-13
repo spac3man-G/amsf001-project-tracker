@@ -1,26 +1,30 @@
 /**
  * Organisation Members Page - Manage Organisation Membership
- * 
+ *
  * Allows organisation admins to manage members.
- * 
+ *
  * Features:
  * - View all organisation members with their roles
+ * - Expandable rows showing project assignments
+ * - Add/remove members from projects with role selection
  * - Invite new members (by email)
+ * - Resend invitations to existing members
  * - View and manage pending invitations
  * - Change member roles
  * - Remove members
- * 
- * @version 3.0
+ *
+ * @version 4.0
  * @created 22 December 2025
- * @updated 24 December 2025 - Added pending invitations section
+ * @updated 13 January 2026 - Added expandable rows with project assignments, resend invite
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { 
-  Users, Plus, RefreshCw, Shield, User, 
-  Trash2, ChevronDown, Mail, Check, X, Clock, Copy
+import {
+  Users, Plus, RefreshCw, Shield, User,
+  Trash2, ChevronDown, ChevronRight, Mail, Check, X, Clock, Copy,
+  FolderKanban, Send, UserPlus, UserMinus
 } from 'lucide-react';
 import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,7 +32,7 @@ import { useProjectRole } from '../../hooks/useProjectRole';
 import { useToast } from '../../contexts/ToastContext';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import { PendingInvitationCard } from '../../components/organisation';
-import { hasOrgPermission, ORG_ROLES, ORG_ROLE_CONFIG } from '../../lib/permissionMatrix';
+import { hasOrgPermission, ORG_ROLES, ORG_ROLE_CONFIG, ROLES, ROLE_CONFIG } from '../../lib/permissionMatrix';
 import { organisationService, invitationService, emailService } from '../../services';
 import '../../pages/TeamMembers.css';
 
@@ -54,6 +58,14 @@ export default function OrganisationMembers() {
   const [inviting, setInviting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, member: null });
   const [roleDropdown, setRoleDropdown] = useState(null);
+
+  // Expandable rows state
+  const [expandedMember, setExpandedMember] = useState(null);
+  const [memberProjects, setMemberProjects] = useState({});
+  const [loadingProjects, setLoadingProjects] = useState(null);
+  const [addingToProject, setAddingToProject] = useState(null);
+  const [selectedProjectRole, setSelectedProjectRole] = useState(ROLES.CONTRIBUTOR);
+  const [resendingInvite, setResendingInvite] = useState(null);
 
   // Check permissions
   const canInvite = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'invite');
@@ -363,7 +375,7 @@ export default function OrganisationMembers() {
   const handleRevokeInvitation = async (invitation) => {
     try {
       const success = await invitationService.revokeInvitation(invitation.id);
-      
+
       if (!success) {
         showError('Failed to revoke invitation');
         return;
@@ -374,6 +386,162 @@ export default function OrganisationMembers() {
     } catch (error) {
       console.error('Error revoking invitation:', error);
       showError('Failed to revoke invitation');
+    }
+  };
+
+  // Toggle expanded row and fetch project assignments
+  const handleToggleExpand = async (member) => {
+    if (expandedMember === member.user_id) {
+      setExpandedMember(null);
+      return;
+    }
+
+    setExpandedMember(member.user_id);
+
+    // Fetch project assignments if not already loaded
+    if (!memberProjects[member.user_id]) {
+      setLoadingProjects(member.user_id);
+      try {
+        const assignments = await organisationService.getMemberProjectAssignments(
+          currentOrganisation.id,
+          member.user_id
+        );
+        setMemberProjects(prev => ({
+          ...prev,
+          [member.user_id]: assignments
+        }));
+      } catch (error) {
+        console.error('Error fetching project assignments:', error);
+        showError('Failed to load project assignments');
+      } finally {
+        setLoadingProjects(null);
+      }
+    }
+  };
+
+  // Add member to project
+  const handleAddToProject = async (userId, projectId, role) => {
+    setAddingToProject(projectId);
+    try {
+      await organisationService.addMemberToProject(userId, projectId, role);
+
+      // Refresh project assignments for this member
+      const assignments = await organisationService.getMemberProjectAssignments(
+        currentOrganisation.id,
+        userId
+      );
+      setMemberProjects(prev => ({
+        ...prev,
+        [userId]: assignments
+      }));
+
+      showSuccess('Member added to project');
+    } catch (error) {
+      console.error('Error adding to project:', error);
+      showError(error.message || 'Failed to add member to project');
+    } finally {
+      setAddingToProject(null);
+    }
+  };
+
+  // Remove member from project
+  const handleRemoveFromProject = async (userId, projectId, projectName) => {
+    try {
+      await organisationService.removeMemberFromProject(userId, projectId);
+
+      // Refresh project assignments for this member
+      const assignments = await organisationService.getMemberProjectAssignments(
+        currentOrganisation.id,
+        userId
+      );
+      setMemberProjects(prev => ({
+        ...prev,
+        [userId]: assignments
+      }));
+
+      showSuccess(`Removed from ${projectName}`);
+    } catch (error) {
+      console.error('Error removing from project:', error);
+      showError('Failed to remove member from project');
+    }
+  };
+
+  // Change member's project role
+  const handleChangeProjectRole = async (userId, projectId, newRole) => {
+    try {
+      await organisationService.changeMemberProjectRole(userId, projectId, newRole);
+
+      // Refresh project assignments for this member
+      const assignments = await organisationService.getMemberProjectAssignments(
+        currentOrganisation.id,
+        userId
+      );
+      setMemberProjects(prev => ({
+        ...prev,
+        [userId]: assignments
+      }));
+
+      showSuccess('Project role updated');
+    } catch (error) {
+      console.error('Error changing project role:', error);
+      showError('Failed to update project role');
+    }
+  };
+
+  // Resend invitation to existing member
+  const handleResendInviteToMember = async (member) => {
+    if (!member.user?.email) {
+      showError('No email address found for this member');
+      return;
+    }
+
+    setResendingInvite(member.user_id);
+    try {
+      const result = await invitationService.reinviteExistingMember({
+        organisationId: currentOrganisation.id,
+        userId: member.user_id,
+        email: member.user.email,
+        orgRole: member.org_role,
+        invitedBy: user.id,
+      });
+
+      if (!result.success) {
+        showError(result.message || 'Failed to create invitation');
+        return;
+      }
+
+      // Send email with new invitation link
+      const acceptUrl = invitationService.getAcceptUrl(result.invitation.token);
+
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      const inviterName = currentUserProfile?.full_name || currentUserProfile?.email || 'Organisation Admin';
+
+      const emailResult = await emailService.sendInvitationEmail({
+        email: member.user.email,
+        orgName: currentOrganisation.name,
+        orgDisplayName: currentOrganisation.display_name,
+        inviterName: inviterName,
+        role: member.org_role,
+        acceptUrl: acceptUrl,
+      });
+
+      if (!emailResult.success) {
+        showSuccess(`Invitation created but email failed. Share link manually.`);
+      } else {
+        showSuccess(`Invitation resent to ${member.user.email}`);
+      }
+
+      fetchPendingInvitations();
+    } catch (error) {
+      console.error('Error resending invite:', error);
+      showError('Failed to resend invitation');
+    } finally {
+      setResendingInvite(null);
     }
   };
 
@@ -469,94 +637,320 @@ export default function OrganisationMembers() {
           <table className="members-table">
             <thead>
               <tr>
+                <th style={{ width: '40px' }}></th>
                 <th>Member</th>
                 <th>Role</th>
+                <th>Projects</th>
                 <th>Joined</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {members.map((member) => (
-                <tr key={member.id}>
-                  <td className="member-info">
-                    <div className="member-avatar">
-                      {member.user?.avatar_url ? (
-                        <img src={member.user.avatar_url} alt="" />
-                      ) : (
-                        <span>{(member.user?.full_name || member.user?.email || '?')[0].toUpperCase()}</span>
-                      )}
-                    </div>
-                    <div className="member-details">
-                      <span className="member-name">
-                        {member.user?.full_name || 'Unknown User'}
-                        {member.user_id === user?.id && (
-                          <span className="you-badge">You</span>
-                        )}
-                      </span>
-                      <span className="member-email">{member.user?.email}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="role-cell" style={{ position: 'relative' }}>
+                <React.Fragment key={member.id}>
+                  <tr
+                    style={{
+                      backgroundColor: expandedMember === member.user_id ? '#f8fafc' : 'transparent'
+                    }}
+                  >
+                    <td style={{ padding: '8px' }}>
                       <button
-                        className="role-badge"
+                        onClick={() => handleToggleExpand(member)}
                         style={{
-                          backgroundColor: ORG_ROLE_CONFIG[member.org_role]?.bg || '#f1f5f9',
-                          color: ORG_ROLE_CONFIG[member.org_role]?.color || '#64748b',
-                          cursor: canChangeRole && member.user_id !== user?.id ? 'pointer' : 'default'
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#64748b'
                         }}
-                        onClick={() => {
-                          if (canChangeRole && member.user_id !== user?.id) {
-                            setRoleDropdown(roleDropdown === member.id ? null : member.id);
-                          }
-                        }}
-                        disabled={!canChangeRole || member.user_id === user?.id}
+                        title="View project assignments"
                       >
-                        {getRoleIcon(member.org_role)}
-                        {ORG_ROLE_CONFIG[member.org_role]?.label || member.org_role}
-                        {canChangeRole && member.user_id !== user?.id && (
-                          <ChevronDown size={14} />
+                        {expandedMember === member.user_id ? (
+                          <ChevronDown size={18} />
+                        ) : (
+                          <ChevronRight size={18} />
                         )}
                       </button>
+                    </td>
+                    <td className="member-info">
+                      <div className="member-avatar">
+                        {member.user?.avatar_url ? (
+                          <img src={member.user.avatar_url} alt="" />
+                        ) : (
+                          <span>{(member.user?.full_name || member.user?.email || '?')[0].toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="member-details">
+                        <span className="member-name">
+                          {member.user?.full_name || 'Unknown User'}
+                          {member.user_id === user?.id && (
+                            <span className="you-badge">You</span>
+                          )}
+                        </span>
+                        <span className="member-email">{member.user?.email}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="role-cell" style={{ position: 'relative' }}>
+                        <button
+                          className="role-badge"
+                          style={{
+                            backgroundColor: ORG_ROLE_CONFIG[member.org_role]?.bg || '#f1f5f9',
+                            color: ORG_ROLE_CONFIG[member.org_role]?.color || '#64748b',
+                            cursor: canChangeRole && member.user_id !== user?.id ? 'pointer' : 'default'
+                          }}
+                          onClick={() => {
+                            if (canChangeRole && member.user_id !== user?.id) {
+                              setRoleDropdown(roleDropdown === member.id ? null : member.id);
+                            }
+                          }}
+                          disabled={!canChangeRole || member.user_id === user?.id}
+                        >
+                          {getRoleIcon(member.org_role)}
+                          {ORG_ROLE_CONFIG[member.org_role]?.label || member.org_role}
+                          {canChangeRole && member.user_id !== user?.id && (
+                            <ChevronDown size={14} />
+                          )}
+                        </button>
 
-                      {/* Role Dropdown */}
-                      {roleDropdown === member.id && (
-                        <div className="role-dropdown">
-                          {Object.entries(ORG_ROLE_CONFIG).map(([role, config]) => (
-                            <button
-                              key={role}
-                              onClick={() => handleRoleChange(member.id, role)}
-                              className={member.org_role === role ? 'active' : ''}
-                            >
-                              {getRoleIcon(role)}
-                              {config.label}
-                              {member.org_role === role && <Check size={14} />}
-                            </button>
-                          ))}
-                        </div>
+                        {/* Role Dropdown */}
+                        {roleDropdown === member.id && (
+                          <div className="role-dropdown">
+                            {Object.entries(ORG_ROLE_CONFIG).map(([role, config]) => (
+                              <button
+                                key={role}
+                                onClick={() => handleRoleChange(member.id, role)}
+                                className={member.org_role === role ? 'active' : ''}
+                              >
+                                {getRoleIcon(role)}
+                                {config.label}
+                                {member.org_role === role && <Check size={14} />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      {memberProjects[member.user_id] ? (
+                        <span style={{
+                          fontSize: '0.875rem',
+                          color: '#64748b',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <FolderKanban size={14} />
+                          {memberProjects[member.user_id].filter(p => p.is_assigned).length} of {memberProjects[member.user_id].length}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>—</span>
                       )}
-                    </div>
-                  </td>
-                  <td className="date-cell">
-                    {member.accepted_at 
-                      ? new Date(member.accepted_at).toLocaleDateString()
-                      : member.invited_at
-                        ? `Invited ${new Date(member.invited_at).toLocaleDateString()}`
-                        : '-'
-                    }
-                  </td>
-                  <td className="actions-cell">
-                    {canRemove && member.user_id !== user?.id && (
-                      <button
-                        onClick={() => setConfirmDialog({ open: true, member })}
-                        className="btn-icon danger"
-                        title="Remove member"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                    </td>
+                    <td className="date-cell">
+                      {member.accepted_at
+                        ? new Date(member.accepted_at).toLocaleDateString()
+                        : member.invited_at
+                          ? `Invited ${new Date(member.invited_at).toLocaleDateString()}`
+                          : '-'
+                      }
+                    </td>
+                    <td className="actions-cell">
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {canInvite && member.user_id !== user?.id && (
+                          <button
+                            onClick={() => handleResendInviteToMember(member)}
+                            className="btn-icon"
+                            title="Resend invitation"
+                            disabled={resendingInvite === member.user_id}
+                            style={{
+                              opacity: resendingInvite === member.user_id ? 0.5 : 1
+                            }}
+                          >
+                            <Send size={16} />
+                          </button>
+                        )}
+                        {canRemove && member.user_id !== user?.id && (
+                          <button
+                            onClick={() => setConfirmDialog({ open: true, member })}
+                            className="btn-icon danger"
+                            title="Remove member"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Expanded Row - Project Assignments */}
+                  {expandedMember === member.user_id && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: 0 }}>
+                        <div style={{
+                          background: '#f8fafc',
+                          padding: '16px 16px 16px 56px',
+                          borderBottom: '1px solid #e2e8f0'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginBottom: '12px'
+                          }}>
+                            <FolderKanban size={16} style={{ color: '#8b5cf6' }} />
+                            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Project Assignments</span>
+                          </div>
+
+                          {loadingProjects === member.user_id ? (
+                            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                              <RefreshCw size={16} className="spinning" style={{ marginRight: '8px' }} />
+                              Loading projects...
+                            </div>
+                          ) : memberProjects[member.user_id]?.length === 0 ? (
+                            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                              No projects in this organisation
+                            </div>
+                          ) : (
+                            <div style={{
+                              display: 'grid',
+                              gap: '8px'
+                            }}>
+                              {memberProjects[member.user_id]?.map(project => (
+                                <div
+                                  key={project.project_id}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '10px 12px',
+                                    background: 'white',
+                                    borderRadius: '8px',
+                                    border: '1px solid #e2e8f0'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      color: '#8b5cf6',
+                                      background: '#f3e8ff',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px'
+                                    }}>
+                                      {project.project_code}
+                                    </span>
+                                    <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                                      {project.project_name}
+                                    </span>
+                                  </div>
+
+                                  {project.is_assigned ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <select
+                                        value={project.project_role}
+                                        onChange={(e) => handleChangeProjectRole(
+                                          member.user_id,
+                                          project.project_id,
+                                          e.target.value
+                                        )}
+                                        style={{
+                                          padding: '4px 8px',
+                                          fontSize: '0.75rem',
+                                          border: '1px solid #e2e8f0',
+                                          borderRadius: '4px',
+                                          background: 'white',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        {Object.entries(ROLE_CONFIG).map(([role, config]) => (
+                                          <option key={role} value={role}>
+                                            {config.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        onClick={() => handleRemoveFromProject(
+                                          member.user_id,
+                                          project.project_id,
+                                          project.project_name
+                                        )}
+                                        style={{
+                                          background: '#fef2f2',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          padding: '4px 8px',
+                                          color: '#dc2626',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          fontSize: '0.75rem'
+                                        }}
+                                        title="Remove from project"
+                                      >
+                                        <UserMinus size={14} />
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <select
+                                        value={selectedProjectRole}
+                                        onChange={(e) => setSelectedProjectRole(e.target.value)}
+                                        style={{
+                                          padding: '4px 8px',
+                                          fontSize: '0.75rem',
+                                          border: '1px solid #e2e8f0',
+                                          borderRadius: '4px',
+                                          background: 'white',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        {Object.entries(ROLE_CONFIG).map(([role, config]) => (
+                                          <option key={role} value={role}>
+                                            {config.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        onClick={() => handleAddToProject(
+                                          member.user_id,
+                                          project.project_id,
+                                          selectedProjectRole
+                                        )}
+                                        disabled={addingToProject === project.project_id}
+                                        style={{
+                                          background: '#f0fdf4',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          padding: '4px 8px',
+                                          color: '#16a34a',
+                                          cursor: addingToProject === project.project_id ? 'wait' : 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          fontSize: '0.75rem',
+                                          opacity: addingToProject === project.project_id ? 0.5 : 1
+                                        }}
+                                        title="Add to project"
+                                      >
+                                        <UserPlus size={14} />
+                                        {addingToProject === project.project_id ? 'Adding...' : 'Add'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
