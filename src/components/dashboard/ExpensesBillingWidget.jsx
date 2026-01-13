@@ -2,16 +2,20 @@
  * Expenses Billing Widget
  *
  * Widget showing monthly chargeable expenses for billing purposes.
- * Displays monthly totals with expandable breakdown by category and resource.
- * Includes click-through links to underlying expense data.
+ * Displays monthly totals with Ready, Billed, Received, and PO Number columns
+ * matching the milestone billing format.
+ * Includes expandable breakdown by category and resource.
  *
- * @version 1.0
+ * Ready to Bill: Defaults to Yes once 10 days past the end of that month.
+ *
+ * @version 2.0
  * @created 13 January 2026
+ * @updated 13 January 2026 - Added Ready, Billed, Received, PO columns
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Receipt, ChevronDown, ChevronRight, Calendar, Users, ExternalLink, Check, X } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Receipt, ChevronDown, ChevronRight, Users, Check, X, FileText, Award } from 'lucide-react';
 import { expensesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -29,14 +33,25 @@ export default function ExpensesBillingWidget({ editable = false, fullPage = fal
   const [loading, setLoading] = useState(true);
   const [monthlyExpenses, setMonthlyExpenses] = useState([]);
   const [expandedMonths, setExpandedMonths] = useState({});
-  const [billedMonths, setBilledMonths] = useState({});
+
+  // Billing status per month: { monthKey: { ready, billed, received, poNumber } }
+  const [monthStatus, setMonthStatus] = useState({});
+  const [editingPO, setEditingPO] = useState(null);
+  const [poValue, setPOValue] = useState('');
+
+  // Check if a month is ready to bill (10 days past end of month)
+  const isReadyToBill = (year, month) => {
+    const endOfMonth = new Date(year, month + 1, 0); // Last day of month
+    const readyDate = new Date(endOfMonth);
+    readyDate.setDate(readyDate.getDate() + 10); // 10 days after
+    return new Date() >= readyDate;
+  };
 
   const fetchData = useCallback(async () => {
     if (!projectId) return;
 
     setLoading(true);
     try {
-      // Fetch all chargeable expenses
       const expenses = await expensesService.getAll(projectId);
 
       // Filter to only chargeable expenses
@@ -94,6 +109,21 @@ export default function ExpensesBillingWidget({ editable = false, fullPage = fal
       });
 
       setMonthlyExpenses(sorted);
+
+      // Initialize status for each month with auto-ready calculation
+      const initialStatus = {};
+      sorted.forEach(m => {
+        if (!monthStatus[m.key]) {
+          initialStatus[m.key] = {
+            ready: isReadyToBill(m.year, m.month),
+            billed: false,
+            received: false,
+            poNumber: ''
+          };
+        }
+      });
+      setMonthStatus(prev => ({ ...initialStatus, ...prev }));
+
     } catch (error) {
       console.error('ExpensesBillingWidget fetch error:', error);
     } finally {
@@ -112,23 +142,37 @@ export default function ExpensesBillingWidget({ editable = false, fullPage = fal
     }));
   };
 
-  const toggleBilled = (monthKey) => {
+  const toggleStatus = (monthKey, field) => {
     if (!allowEdit) return;
-    setBilledMonths(prev => ({
+    setMonthStatus(prev => ({
       ...prev,
-      [monthKey]: !prev[monthKey]
+      [monthKey]: {
+        ...prev[monthKey],
+        [field]: !prev[monthKey]?.[field]
+      }
     }));
-    showSuccess(`${billedMonths[monthKey] ? 'Unmarked' : 'Marked'} as billed`);
+    showSuccess(`${field.charAt(0).toUpperCase() + field.slice(1)} status updated`);
   };
 
-  const navigateToExpenses = (monthData, filterType = null, filterValue = null) => {
-    // Build URL with filters
-    const [year, month] = monthData.key.split('-');
-    const startDate = `${year}-${month}-01`;
-    const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
+  const handlePOEdit = (monthKey) => {
+    if (!allowEdit) return;
+    setEditingPO(monthKey);
+    setPOValue(monthStatus[monthKey]?.poNumber || '');
+  };
 
-    // Navigate to expenses page - the filter state will need to be handled there
-    // For now, navigate and show which month to filter
+  const handlePOSave = (monthKey) => {
+    setMonthStatus(prev => ({
+      ...prev,
+      [monthKey]: {
+        ...prev[monthKey],
+        poNumber: poValue
+      }
+    }));
+    setEditingPO(null);
+    showSuccess('PO number updated');
+  };
+
+  const navigateToExpenses = (monthData) => {
     navigate(`/expenses?month=${monthData.key}`);
   };
 
@@ -136,13 +180,14 @@ export default function ExpensesBillingWidget({ editable = false, fullPage = fal
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: 'GBP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount);
   };
 
   const totalChargeable = monthlyExpenses.reduce((sum, m) => sum + m.total, 0);
-  const totalBilled = monthlyExpenses.filter(m => billedMonths[m.key]).reduce((sum, m) => sum + m.total, 0);
+  const totalBilled = monthlyExpenses.filter(m => monthStatus[m.key]?.billed).reduce((sum, m) => sum + m.total, 0);
+  const totalReceived = monthlyExpenses.filter(m => monthStatus[m.key]?.received).reduce((sum, m) => sum + m.total, 0);
 
   const getCategoryColor = (category) => {
     const colors = {
@@ -180,218 +225,310 @@ export default function ExpensesBillingWidget({ editable = false, fullPage = fal
         fontSize: '0.875rem'
       }}>
         <div>
-          <span style={{ color: '#64748b' }}>Chargeable: </span>
-          <span style={{ fontWeight: '600', color: '#d97706' }}>{formatCurrency(totalChargeable)}</span>
-        </div>
-        <div>
           <span style={{ color: '#64748b' }}>Billed: </span>
           <span style={{ fontWeight: '600', color: '#16a34a' }}>{formatCurrency(totalBilled)}</span>
         </div>
         <div>
-          <span style={{ color: '#64748b' }}>Unbilled: </span>
-          <span style={{ fontWeight: '600', color: '#dc2626' }}>{formatCurrency(totalChargeable - totalBilled)}</span>
+          <span style={{ color: '#64748b' }}>Received: </span>
+          <span style={{ fontWeight: '600', color: '#2563eb' }}>{formatCurrency(totalReceived)}</span>
+        </div>
+        <div>
+          <span style={{ color: '#64748b' }}>Outstanding: </span>
+          <span style={{ fontWeight: '600', color: '#dc2626' }}>{formatCurrency(totalChargeable - totalReceived)}</span>
         </div>
       </div>
 
-      {/* Monthly Expenses List */}
-      <div style={{ maxHeight: fullPage ? 'none' : '400px', overflowY: 'auto' }}>
-        {monthlyExpenses.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-            No chargeable expenses found
-          </div>
-        ) : (
-          monthlyExpenses.map(monthData => (
-            <div
-              key={monthData.key}
-              style={{
-                borderBottom: '1px solid #f1f5f9',
-                backgroundColor: billedMonths[monthData.key] ? '#f0fdf4' : 'transparent'
-              }}
-            >
-              {/* Month Header Row */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '0.75rem 0.5rem',
-                  cursor: 'pointer',
-                  gap: '0.75rem'
-                }}
-                onClick={() => toggleMonth(monthData.key)}
-              >
-                <button
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: '0.25rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    color: '#64748b'
-                  }}
-                >
-                  {expandedMonths[monthData.key] ? (
-                    <ChevronDown size={18} />
-                  ) : (
-                    <ChevronRight size={18} />
-                  )}
-                </button>
+      {/* Monthly Expenses Table */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+              <th style={{ textAlign: 'left', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Month</th>
+              <th style={{ textAlign: 'right', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Amount</th>
+              <th style={{ textAlign: 'center', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Ready</th>
+              <th style={{ textAlign: 'center', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Billed</th>
+              <th style={{ textAlign: 'center', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>Received</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem 0.25rem', fontWeight: '600', color: '#64748b' }}>PO Number</th>
+            </tr>
+          </thead>
+          <tbody>
+            {monthlyExpenses.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                  No chargeable expenses found
+                </td>
+              </tr>
+            ) : (
+              monthlyExpenses.map(monthData => {
+                const status = monthStatus[monthData.key] || {};
+                const autoReady = isReadyToBill(monthData.year, monthData.month);
+                const isReady = status.ready !== undefined ? status.ready : autoReady;
 
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', color: '#1e293b' }}>
-                    {monthData.label}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    {monthData.count} expense{monthData.count !== 1 ? 's' : ''}
-                  </div>
-                </div>
-
-                <div style={{
-                  fontWeight: '600',
-                  fontSize: '1rem',
-                  color: '#1e293b',
-                  minWidth: '100px',
-                  textAlign: 'right'
-                }}>
-                  {formatCurrency(monthData.total)}
-                </div>
-
-                {/* Billed Toggle */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleBilled(monthData.key); }}
-                  disabled={!allowEdit}
-                  title={billedMonths[monthData.key] ? 'Mark as unbilled' : 'Mark as billed'}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    cursor: allowEdit ? 'pointer' : 'default',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: billedMonths[monthData.key] ? '#dcfce7' : '#f1f5f9',
-                    color: billedMonths[monthData.key] ? '#16a34a' : '#94a3b8'
-                  }}
-                >
-                  {billedMonths[monthData.key] ? <Check size={16} /> : <X size={16} />}
-                </button>
-
-                {/* View Details Link */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); navigateToExpenses(monthData); }}
-                  title="View expenses for this month"
-                  style={{
-                    background: 'none',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    padding: '0.375rem 0.5rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    fontSize: '0.75rem',
-                    color: '#3b82f6'
-                  }}
-                >
-                  <ExternalLink size={14} />
-                  View
-                </button>
-              </div>
-
-              {/* Expanded Details */}
-              {expandedMonths[monthData.key] && (
-                <div style={{
-                  padding: '0 0.5rem 1rem 2.5rem',
-                  backgroundColor: '#fafafa'
-                }}>
-                  {/* By Category */}
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      color: '#64748b',
-                      marginBottom: '0.5rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em'
-                    }}>
-                      By Type
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {Object.entries(monthData.byCategory).map(([category, data]) => {
-                        const colors = getCategoryColor(category);
-                        return (
-                          <div
-                            key={category}
+                return (
+                  <React.Fragment key={monthData.key}>
+                    <tr
+                      style={{
+                        borderBottom: '1px solid #f1f5f9',
+                        backgroundColor: status.received ? '#f0fdf4' : 'transparent'
+                      }}
+                    >
+                      <td style={{ padding: '0.625rem 0.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => toggleMonth(monthData.key)}
                             style={{
-                              padding: '0.5rem 0.75rem',
-                              backgroundColor: colors.bg,
-                              borderRadius: '8px',
-                              minWidth: '120px'
+                              background: 'none',
+                              border: 'none',
+                              padding: '0.125rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: '#64748b'
                             }}
                           >
-                            <div style={{ fontSize: '0.75rem', color: colors.color, fontWeight: '500' }}>
-                              {category}
-                            </div>
-                            <div style={{ fontSize: '1rem', fontWeight: '600', color: colors.color }}>
-                              {formatCurrency(data.total)}
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: colors.color, opacity: 0.8 }}>
-                              {data.count} item{data.count !== 1 ? 's' : ''}
+                            {expandedMonths[monthData.key] ? (
+                              <ChevronDown size={16} />
+                            ) : (
+                              <ChevronRight size={16} />
+                            )}
+                          </button>
+                          <div>
+                            {fullPage ? (
+                              <Link
+                                to={`/expenses?month=${monthData.key}`}
+                                style={{ textDecoration: 'none' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div style={{ fontWeight: '500', color: '#3b82f6' }}>{monthData.label}</div>
+                              </Link>
+                            ) : (
+                              <div style={{ fontWeight: '500' }}>{monthData.label}</div>
+                            )}
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                              {monthData.count} expense{monthData.count !== 1 ? 's' : ''}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '0.625rem 0.25rem', fontWeight: '600' }}>
+                        {formatCurrency(monthData.total)}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '0.625rem 0.25rem' }}>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            padding: '0.125rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            backgroundColor: isReady ? '#dcfce7' : '#fef3c7',
+                            color: isReady ? '#16a34a' : '#d97706'
+                          }}
+                          title={isReady ? 'Ready to bill (10+ days past month end)' : 'Not yet ready (less than 10 days past month end)'}
+                        >
+                          <Award size={12} />
+                          {isReady ? 'Yes' : 'No'}
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '0.625rem 0.25rem' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleStatus(monthData.key, 'billed'); }}
+                          disabled={!allowEdit}
+                          title={status.billed ? 'Mark as not billed' : 'Mark as billed'}
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: allowEdit ? 'pointer' : 'default',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: status.billed ? '#dcfce7' : '#f1f5f9',
+                            color: status.billed ? '#16a34a' : '#94a3b8'
+                          }}
+                        >
+                          {status.billed ? <Check size={16} /> : <X size={16} />}
+                        </button>
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '0.625rem 0.25rem' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleStatus(monthData.key, 'received'); }}
+                          disabled={!allowEdit}
+                          title={status.received ? 'Mark as not received' : 'Mark as received'}
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: allowEdit ? 'pointer' : 'default',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: status.received ? '#dbeafe' : '#f1f5f9',
+                            color: status.received ? '#2563eb' : '#94a3b8'
+                          }}
+                        >
+                          {status.received ? <Check size={16} /> : <X size={16} />}
+                        </button>
+                      </td>
+                      <td style={{ padding: '0.625rem 0.25rem' }}>
+                        {editingPO === monthData.key ? (
+                          <div style={{ display: 'flex', gap: '0.25rem' }} onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              value={poValue}
+                              onChange={(e) => setPOValue(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && handlePOSave(monthData.key)}
+                              style={{
+                                width: '100px',
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.75rem',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '4px'
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handlePOSave(monthData.key)}
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.75rem',
+                                backgroundColor: '#16a34a',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={(e) => { e.stopPropagation(); allowEdit && handlePOEdit(monthData.key); }}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.75rem',
+                              color: status.poNumber ? '#1e293b' : '#94a3b8',
+                              cursor: allowEdit ? 'pointer' : 'default',
+                              borderRadius: '4px',
+                              backgroundColor: allowEdit ? '#f8fafc' : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}
+                          >
+                            <FileText size={12} />
+                            {status.poNumber || (allowEdit ? 'Add PO' : '—')}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
 
-                  {/* By Resource */}
-                  <div>
-                    <div style={{
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      color: '#64748b',
-                      marginBottom: '0.5rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem'
-                    }}>
-                      <Users size={14} />
-                      By Resource
-                    </div>
-                    <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                          <th style={{ textAlign: 'left', padding: '0.375rem 0.25rem', fontWeight: '500', color: '#64748b' }}>Resource</th>
-                          <th style={{ textAlign: 'right', padding: '0.375rem 0.25rem', fontWeight: '500', color: '#64748b' }}>Expenses</th>
-                          <th style={{ textAlign: 'right', padding: '0.375rem 0.25rem', fontWeight: '500', color: '#64748b' }}>Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(monthData.byResource)
-                          .sort((a, b) => b[1].total - a[1].total)
-                          .map(([resource, data]) => (
-                            <tr key={resource} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '0.5rem 0.25rem', color: '#1e293b' }}>{resource}</td>
-                              <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', color: '#64748b' }}>
-                                {data.count}
-                              </td>
-                              <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', fontWeight: '600' }}>
-                                {formatCurrency(data.total)}
-                              </td>
-                            </tr>
-                          ))
-                        }
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))
-        )}
+                    {/* Expanded Details Row */}
+                    {expandedMonths[monthData.key] && (
+                      <tr>
+                        <td colSpan={6} style={{ padding: 0 }}>
+                          <div style={{
+                            padding: '1rem 1rem 1rem 2.5rem',
+                            backgroundColor: '#fafafa',
+                            borderBottom: '1px solid #e2e8f0'
+                          }}>
+                            {/* By Category */}
+                            <div style={{ marginBottom: '1rem' }}>
+                              <div style={{
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                color: '#64748b',
+                                marginBottom: '0.5rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em'
+                              }}>
+                                By Type
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                {Object.entries(monthData.byCategory).map(([category, data]) => {
+                                  const colors = getCategoryColor(category);
+                                  return (
+                                    <div
+                                      key={category}
+                                      style={{
+                                        padding: '0.5rem 0.75rem',
+                                        backgroundColor: colors.bg,
+                                        borderRadius: '8px',
+                                        minWidth: '100px'
+                                      }}
+                                    >
+                                      <div style={{ fontSize: '0.75rem', color: colors.color, fontWeight: '500' }}>
+                                        {category}
+                                      </div>
+                                      <div style={{ fontSize: '1rem', fontWeight: '600', color: colors.color }}>
+                                        {formatCurrency(data.total)}
+                                      </div>
+                                      <div style={{ fontSize: '0.7rem', color: colors.color, opacity: 0.8 }}>
+                                        {data.count} item{data.count !== 1 ? 's' : ''}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* By Resource */}
+                            <div>
+                              <div style={{
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                color: '#64748b',
+                                marginBottom: '0.5rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                              }}>
+                                <Users size={14} />
+                                By Resource
+                              </div>
+                              <table style={{ width: '100%', maxWidth: '400px', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                    <th style={{ textAlign: 'left', padding: '0.375rem 0.25rem', fontWeight: '500', color: '#64748b' }}>Resource</th>
+                                    <th style={{ textAlign: 'right', padding: '0.375rem 0.25rem', fontWeight: '500', color: '#64748b' }}>Count</th>
+                                    <th style={{ textAlign: 'right', padding: '0.375rem 0.25rem', fontWeight: '500', color: '#64748b' }}>Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {Object.entries(monthData.byResource)
+                                    .sort((a, b) => b[1].total - a[1].total)
+                                    .map(([resource, data]) => (
+                                      <tr key={resource} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                        <td style={{ padding: '0.5rem 0.25rem', color: '#1e293b' }}>{resource}</td>
+                                        <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', color: '#64748b' }}>
+                                          {data.count}
+                                        </td>
+                                        <td style={{ padding: '0.5rem 0.25rem', textAlign: 'right', fontWeight: '600' }}>
+                                          {formatCurrency(data.total)}
+                                        </td>
+                                      </tr>
+                                    ))
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
