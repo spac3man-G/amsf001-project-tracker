@@ -15,12 +15,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { 
-  Building2, Users, FolderKanban, Save, RefreshCw, 
-  Plus, Shield, User, Trash2, ChevronDown, Mail, 
-  Check, X, Clock, Copy, UserPlus, UserMinus, 
+import {
+  Building2, Users, FolderKanban, Save, RefreshCw,
+  Plus, Shield, User, Trash2, ChevronDown, Mail,
+  Check, X, Clock, Copy, UserPlus, UserMinus,
   ChevronRight, Settings, AlertCircle, Briefcase,
-  ToggleLeft, ToggleRight, Palette
+  ToggleLeft, ToggleRight, Palette, Eye, FileText
 } from 'lucide-react';
 import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -159,10 +159,11 @@ export default function OrganisationAdmin() {
           />
         )}
         {activeTab === 'partners' && (
-          <PartnersTab 
+          <PartnersTab
             organisation={currentOrganisation}
             showSuccess={showSuccess}
             showError={showError}
+            navigate={navigate}
           />
         )}
       </div>
@@ -1059,7 +1060,7 @@ function ProjectsTab({
 // ============================================
 // PARTNERS TAB
 // ============================================
-function PartnersTab({ organisation, showSuccess, showError }) {
+function PartnersTab({ organisation, showSuccess, showError, navigate }) {
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1279,7 +1280,12 @@ function PartnersTab({ organisation, showSuccess, showError }) {
         <div className="partners-list">
           {partners.map((partner) => (
             <div key={partner.id} className={`partner-card ${!partner.is_active ? 'inactive' : ''}`}>
-              <div className="partner-info">
+              <div
+                className="partner-info"
+                onClick={() => navigate(`/partners/${partner.id}`)}
+                style={{ cursor: 'pointer' }}
+                title="Click to view details & generate invoices"
+              >
                 <div className="partner-header">
                   <h4>{partner.name}</h4>
                   <span className={`status-badge ${partner.is_active ? 'active' : 'inactive'}`}>
@@ -1300,6 +1306,13 @@ function PartnersTab({ organisation, showSuccess, showError }) {
                 </div>
               </div>
               <div className="partner-actions">
+                <button
+                  className="btn-icon"
+                  onClick={() => navigate(`/partners/${partner.id}`)}
+                  title="View details & generate invoices"
+                >
+                  <Eye size={18} />
+                </button>
                 <button
                   className="btn-icon"
                   onClick={() => handleToggleActive(partner)}
