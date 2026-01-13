@@ -441,9 +441,9 @@ function OrganisationTab({ organisation, canEdit, showSuccess, showError, refres
 // ============================================
 // MEMBERS TAB
 // ============================================
-function MembersTab({ 
-  organisation, user, orgRole, isSystemAdmin, 
-  showSuccess, showError, showWarning, refreshOrganisationMemberships 
+function MembersTab({
+  organisation, user, orgRole, isSystemAdmin,
+  showSuccess, showError, showWarning, refreshOrganisationMemberships
 }) {
   const [members, setMembers] = useState([]);
   const [pendingInvitations, setPendingInvitations] = useState([]);
@@ -455,6 +455,14 @@ function MembersTab({
   const [inviting, setInviting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, member: null });
   const [roleDropdown, setRoleDropdown] = useState(null);
+
+  // Expandable rows state
+  const [expandedMember, setExpandedMember] = useState(null);
+  const [memberProjects, setMemberProjects] = useState({});
+  const [loadingProjects, setLoadingProjects] = useState(null);
+  const [addingToProject, setAddingToProject] = useState(null);
+  const [selectedProjectRole, setSelectedProjectRole] = useState('contributor');
+  const [resendingInvite, setResendingInvite] = useState(null);
 
   const canInvite = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'invite');
   const canRemove = isSystemAdmin || hasOrgPermission(orgRole, 'orgMembers', 'remove');
@@ -620,6 +628,154 @@ function MembersTab({
     showSuccess('Invitation link copied');
   };
 
+  // Toggle expanded row and fetch project assignments
+  const handleToggleExpand = async (member) => {
+    if (expandedMember === member.user_id) {
+      setExpandedMember(null);
+      return;
+    }
+
+    setExpandedMember(member.user_id);
+
+    // Fetch project assignments if not already loaded
+    if (!memberProjects[member.user_id]) {
+      setLoadingProjects(member.user_id);
+      try {
+        const assignments = await organisationService.getMemberProjectAssignments(
+          organisation.id,
+          member.user_id
+        );
+        setMemberProjects(prev => ({
+          ...prev,
+          [member.user_id]: assignments
+        }));
+      } catch (error) {
+        console.error('Error fetching project assignments:', error);
+        showError('Failed to load project assignments');
+      } finally {
+        setLoadingProjects(null);
+      }
+    }
+  };
+
+  // Add member to project
+  const handleAddToProject = async (userId, projectId, role) => {
+    setAddingToProject(projectId);
+    try {
+      await organisationService.addMemberToProject(userId, projectId, role);
+
+      // Refresh project assignments for this member
+      const assignments = await organisationService.getMemberProjectAssignments(
+        organisation.id,
+        userId
+      );
+      setMemberProjects(prev => ({
+        ...prev,
+        [userId]: assignments
+      }));
+
+      showSuccess('Member added to project');
+    } catch (error) {
+      console.error('Error adding to project:', error);
+      showError(error.message || 'Failed to add member to project');
+    } finally {
+      setAddingToProject(null);
+    }
+  };
+
+  // Remove member from project
+  const handleRemoveFromProject = async (userId, projectId, projectName) => {
+    try {
+      await organisationService.removeMemberFromProject(userId, projectId);
+
+      // Refresh project assignments for this member
+      const assignments = await organisationService.getMemberProjectAssignments(
+        organisation.id,
+        userId
+      );
+      setMemberProjects(prev => ({
+        ...prev,
+        [userId]: assignments
+      }));
+
+      showSuccess(`Removed from ${projectName}`);
+    } catch (error) {
+      console.error('Error removing from project:', error);
+      showError('Failed to remove member from project');
+    }
+  };
+
+  // Change member's project role
+  const handleChangeProjectRole = async (userId, projectId, newRole) => {
+    try {
+      await organisationService.changeMemberProjectRole(userId, projectId, newRole);
+
+      // Refresh project assignments for this member
+      const assignments = await organisationService.getMemberProjectAssignments(
+        organisation.id,
+        userId
+      );
+      setMemberProjects(prev => ({
+        ...prev,
+        [userId]: assignments
+      }));
+
+      showSuccess('Project role updated');
+    } catch (error) {
+      console.error('Error changing project role:', error);
+      showError('Failed to update project role');
+    }
+  };
+
+  // Resend invitation to existing member
+  const handleResendInviteToMember = async (member) => {
+    if (!member.user?.email) {
+      showError('No email address found for this member');
+      return;
+    }
+
+    setResendingInvite(member.user_id);
+    try {
+      const result = await invitationService.reinviteExistingMember({
+        organisationId: organisation.id,
+        userId: member.user_id,
+        email: member.user.email,
+        orgRole: member.org_role,
+        invitedBy: user.id,
+      });
+
+      if (!result.success) {
+        showError(result.message || 'Failed to create invitation');
+        return;
+      }
+
+      // Send email with new invitation link
+      const acceptUrl = `${window.location.origin}/accept-invite?token=${result.invitation.token}`;
+
+      const emailResult = await emailService.sendInvitationEmail({
+        email: member.user.email,
+        orgName: organisation.name,
+        orgDisplayName: organisation.display_name,
+        inviterName: user.full_name || user.email,
+        role: member.org_role,
+        acceptUrl: acceptUrl,
+      });
+
+      if (!emailResult.success) {
+        showSuccess(`Invitation created but email failed. Share link manually.`);
+      } else {
+        showSuccess(`Invitation resent to ${member.user.email}`);
+      }
+
+      fetchPendingInvitations();
+    } catch (error) {
+      console.error('Error resending invite:', error);
+      showError('Failed to resend invitation');
+    } finally {
+      setResendingInvite(null);
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner message="Loading members..." />;
   }
@@ -733,7 +889,7 @@ function MembersTab({
         <div className="section-header">
           <Users size={20} />
           <h3>Members ({members.length})</h3>
-          <button 
+          <button
             className="btn-icon"
             onClick={fetchMembers}
             title="Refresh"
@@ -745,74 +901,291 @@ function MembersTab({
           <table className="members-table">
             <thead>
               <tr>
+                <th style={{ width: '40px' }}></th>
                 <th>Member</th>
                 <th>Role</th>
+                <th>Projects</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {members.map((member) => (
-                <tr key={member.id}>
-                  <td>
-                    <div className="member-info">
-                      <div className="member-avatar">
-                        {(member.user?.full_name || member.user?.email || '?')[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="member-name">
-                          {member.user?.full_name || 'No name'}
-                        </div>
-                        <div className="member-email">{member.user?.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="role-cell">
-                      <span 
-                        className={`role-badge ${member.org_role}`}
-                        style={{ 
-                          backgroundColor: ORG_ROLE_CONFIG[member.org_role]?.bg,
-                          color: ORG_ROLE_CONFIG[member.org_role]?.color 
+                <React.Fragment key={member.id}>
+                  <tr style={{ backgroundColor: expandedMember === member.user_id ? '#f8fafc' : 'transparent' }}>
+                    <td style={{ padding: '8px' }}>
+                      <button
+                        onClick={() => handleToggleExpand(member)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#64748b'
                         }}
+                        title="View project assignments"
                       >
-                        {ORG_ROLE_CONFIG[member.org_role]?.label || member.org_role}
-                      </span>
-                      {canChangeRole && member.user_id !== user.id && (
-                        <div className="role-dropdown-container">
-                          <button 
-                            className="btn-dropdown"
-                            onClick={() => setRoleDropdown(roleDropdown === member.id ? null : member.id)}
+                        {expandedMember === member.user_id ? (
+                          <ChevronDown size={18} />
+                        ) : (
+                          <ChevronRight size={18} />
+                        )}
+                      </button>
+                    </td>
+                    <td>
+                      <div className="member-info">
+                        <div className="member-avatar">
+                          {(member.user?.full_name || member.user?.email || '?')[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="member-name">
+                            {member.user?.full_name || 'No name'}
+                          </div>
+                          <div className="member-email">{member.user?.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="role-cell">
+                        <span
+                          className={`role-badge ${member.org_role}`}
+                          style={{
+                            backgroundColor: ORG_ROLE_CONFIG[member.org_role]?.bg,
+                            color: ORG_ROLE_CONFIG[member.org_role]?.color
+                          }}
+                        >
+                          {ORG_ROLE_CONFIG[member.org_role]?.label || member.org_role}
+                        </span>
+                        {canChangeRole && member.user_id !== user.id && (
+                          <div className="role-dropdown-container">
+                            <button
+                              className="btn-dropdown"
+                              onClick={() => setRoleDropdown(roleDropdown === member.id ? null : member.id)}
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                            {roleDropdown === member.id && (
+                              <div className="dropdown-menu">
+                                {Object.entries(ORG_ROLE_CONFIG).map(([role, config]) => (
+                                  <button
+                                    key={role}
+                                    className={`dropdown-item ${member.org_role === role ? 'active' : ''}`}
+                                    onClick={() => handleRoleChange(member, role)}
+                                  >
+                                    {config.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      {memberProjects[member.user_id] ? (
+                        <span style={{
+                          fontSize: '0.875rem',
+                          color: '#64748b',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <FolderKanban size={14} />
+                          {memberProjects[member.user_id].filter(p => p.is_assigned).length} of {memberProjects[member.user_id].length}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {canInvite && member.user_id !== user.id && (
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleResendInviteToMember(member)}
+                            title="Resend invitation"
+                            disabled={resendingInvite === member.user_id}
+                            style={{ opacity: resendingInvite === member.user_id ? 0.5 : 1 }}
                           >
-                            <ChevronDown size={14} />
+                            <Mail size={14} />
                           </button>
-                          {roleDropdown === member.id && (
-                            <div className="dropdown-menu">
-                              {Object.entries(ORG_ROLE_CONFIG).map(([role, config]) => (
-                                <button
-                                  key={role}
-                                  className={`dropdown-item ${member.org_role === role ? 'active' : ''}`}
-                                  onClick={() => handleRoleChange(member, role)}
+                        )}
+                        {canRemove && member.user_id !== user.id && (
+                          <button
+                            className="btn-danger btn-sm"
+                            onClick={() => setConfirmDialog({ open: true, member })}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Expanded Row - Project Assignments */}
+                  {expandedMember === member.user_id && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 0 }}>
+                        <div style={{
+                          background: '#f8fafc',
+                          padding: '16px 16px 16px 56px',
+                          borderBottom: '1px solid #e2e8f0'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginBottom: '12px'
+                          }}>
+                            <FolderKanban size={16} style={{ color: '#8b5cf6' }} />
+                            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Project Assignments</span>
+                          </div>
+
+                          {loadingProjects === member.user_id ? (
+                            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                              <RefreshCw size={16} className="spin" style={{ marginRight: '8px' }} />
+                              Loading projects...
+                            </div>
+                          ) : memberProjects[member.user_id]?.length === 0 ? (
+                            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                              No projects in this organisation
+                            </div>
+                          ) : (
+                            <div style={{ display: 'grid', gap: '8px' }}>
+                              {memberProjects[member.user_id]?.map(project => (
+                                <div
+                                  key={project.project_id}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '10px 12px',
+                                    background: 'white',
+                                    borderRadius: '8px',
+                                    border: '1px solid #e2e8f0'
+                                  }}
                                 >
-                                  {config.label}
-                                </button>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      color: '#8b5cf6',
+                                      background: '#f3e8ff',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px'
+                                    }}>
+                                      {project.project_code}
+                                    </span>
+                                    <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                                      {project.project_name}
+                                    </span>
+                                  </div>
+
+                                  {project.is_assigned ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <select
+                                        value={project.project_role}
+                                        onChange={(e) => handleChangeProjectRole(
+                                          member.user_id,
+                                          project.project_id,
+                                          e.target.value
+                                        )}
+                                        style={{
+                                          padding: '4px 8px',
+                                          fontSize: '0.75rem',
+                                          border: '1px solid #e2e8f0',
+                                          borderRadius: '4px',
+                                          background: 'white',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        {Object.entries(ROLE_CONFIG).map(([role, config]) => (
+                                          <option key={role} value={role}>
+                                            {config.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        onClick={() => handleRemoveFromProject(
+                                          member.user_id,
+                                          project.project_id,
+                                          project.project_name
+                                        )}
+                                        style={{
+                                          background: '#fef2f2',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          padding: '4px 8px',
+                                          color: '#dc2626',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          fontSize: '0.75rem'
+                                        }}
+                                        title="Remove from project"
+                                      >
+                                        <UserMinus size={14} />
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <select
+                                        value={selectedProjectRole}
+                                        onChange={(e) => setSelectedProjectRole(e.target.value)}
+                                        style={{
+                                          padding: '4px 8px',
+                                          fontSize: '0.75rem',
+                                          border: '1px solid #e2e8f0',
+                                          borderRadius: '4px',
+                                          background: 'white',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        {Object.entries(ROLE_CONFIG).map(([role, config]) => (
+                                          <option key={role} value={role}>
+                                            {config.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        onClick={() => handleAddToProject(
+                                          member.user_id,
+                                          project.project_id,
+                                          selectedProjectRole
+                                        )}
+                                        disabled={addingToProject === project.project_id}
+                                        style={{
+                                          background: '#f0fdf4',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          padding: '4px 8px',
+                                          color: '#16a34a',
+                                          cursor: addingToProject === project.project_id ? 'wait' : 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          fontSize: '0.75rem',
+                                          opacity: addingToProject === project.project_id ? 0.5 : 1
+                                        }}
+                                        title="Add to project"
+                                      >
+                                        <UserPlus size={14} />
+                                        {addingToProject === project.project_id ? 'Adding...' : 'Add'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               ))}
                             </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    {canRemove && member.user_id !== user.id && (
-                      <button
-                        className="btn-danger btn-sm"
-                        onClick={() => setConfirmDialog({ open: true, member })}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
