@@ -2181,32 +2181,6 @@ export default function Planning() {
             <Keyboard size={14} />
             <span>Tab/Enter to navigate • Type to edit • F2 to edit cell</span>
           </div>
-          <button 
-            onClick={() => setShowEstimatesList(!showEstimatesList)} 
-            className={`plan-btn plan-btn-secondary ${showEstimatesList ? 'active' : ''}`}
-            title="View All Estimates"
-          >
-            <List size={16} />
-            Estimates
-          </button>
-          <button 
-            onClick={() => setShowEstimateGenerator(true)} 
-            className="plan-btn plan-btn-estimate"
-            title="Generate Estimate from Plan"
-            disabled={items.length === 0}
-          >
-            <FileSpreadsheet size={16} />
-            Generate Estimate
-          </button>
-          <button 
-            onClick={handleAutoSchedule} 
-            className="plan-btn plan-btn-schedule"
-            title="Auto-schedule based on dependencies"
-            disabled={items.length === 0}
-          >
-            <Clock size={16} />
-            Auto Schedule
-          </button>
           {/* Quick Link Dropdown */}
           <div className="plan-link-dropdown" ref={linkMenuRef} onClick={(e) => e.stopPropagation()}>
             <button 
