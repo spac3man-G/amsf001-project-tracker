@@ -29,6 +29,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flag, Package, CheckSquare, Layers } from 'lucide-react';
 import { format } from 'date-fns';
+import { getDateSyncUpdates } from '../../lib/planningDateUtils';
 import './PlannerGrid.css';
 
 // Register AG Grid modules (v35+ requirement)
@@ -168,6 +169,33 @@ const OwnerCellRenderer = ({ value }) => {
 };
 
 /**
+ * Predecessors Cell Renderer - Shows "1.1FS, 2.0SS+5d" format
+ * Accepts context.items for WBS lookup
+ */
+const PredecessorsCellRenderer = ({ value, context }) => {
+  const preds = value || [];
+
+  if (preds.length === 0) {
+    return <span className="predecessors-empty">-</span>;
+  }
+
+  const display = preds.map(p => {
+    const predItem = context?.items?.find(i => i.id === p.id);
+    const wbs = predItem?.wbs || '?';
+    const type = p.type || 'FS';
+    const lag = p.lag ? (p.lag > 0 ? `+${p.lag}d` : `${p.lag}d`) : '';
+    // Show just WBS for standard FS with no lag, otherwise show full format
+    return type === 'FS' && !lag ? wbs : `${wbs}${type}${lag}`;
+  }).join(', ');
+
+  return (
+    <span className="predecessors-display" title={`Predecessors: ${display}`}>
+      {display}
+    </span>
+  );
+};
+
+/**
  * PlannerGrid Component
  *
  * @param {Array} items - Plan items to display
@@ -185,6 +213,8 @@ const PlannerGrid = forwardRef(function PlannerGrid({
   onItemUpdate,
   onItemCreate,
   onItemDelete,
+  onPredecessorEdit,
+  onLinkSelected,
   onRefresh,
   isLoading = false,
   readOnly = false,
@@ -193,6 +223,19 @@ const PlannerGrid = forwardRef(function PlannerGrid({
 }, ref) {
   const gridRef = useRef(null);
   const [rowData, setRowData] = useState([]);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Ctrl+/ toggles keyboard shortcuts overlay
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setShowShortcuts(prev => !prev);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Expose grid API to parent via ref
   useImperativeHandle(ref, () => ({
@@ -383,6 +426,27 @@ const PlannerGrid = forwardRef(function PlannerGrid({
       aggFunc: 'sum'
     },
     {
+      field: 'predecessors',
+      headerName: 'Predecessors',
+      width: 140,
+      editable: false, // Use modal for editing
+      cellRenderer: PredecessorsCellRenderer,
+      cellRendererParams: {
+        context: { items: rowData }
+      },
+      onCellClicked: (params) => {
+        if (!readOnly && onPredecessorEdit) {
+          onPredecessorEdit(params.data);
+        }
+      },
+      cellClass: (params) => {
+        const preds = params.value || [];
+        return preds.length > 0 ? 'has-predecessors' : '';
+      },
+      filter: false,
+      sortable: false
+    },
+    {
       field: 'status',
       headerName: 'Status',
       width: 150,
@@ -493,9 +557,48 @@ const PlannerGrid = forwardRef(function PlannerGrid({
     const { data, colDef, newValue, oldValue } = params;
     if (newValue === oldValue) return;
 
-    // Debounced save will be implemented in parent
-    onItemUpdate(data.id, { [colDef.field]: newValue });
+    const field = colDef.field;
+
+    // Date fields trigger synchronized updates (start_date, end_date, duration_days)
+    if (['start_date', 'end_date', 'duration_days'].includes(field)) {
+      const updates = getDateSyncUpdates(field, newValue, data);
+      onItemUpdate(data.id, updates);
+    } else {
+      // Standard single field update
+      onItemUpdate(data.id, { [field]: newValue });
+    }
   }, [onItemUpdate, readOnly]);
+
+  // Handle Tab/Enter at last row to create new item
+  const onCellKeyDown = useCallback((params) => {
+    const { event, api, node, column } = params;
+
+    // Only handle Tab (without shift) or Enter when not editing
+    if ((event.key === 'Tab' && !event.shiftKey) || event.key === 'Enter') {
+      const columns = api.getAllDisplayedColumns();
+      const lastColumn = columns[columns.length - 1];
+      const lastRowIndex = api.getDisplayedRowCount() - 1;
+      const lastRowNode = api.getDisplayedRowAtIndex(lastRowIndex);
+
+      // Check if we're at the last cell (Tab) or last row (Enter when not editing)
+      const isLastCell = event.key === 'Tab' && column === lastColumn && node === lastRowNode;
+      const isEnterOnLastRow = event.key === 'Enter' && node === lastRowNode && api.getEditingCells().length === 0;
+
+      if ((isLastCell || isEnterOnLastRow) && onItemCreate && node?.data) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Create new sibling row with inherited defaults
+        onItemCreate({
+          position: 'below',
+          referenceId: node.data.id,
+          item_type: node.data.item_type,
+          parent_id: node.data.parent_id,
+          inheritFrom: node.data // Pass current item for default inheritance
+        });
+      }
+    }
+  }, [onItemCreate]);
 
   // Context menu items (Enterprise feature)
   const getContextMenuItems = useCallback((params) => {
@@ -559,6 +662,31 @@ const PlannerGrid = forwardRef(function PlannerGrid({
         icon: '<span class="ag-icon ag-icon-tree-indeterminate"></span>'
       },
       'separator',
+      {
+        name: 'Edit Predecessors',
+        action: () => {
+          if (onPredecessorEdit) {
+            onPredecessorEdit(node.data);
+          }
+        },
+        icon: '<span class="ag-icon ag-icon-linked"></span>'
+      },
+      {
+        name: 'Link Selected (Chain)',
+        disabled: () => {
+          const selectedNodes = gridRef.current?.api?.getSelectedNodes() || [];
+          return selectedNodes.length < 2;
+        },
+        action: () => {
+          if (onLinkSelected) {
+            const selectedNodes = gridRef.current?.api?.getSelectedNodes() || [];
+            const selectedItems = selectedNodes.map(n => n.data);
+            onLinkSelected(selectedItems, 'chain');
+          }
+        },
+        icon: '<span class="ag-icon ag-icon-linked"></span>'
+      },
+      'separator',
       'copy',
       'copyWithHeaders',
       'paste',
@@ -582,7 +710,7 @@ const PlannerGrid = forwardRef(function PlannerGrid({
         cssClasses: ['ag-menu-option-danger']
       }
     ];
-  }, [readOnly, onItemCreate, onItemDelete]);
+  }, [readOnly, onItemCreate, onItemDelete, onPredecessorEdit, onLinkSelected]);
 
   // Grid ready handler
   const onGridReady = useCallback((params) => {
@@ -621,6 +749,7 @@ const PlannerGrid = forwardRef(function PlannerGrid({
           undoRedoCellEditing={true}
           undoRedoCellEditingLimit={50}
           onCellValueChanged={onCellValueChanged}
+          onCellKeyDown={onCellKeyDown}
           getContextMenuItems={getContextMenuItems}
           onGridReady={onGridReady}
           sideBar={sideBar}
@@ -631,6 +760,30 @@ const PlannerGrid = forwardRef(function PlannerGrid({
           groupIncludeTotalFooter={false}
         />
       </div>
+
+      {/* Keyboard Shortcuts Overlay */}
+      {showShortcuts && (
+        <div className="shortcuts-overlay">
+          <div className="shortcuts-content">
+            <div className="shortcuts-header">
+              <h4>Keyboard Shortcuts</h4>
+              <button onClick={() => setShowShortcuts(false)} className="shortcuts-close">&times;</button>
+            </div>
+            <ul className="shortcuts-list">
+              <li><kbd>Tab</kbd> <span>Next cell / New row at end</span></li>
+              <li><kbd>Enter</kbd> <span>Edit cell / New row at end</span></li>
+              <li><kbd>Esc</kbd> <span>Cancel edit</span></li>
+              <li><kbd>Delete</kbd> <span>Clear cell value</span></li>
+              <li><kbd>Ctrl+Z</kbd> <span>Undo</span></li>
+              <li><kbd>Ctrl+Shift+Z</kbd> <span>Redo</span></li>
+              <li><kbd>Ctrl+C</kbd> <span>Copy cells</span></li>
+              <li><kbd>Ctrl+V</kbd> <span>Paste</span></li>
+              <li><kbd>Ctrl+/</kbd> <span>Toggle this help</span></li>
+            </ul>
+            <p className="shortcuts-hint">Click a predecessor cell to edit dependencies</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

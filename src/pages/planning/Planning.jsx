@@ -890,12 +890,14 @@ export default function Planning() {
   }
 
   // Chain link: Create sequential dependencies A→B→C→D
-  async function handleChainLink() {
-    // Get selected items sorted by their position in display order
+  // Accepts optional itemIds array for AG Grid integration
+  async function handleChainLink(itemIds = null) {
+    // Get selected items - either from passed IDs or from selectedIds state
+    const idsToUse = itemIds ? new Set(itemIds) : selectedIds;
     const selectedItems = visibleItems
-      .filter(item => selectedIds.has(item.id))
+      .filter(item => idsToUse.has(item.id))
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-    
+
     if (selectedItems.length < 2) {
       showError('Select at least 2 items to link');
       return;
@@ -2408,7 +2410,7 @@ export default function Planning() {
             }}
             onItemCreate={async (params) => {
               try {
-                const { position, referenceId, item_type, parent_id } = params;
+                const { position, referenceId, item_type, parent_id, inheritFrom } = params;
                 const referenceItem = items.find(i => i.id === referenceId);
 
                 // Calculate sort order based on position
@@ -2425,13 +2427,26 @@ export default function Planning() {
                     : 10;
                 }
 
+                // Determine parent for inheritance
+                const parentItem = position === 'child'
+                  ? referenceItem
+                  : items.find(i => i.id === parent_id);
+
+                // Inherit defaults from parent or from inheritFrom (sibling)
+                const defaults = {
+                  owner: parentItem?.owner || inheritFrom?.owner || null,
+                  start_date: parentItem?.start_date || null,
+                  end_date: parentItem?.end_date || null
+                };
+
                 await planItemsService.create({
                   project_id: projectId,
                   parent_id: position === 'child' ? referenceId : parent_id,
                   item_type,
                   name: `New ${item_type}`,
                   sort_order: sortOrder,
-                  status: 'not_started'
+                  status: 'not_started',
+                  ...defaults
                 });
                 fetchItems();
                 showSuccess(`${item_type} created`);
@@ -2448,6 +2463,13 @@ export default function Planning() {
               } catch (error) {
                 console.error('Delete error:', error);
                 showError(error.message || 'Failed to delete item');
+              }
+            }}
+            onPredecessorEdit={(item) => setPredecessorEditItem(item)}
+            onLinkSelected={(selectedItems, mode) => {
+              // Chain link mode: A → B → C → D
+              if (mode === 'chain' && selectedItems.length >= 2) {
+                handleChainLink(selectedItems.map(i => i.id));
               }
             }}
             onRefresh={fetchItems}
@@ -2690,10 +2712,32 @@ export default function Planning() {
           onClose={() => setPredecessorEditItem(null)}
           onSave={async (predecessors) => {
             try {
+              // Update the predecessors
               await handleUpdateItem(predecessorEditItem.id, 'predecessors', predecessors);
+
+              // Auto-schedule affected items based on new dependencies
+              const updatedItems = items.map(i =>
+                i.id === predecessorEditItem.id ? { ...i, predecessors } : i
+              );
+              const scheduleUpdates = autoScheduleItems(updatedItems);
+
+              // Apply schedule updates
+              if (scheduleUpdates.length > 0) {
+                for (const update of scheduleUpdates) {
+                  await planItemsService.update(update.id, {
+                    start_date: update.start_date,
+                    end_date: update.end_date
+                  });
+                }
+                await fetchItems();
+                showSuccess(`Predecessors updated, ${scheduleUpdates.length} item(s) rescheduled`);
+              } else {
+                showSuccess('Predecessors updated');
+              }
+
               setPredecessorEditItem(null);
-              showSuccess('Predecessors updated');
             } catch (error) {
+              console.error('Predecessor update error:', error);
               showError('Failed to update predecessors');
             }
           }}
