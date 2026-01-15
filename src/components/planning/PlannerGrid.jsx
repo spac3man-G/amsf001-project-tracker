@@ -92,7 +92,12 @@ function transformToTreeData(items) {
  * Status Cell Renderer - React component for displaying status badges
  */
 const StatusCellRenderer = ({ value }) => {
-  const status = STATUS_OPTIONS.find(s => s.value === value) || STATUS_OPTIONS[0];
+  // AG Grid may wrap values in {count, value} for aggregation - extract actual value
+  let statusValue = value;
+  if (statusValue && typeof statusValue === 'object' && 'value' in statusValue) {
+    statusValue = statusValue.value;
+  }
+  const status = STATUS_OPTIONS.find(s => s.value === statusValue) || STATUS_OPTIONS[0];
 
   return (
     <div className="status-badge" style={{ backgroundColor: `${status.color}20`, color: status.color }}>
@@ -119,7 +124,12 @@ const StatusFilterRenderer = (params) => {
  * Progress Cell Renderer
  */
 const ProgressCellRenderer = ({ value }) => {
-  const progress = value || 0;
+  // AG Grid may wrap values in {count, value} for aggregation - extract actual value
+  let progress = value;
+  if (progress && typeof progress === 'object' && 'value' in progress) {
+    progress = progress.value;
+  }
+  progress = progress || 0;
 
   return (
     <div className="progress-cell">
@@ -141,7 +151,12 @@ const ProgressCellRenderer = ({ value }) => {
  * Item Type Cell Renderer
  */
 const ItemTypeCellRenderer = ({ value }) => {
-  const typeConfig = ITEM_TYPES[value] || ITEM_TYPES.task;
+  // AG Grid may wrap values in {count, value} for aggregation - extract actual value
+  let typeValue = value;
+  if (typeValue && typeof typeValue === 'object' && 'value' in typeValue) {
+    typeValue = typeValue.value;
+  }
+  const typeConfig = ITEM_TYPES[typeValue] || ITEM_TYPES.task;
   const IconComponent = typeConfig.icon;
 
   return (
@@ -156,14 +171,19 @@ const ItemTypeCellRenderer = ({ value }) => {
  * Owner Cell Renderer - For displaying owner with initial avatar
  */
 const OwnerCellRenderer = ({ value }) => {
-  if (!value) return <span className="owner-unassigned">Unassigned</span>;
+  // AG Grid may wrap values in {count, value} for aggregation - extract actual value
+  let ownerValue = value;
+  if (ownerValue && typeof ownerValue === 'object' && 'value' in ownerValue) {
+    ownerValue = ownerValue.value;
+  }
+  if (!ownerValue) return <span className="owner-unassigned">Unassigned</span>;
 
-  const initials = value.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const initials = ownerValue.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <div className="owner-cell">
       <div className="owner-avatar">{initials}</div>
-      <span className="owner-name">{value}</span>
+      <span className="owner-name">{ownerValue}</span>
     </div>
   );
 };
