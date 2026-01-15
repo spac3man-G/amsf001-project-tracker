@@ -27,7 +27,7 @@ import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { Flag, Package, CheckSquare, Layers } from 'lucide-react';
+import { Flag, Package, CheckSquare, Layers, X, Maximize2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getDateSyncUpdates } from '../../lib/planningDateUtils';
 import './PlannerGrid.css';
@@ -160,11 +160,35 @@ const ItemTypeCellRenderer = ({ value }) => {
   const IconComponent = typeConfig.icon;
 
   return (
-    <div className="item-type-badge" style={{ color: typeConfig.color }}>
+    <div className={`item-type-badge type-${typeValue || 'task'}`}>
       <IconComponent size={14} />
       <span>{typeConfig.label}</span>
     </div>
   );
+};
+
+// Monday.com style avatar colors
+const AVATAR_COLORS = [
+  '#0073ea', // Blue
+  '#00c875', // Green
+  '#fdab3d', // Orange
+  '#e44258', // Red
+  '#a25ddc', // Purple
+  '#579bfc', // Light Blue
+  '#ff158a', // Pink
+  '#00d2d2', // Teal
+  '#9d7ae7', // Lavender
+  '#ff5ac4', // Magenta
+];
+
+// Get consistent color based on name
+const getAvatarColor = (name) => {
+  if (!name) return AVATAR_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 };
 
 /**
@@ -179,10 +203,11 @@ const OwnerCellRenderer = ({ value }) => {
   if (!ownerValue) return <span className="owner-unassigned">Unassigned</span>;
 
   const initials = ownerValue.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const avatarColor = getAvatarColor(ownerValue);
 
   return (
     <div className="owner-cell">
-      <div className="owner-avatar">{initials}</div>
+      <div className="owner-avatar" style={{ background: avatarColor }}>{initials}</div>
       <span className="owner-name">{ownerValue}</span>
     </div>
   );
@@ -240,6 +265,7 @@ const PlannerGrid = forwardRef(function PlannerGrid({
   onItemDelete,
   onPredecessorEdit,
   onLinkSelected,
+  onSelectionChanged,
   onRefresh,
   isLoading = false,
   readOnly = false,
@@ -249,22 +275,38 @@ const PlannerGrid = forwardRef(function PlannerGrid({
   const gridRef = useRef(null);
   const [rowData, setRowData] = useState([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Ctrl+/ toggles keyboard shortcuts overlay
+  // Toggle fullscreen mode
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+  }, []);
+
+  // Keyboard shortcuts: Ctrl+/ for help, Escape to exit fullscreen
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault();
         setShowShortcuts(prev => !prev);
       }
+      // Escape exits fullscreen or closes shortcuts
+      if (e.key === 'Escape') {
+        if (showShortcuts) {
+          setShowShortcuts(false);
+        } else if (isFullscreen) {
+          setIsFullscreen(false);
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [showShortcuts, isFullscreen]);
 
   // Expose grid API to parent via ref
   useImperativeHandle(ref, () => ({
     getApi: () => gridRef.current?.api,
+    toggleFullscreen,
+    isFullscreen,
     exportToExcel: (params = {}) => {
       if (gridRef.current?.api) {
         gridRef.current.api.exportDataAsExcel({
@@ -310,9 +352,9 @@ const PlannerGrid = forwardRef(function PlannerGrid({
 
   // Auto Group Column Definition (shows hierarchy with expand/collapse)
   const autoGroupColumnDef = useMemo(() => ({
-    headerName: 'WBS / Name',
+    headerName: 'Task Name',
     field: 'name',
-    minWidth: 300,
+    minWidth: 280,
     flex: 2,
     cellRendererParams: {
       suppressCount: true,
@@ -320,15 +362,8 @@ const PlannerGrid = forwardRef(function PlannerGrid({
         const item = params.data;
         if (!item) return null;
 
-        const typeConfig = ITEM_TYPES[item.item_type] || ITEM_TYPES.task;
-        const IconComponent = typeConfig.icon;
-
         return (
           <div className="tree-cell-content">
-            <IconComponent size={14} style={{ color: typeConfig.color, flexShrink: 0 }} />
-            <span className="wbs-ref" style={{ color: typeConfig.color }}>
-              {item.wbs || ''}
-            </span>
             <span className="item-name">{item.name}</span>
           </div>
         );
@@ -347,6 +382,34 @@ const PlannerGrid = forwardRef(function PlannerGrid({
 
   // Column Definitions with Enterprise Features
   const columnDefs = useMemo(() => [
+    {
+      headerName: '',
+      field: 'selection',
+      width: 50,
+      maxWidth: 50,
+      pinned: 'left',
+      lockPosition: true,
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      headerCheckboxSelectionFilteredOnly: true,
+      suppressMenu: true,
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellClass: 'checkbox-cell'
+    },
+    {
+      field: 'wbs',
+      headerName: '#',
+      width: 80,
+      maxWidth: 100,
+      editable: false,
+      sortable: true,
+      cellClass: 'wbs-cell',
+      cellRenderer: ({ value }) => (
+        <span className="wbs-number">{value || ''}</span>
+      )
+    },
     {
       field: 'item_type',
       headerName: 'Type',
@@ -583,6 +646,15 @@ const PlannerGrid = forwardRef(function PlannerGrid({
     }
   }, [onItemUpdate, readOnly]);
 
+  // Handle selection changes - sync with parent's selectedIds state
+  const handleSelectionChanged = useCallback((event) => {
+    if (onSelectionChanged) {
+      const selectedNodes = event.api.getSelectedNodes();
+      const selectedIds = selectedNodes.map(node => node.data?.id).filter(Boolean);
+      onSelectionChanged(selectedIds);
+    }
+  }, [onSelectionChanged]);
+
   // Handle Tab/Enter at last row to create new item
   const onCellKeyDown = useCallback((params) => {
     const { event, api, node, column } = params;
@@ -743,8 +815,27 @@ const PlannerGrid = forwardRef(function PlannerGrid({
   }
 
   return (
-    <div className="planner-grid-container">
-      <div className="ag-theme-alpine planner-grid" style={{ height: 'calc(100vh - 280px)', minHeight: '400px', width: '100%' }}>
+    <div className={`planner-grid-container ${isFullscreen ? 'fullscreen' : ''}`}>
+      {/* Fullscreen Header */}
+      {isFullscreen && (
+        <div className="fullscreen-header">
+          <div className="fullscreen-title">
+            <Layers size={20} />
+            <span>{projectName} - Project Plan</span>
+          </div>
+          <button className="fullscreen-close" onClick={toggleFullscreen} title="Exit fullscreen (Esc)">
+            <X size={20} />
+          </button>
+        </div>
+      )}
+      <div
+        className="ag-theme-alpine planner-grid"
+        style={{
+          height: isFullscreen ? 'calc(100vh - 56px)' : 'calc(100vh - 280px)',
+          minHeight: '400px',
+          width: '100%'
+        }}
+      >
         <AgGridReact
           ref={gridRef}
           rowData={rowData}
@@ -765,6 +856,7 @@ const PlannerGrid = forwardRef(function PlannerGrid({
           undoRedoCellEditingLimit={50}
           onCellValueChanged={onCellValueChanged}
           onCellKeyDown={onCellKeyDown}
+          onSelectionChanged={handleSelectionChanged}
           getContextMenuItems={getContextMenuItems}
           onGridReady={onGridReady}
           sideBar={sideBar}

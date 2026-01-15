@@ -6,7 +6,7 @@ import {
   Calculator, Link2, FileSpreadsheet, List,
   ExternalLink, Copy, Download, Clock,
   Scissors, Clipboard, ClipboardPaste,
-  Undo2, Redo2, Unlink, X, Upload, Grid2X2, Table
+  Undo2, Redo2, Unlink, X, Upload, Grid2X2, Table, Maximize2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -373,7 +373,6 @@ export default function Planning() {
           navigateCell(rowIndex, colIndex + 1);
           break;
         case 'F2':
-        case 'Enter':
           e.preventDefault();
           startEditing(rowIndex, field);
           break;
@@ -2354,6 +2353,20 @@ export default function Planning() {
               Export
             </button>
           )}
+          {/* Fullscreen - only in Grid mode */}
+          {viewMode === 'grid' && (
+            <button
+              onClick={() => {
+                if (plannerGridRef.current) {
+                  plannerGridRef.current.toggleFullscreen();
+                }
+              }}
+              className="plan-btn plan-btn-secondary"
+              title="Fullscreen (Esc to exit)"
+            >
+              <Maximize2 size={16} />
+            </button>
+          )}
           {/* View Mode Toggle */}
           <div className="plan-view-toggle">
             <button
@@ -2471,6 +2484,10 @@ export default function Planning() {
               if (mode === 'chain' && selectedItems.length >= 2) {
                 handleChainLink(selectedItems.map(i => i.id));
               }
+            }}
+            onSelectionChanged={(ids) => {
+              // Sync grid selection with the shared selectedIds state for Link button
+              setSelectedIds(new Set(ids));
             }}
             onRefresh={fetchItems}
             isLoading={loading}
