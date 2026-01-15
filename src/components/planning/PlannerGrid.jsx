@@ -431,9 +431,6 @@ const PlannerGrid = forwardRef(function PlannerGrid({
       width: 140,
       editable: false, // Use modal for editing
       cellRenderer: PredecessorsCellRenderer,
-      cellRendererParams: {
-        context: { items: rowData }
-      },
       onCellClicked: (params) => {
         if (!readOnly && onPredecessorEdit) {
           onPredecessorEdit(params.data);
@@ -737,6 +734,7 @@ const PlannerGrid = forwardRef(function PlannerGrid({
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           autoGroupColumnDef={autoGroupColumnDef}
+          context={{ items }}
           treeData={true}
           getDataPath={getDataPath}
           animateRows={true}
