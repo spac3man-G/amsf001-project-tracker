@@ -93,21 +93,32 @@ export default function Planning() {
   } = useResizableColumns();
 
   // Fetch items (with estimate data)
-  const fetchItems = useCallback(async () => {
+  const fetchItems = useCallback(async (skipSync = false) => {
     if (!projectId) return;
     try {
       setLoading(true);
-      
-      // Sync committed items from Tracker first (Tracker is master)
-      await planItemsService.syncFromTracker(projectId);
-      
-      // Then fetch all items with updated data
+
+      // Fetch items first (fast) - show data immediately
       const data = await planItemsService.getAllWithEstimates(projectId);
       setItems(data);
-      
+
       // Default to collapsed view - collapse all items that have children
       const parentIds = new Set(data.filter(item => item.parent_id).map(item => item.parent_id));
       setCollapsedIds(parentIds);
+
+      // Then sync from Tracker in background (non-blocking)
+      // This updates published items with any changes made in Tracker
+      if (!skipSync) {
+        planItemsService.syncFromTracker(projectId).then(async (syncResult) => {
+          // Only refetch if sync made changes
+          if (syncResult.synced > 0) {
+            const updatedData = await planItemsService.getAllWithEstimates(projectId);
+            setItems(updatedData);
+          }
+        }).catch(err => {
+          console.warn('Background sync failed:', err);
+        });
+      }
     } catch (error) {
       console.error('Error fetching items:', error);
       showError('Failed to load plan items');
