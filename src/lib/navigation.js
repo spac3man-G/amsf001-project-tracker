@@ -131,6 +131,14 @@ export const NAV_ITEMS = {
     allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
+  tasks: {
+    id: 'tasks',
+    path: '/tasks',
+    icon: ListChecks,
+    label: 'Task View',
+    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    readOnlyRoles: [ROLES.VIEWER]
+  },
   // kpis is now a tab within Deliverables
   // qualityStandards is now a tab within Deliverables
   // variations is now a tab within Milestones
@@ -377,6 +385,7 @@ export const ROLE_NAV_ORDER = {
     'dashboard',
     'milestones',
     'deliverables',
+    'tasks',
     'raid',
     'calendar',
     'timesheets',
@@ -405,6 +414,7 @@ export const ROLE_NAV_ORDER = {
     'dashboard',
     'milestones',
     'deliverables',
+    'tasks',
     'raid',
     'calendar',
     'timesheets',
@@ -442,6 +452,7 @@ export const ROLE_NAV_ORDER = {
     'dashboard',
     'milestones',
     'deliverables',
+    'tasks',
     'raid',
     'calendar',
     'timesheets',
@@ -466,13 +477,15 @@ export const ROLE_NAV_ORDER = {
     'timesheets',
     'expenses',
     'milestones',
-    'deliverables'
+    'deliverables',
+    'tasks'
   ],
   [ROLES.VIEWER]: [
     { section: 'tracker' },
     'dashboard',
     'milestones',
     'deliverables',
+    'tasks',
     'raid',
     'calendar'
   ]

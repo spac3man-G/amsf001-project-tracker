@@ -409,22 +409,44 @@ export class DeliverablesService extends BaseService {
 
   /**
    * Update a task
+   * Supports new fields: status, target_date
+   * Syncs is_complete with status for backwards compatibility
    */
   async updateTask(taskId, updates) {
     try {
+      const updateData = {
+        updated_at: new Date().toISOString()
+      };
+
+      // Only include fields that are provided
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.owner !== undefined) updateData.owner = updates.owner;
+      if (updates.comment !== undefined) updateData.comment = updates.comment;
+      if (updates.target_date !== undefined) updateData.target_date = updates.target_date;
+
+      // Handle status and is_complete sync
+      if (updates.status !== undefined) {
+        updateData.status = updates.status;
+        // Sync is_complete based on status
+        updateData.is_complete = updates.status === 'complete';
+      } else if (updates.is_complete !== undefined) {
+        updateData.is_complete = updates.is_complete;
+        // Sync status based on is_complete
+        if (updates.is_complete) {
+          updateData.status = 'complete';
+        } else {
+          // Only reset status if currently complete
+          updateData.status = 'not_started';
+        }
+      }
+
       const { data, error } = await supabase
         .from('deliverable_tasks')
-        .update({
-          name: updates.name,
-          owner: updates.owner,
-          comment: updates.comment,
-          is_complete: updates.is_complete,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', taskId)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     } catch (error) {
@@ -497,13 +519,105 @@ export class DeliverablesService extends BaseService {
           .update({ sort_order: update.sort_order, updated_at: update.updated_at })
           .eq('id', update.id)
           .eq('deliverable_id', deliverableId);
-        
+
         if (error) throw error;
       }
 
       return true;
     } catch (error) {
       console.error('DeliverablesService reorderTasks error:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // TASK VIEW - CROSS-MILESTONE QUERIES
+  // ============================================
+
+  /**
+   * Get all tasks for selected milestones with deliverable and milestone context
+   * Used by the Task View feature for cross-milestone task aggregation
+   *
+   * @param {string} projectId - Project UUID
+   * @param {string[]} milestoneIds - Array of milestone UUIDs (empty = all milestones)
+   * @returns {Promise<Array>} Tasks with deliverable and milestone context
+   */
+  async getTasksForMilestones(projectId, milestoneIds = []) {
+    try {
+      // First get deliverables for the project/milestones
+      let deliverableQuery = supabase
+        .from('deliverables')
+        .select(`
+          id,
+          deliverable_ref,
+          name,
+          milestone_id,
+          milestones!inner(
+            id,
+            milestone_ref,
+            name,
+            project_id
+          )
+        `)
+        .eq('milestones.project_id', projectId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      // Filter by selected milestones if provided
+      if (milestoneIds.length > 0) {
+        deliverableQuery = deliverableQuery.in('milestone_id', milestoneIds);
+      }
+
+      const { data: deliverables, error: deliverableError } = await deliverableQuery;
+      if (deliverableError) throw deliverableError;
+
+      if (!deliverables || deliverables.length === 0) {
+        return [];
+      }
+
+      // Get deliverable IDs for task query
+      const deliverableIds = deliverables.map(d => d.id);
+
+      // Get all tasks for these deliverables
+      const { data: tasks, error: taskError } = await supabase
+        .from('deliverable_tasks')
+        .select('*')
+        .in('deliverable_id', deliverableIds)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('sort_order', { ascending: true });
+
+      if (taskError) throw taskError;
+
+      // Create lookup map for deliverables
+      const deliverableMap = new Map(
+        deliverables.map(d => [d.id, d])
+      );
+
+      // Transform to flat structure for AG Grid
+      return (tasks || []).map(task => {
+        const deliverable = deliverableMap.get(task.deliverable_id);
+        return {
+          id: task.id,
+          deliverable_id: task.deliverable_id,
+          task_name: task.name,
+          owner: task.owner,
+          status: task.status || (task.is_complete ? 'complete' : 'not_started'),
+          target_date: task.target_date,
+          is_complete: task.is_complete,
+          comment: task.comment,
+          sort_order: task.sort_order,
+          // Denormalized fields for display
+          deliverable_ref: deliverable?.deliverable_ref,
+          deliverable_name: deliverable?.name,
+          milestone_id: deliverable?.milestone_id,
+          milestone_ref: deliverable?.milestones?.milestone_ref,
+          milestone_name: deliverable?.milestones?.name,
+          // Metadata
+          created_at: task.created_at,
+          updated_at: task.updated_at
+        };
+      });
+    } catch (error) {
+      console.error('DeliverablesService getTasksForMilestones error:', error);
       throw error;
     }
   }

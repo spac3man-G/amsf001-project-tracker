@@ -49,6 +49,8 @@ const MilestonesHub = lazy(() => import('./pages/MilestonesHub'));
 const MilestoneDetail = lazy(() => import('./pages/MilestoneDetail'));
 // DeliverablesHub includes: Deliverables, KPIs, Quality Standards
 const DeliverablesHub = lazy(() => import('./pages/DeliverablesHub'));
+// TaskView - Cross-milestone task aggregation view
+const TaskView = lazy(() => import('./pages/TaskView'));
 const Resources = lazy(() => import('./pages/Resources'));
 const ResourceDetail = lazy(() => import('./pages/ResourceDetail'));
 // Partners page removed - now in Organisation Admin tab
@@ -361,6 +363,11 @@ export default function App() {
                             {/* Deliverables Hub - includes Deliverables, KPIs, Quality Standards */}
                             <Route path="/deliverables" element={
                               <ProtectedRoute><DeliverablesHub /></ProtectedRoute>
+                            } />
+
+                            {/* Task View - Cross-milestone task aggregation */}
+                            <Route path="/tasks" element={
+                              <ProtectedRoute><TaskView /></ProtectedRoute>
                             } />
                             
                             {/* Resources - redirect to Project Settings tab */}
