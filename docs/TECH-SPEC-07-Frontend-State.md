@@ -1,13 +1,14 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.4  
-**Created:** 11 December 2025  
-**Last Updated:** 7 January 2026  
-**Session:** 1.7.4  
-**Author:** Claude AI (Anthropic)  
+**Document Version:** 5.4
+**Created:** 11 December 2025
+**Last Updated:** 15 January 2026
+**Session:** 1.7.4
+**Author:** Claude AI (Anthropic)
 
-> **Version 5.4 Updates (7 January 2026):**
-> - Updated Section 7: ChatContext to v4.0
+> **Version 5.4 Updates (15 January 2026):**
+> - Added Section 14.1a: PlannerGrid Component (AG Grid Enterprise)
+> - Documented selection sync, checkbox column, WBS column, date synchronization
 > - Documents expanded pre-fetched context (RAID, Quality Standards)
 > - Documents new local response patterns for instant responses
 > - Updated context pre-fetching structure with 9 query sources
@@ -202,6 +203,109 @@ const newItem = await planItemsService.create({ project_id: projectId, ...data }
 // Delete item
 await planItemsService.delete(itemId);
 ```
+
+---
+
+### 14.1a PlannerGrid Component (AG Grid Enterprise)
+
+> **Added:** 15 January 2026
+>
+> AG Grid Enterprise-based hierarchical grid with advanced features.
+
+**File:** `src/components/planning/PlannerGrid.jsx`
+
+**Purpose:** Enterprise-grade tree grid with inline editing, selection sync, and Excel export.
+
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `items` | Array | Plan items data |
+| `onItemUpdate` | Function | Callback for cell edits |
+| `onItemCreate` | Function | Callback for new item creation |
+| `onItemDelete` | Function | Callback for item deletion |
+| `onPredecessorEdit` | Function | Opens predecessor modal |
+| `onLinkSelected` | Function | Chain link selected items |
+| `onSelectionChanged` | Function | Syncs selection with parent's selectedIds |
+| `onRefresh` | Function | Refresh data |
+| `isLoading` | Boolean | Loading state |
+| `readOnly` | Boolean | Disable editing |
+| `teamMembers` | Array | Owner dropdown options |
+| `projectName` | String | For Excel export filename |
+
+**Column Configuration:**
+
+| Column | Width | Features |
+|--------|-------|----------|
+| Checkbox | 50px | Multi-select, pinned left |
+| WBS # | 80px | Blue numbers, centered |
+| Task Name | flex | Tree hierarchy, expand/collapse |
+| Type | 130px | Colored badges (Component/Milestone/Deliverable/Task) |
+| Owner | 160px | Rich select dropdown with avatars |
+| Start | 130px | Date picker |
+| End | 130px | Date picker |
+| Duration | 90px | Auto-calculated |
+| Pred | 140px | Click to edit predecessors |
+| Progress | 120px | Progress bar with % |
+| Status | 130px | Set filter dropdown |
+
+**Enterprise Features:**
+
+```javascript
+// AG Grid Enterprise modules used
+- Tree Data (hierarchy with getDataPath)
+- Range Selection & Fill Handle
+- Context Menu (right-click actions)
+- Excel Export
+- Column & Filter Sidebars
+- Rich Select Editors
+- Date Cell Editor
+- Set Column Filters
+- Status Bar
+```
+
+**Selection Sync:**
+
+```javascript
+// Syncs grid selection with parent's selectedIds state
+const handleSelectionChanged = useCallback((event) => {
+  if (onSelectionChanged) {
+    const selectedNodes = event.api.getSelectedNodes();
+    const selectedIds = selectedNodes.map(node => node.data?.id).filter(Boolean);
+    onSelectionChanged(selectedIds);
+  }
+}, [onSelectionChanged]);
+```
+
+**Date Synchronization:**
+
+```javascript
+import { getDateSyncUpdates } from '../../lib/planningDateUtils';
+
+// When date fields change, sync related fields
+if (['start_date', 'end_date', 'duration_days'].includes(field)) {
+  const updates = getDateSyncUpdates(field, newValue, data);
+  onItemUpdate(data.id, updates);
+}
+```
+
+**Imperative Handle (ref):**
+
+```javascript
+useImperativeHandle(ref, () => ({
+  getApi: () => gridRef.current?.api,
+  toggleFullscreen,
+  isFullscreen,
+  exportToExcel: (params) => { ... }
+}));
+```
+
+**CSS File:** `src/components/planning/PlannerGrid.css`
+
+- Monday.com-inspired styling
+- Green selected row highlighting
+- Type-specific badge colors
+- Improved sidebar button readability
 
 ---
 
@@ -2902,3 +3006,4 @@ import {
 | 5.1 | 28 Dec 2025 | Claude AI | **TD-001 Permission Hook Consolidation**: Updated Section 9.4 with 3 new hooks (useExpensePermissions, useRaidPermissions, useNetworkStandardPermissions), added Hook Summary Table |
 | 5.2 | 6 Jan 2026 | Claude AI | **UI Utility Hooks**: Added Section 10.3 documenting useResizableColumns hook, localStorage persistence patterns |
 | 5.3 | 7 Jan 2026 | Claude AI | **Evaluator Module Reference**: Added Section 8.6 (EvaluationContext), Section 8.7 (ReportBuilderContext), Section 15 (Evaluator Frontend summary). Cross-references to TECH-SPEC-11-Evaluator.md |
+| 5.4 | 15 Jan 2026 | Claude AI | **PlannerGrid Component**: Added Section 14.1a documenting AG Grid Enterprise component with selection sync, checkbox column, date synchronization, and table-style appearance |

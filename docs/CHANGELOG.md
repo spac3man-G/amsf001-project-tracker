@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.15] - 2026-01-15
+
+### Added
+
+#### AG Grid Enterprise Enhancements - Phase B
+
+Enhanced the Planner AG Grid view with linking support and table-style appearance.
+
+**Link Button Integration:**
+- Grid selection now syncs with toolbar Link button (`selectedIds` state)
+- Added `onSelectionChanged` prop to PlannerGrid component
+- All link options work in grid view: Chain Selected, All → Last, First → All, Unlink, Clear Predecessors
+- Select 2+ rows using checkboxes to enable Link button
+
+**Visual Improvements (Table-Style Appearance):**
+- Added checkbox column for multi-selection (pinned left)
+- Added separate WBS "#" column with blue numbers
+- Simplified Task Name column (expand/collapse + name only)
+- Type badges with colored backgrounds:
+  - Component: orange (#d97706)
+  - Milestone: purple (#7c3aed)
+  - Deliverable: blue (#2563eb)
+  - Task: gray (#475569)
+- Status displayed as simple text (not heavy pills)
+- Green selected row highlighting with green checkboxes
+- Improved sidebar button readability (wider, higher contrast, uppercase)
+
+**Date Synchronization (Phase B1):**
+- New utility: `src/lib/planningDateUtils.js`
+- `getDateSyncUpdates(field, newValue, currentItem)` - Calculates related field updates
+- When start_date changes: auto-sets end_date if null/before, calculates duration
+- When end_date changes: calculates duration_days
+- When duration_days changes: calculates end_date
+
+**Files Changed:**
+- `src/components/planning/PlannerGrid.jsx` - Selection sync, checkbox column, WBS column, styling
+- `src/components/planning/PlannerGrid.css` - Table-style appearance, sidebar improvements
+- `src/pages/planning/Planning.jsx` - onSelectionChanged handler, duplicate case fix
+- `src/lib/planningDateUtils.js` - NEW: Date sync utilities
+
+### Fixed
+
+- Fixed duplicate `case 'Enter'` warning in Planning.jsx keyboard handler
+- Fixed sidebar button readability in AG Grid (wider buttons, higher contrast)
+- Fixed context menu readability (solid white background)
+
+---
+
 ## [0.9.14] - 2026-01-15
 
 ### Added

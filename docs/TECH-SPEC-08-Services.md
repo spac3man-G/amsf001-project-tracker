@@ -8,8 +8,8 @@
 
 > **Version 5.3 Updates (15 January 2026):**
 > - Added Section 15.1.3: Component Filter Methods
-> - Documents `getComponents()` and `getMilestoneComponentMap()` methods
-> - Used by Task View, Milestones, and Deliverables pages for component filtering
+> - Added Section 15.1.4: Planning Date Utilities (planningDateUtils.js)
+> - Documents `getDateSyncUpdates()` for automatic date field synchronization in PlannerGrid
 
 > **Version 5.2 Updates (7 January 2026):**
 > - Added Section 17: Workflow System (consolidated from WORKFLOW-SYSTEM-DOCUMENTATION.md)
@@ -2247,6 +2247,8 @@ All services use the singleton pattern and are exported through a barrel file fo
 | 4.0 | 28 Dec 2025 | Claude AI | **Planning & Estimator Services**: Added Section 15 with planItems.service, estimates.service, benchmarkRates.service documentation |
 | 5.0 | 6 Jan 2026 | Claude AI | **Tracker Sync Methods**: Added Section 15.1.2 documenting syncFromTracker, hardDelete, purgeSoftDeleted methods |
 | 5.1 | 7 Jan 2026 | Claude AI | **Evaluator Services Reference**: Added Section 16 with cross-reference to TECH-SPEC-11-Evaluator.md, updated file structure to include evaluator/ subfolder |
+| 5.2 | 15 Jan 2026 | Claude AI | **Component Filter Methods**: Added Section 15.1.3 (getComponents, getMilestoneComponentMap methods) |
+| 5.3 | 15 Jan 2026 | Claude AI | **Planning Date Utilities**: Added Section 15.1.4 documenting planningDateUtils.js with date sync functions |
 
 ---
 
@@ -2618,6 +2620,80 @@ async getMilestoneComponentMap(projectId) {
 
 **Used by:**
 - Task View page (filter tasks by component via milestone mapping)
+
+---
+
+### 15.1.4 Planning Date Utilities
+
+> **Added:** 15 January 2026
+
+**File:** `src/lib/planningDateUtils.js`
+
+**Purpose:** Automatic date field synchronization when start_date, end_date, or duration_days change in the PlannerGrid.
+
+**Dependencies:**
+- date-fns (differenceInDays, addDays, parseISO, format, isValid)
+
+#### Main Function: getDateSyncUpdates
+
+Calculates synchronized updates when a date-related field changes.
+
+```javascript
+import { getDateSyncUpdates } from '../../lib/planningDateUtils';
+
+// Returns object with all fields that should be updated
+const updates = getDateSyncUpdates(field, newValue, currentItem);
+// updates = { start_date: '2026-01-15', end_date: '2026-01-20', duration_days: 6 }
+```
+
+**Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| field | String | The field that changed ('start_date', 'end_date', 'duration_days') |
+| newValue | Any | The new value for the field |
+| currentItem | Object | The current item data |
+
+**Returns:** Object containing all fields that should be updated
+
+#### Synchronization Logic
+
+| When Changed | Action |
+|--------------|--------|
+| **start_date** | If end_date null or < start: set end_date = start_date, duration = 1 |
+| **start_date** | If end_date > start: calculate duration_days from range |
+| **end_date** | Calculate duration_days from start_date to end_date |
+| **end_date** | If end_date < start_date: set end_date = start_date, duration = 1 |
+| **duration_days** | Calculate end_date = start_date + (duration - 1) |
+
+#### Helper Functions
+
+| Function | Parameters | Returns | Description |
+|----------|------------|---------|-------------|
+| `calculateDuration` | startDate, endDate | Number/null | Duration in days (inclusive) |
+| `calculateEndDate` | startDate, durationDays | String/null | End date from start + duration |
+| `validateDateRange` | startDate, endDate | Boolean | True if end >= start |
+
+#### Example Usage
+
+```javascript
+// In PlannerGrid onCellValueChanged:
+const onCellValueChanged = useCallback((params) => {
+  const { data, colDef, newValue } = params;
+  const field = colDef.field;
+
+  if (['start_date', 'end_date', 'duration_days'].includes(field)) {
+    const updates = getDateSyncUpdates(field, newValue, data);
+    onItemUpdate(data.id, updates);
+  } else {
+    onItemUpdate(data.id, { [field]: newValue });
+  }
+}, [onItemUpdate]);
+```
+
+**Duration Calculation Notes:**
+- Duration is inclusive (same day = 1 day)
+- Duration of 1 means start_date = end_date
+- Minimum duration is 1 day
 
 ---
 
