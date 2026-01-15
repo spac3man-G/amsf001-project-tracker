@@ -110,7 +110,7 @@ export const NAV_ITEMS = {
     path: '/dashboard',
     icon: LayoutDashboard,
     label: 'Dashboard',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.VIEWER],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
   // reports is now a tab within Dashboard
@@ -120,7 +120,7 @@ export const NAV_ITEMS = {
     path: '/milestones',
     icon: Milestone,
     label: 'Milestones',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER, ROLES.CONTRIBUTOR]
   },
   deliverables: {
@@ -128,7 +128,7 @@ export const NAV_ITEMS = {
     path: '/deliverables',
     icon: Package,
     label: 'Deliverables',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
   tasks: {
@@ -136,7 +136,7 @@ export const NAV_ITEMS = {
     path: '/tasks',
     icon: ListChecks,
     label: 'Task View',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
   // kpis is now a tab within Deliverables
@@ -147,7 +147,7 @@ export const NAV_ITEMS = {
     path: '/raid',
     icon: ShieldAlert,
     label: 'RAID Log',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
   // resources is now a tab within Project Settings
@@ -156,7 +156,7 @@ export const NAV_ITEMS = {
     path: '/timesheets',
     icon: Clock,
     label: 'Timesheets',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
     readOnlyRoles: []
   },
   expenses: {
@@ -164,7 +164,7 @@ export const NAV_ITEMS = {
     path: '/expenses',
     icon: Receipt,
     label: 'Expenses',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
     readOnlyRoles: []
   },
   finance: {
@@ -172,7 +172,7 @@ export const NAV_ITEMS = {
     path: '/finance',
     icon: PoundSterling,
     label: 'Finance',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE],
     readOnlyRoles: []
   },
   partners: {
@@ -180,7 +180,7 @@ export const NAV_ITEMS = {
     path: '/partners',
     icon: Building2,
     label: 'Partners',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
   benchmarking: {
@@ -188,7 +188,7 @@ export const NAV_ITEMS = {
     path: '/benchmarking',
     icon: Scale,
     label: 'Benchmarking',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'planner'
   },
@@ -197,7 +197,7 @@ export const NAV_ITEMS = {
     path: '/estimator',
     icon: Calculator,
     label: 'Estimator',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'planner'
   },
@@ -207,7 +207,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/dashboard',
     icon: ClipboardCheck,
     label: 'Dashboard',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -216,7 +216,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/requirements',
     icon: ListChecks,
     label: 'Requirements',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -225,7 +225,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/vendors',
     icon: Store,
     label: 'Vendors',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -234,7 +234,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/questions',
     icon: HelpCircle,
     label: 'Questions',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -243,7 +243,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/qa',
     icon: MessageSquare,
     label: 'Q&A',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -252,7 +252,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/evaluation',
     icon: Target,
     label: 'Evaluation',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -261,7 +261,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/traceability',
     icon: GitBranch,
     label: 'Traceability',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -270,7 +270,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/reports',
     icon: BarChart3,
     label: 'Reports',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -279,7 +279,7 @@ export const NAV_ITEMS = {
     path: '/evaluator/settings',
     icon: Cog,
     label: 'Settings',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
     section: 'evaluator'
   },
@@ -289,7 +289,7 @@ export const NAV_ITEMS = {
     path: '/team-members',
     icon: Users,
     label: 'Team Members',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
   settings: {
@@ -297,7 +297,7 @@ export const NAV_ITEMS = {
     path: '/settings',
     icon: Settings,
     label: 'Project Settings',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
   // auditLog and deletedItems are now tabs within Project Settings
@@ -306,7 +306,7 @@ export const NAV_ITEMS = {
     path: '/calendar',
     icon: CalendarDays,
     label: 'Calendar',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR, ROLES.VIEWER],
     readOnlyRoles: [ROLES.VIEWER]
   },
   planning: {
@@ -314,7 +314,7 @@ export const NAV_ITEMS = {
     path: '/planning',
     icon: ClipboardList,
     label: 'Planner',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM],
     readOnlyRoles: [],
     section: 'planner'
   },
@@ -324,7 +324,7 @@ export const NAV_ITEMS = {
     path: '/admin/users',
     icon: Shield,
     label: 'System Users',
-    allowedRoles: [ROLES.ADMIN],
+    allowedRoles: [],  // System admin only - filtered in getNavigationForUser
     readOnlyRoles: []
   },
   systemAdmin: {
@@ -332,7 +332,7 @@ export const NAV_ITEMS = {
     path: '/admin/system',
     icon: Shield,
     label: 'System Admin',
-    allowedRoles: [ROLES.ADMIN],
+    allowedRoles: [],  // System admin only - filtered in getNavigationForUser
     readOnlyRoles: []
   },
   projectManagement: {
@@ -340,7 +340,7 @@ export const NAV_ITEMS = {
     path: '/admin/projects',
     icon: FolderKanban,
     label: 'Project Roles',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   },
   // Organisation Admin Items (visible to org admins)
@@ -350,7 +350,7 @@ export const NAV_ITEMS = {
     path: '/admin/organisation',
     icon: Building,
     label: 'Organisation',
-    allowedRoles: [ROLES.ADMIN, ROLES.SUPPLIER_PM],
+    allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: []
   }
 };
@@ -380,35 +380,7 @@ export const NAV_ITEMS = {
  * 14. Settings - configuration
  */
 export const ROLE_NAV_ORDER = {
-  [ROLES.ADMIN]: [
-    { section: 'tracker' },
-    'dashboard',
-    'milestones',
-    'deliverables',
-    'tasks',
-    'raid',
-    'calendar',
-    'timesheets',
-    'expenses',
-    'finance',
-    'partners',
-    { section: 'planner' },
-    'planning',
-    { section: 'evaluator' },
-    'evaluatorDashboard',
-    'evaluatorRequirements',
-    'evaluatorVendors',
-    'evaluatorQuestions',
-    'evaluatorQA',
-    'evaluatorScoring',
-    'evaluatorTraceability',
-    'evaluatorReports',
-    'evaluatorSettings',
-    { section: 'settings' },
-    'settings',
-    'projectManagement',
-    'orgSettings'
-  ],
+  // Note: ROLES.ADMIN removed in v3.0 - supplier_pm now has full admin capabilities
   [ROLES.SUPPLIER_PM]: [
     { section: 'tracker' },
     'dashboard',
@@ -713,13 +685,7 @@ export function getNavigationForUser({ isSystemAdmin = false, isOrgAdmin = false
  * Includes label, colors, and description
  */
 export const ROLE_DISPLAY = {
-  [ROLES.ADMIN]: {
-    label: 'Administrator',
-    shortLabel: 'Admin',
-    color: '#7c3aed',
-    bg: '#f3e8ff',
-    description: 'Full system access'
-  },
+  // Note: ROLES.ADMIN removed in v3.0 - supplier_pm now has full admin capabilities
   [ROLES.SUPPLIER_PM]: {
     label: 'Supplier PM',
     shortLabel: 'Supplier PM',
