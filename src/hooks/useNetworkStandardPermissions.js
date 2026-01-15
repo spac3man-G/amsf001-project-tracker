@@ -1,31 +1,40 @@
 /**
  * useNetworkStandardPermissions Hook
- * 
+ *
  * Provides Network Standard-specific permission checks.
  * Network standards are managed by supplier-side roles only.
- * 
- * @version 1.0
+ *
+ * @version 2.0 - Uses effectiveRole from ViewAsContext for proper role resolution
  * @created 28 December 2025
+ * @updated 15 January 2026 - Fixed role resolution to use ViewAsContext
  * @implements TD-001 Phase 5
  */
 
 import { useAuth } from '../contexts/AuthContext';
+import { useViewAs } from '../contexts/ViewAsContext';
 import { usePermissions } from './usePermissions';
 
 /**
  * Hook for Network Standard-specific permissions.
- * 
+ *
  * @param {Object} standard - Optional standard object (not currently used but included for consistency)
  * @returns {Object} Permission flags
- * 
+ *
  * @example
  * const { canEdit, canManage } = useNetworkStandardPermissions();
  */
 export function useNetworkStandardPermissions(standard = null) {
-  const { user, role: userRole, profile } = useAuth();
+  const { user, profile } = useAuth();
+
+  // v2.0: Get effectiveRole from ViewAsContext - this properly resolves:
+  // - System admin → supplier_pm
+  // - Org admin → supplier_pm
+  // - Project role → actual project role
+  // - Respects View As impersonation
+  const { effectiveRole: userRole } = useViewAs();
   const { can } = usePermissions();
-  
-  // Core role checks
+
+  // Core role checks using effectiveRole
   // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   const isSupplierPM = userRole === 'supplier_pm';
   const isSupplierFinance = userRole === 'supplier_finance';

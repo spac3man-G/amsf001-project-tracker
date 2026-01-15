@@ -1,39 +1,50 @@
 /**
  * useMilestonePermissions Hook
- * 
+ *
  * Provides milestone-specific permission checks for baseline commitment
  * and acceptance certificate workflows. This hook centralises all
  * permission logic for milestone-related actions.
- * 
- * @version 1.0
+ *
+ * @version 2.0 - Uses effectiveRole from ViewAsContext for proper role resolution
  * @created 5 December 2025
+ * @updated 15 January 2026 - Fixed role resolution to use ViewAsContext
  */
 
 import { useAuth } from '../contexts/AuthContext';
+import { useViewAs } from '../contexts/ViewAsContext';
 import { usePermissions } from './usePermissions';
 import { isBaselineLocked } from '../lib/milestoneCalculations';
 
 /**
  * Hook for milestone-specific permissions.
- * 
+ *
  * @param {Object} milestone - Optional milestone object for context-aware permissions
  * @returns {Object} Permission flags and helper functions
- * 
+ *
  * @example
  * const { canEdit, canSignBaselineAsSupplier, isBaselineLocked } = useMilestonePermissions(milestone);
  */
 export function useMilestonePermissions(milestone = null) {
-  const { user, role: userRole, profile } = useAuth();
-  const { 
-    canEditMilestone, 
-    canDeleteMilestone, 
-    canSignAsSupplier, 
+  const { user, profile } = useAuth();
+
+  // v2.0: Get effectiveRole from ViewAsContext - this properly resolves:
+  // - System admin → supplier_pm
+  // - Org admin → supplier_pm
+  // - Project role → actual project role
+  // - Respects View As impersonation
+  const { effectiveRole: userRole, hasFullAdminCapabilities } = useViewAs();
+  const {
+    canEditMilestone,
+    canDeleteMilestone,
+    canSignAsSupplier,
     canSignAsCustomer,
-    canCreateCertificate 
+    canCreateCertificate
   } = usePermissions();
-  
-  // Core role checks
-  const isAdmin = userRole === 'admin';
+
+  // Core role checks using effectiveRole
+  // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
+  // isAdmin now uses hasFullAdminCapabilities from ViewAsContext for admin-level override
+  const isAdmin = hasFullAdminCapabilities;
   const isSupplierPM = userRole === 'supplier_pm';
   const isCustomerPM = userRole === 'customer_pm';
   

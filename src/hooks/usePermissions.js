@@ -61,7 +61,7 @@ import * as perms from '../lib/permissions';
 
 export function usePermissions() {
   const { user } = useAuth();
-  
+
   // Get role information from ViewAsContext (supports impersonation and org hierarchy)
   // Falls back to 'viewer' if context not available
   let effectiveRole = 'viewer';
@@ -69,7 +69,8 @@ export function usePermissions() {
   let isImpersonating = false;
   let isSystemAdmin = false;
   let isOrgAdmin = false;
-  
+  let hasFullAdminCapabilities = false;
+
   try {
     const viewAs = useViewAs();
     effectiveRole = viewAs.effectiveRole || 'viewer';
@@ -78,6 +79,8 @@ export function usePermissions() {
     // These are now provided by ViewAsContext (from OrganisationContext)
     isSystemAdmin = viewAs.isSystemAdmin || false;
     isOrgAdmin = viewAs.isOrgAdmin || false;
+    // v4.0: New capability flag from ViewAsContext
+    hasFullAdminCapabilities = viewAs.hasFullAdminCapabilities || false;
   } catch (e) {
     // ViewAsContext not available, fall back to AuthContext role
     const auth = useAuth();
@@ -85,8 +88,9 @@ export function usePermissions() {
     actualRole = auth.role || 'viewer';
     // Check system admin from profile
     isSystemAdmin = auth.profile?.role === 'admin';
+    hasFullAdminCapabilities = isSystemAdmin;
   }
-  
+
   // Computed: Is user an org-level admin (either system admin or org admin)
   // This is useful for showing/hiding admin UI elements
   const isOrgLevelAdmin = isSystemAdmin || isOrgAdmin;
@@ -125,32 +129,42 @@ export function usePermissions() {
     actualRole,         // Actual role (never changes, respects org hierarchy)
     isImpersonating,    // Whether View As is active
     currentUserId,
-    
+
     // ============================================
-    // ORGANISATION-LEVEL ADMIN FLAGS (NEW in v5.0)
+    // ORGANISATION-LEVEL ADMIN FLAGS (v5.0+)
     // Use these to check org-level permissions
     // ============================================
-    
+
     /**
      * True if user is a system admin (profiles.role = 'admin')
      * System admins have full access to ALL organisations and projects
      */
     isSystemAdmin,
-    
+
     /**
      * True if user is an org admin for the current organisation
      * Org admins have full access to all projects within their org
      */
     isOrgAdmin,
-    
+
     /**
      * True if user is either a system admin OR org admin
      * Use this for showing/hiding admin UI elements
-     * 
+     *
      * @example
      * {isOrgLevelAdmin && <AdminSidebar />}
      */
     isOrgLevelAdmin,
+
+    /**
+     * v4.0: True if user has admin-level capabilities
+     * This is true for system admins, org admins, or supplier_pm roles
+     * Use this for permission checks that require admin-level access
+     *
+     * @example
+     * {hasFullAdminCapabilities && <AdminFeature />}
+     */
+    hasFullAdminCapabilities,
     
     // Direct matrix access
     can,
@@ -194,7 +208,13 @@ export function usePermissions() {
     canAddQualityStandard: perms.canAddQualityStandard(userRole),
     canEditQualityStandard: perms.canEditQualityStandard(userRole),
     canDeleteQualityStandard: perms.canDeleteQualityStandard(userRole),
-    
+
+    // RAID permissions (using permission matrix)
+    canManageRaid: perms.hasPermission(userRole, 'raid', 'manage'),
+    canAddRaid: perms.hasPermission(userRole, 'raid', 'create'),
+    canEditRaid: perms.hasPermission(userRole, 'raid', 'edit'),
+    canDeleteRaid: perms.hasPermission(userRole, 'raid', 'delete'),
+
     // Resource permissions
     canManageResources: perms.canManageResources(userRole),
     canAddResource: perms.canAddResource(userRole),

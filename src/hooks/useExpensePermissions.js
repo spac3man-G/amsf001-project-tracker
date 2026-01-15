@@ -1,22 +1,24 @@
 /**
  * useExpensePermissions Hook
- * 
+ *
  * Provides expense-specific permission checks for the submission
  * and validation workflow. This hook centralises all permission
  * logic for expense-related actions.
- * 
+ *
  * Workflow: Draft → Submitted → Approved/Rejected → Paid
  * - Contributors/Supplier PM submit their own expenses
  * - Customer PM validates chargeable expenses
  * - Supplier PM validates non-chargeable expenses
  * - Admin has full access
- * 
- * @version 1.0
+ *
+ * @version 2.0 - Uses effectiveRole from ViewAsContext for proper role resolution
  * @created 28 December 2025
+ * @updated 15 January 2026 - Fixed role resolution to use ViewAsContext
  * @implements TD-001 Phase 1
  */
 
 import { useAuth } from '../contexts/AuthContext';
+import { useViewAs } from '../contexts/ViewAsContext';
 import { usePermissions } from './usePermissions';
 
 // Expense status constants
@@ -78,10 +80,17 @@ function canBeDeleted(status) {
  * const { canEdit, canSubmit, canValidate, canDelete } = useExpensePermissions(expense);
  */
 export function useExpensePermissions(expense = null) {
-  const { user, role: userRole, profile, linkedResource } = useAuth();
+  const { user, profile, linkedResource } = useAuth();
+
+  // v2.0: Get effectiveRole from ViewAsContext - this properly resolves:
+  // - System admin → supplier_pm
+  // - Org admin → supplier_pm
+  // - Project role → actual project role
+  // - Respects View As impersonation
+  const { effectiveRole: userRole } = useViewAs();
   const basePermissions = usePermissions();
-  
-  // Core role checks
+
+  // Core role checks using effectiveRole
   // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   const isSupplierPM = userRole === 'supplier_pm';
   const isCustomerPM = userRole === 'customer_pm';

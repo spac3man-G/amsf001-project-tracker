@@ -1,20 +1,22 @@
 /**
  * useTimesheetPermissions Hook
- * 
+ *
  * Provides timesheet-specific permission checks for the submission
  * and validation workflow. This hook centralises all permission
  * logic for timesheet-related actions.
- * 
+ *
  * Workflow: Draft → Submitted → Validated/Rejected
  * - Contributors/Supplier PM submit their own timesheets
  * - Customer PM validates (approves/rejects)
  * - Admin has full access
- * 
- * @version 1.0
+ *
+ * @version 2.0 - Uses effectiveRole from ViewAsContext for proper role resolution
  * @created 6 December 2025
+ * @updated 15 January 2026 - Fixed role resolution to use ViewAsContext
  */
 
 import { useAuth } from '../contexts/AuthContext';
+import { useViewAs } from '../contexts/ViewAsContext';
 import { usePermissions } from './usePermissions';
 import {
   isEditable,
@@ -26,23 +28,30 @@ import {
 
 /**
  * Hook for timesheet-specific permissions.
- * 
+ *
  * @param {Object} timesheet - Optional timesheet object for context-aware permissions
  * @returns {Object} Permission flags and helper functions
- * 
+ *
  * @example
  * // Without timesheet (for general permissions)
  * const { canAdd, canAddForOthers } = useTimesheetPermissions();
- * 
+ *
  * @example
  * // With timesheet (for object-specific permissions)
  * const { canEdit, canSubmit, canValidate, canDelete } = useTimesheetPermissions(timesheet);
  */
 export function useTimesheetPermissions(timesheet = null) {
-  const { user, role: userRole, profile, linkedResource } = useAuth();
+  const { user, profile, linkedResource } = useAuth();
+
+  // v2.0: Get effectiveRole from ViewAsContext - this properly resolves:
+  // - System admin → supplier_pm
+  // - Org admin → supplier_pm
+  // - Project role → actual project role
+  // - Respects View As impersonation
+  const { effectiveRole: userRole } = useViewAs();
   const basePermissions = usePermissions();
-  
-  // Core role checks
+
+  // Core role checks using effectiveRole
   // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   const isSupplierPM = userRole === 'supplier_pm';
   const isCustomerPM = userRole === 'customer_pm';

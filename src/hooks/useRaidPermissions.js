@@ -1,39 +1,48 @@
 /**
  * useRaidPermissions Hook
- * 
+ *
  * Provides RAID-specific permission checks for managing Risks,
  * Assumptions, Issues, and Dependencies.
- * 
+ *
  * RAID items are typically managed by project managers (both supplier
  * and customer side) with delete restricted to supplier side.
- * 
- * @version 1.0
+ *
+ * @version 2.0 - Uses effectiveRole from ViewAsContext for proper role resolution
  * @created 28 December 2025
+ * @updated 15 January 2026 - Fixed role resolution to use ViewAsContext
  * @implements TD-001 Phase 2
  */
 
 import { useAuth } from '../contexts/AuthContext';
+import { useViewAs } from '../contexts/ViewAsContext';
 import { usePermissions } from './usePermissions';
 
 /**
  * Hook for RAID-specific permissions.
- * 
+ *
  * @param {Object} raidItem - Optional RAID item for context-aware permissions
  * @returns {Object} Permission flags and helper functions
- * 
+ *
  * @example
  * // Without item (for general permissions)
  * const { canAdd } = useRaidPermissions();
- * 
+ *
  * @example
  * // With item (for object-specific permissions)
  * const { canEdit, canDelete } = useRaidPermissions(raidItem);
  */
 export function useRaidPermissions(raidItem = null) {
-  const { user, role: userRole, profile } = useAuth();
+  const { user, profile } = useAuth();
+
+  // v2.0: Get effectiveRole from ViewAsContext - this properly resolves:
+  // - System admin → supplier_pm
+  // - Org admin → supplier_pm
+  // - Project role → actual project role
+  // - Respects View As impersonation
+  const { effectiveRole: userRole } = useViewAs();
   const basePermissions = usePermissions();
-  
-  // Core role checks
+
+  // Core role checks using effectiveRole
   // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   const isSupplierPM = userRole === 'supplier_pm';
   const isSupplierFinance = userRole === 'supplier_finance';
