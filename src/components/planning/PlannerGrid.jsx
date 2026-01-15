@@ -526,16 +526,8 @@ const PlannerGrid = forwardRef(function PlannerGrid({
       },
       {
         statusPanel: 'agTotalRowCountComponent',
-        align: 'center',
-        key: 'totalCount'
-      },
-      {
-        statusPanel: 'agAggregationComponent',
-        statusPanelParams: {
-          aggFuncs: ['count', 'sum', 'avg']
-        },
         align: 'right',
-        key: 'aggregation'
+        key: 'totalCount'
       }
     ]
   }), []);
