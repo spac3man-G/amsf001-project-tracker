@@ -544,73 +544,108 @@ export class DeliverablesService extends BaseService {
    */
   async getTasksForMilestones(projectId, milestoneIds = []) {
     try {
-      // First get deliverables for the project/milestones
-      let deliverableQuery = supabase
-        .from('deliverables')
-        .select(`
-          id,
-          deliverable_ref,
-          name,
-          milestone_id,
-          milestones!inner(
-            id,
-            milestone_ref,
-            name,
-            project_id
-          )
-        `)
-        .eq('milestones.project_id', projectId)
-        .or('is_deleted.is.null,is_deleted.eq.false');
-
-      // Filter by selected milestones if provided
-      if (milestoneIds.length > 0) {
-        deliverableQuery = deliverableQuery.in('milestone_id', milestoneIds);
-      }
-
-      const { data: deliverables, error: deliverableError } = await deliverableQuery;
-      if (deliverableError) throw deliverableError;
-
-      if (!deliverables || deliverables.length === 0) {
-        return [];
-      }
-
-      // Get deliverable IDs for task query
-      const deliverableIds = deliverables.map(d => d.id);
-
-      // Get all tasks for these deliverables
-      const { data: tasks, error: taskError } = await supabase
-        .from('deliverable_tasks')
+      // Query tasks from plan_items table (item_type = 'task')
+      // Tasks are children of deliverables in the planner hierarchy
+      let query = supabase
+        .from('plan_items')
         .select('*')
-        .in('deliverable_id', deliverableIds)
+        .eq('project_id', projectId)
+        .eq('item_type', 'task')
         .or('is_deleted.is.null,is_deleted.eq.false')
         .order('sort_order', { ascending: true });
 
+      const { data: tasks, error: taskError } = await query;
       if (taskError) throw taskError;
 
-      // Create lookup map for deliverables
-      const deliverableMap = new Map(
-        deliverables.map(d => [d.id, d])
-      );
+      if (!tasks || tasks.length === 0) {
+        return [];
+      }
+
+      // Get all plan items to build hierarchy lookup (deliverables and milestones)
+      const { data: allItems, error: itemsError } = await supabase
+        .from('plan_items')
+        .select('id, parent_id, item_type, name, wbs, committed_milestone_id, committed_deliverable_id')
+        .eq('project_id', projectId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      if (itemsError) throw itemsError;
+
+      // Create lookup maps
+      const itemMap = new Map(allItems.map(i => [i.id, i]));
+
+      // Get committed milestones and deliverables for reference info
+      const { data: milestones } = await supabase
+        .from('milestones')
+        .select('id, milestone_ref, name')
+        .eq('project_id', projectId);
+
+      const { data: deliverables } = await supabase
+        .from('deliverables')
+        .select('id, deliverable_ref, name, milestone_id');
+
+      const milestoneMap = new Map((milestones || []).map(m => [m.id, m]));
+      const deliverableMap = new Map((deliverables || []).map(d => [d.id, d]));
+
+      // Helper to find parent deliverable and milestone
+      const findParentInfo = (task) => {
+        let current = task;
+        let deliverableItem = null;
+        let milestoneItem = null;
+
+        // Walk up the tree to find deliverable and milestone
+        while (current && current.parent_id) {
+          const parent = itemMap.get(current.parent_id);
+          if (!parent) break;
+
+          if (parent.item_type === 'deliverable') {
+            deliverableItem = parent;
+          } else if (parent.item_type === 'milestone') {
+            milestoneItem = parent;
+          }
+          current = parent;
+        }
+
+        // Get committed info if available
+        const committedDeliverable = deliverableItem?.committed_deliverable_id
+          ? deliverableMap.get(deliverableItem.committed_deliverable_id)
+          : null;
+        const committedMilestone = milestoneItem?.committed_milestone_id
+          ? milestoneMap.get(milestoneItem.committed_milestone_id)
+          : null;
+
+        return {
+          deliverable_ref: committedDeliverable?.deliverable_ref || deliverableItem?.wbs || '',
+          deliverable_name: committedDeliverable?.name || deliverableItem?.name || '',
+          milestone_id: committedMilestone?.id || milestoneItem?.committed_milestone_id,
+          milestone_ref: committedMilestone?.milestone_ref || milestoneItem?.wbs || '',
+          milestone_name: committedMilestone?.name || milestoneItem?.name || ''
+        };
+      };
+
+      // Filter by selected milestones if provided
+      let filteredTasks = tasks;
+      if (milestoneIds.length > 0) {
+        filteredTasks = tasks.filter(task => {
+          const parentInfo = findParentInfo(task);
+          return milestoneIds.includes(parentInfo.milestone_id);
+        });
+      }
 
       // Transform to flat structure for AG Grid
-      return (tasks || []).map(task => {
-        const deliverable = deliverableMap.get(task.deliverable_id);
+      return filteredTasks.map(task => {
+        const parentInfo = findParentInfo(task);
         return {
           id: task.id,
-          deliverable_id: task.deliverable_id,
           task_name: task.name,
-          owner: task.owner,
-          status: task.status || (task.is_complete ? 'complete' : 'not_started'),
-          target_date: task.target_date,
-          is_complete: task.is_complete,
-          comment: task.comment,
+          owner: task.owner || '',
+          status: task.status || 'not_started',
+          target_date: task.end_date, // Use end_date as target date
+          is_complete: task.status === 'completed' || task.progress === 100,
+          progress: task.progress || 0,
           sort_order: task.sort_order,
-          // Denormalized fields for display
-          deliverable_ref: deliverable?.deliverable_ref,
-          deliverable_name: deliverable?.name,
-          milestone_id: deliverable?.milestone_id,
-          milestone_ref: deliverable?.milestones?.milestone_ref,
-          milestone_name: deliverable?.milestones?.name,
+          wbs: task.wbs,
+          // Parent info
+          ...parentInfo,
           // Metadata
           created_at: task.created_at,
           updated_at: task.updated_at
