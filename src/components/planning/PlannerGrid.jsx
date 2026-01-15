@@ -173,9 +173,14 @@ const OwnerCellRenderer = ({ value }) => {
  * Accepts context.items for WBS lookup
  */
 const PredecessorsCellRenderer = ({ value, context }) => {
-  const preds = value || [];
+  // AG Grid may wrap values in {count, value} for aggregation - extract actual array
+  let preds = value;
+  if (preds && typeof preds === 'object' && 'value' in preds) {
+    preds = preds.value;
+  }
+  preds = preds || [];
 
-  if (preds.length === 0) {
+  if (!Array.isArray(preds) || preds.length === 0) {
     return <span className="predecessors-empty">-</span>;
   }
 
