@@ -47,6 +47,44 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' }
 ];
 
+/**
+ * Fields protected by baseline locking.
+ * These cannot be edited when the item's milestone is baselined.
+ * See TECH-SPEC-12-Planner-Tracker-Sync.md Section 8.1
+ */
+const BASELINE_PROTECTED_FIELDS = ['start_date', 'end_date', 'duration_days', 'billable'];
+
+/**
+ * Check if editing should be blocked for a committed item
+ * @param {Object} item - The plan item
+ * @param {string} field - The field being edited (optional)
+ * @returns {{ blocked: boolean, reason: string | null }}
+ */
+function getEditBlockStatus(item, field = null) {
+  if (!item) return { blocked: true, reason: 'Item not found' };
+
+  // Uncommitted items are fully editable
+  if (!item.is_published) {
+    return { blocked: false, reason: null };
+  }
+
+  // Committed but NOT baselined - fully editable (changes sync to Tracker)
+  if (!item._baselineLocked) {
+    return { blocked: false, reason: null };
+  }
+
+  // Baselined item - check if field is protected
+  if (field && BASELINE_PROTECTED_FIELDS.includes(field)) {
+    return {
+      blocked: true,
+      reason: `This field is protected because the milestone is baselined. Use a Variation to change ${field.replace('_', ' ')}.`
+    };
+  }
+
+  // Baselined item, non-protected field - editable
+  return { blocked: false, reason: null };
+}
+
 // Editable columns in order
 const COLUMNS = ['name', 'item_type', 'start_date', 'end_date', 'predecessors', 'progress', 'status'];
 
@@ -543,13 +581,16 @@ export default function Planning() {
   }
 
   async function handleDeleteItem(id) {
-    // Check if item is committed (managed in Tracker)
     const item = items.find(i => i.id === id);
-    if (item?.is_published) {
-      showInfo('This item is managed in Tracker. Delete it there instead.');
+    if (!item) return;
+
+    // Only block deletion for baselined items (structural change)
+    // Committed-but-not-baselined items can be deleted (will sync to Tracker)
+    if (item._baselineLocked) {
+      showInfo('This item is part of a baselined milestone. Structural changes are not allowed.');
       return;
     }
-    
+
     if (!confirm('Delete this item?')) return;
     try {
       // Get item and its descendants for undo
@@ -571,13 +612,16 @@ export default function Planning() {
 
   async function handleIndent(id) {
     try {
-      // Check if item is committed (managed in Tracker)
       const item = items.find(i => i.id === id);
-      if (item?.is_published) {
-        showInfo('This item is managed in Tracker. Changes must be made there.');
+      if (!item) return;
+
+      // Only block indent for baselined items (structural change)
+      // Committed-but-not-baselined items can be indented (will sync to Tracker)
+      if (item._baselineLocked) {
+        showInfo('This item is part of a baselined milestone. Structural changes are not allowed.');
         return;
       }
-      
+
       // Store previous state for undo
       const previousState = {
         id,
@@ -607,13 +651,16 @@ export default function Planning() {
 
   async function handleOutdent(id) {
     try {
-      // Check if item is committed (managed in Tracker)
       const item = items.find(i => i.id === id);
-      if (item?.is_published) {
-        showInfo('This item is managed in Tracker. Changes must be made there.');
+      if (!item) return;
+
+      // Only block outdent for baselined items (structural change)
+      // Committed-but-not-baselined items can be outdented (will sync to Tracker)
+      if (item._baselineLocked) {
+        showInfo('This item is part of a baselined milestone. Structural changes are not allowed.');
         return;
       }
-      
+
       // Store previous state for undo
       const previousState = {
         id,
@@ -1667,18 +1714,19 @@ export default function Planning() {
   function startEditing(rowIndex, field, initialChar = null) {
     const item = items[rowIndex];
     if (!item) return;
-    
-    // Block editing for committed items (Tracker is master)
-    if (item.is_published) {
-      showInfo('This item is managed in Tracker. Changes must be made there.');
+
+    // Check if editing should be blocked based on commit/baseline status
+    const blockStatus = getEditBlockStatus(item, field);
+    if (blockStatus.blocked) {
+      showInfo(blockStatus.reason);
       return;
     }
-    
+
     let value = item[field] || '';
     if (initialChar !== null) {
       value = initialChar; // Replace with typed character
     }
-    
+
     setEditValue(value);
     setEditingCell({ rowIndex, field });
   }
@@ -1686,21 +1734,21 @@ export default function Planning() {
   function clearCell(rowIndex, field) {
     const item = items[rowIndex];
     if (!item) return;
-    
-    // Block clearing for committed items (Tracker is master)
-    if (item.is_published) {
-      showInfo('This item is managed in Tracker. Changes must be made there.');
+
+    // Check if editing should be blocked based on commit/baseline status
+    const blockStatus = getEditBlockStatus(item, field);
+    if (blockStatus.blocked) {
+      showInfo(blockStatus.reason);
       return;
     }
-    
+
     let clearValue = '';
     if (field === 'progress') clearValue = 0;
     if (field === 'status') clearValue = 'not_started';
     if (field === 'item_type') clearValue = 'task';
-    
-    // Use baseline check for protected fields
-    const protectedFields = ['start_date', 'end_date', 'billable', 'cost', 'duration'];
-    if (protectedFields.includes(field)) {
+
+    // Use baseline check for protected fields (handles syncing to Tracker)
+    if (BASELINE_PROTECTED_FIELDS.includes(field)) {
       handleUpdateItemWithBaselineCheck(item.id, field, clearValue);
     } else {
       handleUpdateItem(item.id, field, clearValue);
