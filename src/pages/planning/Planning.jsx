@@ -13,7 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import planItemsService from '../../services/planItemsService';
-import { estimatesService, ESTIMATE_STATUS } from '../../services';
+import { estimatesService, ESTIMATE_STATUS, calendarService } from '../../services';
 import { usePlanningIntegration } from '../../hooks';
 import PlanningAIAssistant from './PlanningAIAssistant';
 import PredecessorEditModal from './PredecessorEditModal';
@@ -89,7 +89,7 @@ function getEditBlockStatus(item, field = null) {
 const COLUMNS = ['name', 'item_type', 'start_date', 'end_date', 'predecessors', 'progress', 'status'];
 
 export default function Planning() {
-  const { projectId, projectRole } = useProject();
+  const { projectId, projectRole, projectName } = useProject();
   const { user } = useAuth();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const navigate = useNavigate();
@@ -120,6 +120,8 @@ export default function Planning() {
   const inputRef = useRef(null);
   const tableRef = useRef(null);
   const linkMenuRef = useRef(null); // Ref for link dropdown menu
+  const plannerGridRef = useRef(null); // Ref for AG Grid API access (Excel export, etc.)
+  const [teamMembers, setTeamMembers] = useState([]); // Project team members for owner dropdown
 
   // Resizable columns hook
   const { 
@@ -198,6 +200,21 @@ export default function Planning() {
   useEffect(() => {
     if (projectId) fetchEstimates();
   }, [projectId, fetchEstimates]);
+
+  // Fetch team members for AG Grid owner dropdown
+  useEffect(() => {
+    async function fetchTeamMembers() {
+      if (!projectId) return;
+      try {
+        const members = await calendarService.getProjectMembers(projectId);
+        // Transform to simple name array for the dropdown
+        setTeamMembers(members.map(m => m.name));
+      } catch (error) {
+        console.error('Error fetching team members:', error);
+      }
+    }
+    fetchTeamMembers();
+  }, [projectId]);
 
   // Subscribe to history changes
   useEffect(() => {
@@ -2319,6 +2336,22 @@ export default function Planning() {
             <RefreshCw size={16} />
             Refresh
           </button>
+          {/* Excel Export - only in Grid mode */}
+          {viewMode === 'grid' && (
+            <button
+              onClick={() => {
+                if (plannerGridRef.current) {
+                  plannerGridRef.current.exportToExcel();
+                  showSuccess('Exported to Excel');
+                }
+              }}
+              className="plan-btn plan-btn-secondary"
+              title="Export to Excel"
+            >
+              <FileSpreadsheet size={16} />
+              Export
+            </button>
+          )}
           {/* View Mode Toggle */}
           <div className="plan-view-toggle">
             <button
@@ -2360,7 +2393,10 @@ export default function Planning() {
         {/* AG Grid Enterprise View */}
         {viewMode === 'grid' && (
           <PlannerGrid
+            ref={plannerGridRef}
             items={items}
+            teamMembers={teamMembers}
+            projectName={projectName}
             onItemUpdate={async (id, updates) => {
               try {
                 await planItemsService.update(id, updates);

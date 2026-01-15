@@ -2,20 +2,33 @@
  * PlannerGrid Component
  *
  * AG Grid Enterprise-based hierarchical planner grid with tree data,
- * inline editing, context menu, and drag-drop support.
+ * inline editing, context menu, drag-drop support, and advanced Enterprise features.
  *
- * @version 1.0
+ * @version 2.0
  * @created 15 January 2026
- * @phase Phase 1 - Foundation
+ * @updated 15 January 2026
+ * @phase Phase A - Enterprise Quick Wins
+ *
+ * Enterprise Features Enabled:
+ * - Tree Data with hierarchy
+ * - Range Selection & Fill Handle
+ * - Context Menu
+ * - Excel Export
+ * - Column & Filter Sidebars
+ * - Status Bar with aggregations
+ * - Rich Select Editors
+ * - Date Editors
+ * - Set Filters
  */
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flag, Package, CheckSquare, Layers } from 'lucide-react';
+import { format } from 'date-fns';
 import './PlannerGrid.css';
 
 // Register AG Grid modules (v35+ requirement)
@@ -75,7 +88,7 @@ function transformToTreeData(items) {
 }
 
 /**
- * Status Cell Renderer
+ * Status Cell Renderer - React component for displaying status badges
  */
 const StatusCellRenderer = ({ value }) => {
   const status = STATUS_OPTIONS.find(s => s.value === value) || STATUS_OPTIONS[0];
@@ -86,6 +99,19 @@ const StatusCellRenderer = ({ value }) => {
       {status.label}
     </div>
   );
+};
+
+/**
+ * Status Filter Cell Renderer - For set filter display
+ */
+const StatusFilterRenderer = (params) => {
+  const status = STATUS_OPTIONS.find(s => s.value === params.value);
+  if (!status) return params.value;
+
+  return `<div style="display: flex; align-items: center; gap: 8px;">
+    <span style="width: 8px; height: 8px; border-radius: 50%; background: ${status.color}; flex-shrink: 0;"></span>
+    <span>${status.label}</span>
+  </div>`;
 };
 
 /**
@@ -126,19 +152,82 @@ const ItemTypeCellRenderer = ({ value }) => {
 };
 
 /**
- * PlannerGrid Component
+ * Owner Cell Renderer - For displaying owner with initial avatar
  */
-export default function PlannerGrid({
+const OwnerCellRenderer = ({ value }) => {
+  if (!value) return <span className="owner-unassigned">Unassigned</span>;
+
+  const initials = value.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  return (
+    <div className="owner-cell">
+      <div className="owner-avatar">{initials}</div>
+      <span className="owner-name">{value}</span>
+    </div>
+  );
+};
+
+/**
+ * PlannerGrid Component
+ *
+ * @param {Array} items - Plan items to display
+ * @param {Function} onItemUpdate - Callback when item is updated
+ * @param {Function} onItemCreate - Callback when new item is created
+ * @param {Function} onItemDelete - Callback when item is deleted
+ * @param {Function} onRefresh - Callback to refresh data
+ * @param {boolean} isLoading - Loading state
+ * @param {boolean} readOnly - Read-only mode
+ * @param {Array} teamMembers - List of team member names for owner dropdown
+ * @param {string} projectName - Project name for Excel export
+ */
+const PlannerGrid = forwardRef(function PlannerGrid({
   items = [],
   onItemUpdate,
   onItemCreate,
   onItemDelete,
   onRefresh,
   isLoading = false,
-  readOnly = false
-}) {
+  readOnly = false,
+  teamMembers = [],
+  projectName = 'Project'
+}, ref) {
   const gridRef = useRef(null);
   const [rowData, setRowData] = useState([]);
+
+  // Expose grid API to parent via ref
+  useImperativeHandle(ref, () => ({
+    getApi: () => gridRef.current?.api,
+    exportToExcel: (params = {}) => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.exportDataAsExcel({
+          fileName: `${projectName}-plan-${format(new Date(), 'yyyy-MM-dd')}.xlsx`,
+          sheetName: 'Project Plan',
+          processCellCallback: (cellParams) => {
+            // Format dates for Excel
+            if (cellParams.column.colId.includes('date') && cellParams.value) {
+              try {
+                return format(new Date(cellParams.value), 'yyyy-MM-dd');
+              } catch {
+                return cellParams.value;
+              }
+            }
+            // Format status
+            if (cellParams.column.colId === 'status') {
+              const status = STATUS_OPTIONS.find(s => s.value === cellParams.value);
+              return status?.label || cellParams.value;
+            }
+            // Format item type
+            if (cellParams.column.colId === 'item_type') {
+              const type = ITEM_TYPES[cellParams.value];
+              return type?.label || cellParams.value;
+            }
+            return cellParams.value;
+          },
+          ...params
+        });
+      }
+    }
+  }), [projectName]);
 
   // Transform items to tree data format
   useEffect(() => {
@@ -184,90 +273,218 @@ export default function PlannerGrid({
         return true;
       }
       return false;
-    }
+    },
+    filter: 'agTextColumnFilter'
   }), [readOnly]);
 
-  // Column Definitions
+  // Column Definitions with Enterprise Features
   const columnDefs = useMemo(() => [
     {
       field: 'item_type',
       headerName: 'Type',
       width: 130,
       editable: false, // Type is determined by hierarchy
-      cellRenderer: ItemTypeCellRenderer
+      cellRenderer: ItemTypeCellRenderer,
+      filter: 'agSetColumnFilter',
+      filterParams: {
+        values: Object.keys(ITEM_TYPES),
+        cellRenderer: (params) => {
+          const type = ITEM_TYPES[params.value];
+          return type?.label || params.value;
+        }
+      }
+    },
+    {
+      field: 'owner',
+      headerName: 'Owner',
+      width: 160,
+      editable: !readOnly,
+      cellRenderer: OwnerCellRenderer,
+      cellEditor: 'agRichSelectCellEditor',
+      cellEditorParams: {
+        values: ['', ...teamMembers], // Empty string for "Unassigned"
+        formatValue: (value) => value || 'Unassigned',
+        searchDebounceDelay: 300,
+        allowTyping: true,
+        filterList: true,
+        highlightMatch: true,
+        valueListMaxHeight: 220
+      },
+      filter: 'agSetColumnFilter',
+      filterParams: {
+        values: teamMembers,
+        cellRenderer: (params) => params.value || 'Unassigned'
+      }
     },
     {
       field: 'start_date',
       headerName: 'Start',
-      width: 120,
+      width: 130,
       editable: !readOnly,
+      cellEditor: 'agDateCellEditor',
+      cellEditorParams: {
+        min: '2020-01-01',
+        max: '2035-12-31'
+      },
       valueFormatter: (params) => {
         if (!params.value) return '';
-        return new Date(params.value).toLocaleDateString();
+        try {
+          return format(new Date(params.value), 'dd MMM yyyy');
+        } catch {
+          return params.value;
+        }
+      },
+      valueParser: (params) => {
+        if (!params.newValue) return null;
+        return params.newValue;
+      },
+      filter: 'agDateColumnFilter',
+      filterParams: {
+        comparator: (filterDate, cellValue) => {
+          if (!cellValue) return -1;
+          const cellDate = new Date(cellValue);
+          if (cellDate < filterDate) return -1;
+          if (cellDate > filterDate) return 1;
+          return 0;
+        }
       }
     },
     {
       field: 'end_date',
       headerName: 'End',
-      width: 120,
+      width: 130,
       editable: !readOnly,
+      cellEditor: 'agDateCellEditor',
+      cellEditorParams: {
+        min: '2020-01-01',
+        max: '2035-12-31'
+      },
       valueFormatter: (params) => {
         if (!params.value) return '';
-        return new Date(params.value).toLocaleDateString();
-      }
+        try {
+          return format(new Date(params.value), 'dd MMM yyyy');
+        } catch {
+          return params.value;
+        }
+      },
+      valueParser: (params) => {
+        if (!params.newValue) return null;
+        return params.newValue;
+      },
+      filter: 'agDateColumnFilter'
     },
     {
       field: 'duration_days',
       headerName: 'Days',
-      width: 80,
+      width: 90,
       editable: !readOnly,
-      type: 'numericColumn'
+      type: 'numericColumn',
+      filter: 'agNumberColumnFilter',
+      aggFunc: 'sum'
     },
     {
       field: 'status',
       headerName: 'Status',
-      width: 140,
+      width: 150,
       editable: !readOnly,
       cellRenderer: StatusCellRenderer,
-      cellEditor: 'agSelectCellEditor',
+      cellEditor: 'agRichSelectCellEditor',
       cellEditorParams: {
-        values: STATUS_OPTIONS.map(s => s.value)
+        values: STATUS_OPTIONS.map(s => s.value),
+        cellRenderer: StatusFilterRenderer,
+        searchDebounceDelay: 300,
+        allowTyping: true,
+        filterList: true,
+        highlightMatch: true
+      },
+      filter: 'agSetColumnFilter',
+      filterParams: {
+        values: STATUS_OPTIONS.map(s => s.value),
+        cellRenderer: StatusFilterRenderer
       }
     },
     {
       field: 'progress',
       headerName: 'Progress',
-      width: 130,
+      width: 140,
       editable: !readOnly,
       cellRenderer: ProgressCellRenderer,
       type: 'numericColumn',
       valueParser: (params) => {
         const val = parseInt(params.newValue, 10);
         return isNaN(val) ? 0 : Math.min(100, Math.max(0, val));
-      }
+      },
+      filter: 'agNumberColumnFilter',
+      aggFunc: 'avg'
     }
-  ], [readOnly]);
+  ], [readOnly, teamMembers]);
 
   // Default column properties
   const defaultColDef = useMemo(() => ({
-    sortable: false, // Tree data shouldn't be sorted
+    sortable: false, // Tree data shouldn't be sorted by default
     resizable: true,
-    suppressMovable: true
+    suppressMovable: true,
+    menuTabs: ['filterMenuTab', 'generalMenuTab']
   }), []);
 
-  // Grid options
-  const gridOptions = useMemo(() => ({
-    treeData: true,
-    animateRows: true,
-    groupDefaultExpanded: 1, // Expand first level by default
-    getRowId: (params) => params.data.id,
-    suppressRowClickSelection: true,
-    rowSelection: 'multiple',
-    enableRangeSelection: true, // Enterprise feature
-    enableFillHandle: true, // Enterprise feature
-    undoRedoCellEditing: true,
-    undoRedoCellEditingLimit: 50
+  // Sidebar configuration - Column & Filter panels
+  const sideBar = useMemo(() => ({
+    toolPanels: [
+      {
+        id: 'columns',
+        labelDefault: 'Columns',
+        labelKey: 'columns',
+        iconKey: 'columns',
+        toolPanel: 'agColumnsToolPanel',
+        toolPanelParams: {
+          suppressRowGroups: true,
+          suppressPivots: true,
+          suppressPivotMode: true,
+          suppressValues: true
+        }
+      },
+      {
+        id: 'filters',
+        labelDefault: 'Filters',
+        labelKey: 'filters',
+        iconKey: 'filter',
+        toolPanel: 'agFiltersToolPanel'
+      }
+    ],
+    defaultToolPanel: null, // Collapsed by default
+    hiddenByDefault: false
   }), []);
+
+  // Status bar configuration
+  const statusBar = useMemo(() => ({
+    statusPanels: [
+      {
+        statusPanel: 'agSelectedRowCountComponent',
+        align: 'left',
+        key: 'selectedCount'
+      },
+      {
+        statusPanel: 'agTotalRowCountComponent',
+        align: 'center',
+        key: 'totalCount'
+      },
+      {
+        statusPanel: 'agAggregationComponent',
+        statusPanelParams: {
+          aggFuncs: ['count', 'sum', 'avg']
+        },
+        align: 'right',
+        key: 'aggregation'
+      }
+    ]
+  }), []);
+
+  // Default Excel export parameters
+  const defaultExcelExportParams = useMemo(() => ({
+    fileName: `${projectName}-plan.xlsx`,
+    sheetName: 'Project Plan',
+    columnKeys: ['name', 'item_type', 'owner', 'start_date', 'end_date', 'duration_days', 'status', 'progress']
+  }), [projectName]);
 
   // Handle cell value change (auto-save)
   const onCellValueChanged = useCallback((params) => {
@@ -282,10 +499,10 @@ export default function PlannerGrid({
 
   // Context menu items (Enterprise feature)
   const getContextMenuItems = useCallback((params) => {
-    if (readOnly) return ['copy'];
+    if (readOnly) return ['copy', 'copyWithHeaders', 'separator', 'export'];
 
     const { node } = params;
-    if (!node || !node.data) return ['copy'];
+    if (!node || !node.data) return ['copy', 'copyWithHeaders', 'separator', 'export'];
 
     const itemType = node.data.item_type;
     const canHaveChildren = itemType !== 'task';
@@ -343,7 +560,16 @@ export default function PlannerGrid({
       },
       'separator',
       'copy',
+      'copyWithHeaders',
       'paste',
+      'separator',
+      {
+        name: 'Export to Excel',
+        action: () => {
+          gridRef.current?.api?.exportDataAsExcel();
+        },
+        icon: '<span class="ag-icon ag-icon-excel"></span>'
+      },
       'separator',
       {
         name: 'Delete',
@@ -397,8 +623,16 @@ export default function PlannerGrid({
           onCellValueChanged={onCellValueChanged}
           getContextMenuItems={getContextMenuItems}
           onGridReady={onGridReady}
+          sideBar={sideBar}
+          statusBar={statusBar}
+          defaultExcelExportParams={defaultExcelExportParams}
+          enableCharts={false}
+          suppressAggFuncInHeader={true}
+          groupIncludeTotalFooter={false}
         />
       </div>
     </div>
   );
-}
+});
+
+export default PlannerGrid;

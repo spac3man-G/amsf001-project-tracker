@@ -257,6 +257,190 @@
   display: none !important;
 }
 
+/* ============================================
+   ENTERPRISE FEATURES - Phase A Quick Wins
+   ============================================ */
+
+/* Owner Cell */
+.owner-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.owner-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.owner-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owner-unassigned {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Sidebar Styling */
+.ag-theme-alpine.planner-grid .ag-side-bar {
+  border-left: 1px solid #e5e7eb;
+}
+
+.ag-theme-alpine.planner-grid .ag-side-buttons {
+  background: #f9fafb;
+}
+
+.ag-theme-alpine.planner-grid .ag-side-button-button {
+  color: #6b7280;
+  padding: 12px 8px;
+}
+
+.ag-theme-alpine.planner-grid .ag-side-button-button:hover {
+  color: #374151;
+  background: #f3f4f6;
+}
+
+.ag-theme-alpine.planner-grid .ag-side-button-button.ag-selected {
+  color: #3b82f6;
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.ag-theme-alpine.planner-grid .ag-tool-panel-wrapper {
+  width: 280px;
+  background: #ffffff;
+}
+
+.ag-theme-alpine.planner-grid .ag-column-panel-column-select {
+  padding: 8px;
+}
+
+.ag-theme-alpine.planner-grid .ag-filter-toolpanel-body {
+  padding: 8px;
+}
+
+/* Status Bar Styling */
+.ag-theme-alpine.planner-grid .ag-status-bar {
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.ag-theme-alpine.planner-grid .ag-status-panel {
+  padding: 0 16px;
+}
+
+.ag-theme-alpine.planner-grid .ag-status-panel:not(:last-child) {
+  border-right: 1px solid #e5e7eb;
+}
+
+.ag-theme-alpine.planner-grid .ag-status-name-value-value {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Rich Select Editor Styling */
+.ag-theme-alpine .ag-rich-select {
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.ag-theme-alpine .ag-rich-select-list {
+  max-height: 250px;
+}
+
+.ag-theme-alpine .ag-rich-select-row {
+  padding: 8px 12px;
+}
+
+.ag-theme-alpine .ag-rich-select-row-selected {
+  background-color: #eff6ff;
+}
+
+.ag-theme-alpine .ag-rich-select-row:hover {
+  background-color: #f3f4f6;
+}
+
+/* Date Editor Styling */
+.ag-theme-alpine .ag-date-picker {
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Set Filter Styling */
+.ag-theme-alpine .ag-set-filter-list {
+  max-height: 300px;
+}
+
+.ag-theme-alpine .ag-set-filter-item {
+  padding: 6px 8px;
+}
+
+.ag-theme-alpine .ag-set-filter-item-checkbox {
+  margin-right: 8px;
+}
+
+/* Filter Tool Panel */
+.ag-theme-alpine.planner-grid .ag-filter-toolpanel-header {
+  font-weight: 600;
+  padding: 12px 8px;
+  background: #f9fafb;
+}
+
+.ag-theme-alpine.planner-grid .ag-filter-toolpanel-instance-header {
+  padding: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Column Tool Panel */
+.ag-theme-alpine.planner-grid .ag-column-select-header {
+  padding: 12px 8px;
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.ag-theme-alpine.planner-grid .ag-column-select-column {
+  padding: 6px 8px;
+}
+
+.ag-theme-alpine.planner-grid .ag-column-select-column:hover {
+  background: #f3f4f6;
+}
+
+/* Quick Filter Input (for toolbar) */
+.planning-quick-filter {
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  width: 200px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.planning-quick-filter:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.planning-quick-filter::placeholder {
+  color: #9ca3af;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .ag-theme-alpine.planner-grid {
