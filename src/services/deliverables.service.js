@@ -564,7 +564,7 @@ export class DeliverablesService extends BaseService {
       // Get all plan items to build hierarchy lookup (deliverables and milestones)
       const { data: allItems, error: itemsError } = await supabase
         .from('plan_items')
-        .select('id, parent_id, item_type, name, wbs, committed_milestone_id, committed_deliverable_id')
+        .select('id, parent_id, item_type, name, wbs, published_milestone_id, published_deliverable_id')
         .eq('project_id', projectId)
         .or('is_deleted.is.null,is_deleted.eq.false');
 
@@ -605,20 +605,20 @@ export class DeliverablesService extends BaseService {
           current = parent;
         }
 
-        // Get committed info if available
-        const committedDeliverable = deliverableItem?.committed_deliverable_id
-          ? deliverableMap.get(deliverableItem.committed_deliverable_id)
+        // Get published info if available
+        const publishedDeliverable = deliverableItem?.published_deliverable_id
+          ? deliverableMap.get(deliverableItem.published_deliverable_id)
           : null;
-        const committedMilestone = milestoneItem?.committed_milestone_id
-          ? milestoneMap.get(milestoneItem.committed_milestone_id)
+        const publishedMilestone = milestoneItem?.published_milestone_id
+          ? milestoneMap.get(milestoneItem.published_milestone_id)
           : null;
 
         return {
-          deliverable_ref: committedDeliverable?.deliverable_ref || deliverableItem?.wbs || '',
-          deliverable_name: committedDeliverable?.name || deliverableItem?.name || '',
-          milestone_id: committedMilestone?.id || milestoneItem?.committed_milestone_id,
-          milestone_ref: committedMilestone?.milestone_ref || milestoneItem?.wbs || '',
-          milestone_name: committedMilestone?.name || milestoneItem?.name || ''
+          deliverable_ref: publishedDeliverable?.deliverable_ref || deliverableItem?.wbs || '',
+          deliverable_name: publishedDeliverable?.name || deliverableItem?.name || '',
+          milestone_id: publishedMilestone?.id || milestoneItem?.published_milestone_id,
+          milestone_ref: publishedMilestone?.milestone_ref || milestoneItem?.wbs || '',
+          milestone_name: publishedMilestone?.name || milestoneItem?.name || ''
         };
       };
 
@@ -637,13 +637,16 @@ export class DeliverablesService extends BaseService {
         return {
           id: task.id,
           task_name: task.name,
-          owner: task.owner || '',
+          owner: task.assigned_resource_id || '', // plan_items uses assigned_resource_id
           status: task.status || 'not_started',
           target_date: task.end_date, // Use end_date as target date
           is_complete: task.status === 'completed' || task.progress === 100,
           progress: task.progress || 0,
           sort_order: task.sort_order,
           wbs: task.wbs,
+          start_date: task.start_date,
+          end_date: task.end_date,
+          duration_days: task.duration_days,
           // Parent info
           ...parentInfo,
           // Metadata
