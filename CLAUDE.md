@@ -4,6 +4,65 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Security & Architecture Audit (January 2026)
+
+**Status**: PLANNED - Ready to begin Phase 1
+
+A comprehensive 6-phase security and architecture audit has been planned. The audit covers security, GDPR compliance, SOC 2 readiness, architecture, and code quality.
+
+**Audit Plan:** `audit/SECURITY-AUDIT-PLAN.md`
+
+### To Start Phase 1
+
+Begin a new Claude session with:
+```
+I'm conducting a security audit of the Tracker by Progressive application.
+Please review the audit plan at audit/SECURITY-AUDIT-PLAN.md and begin
+Phase 1: Security Foundation.
+```
+
+### Phases Overview
+
+| Phase | Focus | Deliverable |
+|-------|-------|-------------|
+| 1 | Security Foundation (auth, sessions, API) | `audit/AUDIT-01-Security-Foundation.md` |
+| 2 | Data Security & Multi-Tenancy (RLS, isolation) | `audit/AUDIT-02-Data-Security.md` |
+| 3 | Frontend Security (XSS, validation) | `audit/AUDIT-03-Frontend-Security.md` |
+| 4 | Architecture & Scalability (patterns, SaaS) | `audit/AUDIT-04-Architecture.md` |
+| 5 | Technology & Integration (dependencies, AI) | `audit/AUDIT-05-Technology-Review.md` |
+| 6 | Code Quality & Maintainability | `audit/AUDIT-06-Code-Quality.md` |
+
+### Compliance Frameworks
+
+- **GDPR** (mandatory - Channel Islands jurisdiction)
+- **SOC 2 Type II** (recommended for enterprise SaaS)
+- **ISO 27001** (recommended)
+
+---
+
+## RECENTLY FIXED: Permission System (15 January 2026)
+
+Fixed two issues related to the v3.0 role simplification:
+
+1. **View As dropdown** was showing "Admin (You)" instead of "Supplier PM (You)"
+2. **RAID Log** edit button wasn't appearing for Supplier PM users
+
+**Root cause:** Permission hooks were using `useAuth().role` (global profile role) instead of `useViewAs().effectiveRole` (project-scoped role).
+
+**Commits:**
+- `880c0720` - fix: Resolve role resolution issues in permission hooks and View As display
+
+**Files updated:**
+- `src/contexts/ViewAsContext.jsx` (v4.0)
+- `src/hooks/useRaidPermissions.js` (v2.0)
+- `src/hooks/useTimesheetPermissions.js` (v2.0)
+- `src/hooks/useExpensePermissions.js` (v2.0)
+- `src/hooks/useMilestonePermissions.js` (v2.0)
+- `src/hooks/useNetworkStandardPermissions.js` (v2.0)
+- `src/hooks/usePermissions.js`
+
+---
+
 ## IN PROGRESS: Member Project Assignments Feature (13 January 2026)
 
 **Status**: BLOCKED - Database function error, needs debugging
@@ -223,7 +282,7 @@ Role checks use `usePermissions()` hook or `src/lib/permissions.js` directly.
 ```
 src/
 ├── contexts/        # 12 React contexts (Auth, Project, Organisation, etc.)
-├── hooks/           # 20 custom hooks (usePermissions, useProjectRole, etc.)
+├── hooks/           # 21 custom hooks (usePermissions, useProjectRole, etc.)
 ├── services/        # 34+ service files extending BaseService
 ├── lib/             # Utilities (permissions.js, supabase.js, formatters.js)
 ├── components/      # UI components organized by feature
@@ -240,7 +299,7 @@ e2e/                 # Playwright E2E tests
 ├── helpers/         # Test utilities and user configs
 └── workflows/       # Multi-step workflow tests
 
-supabase/migrations/ # Database migrations (70+ files)
+supabase/migrations/ # Database migrations (92 files)
 ```
 
 ### Service Pattern
