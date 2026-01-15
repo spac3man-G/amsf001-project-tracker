@@ -1,13 +1,19 @@
 # TECH-SPEC-12: Planner-Tracker Synchronization
 
-> **Version:** 2.0
+> **Version:** 2.1
 > **Created:** 8 January 2026
-> **Updated:** 8 January 2026
+> **Updated:** 15 January 2026
 > **Status:** Approved
 > **Author:** Claude (AI Assistant)
 > **Estimated Effort:** 10 days
 
 ---
+
+> **Version 2.1 Updates (15 January 2026):**
+> - Added Section 8.3: getEditBlockStatus Helper Function (implementation)
+> - Documents the helper function implementation in Planning.jsx
+> - Fixed critical bug where committed-but-not-baselined items were incorrectly blocked from editing
+> - Added structural change blocking rules for baselined items
 
 > **Version 2.0 Updates (8 January 2026):**
 > - Validated against existing codebase - removed duplicate proposals for already-implemented features
@@ -1458,6 +1464,97 @@ export const ALWAYS_EDITABLE_FIELDS = [
  */
 export function isBaselineProtectedField(field) {
   return BASELINE_PROTECTED_FIELDS.includes(field);
+}
+```
+
+### 8.3 getEditBlockStatus Implementation
+
+> **Added:** 15 January 2026 (Bug Fix)
+
+**File:** `src/pages/planning/Planning.jsx`
+
+The `getEditBlockStatus()` helper function implements the edit protection rules defined in Section 8.1. This was added to fix a critical bug where all committed items were blocked from editing, regardless of baseline status.
+
+#### Bug That Was Fixed
+
+**Previous (Buggy) Code:**
+```javascript
+// Block editing for committed items (Tracker is master)
+if (item.is_published) {
+  showInfo('This item is managed in Tracker. Changes must be made there.');
+  return;
+}
+```
+
+This incorrectly blocked ALL committed items. Per Section 8.1, only baselined items should have restricted editing.
+
+#### Correct Implementation
+
+```javascript
+/**
+ * Fields protected by baseline locking.
+ * These cannot be edited when the item's milestone is baselined.
+ * See TECH-SPEC-12-Planner-Tracker-Sync.md Section 8.1
+ */
+const BASELINE_PROTECTED_FIELDS = ['start_date', 'end_date', 'duration_days', 'billable'];
+
+/**
+ * Check if editing should be blocked for a committed item
+ * @param {Object} item - The plan item
+ * @param {string} field - The field being edited (optional)
+ * @returns {{ blocked: boolean, reason: string | null }}
+ */
+function getEditBlockStatus(item, field = null) {
+  if (!item) return { blocked: true, reason: 'Item not found' };
+
+  // Uncommitted items are fully editable
+  if (!item.is_published) {
+    return { blocked: false, reason: null };
+  }
+
+  // Committed but NOT baselined - fully editable (changes sync to Tracker)
+  if (!item._baselineLocked) {
+    return { blocked: false, reason: null };
+  }
+
+  // Baselined item - check if field is protected
+  if (field && BASELINE_PROTECTED_FIELDS.includes(field)) {
+    return {
+      blocked: true,
+      reason: `This field is protected because the milestone is baselined. Use a Variation to change ${field.replace('_', ' ')}.`
+    };
+  }
+
+  // Baselined item, non-protected field - editable
+  return { blocked: false, reason: null };
+}
+```
+
+#### Functions Updated to Use Helper
+
+| Function | Previous Behavior | Corrected Behavior |
+|----------|-------------------|-------------------|
+| `startEditing()` | Blocked if `is_published` | Uses `getEditBlockStatus(item, field)` |
+| `clearCell()` | Blocked if `is_published` | Uses `getEditBlockStatus(item, field)` |
+| `handleDeleteItem()` | Blocked if `is_published` | Blocked only if `_baselineLocked` |
+| `handleIndent()` | Blocked if `is_published` | Blocked only if `_baselineLocked` |
+| `handleOutdent()` | Blocked if `is_published` | Blocked only if `_baselineLocked` |
+
+#### Structural Change Rules
+
+Structural changes (delete, indent, outdent) are more restrictive than field edits:
+
+| Item State | Structural Changes |
+|------------|-------------------|
+| Uncommitted | Allowed |
+| Committed (not baselined) | Allowed (syncs to Tracker) |
+| Baselined | **BLOCKED** (must use Tracker + Variation) |
+
+```javascript
+// Example: handleDeleteItem
+if (item._baselineLocked) {
+  showInfo('This item is part of a baselined milestone. Structural changes are not allowed.');
+  return;
 }
 ```
 

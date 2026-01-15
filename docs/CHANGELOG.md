@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.14] - 2026-01-15
+
+### Added
+
+#### Component Filter for Filtering Views
+Added component-based filtering across Task View, Milestones, and Deliverables pages.
+
+**Task View Page:**
+- Component dropdown filter above milestone filter chips
+- Filters milestones by selected component
+- New `getMilestoneComponentMap()` method maps milestones to their parent components
+
+**Milestones Page:**
+- Component filter dropdown in filter bar
+- Filters milestone list by component
+
+**Deliverables Page:**
+- Component filter as first dropdown in filter bar
+- Filters both milestone dropdown and deliverable list
+
+**Service Methods:**
+- `planItemsService.getComponents(projectId)` - Returns all component items for a project
+- `planItemsService.getMilestoneComponentMap(projectId)` - Returns map of milestone IDs to component info
+
+### Fixed
+
+#### Planner Edit Blocking for Committed Items (Critical Bug Fix)
+Fixed incorrect edit blocking in Planner where committed-but-not-baselined items were blocked from editing.
+
+**Previous Behavior (Bug):**
+- All committed items showed "This item is managed in Tracker. Changes must be made there."
+- Users could not edit any committed items in Planner, even when the milestone was not baselined
+
+**Correct Behavior (Per TECH-SPEC-12):**
+| Item State | Editable Fields | Structural Changes |
+|------------|-----------------|-------------------|
+| Uncommitted | All fields | Allowed |
+| Committed (not baselined) | All fields | Allowed (syncs to Tracker) |
+| Baselined | name, description, status, progress only | Blocked |
+
+**Implementation:**
+- Added `BASELINE_PROTECTED_FIELDS` constant: `['start_date', 'end_date', 'duration_days', 'billable']`
+- Added `getEditBlockStatus(item, field)` helper function for field-level edit checking
+- Updated `startEditing()` to use helper function
+- Updated `clearCell()` to use helper function
+- Updated `handleDeleteItem()` to only block baselined items
+- Updated `handleIndent()` to only block baselined items
+- Updated `handleOutdent()` to only block baselined items
+
+**Files Changed:**
+- `src/pages/planning/Planning.jsx` - Added helper function, updated 5 functions
+- `src/services/planItemsService.js` - Added getComponents, getMilestoneComponentMap methods
+- `src/pages/TaskView.jsx` - Added component filter
+- `src/pages/milestones/MilestonesContent.jsx` - Added component filter
+- `src/pages/deliverables/DeliverablesContent.jsx` - Added component filter
+
+---
+
 ## [0.9.13] - 2026-01-06
 
 ### Added

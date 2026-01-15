@@ -1,10 +1,15 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 5.2  
-**Created:** 11 December 2025  
-**Updated:** 7 January 2026  
-**Session:** 1.8.3  
+**Document Version:** 5.3
+**Created:** 11 December 2025
+**Updated:** 15 January 2026
+**Session:** 1.8.4
 **Status:** Complete
+
+> **Version 5.3 Updates (15 January 2026):**
+> - Added Section 15.1.3: Component Filter Methods
+> - Documents `getComponents()` and `getMilestoneComponentMap()` methods
+> - Used by Task View, Milestones, and Deliverables pages for component filtering
 
 > **Version 5.2 Updates (7 January 2026):**
 > - Added Section 17: Workflow System (consolidated from WORKFLOW-SYSTEM-DOCUMENTATION.md)
@@ -2285,6 +2290,8 @@ All services use the singleton pattern and are exported through a barrel file fo
 | `getEstimateLinks` | itemId | Array | Get linked estimates |
 | `linkToEstimate` | itemId, componentId | Object | Link to estimate |
 | `unlinkFromEstimate` | itemId | Boolean | Remove estimate link |
+| `getComponents` | projectId | Array | Get all component items for project |
+| `getMilestoneComponentMap` | projectId | Object | Map milestone IDs to parent component info |
 
 #### Import Structure Method
 
@@ -2514,6 +2521,103 @@ async syncFromTracker(projectId) {
 | deliverables | status | → | status (mapped) |
 | deliverables | progress | → | progress |
 | deliverables | due_date | → | end_date |
+
+---
+
+### 15.1.3 Component Filter Methods
+
+> **Added:** 15 January 2026
+
+**File:** `src/services/planItemsService.js`
+
+**Purpose:** Support component-based filtering in Task View, Milestones, and Deliverables pages.
+
+#### getComponents Method
+
+Returns all component-type items for a project, ordered by sort_order.
+
+```javascript
+async getComponents(projectId) {
+  const { data, error } = await supabase
+    .from('plan_items')
+    .select('id, name, wbs, sort_order')
+    .eq('project_id', projectId)
+    .eq('item_type', 'component')
+    .eq('is_deleted', false)
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+```
+
+**Returns:** Array of component objects with `id`, `name`, `wbs`, `sort_order`
+
+**Used by:**
+- Task View page (component filter dropdown)
+- Milestones page (component filter dropdown)
+- Deliverables page (component filter dropdown)
+
+#### getMilestoneComponentMap Method
+
+Builds a mapping from milestone IDs to their parent component information by traversing the plan_items hierarchy.
+
+```javascript
+async getMilestoneComponentMap(projectId) {
+  // 1. Fetch all non-deleted items
+  const { data: items, error } = await supabase
+    .from('plan_items')
+    .select('id, parent_id, item_type, published_milestone_id, name')
+    .eq('project_id', projectId)
+    .eq('is_deleted', false);
+
+  if (error) throw error;
+  if (!items) return {};
+
+  // 2. Index by id and build parent lookup
+  const byId = new Map(items.map(i => [i.id, i]));
+  const map = {};
+
+  // 3. For each milestone, walk up tree to find component
+  const milestoneItems = items.filter(i => i.item_type === 'milestone');
+
+  for (const ms of milestoneItems) {
+    let current = ms;
+    while (current?.parent_id) {
+      const parent = byId.get(current.parent_id);
+      if (parent?.item_type === 'component') {
+        map[ms.id] = {
+          componentId: parent.id,
+          componentName: parent.name
+        };
+        // Also map published_milestone_id if exists
+        if (ms.published_milestone_id) {
+          map[ms.published_milestone_id] = {
+            componentId: parent.id,
+            componentName: parent.name
+          };
+        }
+        break;
+      }
+      current = parent;
+    }
+  }
+
+  return map;
+}
+```
+
+**Returns:** Object mapping milestone IDs (both plan_item.id and published_milestone_id) to component info:
+```javascript
+{
+  "milestone-uuid-1": { componentId: "comp-uuid", componentName: "Frontend" },
+  "published-ms-uuid-1": { componentId: "comp-uuid", componentName: "Frontend" },
+  // ...
+}
+```
+
+**Used by:**
+- Task View page (filter tasks by component via milestone mapping)
 
 ---
 

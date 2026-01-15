@@ -62,6 +62,42 @@ See `audit/SECURITY-AUDIT-REMEDIATION-ROADMAP.md` for the complete prioritized a
 
 ---
 
+## RECENTLY FIXED: Planner Edit Blocking & Component Filters (15 January 2026)
+
+### Planner Edit Blocking Bug (Critical)
+
+Fixed a critical bug where committed-but-not-baselined items in Planner were incorrectly blocked from editing.
+
+**Previous (Bug):** All committed items showed "This item is managed in Tracker. Changes must be made there."
+
+**Correct Behavior (Per TECH-SPEC-12):**
+| Item State | Editable | Structural Changes |
+|------------|----------|-------------------|
+| Uncommitted | All fields | Allowed |
+| Committed (not baselined) | All fields | Allowed |
+| Baselined | name, description, status, progress only | Blocked |
+
+**Fix:** Added `getEditBlockStatus(item, field)` helper function to Planning.jsx that checks both `is_published` AND `_baselineLocked` flags.
+
+**Commits:**
+- `c7afd5cf` - fix: Allow editing committed-but-not-baselined items in Planner
+
+**Files updated:**
+- `src/pages/planning/Planning.jsx` - Added helper function, updated 5 functions
+
+### Component Filter Feature
+
+Added component-based filtering across three pages:
+- **Task View** - Component dropdown above milestone chips
+- **Milestones** - Component dropdown in filter bar
+- **Deliverables** - Component dropdown as first filter
+
+**New service methods:**
+- `planItemsService.getComponents(projectId)` - Returns component items
+- `planItemsService.getMilestoneComponentMap(projectId)` - Maps milestones to components
+
+---
+
 ## RECENTLY FIXED: Permission System (15 January 2026)
 
 Fixed two issues related to the v3.0 role simplification:
