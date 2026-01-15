@@ -1347,6 +1347,50 @@ export const planItemsService = {
       ...comp,
       milestoneIds: componentMilestones[comp.id] || []
     }));
+  },
+
+  // ===========================================================================
+  // DELIVERABLE TASK METHODS (for showing Planner tasks in Tracker deliverables)
+  // ===========================================================================
+
+  /**
+   * Get Planner tasks for a Tracker deliverable
+   * Finds plan_items with item_type='task' that are children of the deliverable's plan_item
+   *
+   * @param {string} deliverableId - Tracker deliverable UUID
+   * @param {string} projectId - Project UUID
+   * @returns {Array} List of task plan_items with id, name, status, progress, owner
+   */
+  async getTasksForDeliverable(deliverableId, projectId) {
+    // Step 1: Find the plan_item that is linked to this deliverable
+    const { data: deliverablePlanItem, error: findError } = await supabase
+      .from('plan_items')
+      .select('id')
+      .eq('published_deliverable_id', deliverableId)
+      .eq('project_id', projectId)
+      .eq('is_deleted', false)
+      .single();
+
+    if (findError || !deliverablePlanItem) {
+      // No plan_item linked to this deliverable - return empty array
+      return [];
+    }
+
+    // Step 2: Get all child tasks of this deliverable plan_item
+    const { data: tasks, error: tasksError } = await supabase
+      .from('plan_items')
+      .select('id, name, description, status, progress, owner, wbs, sort_order')
+      .eq('parent_id', deliverablePlanItem.id)
+      .eq('item_type', 'task')
+      .eq('is_deleted', false)
+      .order('sort_order', { ascending: true });
+
+    if (tasksError) {
+      console.error('[PlanItemsService] getTasksForDeliverable error:', tasksError);
+      throw tasksError;
+    }
+
+    return tasks || [];
   }
 };
 

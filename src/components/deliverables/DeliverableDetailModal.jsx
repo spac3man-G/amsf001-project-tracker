@@ -18,11 +18,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
+import {
   X, Save, Send, CheckCircle, Trash2, Edit2,
   Package, Calendar, FileText, Clock,
   ThumbsUp, RotateCcw, Target, Award, PenTool,
-  Plus, Check, CheckSquare
+  Plus, Check, CheckSquare, ClipboardList
 } from 'lucide-react';
 
 // Centralised utilities
@@ -40,8 +40,9 @@ import {
 } from '../../lib/deliverableCalculations';
 import { formatDate, formatDateTime } from '../../lib/formatters';
 import { useDeliverablePermissions } from '../../hooks/useDeliverablePermissions';
+import { useProject } from '../../contexts/ProjectContext';
 import { DualSignature, SignatureComplete } from '../common/SignatureBox';
-import { deliverablesService } from '../../services';
+import { deliverablesService, planItemsService } from '../../services';
 
 import './DeliverableDetailModal.css';
 
@@ -179,6 +180,66 @@ function QSSelector({ qualityStandards, selectedIds, onChange, disabled }) {
       {disabled && (
         <span className="hint">Only Supplier PM can edit Quality Standard links</span>
       )}
+    </div>
+  );
+}
+
+/**
+ * Planner Tasks Section Component - Shows tasks from Planner tool
+ * These are plan_items with item_type='task' that are children of this deliverable
+ */
+function PlannerTasksSection({ tasks }) {
+  if (!tasks || tasks.length === 0) {
+    return null;
+  }
+
+  const completedCount = tasks.filter(t => t.status === 'completed').length;
+
+  // Map status to color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return '#10b981'; // green
+      case 'in_progress': return '#3b82f6'; // blue
+      case 'blocked': return '#ef4444'; // red
+      case 'on_hold': return '#f59e0b'; // amber
+      default: return '#6b7280'; // gray
+    }
+  };
+
+  return (
+    <div className="deliverable-planner-tasks-section">
+      <div className="section-header">
+        <ClipboardList size={14} />
+        <span>Planner Tasks</span>
+        <span className="task-count">
+          {completedCount}/{tasks.length} complete
+        </span>
+      </div>
+
+      <div className="planner-tasks-list">
+        {tasks.map(task => (
+          <div key={task.id} className={`planner-task-item ${task.status || 'not_started'}`}>
+            <div className="planner-task-wbs">{task.wbs}</div>
+            <div className="planner-task-content">
+              <span className="planner-task-name">{task.name}</span>
+              {task.owner && (
+                <span className="planner-task-owner">{task.owner}</span>
+              )}
+            </div>
+            <div className="planner-task-status">
+              <span
+                className="status-badge"
+                style={{ backgroundColor: getStatusColor(task.status) }}
+              >
+                {(task.status || 'not_started').replace('_', ' ')}
+              </span>
+              {task.progress > 0 && (
+                <span className="planner-task-progress">{task.progress}%</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -676,13 +737,17 @@ export default function DeliverableDetailModal({
   onOpenCompletion,
   onSign
 }) {
+  const { projectId } = useProject();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
-  
-  // Local tasks state for optimistic updates
+
+  // Local tasks state for optimistic updates (deliverable_tasks checklist)
   const [localTasks, setLocalTasks] = useState([]);
-  
+
+  // Planner tasks state (plan_items with item_type='task')
+  const [plannerTasks, setPlannerTasks] = useState([]);
+
   // Assessment state for customer sign-off
   const [kpiAssessments, setKpiAssessments] = useState({});
   const [qsAssessments, setQsAssessments] = useState({});
@@ -724,12 +789,22 @@ export default function DeliverableDetailModal({
       deliverablesService.getTasksForDeliverable(deliverable.id)
         .then(tasks => setLocalTasks(tasks))
         .catch(err => {
-          console.error('Error fetching tasks:', err);
+          console.error('Error fetching deliverable tasks:', err);
           // Fallback to prop data if fetch fails
           setLocalTasks(deliverable.deliverable_tasks || []);
         });
+
+      // Fetch Planner tasks (plan_items with item_type='task' linked to this deliverable)
+      if (projectId) {
+        planItemsService.getTasksForDeliverable(deliverable.id, projectId)
+          .then(tasks => setPlannerTasks(tasks))
+          .catch(err => {
+            console.error('Error fetching planner tasks:', err);
+            setPlannerTasks([]);
+          });
+      }
     }
-  }, [deliverable]);
+  }, [deliverable, projectId]);
 
   if (!isOpen || !deliverable) return null;
 
@@ -1122,8 +1197,11 @@ export default function DeliverableDetailModal({
                 </div>
               </div>
 
-              {/* Tasks Checklist */}
-              <TasksSection 
+              {/* Planner Tasks - from plan_items linked to this deliverable */}
+              <PlannerTasksSection tasks={plannerTasks} />
+
+              {/* Tasks Checklist - deliverable-specific tasks */}
+              <TasksSection
                 tasks={localTasks}
                 onToggleComplete={handleToggleTaskComplete}
                 canEdit={canEditLinks}
