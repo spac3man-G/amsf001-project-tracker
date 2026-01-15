@@ -13,19 +13,20 @@
  * @updated 25 December 2025 - Converted to tab content
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { milestonesService, deliverablesService } from '../../services';
+import { milestonesService, deliverablesService, planItemsService } from '../../services';
 import { supabase } from '../../lib/supabase';
-import { 
-  Milestone as MilestoneIcon, 
-  Plus, 
-  RefreshCw, 
+import {
+  Milestone as MilestoneIcon,
+  Plus,
+  RefreshCw,
   Award,
   FileCheck,
   Info,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Layers
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
@@ -88,6 +89,11 @@ export default function MilestonesContent() {
   const [sortColumn, setSortColumn] = useState('milestone_ref');
   const [sortDirection, setSortDirection] = useState('asc');
 
+  // Component filter state
+  const [components, setComponents] = useState([]);
+  const [milestoneComponentMap, setMilestoneComponentMap] = useState({});
+  const [selectedComponentId, setSelectedComponentId] = useState('all');
+
   const emptyForm = {
     milestone_ref: '', name: '', description: '',
     baseline_start_date: '', baseline_end_date: '',
@@ -98,12 +104,27 @@ export default function MilestonesContent() {
   const [newMilestone, setNewMilestone] = useState(emptyForm);
   const [editForm, setEditForm] = useState({ id: '', ...emptyForm });
 
+  // Load component data for filtering
+  const fetchComponents = useCallback(async (projId) => {
+    const pid = projId || projectId;
+    try {
+      const componentsData = await planItemsService.getComponents(pid);
+      setComponents(componentsData || []);
+
+      const mapData = await planItemsService.getMilestoneComponentMap(pid);
+      setMilestoneComponentMap(mapData || {});
+    } catch (error) {
+      console.error('Error fetching components:', error);
+    }
+  }, [projectId]);
+
   useEffect(() => {
     if (projectId) {
       fetchMilestones(projectId);
       fetchCertificates(projectId);
+      fetchComponents(projectId);
     }
-  }, [projectId]);
+  }, [projectId, fetchComponents]);
 
   async function fetchCertificates(projId) {
     try {
@@ -412,8 +433,16 @@ export default function MilestonesContent() {
 
   if (loading) return <LoadingSpinner message="Loading milestones..." size="large" fullPage />;
 
+  // Filter milestones by component
+  const filteredMilestones = selectedComponentId === 'all'
+    ? milestones
+    : milestones.filter(m => {
+        const componentInfo = milestoneComponentMap[m.id];
+        return componentInfo?.component_id === selectedComponentId;
+      });
+
   // Use shared utility functions for status and progress calculation
-  const milestonesWithStatus = milestones.map(m => ({
+  const milestonesWithStatus = filteredMilestones.map(m => ({
     ...m,
     computedStatus: calculateMilestoneStatus(milestoneDeliverables[m.id]),
     computedProgress: calculateMilestoneProgress(milestoneDeliverables[m.id])
@@ -522,22 +551,51 @@ export default function MilestonesContent() {
           </div>
         )}
 
+        {/* Component Filter */}
+        {components.length > 0 && (
+          <div className="ms-filter-bar">
+            <div className="ms-filter-item">
+              <label className="ms-filter-label">
+                <Layers size={16} />
+                Component
+              </label>
+              <select
+                value={selectedComponentId}
+                onChange={(e) => setSelectedComponentId(e.target.value)}
+                className="ms-filter-select"
+              >
+                <option value="all">All Components</option>
+                {components.map(comp => (
+                  <option key={comp.id} value={comp.id}>
+                    {comp.wbs ? `${comp.wbs} - ` : ''}{comp.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* Milestones Table */}
         <div className="ms-table-card" data-testid="milestones-table-card">
           <div className="ms-table-header">
             <h2 className="ms-table-title">Project Milestones</h2>
             <span className="ms-table-count" data-testid="milestones-count">
-              {milestones.length} milestone{milestones.length !== 1 ? 's' : ''}
+              {filteredMilestones.length} milestone{filteredMilestones.length !== 1 ? 's' : ''}
+              {selectedComponentId !== 'all' && ` (filtered from ${milestones.length})`}
             </span>
           </div>
-          
-          {milestones.length === 0 ? (
+
+          {filteredMilestones.length === 0 ? (
             <div className="ms-empty" data-testid="milestones-empty-state">
               <div className="ms-empty-icon">
                 <MilestoneIcon size={32} />
               </div>
               <div className="ms-empty-title">No milestones found</div>
-              <div className="ms-empty-text">Click "Add Milestone" to create your first milestone.</div>
+              <div className="ms-empty-text">
+                {selectedComponentId === 'all'
+                  ? 'Click "Add Milestone" to create your first milestone.'
+                  : 'No milestones found for this component. Try selecting a different component or "All Components".'}
+              </div>
             </div>
           ) : (
             <table className="ms-table" data-testid="milestones-table">

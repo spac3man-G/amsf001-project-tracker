@@ -184,3 +184,8 @@ export {
 export {
   syncService
 } from './syncService';
+
+// Plan Items Service (Planner hierarchy - components, milestones, deliverables, tasks)
+export {
+  planItemsService
+} from './planItemsService';

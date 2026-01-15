@@ -10,8 +10,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { deliverablesService, milestonesService, kpisService, qualityStandardsService } from '../../services';
-import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle, ChevronUp, ChevronDown } from 'lucide-react';
+import { deliverablesService, milestonesService, kpisService, qualityStandardsService, planItemsService } from '../../services';
+import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle, ChevronUp, ChevronDown, Layers } from 'lucide-react';
 import { 
   DELIVERABLE_STATUS,
   DELIVERABLE_STATUS_CONFIG,
@@ -81,6 +81,11 @@ export default function DeliverablesContent() {
   const [filterStatus, setFilterStatus] = useState('');
   const [showAwaitingReview, setShowAwaitingReview] = useState(false);
 
+  // Component filter state
+  const [components, setComponents] = useState([]);
+  const [milestoneComponentMap, setMilestoneComponentMap] = useState({});
+  const [selectedComponentId, setSelectedComponentId] = useState('all');
+
   // Sorting state
   const [sortColumn, setSortColumn] = useState('deliverable_ref');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -99,6 +104,13 @@ export default function DeliverablesContent() {
     try {
       const milestonesData = await milestonesService.getAll(projectId, { orderBy: { column: 'milestone_ref', ascending: true } });
       setMilestones(milestonesData);
+
+      // Load component data for filtering
+      const componentsData = await planItemsService.getComponents(projectId);
+      setComponents(componentsData || []);
+
+      const mapData = await planItemsService.getMilestoneComponentMap(projectId);
+      setMilestoneComponentMap(mapData || {});
 
       const kpisData = await kpisService.getAll(projectId, { orderBy: { column: 'kpi_ref', ascending: true } });
       setKpis(kpisData);
@@ -321,8 +333,27 @@ export default function DeliverablesContent() {
     return deliverable.milestones.forecast_end_date || deliverable.milestones.end_date || null;
   }
 
+  // Filter milestones by selected component
+  const filteredMilestones = useMemo(() => {
+    if (selectedComponentId === 'all') return milestones;
+    return milestones.filter(m => {
+      const componentInfo = milestoneComponentMap[m.id];
+      return componentInfo?.component_id === selectedComponentId;
+    });
+  }, [milestones, milestoneComponentMap, selectedComponentId]);
+
+  // Get milestone IDs for the selected component
+  const componentMilestoneIds = useMemo(() => {
+    if (selectedComponentId === 'all') return null;
+    return filteredMilestones.map(m => m.id);
+  }, [selectedComponentId, filteredMilestones]);
+
   // Filter deliverables
   let filteredDeliverables = deliverables;
+  // Filter by component (via milestones)
+  if (componentMilestoneIds !== null) {
+    filteredDeliverables = filteredDeliverables.filter(d => componentMilestoneIds.includes(d.milestone_id));
+  }
   if (filterMilestone && filterMilestone !== 'all') filteredDeliverables = filteredDeliverables.filter(d => d.milestone_id === filterMilestone);
   if (filterStatus) filteredDeliverables = filteredDeliverables.filter(d => d.status === filterStatus);
   if (showAwaitingReview) filteredDeliverables = filteredDeliverables.filter(d => d.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW);
@@ -415,18 +446,36 @@ export default function DeliverablesContent() {
       <div className="del-content" data-testid="deliverables-content">
         {/* Filters */}
         <div className="del-filters" data-testid="deliverables-filters">
-          <select 
-            value={filterMilestone} 
-            onChange={(e) => setFilterMilestone(e.target.value)} 
+          {components.length > 0 && (
+            <select
+              value={selectedComponentId}
+              onChange={(e) => {
+                setSelectedComponentId(e.target.value);
+                setFilterMilestone('all'); // Reset milestone filter when component changes
+              }}
+              className="del-filter-select"
+              data-testid="deliverables-filter-component"
+            >
+              <option value="all">All Components</option>
+              {components.map(comp => (
+                <option key={comp.id} value={comp.id}>
+                  {comp.wbs ? `${comp.wbs} - ` : ''}{comp.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <select
+            value={filterMilestone}
+            onChange={(e) => setFilterMilestone(e.target.value)}
             className="del-filter-select"
             data-testid="deliverables-filter-milestone"
           >
             <option value="all">All Milestones</option>
-            {milestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
+            {filteredMilestones.map(m => <option key={m.id} value={m.id}>{m.milestone_ref} - {m.name}</option>)}
           </select>
-          <select 
-            value={filterStatus} 
-            onChange={(e) => setFilterStatus(e.target.value)} 
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
             className="del-filter-select"
             data-testid="deliverables-filter-status"
           >
@@ -434,8 +483,8 @@ export default function DeliverablesContent() {
             {getStatusOptions().map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {submittedForReview > 0 && (
-            <button 
-              onClick={() => { setShowAwaitingReview(!showAwaitingReview); if (!showAwaitingReview) { setFilterMilestone(''); setFilterStatus(''); } }} 
+            <button
+              onClick={() => { setShowAwaitingReview(!showAwaitingReview); if (!showAwaitingReview) { setFilterMilestone(''); setFilterStatus(''); } }}
               className={`del-filter-badge ${showAwaitingReview ? 'active' : ''}`}
               data-testid="deliverables-awaiting-review-badge"
             >

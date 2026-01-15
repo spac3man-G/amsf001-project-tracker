@@ -1238,6 +1238,115 @@ export const planItemsService = {
    */
   getAllowedParentTypes(itemType) {
     return HIERARCHY_RULES[itemType]?.allowedParents || [];
+  },
+
+  // ===========================================================================
+  // COMPONENT METHODS (for filtering milestones/deliverables/tasks by component)
+  // ===========================================================================
+
+  /**
+   * Get all components for a project
+   * Components are root-level plan_items with item_type='component'
+   *
+   * @param {string} projectId - Project UUID
+   * @returns {Array} List of components with id, name, wbs
+   */
+  async getComponents(projectId) {
+    const { data, error } = await supabase
+      .from('plan_items')
+      .select('id, name, wbs, sort_order')
+      .eq('project_id', projectId)
+      .eq('item_type', 'component')
+      .eq('is_deleted', false)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Get component mapping for milestones
+   * Returns a map of milestone_id → component info
+   *
+   * @param {string} projectId - Project UUID
+   * @returns {Object} Map of milestone_id → { component_id, component_name, component_wbs }
+   */
+  async getMilestoneComponentMap(projectId) {
+    // Get all plan items to build the hierarchy
+    const { data: items, error } = await supabase
+      .from('plan_items')
+      .select('id, parent_id, item_type, name, wbs, published_milestone_id')
+      .eq('project_id', projectId)
+      .eq('is_deleted', false);
+
+    if (error) throw error;
+    if (!items || items.length === 0) return {};
+
+    // Build a map of id → item
+    const itemMap = new Map(items.map(i => [i.id, i]));
+
+    // Build milestone → component mapping
+    const milestoneComponentMap = {};
+
+    for (const item of items) {
+      // Only process plan items that are linked to published milestones
+      if (!item.published_milestone_id) continue;
+
+      // Walk up the tree to find the component ancestor
+      let current = item;
+      let component = null;
+
+      while (current) {
+        if (current.item_type === 'component') {
+          component = current;
+          break;
+        }
+
+        if (current.parent_id && itemMap.has(current.parent_id)) {
+          current = itemMap.get(current.parent_id);
+        } else {
+          break;
+        }
+      }
+
+      if (component) {
+        milestoneComponentMap[item.published_milestone_id] = {
+          component_id: component.id,
+          component_name: component.name,
+          component_wbs: component.wbs
+        };
+      }
+    }
+
+    return milestoneComponentMap;
+  },
+
+  /**
+   * Get milestones grouped by component
+   * Returns components with their milestone IDs for filtering
+   *
+   * @param {string} projectId - Project UUID
+   * @returns {Array} Components with milestoneIds array
+   */
+  async getComponentsWithMilestones(projectId) {
+    const components = await this.getComponents(projectId);
+    const milestoneMap = await this.getMilestoneComponentMap(projectId);
+
+    // Group milestone IDs by component
+    const componentMilestones = {};
+
+    for (const [milestoneId, info] of Object.entries(milestoneMap)) {
+      if (!componentMilestones[info.component_id]) {
+        componentMilestones[info.component_id] = [];
+      }
+      componentMilestones[info.component_id].push(milestoneId);
+    }
+
+    // Attach milestone IDs to components
+    return components.map(comp => ({
+      ...comp,
+      milestoneIds: componentMilestones[comp.id] || []
+    }));
   }
 };
 

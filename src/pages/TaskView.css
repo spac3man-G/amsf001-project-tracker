@@ -217,3 +217,55 @@
   font-size: 14px;
   font-style: italic;
 }
+
+/* Filter Sections */
+.filter-section {
+  margin-bottom: 16px;
+}
+
+.filter-section:last-child {
+  margin-bottom: 0;
+}
+
+.filter-section .filter-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-section .filter-header h3 svg {
+  color: var(--primary, #3b82f6);
+}
+
+/* Component Filter */
+.component-filter-section {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.component-filter {
+  margin-top: 8px;
+}
+
+.component-select {
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #111827);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.component-select:hover {
+  border-color: var(--border-color-hover, #d1d5db);
+}
+
+.component-select:focus {
+  outline: none;
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
