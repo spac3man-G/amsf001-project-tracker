@@ -37,9 +37,8 @@ const STATUS_OPTIONS = [
 /**
  * Transform flat items array to tree path format for AG Grid Tree Data
  *
- * AG Grid Tree Data expects each row to have a path array representing
- * its position in the hierarchy. We build this by traversing from each
- * item up to the root, using the WBS number as the path segment.
+ * AG Grid Tree Data expects each row to have a UNIQUE path array representing
+ * its position in the hierarchy. We use the item ID for uniqueness.
  */
 function transformToTreeData(items) {
   if (!items || items.length === 0) return [];
@@ -48,16 +47,14 @@ function transformToTreeData(items) {
   const itemMap = new Map();
   items.forEach(item => itemMap.set(item.id, item));
 
-  // Build path for each item
+  // Build path for each item using IDs (guaranteed unique)
   return items.map(item => {
     const path = [];
     let current = item;
 
-    // Walk up the tree to build path
+    // Walk up the tree to build path using IDs
     while (current) {
-      // Use WBS or item reference as path segment
-      const segment = current.wbs || current.id;
-      path.unshift(segment);
+      path.unshift(current.id);
 
       if (current.parent_id && itemMap.has(current.parent_id)) {
         current = itemMap.get(current.parent_id);
@@ -375,7 +372,7 @@ export default function PlannerGrid({
 
   return (
     <div className="planner-grid-container">
-      <div className="ag-theme-alpine planner-grid">
+      <div className="ag-theme-alpine planner-grid" style={{ height: 'calc(100vh - 280px)', minHeight: '400px', width: '100%' }}>
         <AgGridReact
           ref={gridRef}
           rowData={rowData}
@@ -386,7 +383,7 @@ export default function PlannerGrid({
           getDataPath={getDataPath}
           animateRows={true}
           groupDefaultExpanded={1}
-          getRowId={(params) => params.data.id}
+          getRowId={(params) => String(params.data.id)}
           suppressRowClickSelection={true}
           rowSelection="multiple"
           enableRangeSelection={true}
@@ -396,7 +393,6 @@ export default function PlannerGrid({
           onCellValueChanged={onCellValueChanged}
           getContextMenuItems={getContextMenuItems}
           onGridReady={onGridReady}
-          domLayout="autoHeight"
         />
       </div>
     </div>
