@@ -11,11 +11,15 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import 'ag-grid-enterprise';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flag, Package, CheckSquare, Layers } from 'lucide-react';
 import './PlannerGrid.css';
+
+// Register AG Grid modules (v35+ requirement)
+ModuleRegistry.registerModules([AllCommunityModule, AllEnterpriseModule]);
 
 // Item type configuration
 const ITEM_TYPES = {

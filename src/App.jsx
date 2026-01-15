@@ -12,10 +12,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Suspense, lazy } from 'react';
 
-// AG Grid Enterprise initialization (30-day trial)
-import 'ag-grid-enterprise';
-import { initAgGridEnterprise } from './lib/ag-grid-license';
-initAgGridEnterprise();
+// AG Grid Enterprise - modules are registered in PlannerGrid component
 
 // Import context providers
 import { AuthProvider, useAuth } from './contexts/AuthContext';
