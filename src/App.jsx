@@ -1,5 +1,5 @@
 // src/App.jsx
-// Version 17.0 - Added OrganisationProvider for multi-tenancy
+// Version 17.1 - Added AG Grid Enterprise for Planner module
 //
 // Provider order is critical:
 // 1. AuthProvider - user authentication (no dependencies)
@@ -11,6 +11,11 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Suspense, lazy } from 'react';
+
+// AG Grid Enterprise initialization (30-day trial)
+import 'ag-grid-enterprise';
+import { initAgGridEnterprise } from './lib/ag-grid-license';
+initAgGridEnterprise();
 
 // Import context providers
 import { AuthProvider, useAuth } from './contexts/AuthContext';

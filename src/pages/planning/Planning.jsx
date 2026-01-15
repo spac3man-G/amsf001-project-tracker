@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { 
+import {
   Plus, Trash2, ChevronRight, ChevronDown, GripVertical,
   Flag, Package, CheckSquare, RefreshCw, Layers,
   ArrowRight, ArrowLeft, Keyboard, Sparkles,
   Calculator, Link2, FileSpreadsheet, List,
   ExternalLink, Copy, Download, Clock,
   Scissors, Clipboard, ClipboardPaste,
-  Undo2, Redo2, Unlink, X, Upload
+  Undo2, Redo2, Unlink, X, Upload, Grid2X2, Table
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,13 +18,13 @@ import { usePlanningIntegration } from '../../hooks';
 import PlanningAIAssistant from './PlanningAIAssistant';
 import PredecessorEditModal from './PredecessorEditModal';
 import BaselineProtectionModal from './BaselineProtectionModal';
-import { 
-  CommitToTrackerButton, 
-  PlanItemIndicators, 
-  PendingChangesBanner, 
-  SyncStatusFooter 
+import {
+  CommitToTrackerButton,
+  PlanItemIndicators,
+  PendingChangesBanner,
+  SyncStatusFooter
 } from './PlanningIntegrationUI';
-import { EstimateLinkModal, EstimateGeneratorModal } from '../../components/planning';
+import { EstimateLinkModal, EstimateGeneratorModal, PlannerGrid } from '../../components/planning';
 import planningClipboard from '../../lib/planningClipboard';
 import planningHistory from '../../lib/planningHistory';
 import { autoScheduleItems } from '../../lib/planningScheduler';
@@ -78,6 +78,7 @@ export default function Planning() {
   const [estimates, setEstimates] = useState([]); // All project estimates
   const [predecessorEditItem, setPredecessorEditItem] = useState(null); // Item being edited for predecessors
   const [showLinkMenu, setShowLinkMenu] = useState(false); // Quick Link dropdown menu
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid' - AG Grid Enterprise view
   const inputRef = useRef(null);
   const tableRef = useRef(null);
   const linkMenuRef = useRef(null); // Ref for link dropdown menu
@@ -2259,6 +2260,23 @@ export default function Planning() {
             <RefreshCw size={16} />
             Refresh
           </button>
+          {/* View Mode Toggle */}
+          <div className="plan-view-toggle">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`plan-btn plan-btn-toggle ${viewMode === 'table' ? 'active' : ''}`}
+              title="Table View"
+            >
+              <Table size={16} />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`plan-btn plan-btn-toggle ${viewMode === 'grid' ? 'active' : ''}`}
+              title="Grid View (AG Grid)"
+            >
+              <Grid2X2 size={16} />
+            </button>
+          </div>
           <button onClick={handleExpandAll} className="plan-btn plan-btn-secondary" title="Expand All">
             <ChevronDown size={16} />
           </button>
@@ -2279,6 +2297,73 @@ export default function Planning() {
           onCreateVariation={planningIntegration.handleCreateVariationFromAllChanges}
           onDiscardAll={planningIntegration.handleClearPendingChanges}
         />
+
+        {/* AG Grid Enterprise View */}
+        {viewMode === 'grid' && (
+          <PlannerGrid
+            items={items}
+            onItemUpdate={async (id, updates) => {
+              try {
+                await planItemsService.update(id, updates);
+                fetchItems();
+              } catch (error) {
+                console.error('Update error:', error);
+                showError('Failed to update item');
+              }
+            }}
+            onItemCreate={async (params) => {
+              try {
+                const { position, referenceId, item_type, parent_id } = params;
+                const referenceItem = items.find(i => i.id === referenceId);
+
+                // Calculate sort order based on position
+                let sortOrder = referenceItem?.sort_order || 0;
+                if (position === 'above') {
+                  sortOrder = sortOrder - 1;
+                } else if (position === 'below') {
+                  sortOrder = sortOrder + 1;
+                } else {
+                  // Child - get max sort order of children
+                  const children = items.filter(i => i.parent_id === parent_id);
+                  sortOrder = children.length > 0
+                    ? Math.max(...children.map(c => c.sort_order)) + 10
+                    : 10;
+                }
+
+                await planItemsService.create({
+                  project_id: projectId,
+                  parent_id: position === 'child' ? referenceId : parent_id,
+                  item_type,
+                  name: `New ${item_type}`,
+                  sort_order: sortOrder,
+                  status: 'not_started'
+                });
+                fetchItems();
+                showSuccess(`${item_type} created`);
+              } catch (error) {
+                console.error('Create error:', error);
+                showError('Failed to create item');
+              }
+            }}
+            onItemDelete={async (id) => {
+              try {
+                await planItemsService.delete(id);
+                fetchItems();
+                showSuccess('Item deleted');
+              } catch (error) {
+                console.error('Delete error:', error);
+                showError(error.message || 'Failed to delete item');
+              }
+            }}
+            onRefresh={fetchItems}
+            isLoading={loading}
+            readOnly={false}
+          />
+        )}
+
+        {/* Traditional Table View */}
+        {viewMode === 'table' && (
+        <>
         <div className="plan-table-container" ref={tableRef}>
           <table className="plan-table">
             <thead>
@@ -2448,13 +2533,15 @@ export default function Planning() {
             </tbody>
           </table>
         </div>
-        
+
         {/* Quick add row */}
         <div className="plan-quick-add" onClick={() => handleAddItem(true, 'milestone')}>
           <Plus size={16} />
           <span>Click to add a new milestone</span>
         </div>
-        
+        </>
+        )}
+
         {/* Sync Status Footer */}
         <SyncStatusFooter
           commitSummary={planningIntegration.commitSummary}
