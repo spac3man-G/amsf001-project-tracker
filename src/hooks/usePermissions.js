@@ -1,11 +1,11 @@
 /**
  * AMSF001 Project Tracker - usePermissions Hook
  * Location: src/hooks/usePermissions.js
- * Version 5.0 - Organisation Admin Hierarchy Support
- * 
+ * Version 5.1 - Workflow Settings Integration
+ *
  * This hook provides pre-bound permission functions that automatically
  * inject the current user's EFFECTIVE role (which may be impersonated via View As).
- * 
+ *
  * Role Resolution Chain (v5.0):
  * 1. OrganisationContext provides isSystemAdmin, isOrgAdmin
  * 2. ViewAsContext computes actualRole respecting hierarchy:
@@ -15,35 +15,41 @@
  *    - Fallback → 'viewer'
  * 3. ViewAsContext provides effectiveRole (impersonated or actual)
  * 4. This hook uses effectiveRole for all permission checks
- * 
+ *
+ * Changes in v5.1:
+ * - Added canApproveWithSettings() utility for workflow-settings-aware approval checks
+ * - Added isFeatureEnabledWithSettings() utility for feature flag checks
+ * - Added getApprovalAuthorityWithSettings() utility for authority lookups
+ * - These utilities are used by entity-specific hooks (useTimesheetPermissions, etc.)
+ *
  * Changes in v5.0:
  * - Added isSystemAdmin, isOrgAdmin, isOrgLevelAdmin from ViewAsContext
  * - These allow components to check org-level permissions directly
  * - effectiveRole now correctly reflects org admin hierarchy
- * 
+ *
  * Changes in v4.0:
  * - Role now comes from project-scoped user_projects table
  * - Supports different roles on different projects
  * - View As impersonation still works on top of project role
- * 
+ *
  * Changes in v3.0:
  * - Uses effectiveRole from ViewAsContext instead of actual role from AuthContext
  * - Permissions reflect the impersonated role when View As is active
  * - userId remains the actual user's ID (only role changes)
- * 
+ *
  * Usage:
  *   import { usePermissions } from '../hooks/usePermissions';
- *   
+ *
  *   function MyComponent() {
- *     const { 
- *       canEditExpense, 
- *       canAddTimesheet, 
+ *     const {
+ *       canEditExpense,
+ *       canAddTimesheet,
  *       isOrgLevelAdmin,  // NEW: true if system admin OR org admin
  *       isSystemAdmin,    // NEW: true if system admin
  *       isOrgAdmin,       // NEW: true if org admin
- *       can 
+ *       can
  *     } = usePermissions();
- *     
+ *
  *     return (
  *       <>
  *         {isOrgLevelAdmin && <AdminPanel />}
@@ -58,6 +64,129 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useViewAs } from '../contexts/ViewAsContext';
 import * as perms from '../lib/permissions';
+
+// ============================================
+// WORKFLOW SETTINGS UTILITY FUNCTIONS (v5.1)
+// These are used by entity-specific permission hooks
+// ============================================
+
+/**
+ * Map of entity types to their approval authority setting keys
+ */
+const AUTHORITY_SETTING_MAP = {
+  baseline: 'baseline_approval',
+  variation: 'variation_approval',
+  certificate: 'certificate_approval',
+  deliverable: 'deliverable_approval_authority',
+  timesheet: 'timesheet_approval_authority',
+  expense: 'expense_approval_authority'
+};
+
+/**
+ * Map of feature names to their setting keys
+ */
+const FEATURE_SETTING_MAP = {
+  baselines: 'baselines_required',
+  variations: 'variations_enabled',
+  certificates: 'certificates_required',
+  milestone_billing: 'milestone_billing_enabled',
+  deliverable_approval: 'deliverable_approval_required',
+  deliverable_review: 'deliverable_review_required',
+  quality_standards: 'quality_standards_enabled',
+  kpis: 'kpis_enabled',
+  timesheets: 'timesheets_enabled',
+  timesheet_approval: 'timesheet_approval_required',
+  expenses: 'expenses_enabled',
+  expense_approval: 'expense_approval_required',
+  expense_receipts: 'expense_receipt_required',
+  raid: 'raid_enabled'
+};
+
+/**
+ * Check if a feature is enabled based on project workflow settings
+ * @param {Object} settings - Project workflow settings object
+ * @param {string} feature - Feature name (e.g., 'timesheets', 'expenses', 'raid')
+ * @returns {boolean} Whether the feature is enabled (defaults to true if not found)
+ */
+export function isFeatureEnabledWithSettings(settings, feature) {
+  if (!settings) return true; // Default to enabled if no settings
+  const settingKey = FEATURE_SETTING_MAP[feature];
+  if (!settingKey) return true; // Unknown feature, default enabled
+  const value = settings[settingKey];
+  return value !== false; // Default to true if null/undefined
+}
+
+/**
+ * Get the approval authority for an entity type from project settings
+ * @param {Object} settings - Project workflow settings object
+ * @param {string} entityType - Entity type (e.g., 'timesheet', 'expense', 'baseline')
+ * @returns {string} Approval authority ('both', 'supplier_only', 'customer_only', 'either', 'conditional', 'none')
+ */
+export function getApprovalAuthorityWithSettings(settings, entityType) {
+  if (!settings) return 'both'; // Default to dual approval if no settings
+  const settingKey = AUTHORITY_SETTING_MAP[entityType];
+  if (!settingKey) return 'both'; // Unknown entity type, default to both
+  return settings[settingKey] || 'both';
+}
+
+/**
+ * Check if a role can approve an entity based on workflow settings
+ * @param {Object} settings - Project workflow settings object
+ * @param {string} entityType - Entity type (e.g., 'timesheet', 'expense', 'baseline')
+ * @param {string} role - User's project role
+ * @param {Object} context - Additional context (e.g., { isChargeable: true } for expenses)
+ * @returns {boolean} Whether the role can approve this entity type
+ */
+export function canApproveWithSettings(settings, entityType, role, context = {}) {
+  const authority = getApprovalAuthorityWithSettings(settings, entityType);
+
+  // Map roles to authority types
+  const isSupplier = ['supplier_pm', 'admin', 'supplier_finance'].includes(role);
+  const isCustomer = ['customer_pm', 'customer_finance'].includes(role);
+
+  switch (authority) {
+    case 'both':
+      // Both sides must sign - either can sign their part
+      return isSupplier || isCustomer;
+
+    case 'supplier_only':
+    case 'supplier_pm':
+      return isSupplier;
+
+    case 'customer_only':
+    case 'customer_pm':
+      return isCustomer;
+
+    case 'none':
+      // No approval required - anyone with edit permission can complete
+      return true;
+
+    case 'either':
+      // Either party can approve alone
+      return isSupplier || isCustomer;
+
+    case 'conditional':
+      // For expenses: chargeable → customer, non-chargeable → supplier
+      if (entityType === 'expense') {
+        return context.isChargeable ? isCustomer : isSupplier;
+      }
+      return isSupplier || isCustomer;
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Check if dual signature is required for an entity type
+ * @param {Object} settings - Project workflow settings object
+ * @param {string} entityType - Entity type
+ * @returns {boolean} Whether dual signature is required
+ */
+export function requiresDualSignatureWithSettings(settings, entityType) {
+  const authority = getApprovalAuthorityWithSettings(settings, entityType);
+  return authority === 'both';
+}
 
 export function usePermissions() {
   const { user } = useAuth();
@@ -421,12 +550,52 @@ export function usePermissions() {
      * @returns {boolean}
      */
     hasRole: (roles) => perms.isOneOf(userRole, roles),
-    
+
     /**
      * Check if user is admin or supplier PM
      * @returns {boolean}
      */
     isFullAdmin: perms.isFullAdmin(userRole),
+
+    // ============================================
+    // WORKFLOW SETTINGS UTILITIES (v5.1)
+    // These methods require settings object to be passed in
+    // Used by entity-specific hooks that have access to ProjectContext
+    // ============================================
+
+    /**
+     * Check if a feature is enabled based on project workflow settings
+     * @param {Object} settings - Project workflow settings object
+     * @param {string} feature - Feature name
+     * @returns {boolean}
+     */
+    isFeatureEnabled: (settings, feature) => isFeatureEnabledWithSettings(settings, feature),
+
+    /**
+     * Get approval authority for an entity type from settings
+     * @param {Object} settings - Project workflow settings object
+     * @param {string} entityType - Entity type
+     * @returns {string}
+     */
+    getApprovalAuthority: (settings, entityType) => getApprovalAuthorityWithSettings(settings, entityType),
+
+    /**
+     * Check if current role can approve entity based on settings
+     * @param {Object} settings - Project workflow settings object
+     * @param {string} entityType - Entity type
+     * @param {Object} context - Additional context (e.g., { isChargeable })
+     * @returns {boolean}
+     */
+    canApproveEntity: (settings, entityType, context = {}) =>
+      canApproveWithSettings(settings, entityType, userRole, context),
+
+    /**
+     * Check if dual signature is required for entity type
+     * @param {Object} settings - Project workflow settings object
+     * @param {string} entityType - Entity type
+     * @returns {boolean}
+     */
+    requiresDualSignature: (settings, entityType) => requiresDualSignatureWithSettings(settings, entityType),
   };
 
   return permissions;

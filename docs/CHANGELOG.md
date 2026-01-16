@@ -61,6 +61,35 @@ Per-project workflow configuration allowing different approval authorities and f
 - Collapsible sections: Milestones, Deliverables, Timesheets, Expenses, Modules
 - Settings auto-save on change with optimistic UI
 
+#### Permission System Integration (WP-07)
+
+Integrated workflow settings into the permission system for settings-aware approval checks.
+
+**usePermissions.js (v5.1):**
+- Added `isFeatureEnabledWithSettings(settings, feature)` - Check feature toggles
+- Added `getApprovalAuthorityWithSettings(settings, entityType)` - Get approval authority
+- Added `canApproveWithSettings(settings, entityType, role, context)` - Check approval capability
+- Added `requiresDualSignatureWithSettings(settings, entityType)` - Check dual-signature requirement
+- Added hook methods: `isFeatureEnabled`, `getApprovalAuthority`, `canApproveEntity`, `requiresDualSignature`
+
+**useTimesheetPermissions.js (v2.1):**
+- Added `timesheetsEnabled` flag from workflow settings
+- Added `approvalRequired` flag for timesheet approval
+- `canValidate` now respects `timesheet_approval_authority` setting
+- `canValidateAny` updated for settings-aware approval
+
+**useExpensePermissions.js (v2.1):**
+- Added `expensesEnabled` flag from workflow settings
+- Added `approvalRequired` and `receiptRequired` flags
+- `canValidate` now respects `expense_approval_authority` setting
+- Supports conditional approval (chargeable → customer, non-chargeable → supplier)
+
+**useMilestonePermissions.js (v2.1):**
+- Added `baselinesRequired`, `variationsEnabled`, `certificatesRequired` flags
+- Added `milestoneBillingEnabled` flag
+- Added dual-signature flags: `baselineDualSignature`, `certificateDualSignature`, `variationDualSignature`
+- Baseline/certificate signing now respects approval authority settings
+
 ### Changed
 
 #### Deliverables Side Panel Default

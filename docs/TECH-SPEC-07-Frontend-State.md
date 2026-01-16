@@ -1,11 +1,17 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.6
+**Document Version:** 5.7
 **Created:** 11 December 2025
 **Last Updated:** 16 January 2026
-**Session:** 1.8.6
+**Session:** 1.8.7
 **Author:** Claude AI (Anthropic)
 
+> **Version 5.7 Updates (16 January 2026):**
+> - Updated Section 9.3: usePermissions v5.1 with workflow settings utilities
+> - Added `isFeatureEnabledWithSettings`, `canApproveWithSettings`, `getApprovalAuthorityWithSettings`, `requiresDualSignatureWithSettings`
+> - Updated Section 9.4: Entity-specific hooks to v2.1 (useMilestonePermissions, useTimesheetPermissions, useExpensePermissions)
+> - Permission hooks now integrate with project workflow settings for approval authority checks
+>
 > **Version 5.6 Updates (16 January 2026):**
 > - Added Section 17: Workflow Settings System (new for project customization)
 > - Documents 3 new hooks: useProjectSettings, useWorkflowApproval, useWorkflowFeatures
@@ -1760,8 +1766,8 @@ getDefaultResourceId(role, resources, userId)
 
 ### 9.3 usePermissions Hook
 
-**File:** `src/hooks/usePermissions.js`  
-**Version:** 5.0 (Updated December 2025)  
+**File:** `src/hooks/usePermissions.js`
+**Version:** 5.1 (Updated January 2026)
 
 The primary interface for permission checks in components.
 
@@ -1771,6 +1777,7 @@ The primary interface for permission checks in components.
 2. Pre-binds user context to permission functions
 3. Provides both simple and object-based permission checks
 4. **v5.0:** Exports organisation-level admin flags
+5. **v5.1:** Exports workflow settings utilities for settings-aware approval checks
 
 #### New Exports (v5.0)
 
@@ -1779,6 +1786,30 @@ The primary interface for permission checks in components.
 | `isSystemAdmin` | boolean | True if profiles.role = 'admin' |
 | `isOrgAdmin` | boolean | True if user is org admin for current org |
 | `isOrgLevelAdmin` | boolean | Computed: `isSystemAdmin \|\| isOrgAdmin` |
+
+#### Workflow Settings Utilities (v5.1)
+
+These utility functions enable settings-aware permission checks. They're used by entity-specific hooks that have access to project workflow settings.
+
+| Export | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `isFeatureEnabledWithSettings` | `(settings, feature)` | `boolean` | Check if feature is enabled (default: true) |
+| `getApprovalAuthorityWithSettings` | `(settings, entityType)` | `string` | Get approval authority ('both', 'supplier_only', etc.) |
+| `canApproveWithSettings` | `(settings, entityType, role, context)` | `boolean` | Check if role can approve entity |
+| `requiresDualSignatureWithSettings` | `(settings, entityType)` | `boolean` | Check if dual signature is required |
+
+**Hook Methods (for components):**
+
+| Method | Parameters | Description |
+|--------|------------|-------------|
+| `isFeatureEnabled` | `(settings, feature)` | Check feature toggle |
+| `getApprovalAuthority` | `(settings, entityType)` | Get approval authority |
+| `canApproveEntity` | `(settings, entityType, context)` | Check if current role can approve |
+| `requiresDualSignature` | `(settings, entityType)` | Check dual signature requirement |
+
+**Supported Entity Types:** `baseline`, `variation`, `certificate`, `deliverable`, `timesheet`, `expense`
+
+**Supported Features:** `baselines`, `variations`, `certificates`, `milestone_billing`, `deliverable_approval`, `deliverable_review`, `quality_standards`, `kpis`, `timesheets`, `timesheet_approval`, `expenses`, `expense_approval`, `expense_receipts`, `raid`
 
 #### Usage
 
@@ -1850,7 +1881,10 @@ function MyComponent({ expense }) {
 | `useRaidPermissions` | RAID Items | TD-001 | `RaidDetailModal` |
 | `useNetworkStandardPermissions` | Network Standards | TD-001 | `NetworkStandardDetailModal` |
 
-#### useMilestonePermissions
+#### useMilestonePermissions (v2.1)
+
+**File:** `src/hooks/useMilestonePermissions.js`
+**Updated:** January 2026 (Workflow Settings Integration)
 
 ```javascript
 const {
@@ -1863,8 +1897,19 @@ const {
   canSignCertificateAsSupplier,
   canSignCertificateAsCustomer,
   isBaselineLocked,
+  // v2.1: Workflow settings flags
+  baselinesRequired,
+  variationsEnabled,
+  certificatesRequired,
+  milestoneBillingEnabled,
+  baselineDualSignature,
+  certificateDualSignature,
+  variationDualSignature,
+  workflowSettings,
 } = useMilestonePermissions(milestone);
 ```
+
+**v2.1 Changes:** Baseline/certificate signing now respects `baseline_approval` and `certificate_approval` authority settings from project workflow configuration.
 
 #### useDeliverablePermissions
 
@@ -1887,7 +1932,10 @@ const {
 } = useDeliverablePermissions(deliverable);
 ```
 
-#### useTimesheetPermissions
+#### useTimesheetPermissions (v2.1)
+
+**File:** `src/hooks/useTimesheetPermissions.js`
+**Updated:** January 2026 (Workflow Settings Integration)
 
 ```javascript
 const {
@@ -1904,8 +1952,14 @@ const {
   isComplete,
   getAvailableResources,
   getDefaultResourceId,
+  // v2.1: Workflow settings flags
+  timesheetsEnabled,
+  approvalRequired,
+  workflowSettings,
 } = useTimesheetPermissions(timesheet);
 ```
+
+**v2.1 Changes:** `canValidate` now respects `timesheet_approval_authority` setting from project workflow configuration. If approval is not required, anyone with edit permission can complete.
 
 #### useResourcePermissions
 
@@ -1927,11 +1981,12 @@ const {
 } = useResourcePermissions(resource);
 ```
 
-#### useExpensePermissions (NEW - TD-001)
+#### useExpensePermissions (v2.1)
 
 **File:** `src/hooks/useExpensePermissions.js`
+**Updated:** January 2026 (Workflow Settings Integration)
 
-Provides expense-specific permissions considering ownership, status, and chargeable type.
+Provides expense-specific permissions considering ownership, status, chargeable type, and workflow settings.
 
 ```javascript
 const {
@@ -1942,6 +1997,11 @@ const {
   canSubmit,
   canValidate,
   canReject,
+  // v2.1: Workflow settings flags
+  expensesEnabled,
+  approvalRequired,
+  receiptRequired,
+  workflowSettings,
   isOwner,
   isEditable,
   isComplete,
@@ -1950,8 +2010,10 @@ const {
 
 **Key Logic:**
 - `canEdit`: Requires ownership (or supplier-side role) AND draft/rejected status
-- `canValidate`: Customer-side for chargeable, supplier-side for non-chargeable
+- `canValidate`: Respects `expense_approval_authority` setting (defaults to conditional: customer-side for chargeable, supplier-side for non-chargeable)
 - `isEditable`: Status is `draft` or `rejected`
+
+**v2.1 Changes:** `canValidate` now respects `expense_approval_authority` setting. Supports conditional approval where chargeable expenses require customer approval and non-chargeable require supplier approval.
 
 #### useRaidPermissions (NEW - TD-001)
 
@@ -3583,3 +3645,4 @@ import {
 | 5.4 | 15 Jan 2026 | Claude AI | **PlannerGrid Component**: Added Section 14.1a documenting AG Grid Enterprise component with selection sync, checkbox column, date synchronization, and table-style appearance |
 | 5.5 | 16 Jan 2026 | Claude AI | **Inline Editing Components**: Added Section 16 documenting InlineEditField, InlineChecklist, and DeliverableSidePanel components (Microsoft Planner-style UX) |
 | 5.6 | 16 Jan 2026 | Claude AI | **Workflow Settings System**: Added Section 17 documenting useProjectSettings, useWorkflowApproval, useWorkflowFeatures hooks and settings UI components (CollapsibleSection, ToggleSwitch, SettingRow, TemplateSelector, WorkflowSettingsTab) |
+| 5.7 | 16 Jan 2026 | Claude AI | **Permission Hook Integration (WP-07)**: Updated usePermissions v5.1 with workflow settings utilities. Updated entity-specific hooks (useMilestonePermissions, useTimesheetPermissions, useExpensePermissions) to v2.1 with settings-aware approval checks |

@@ -7,17 +7,23 @@
  *
  * Workflow: Draft → Submitted → Validated/Rejected
  * - Contributors/Supplier PM submit their own timesheets
- * - Customer PM validates (approves/rejects)
+ * - Approval authority (from project settings) determines who can validate
  * - Admin has full access
  *
- * @version 2.0 - Uses effectiveRole from ViewAsContext for proper role resolution
+ * @version 2.1 - Workflow settings awareness
  * @created 6 December 2025
  * @updated 15 January 2026 - Fixed role resolution to use ViewAsContext
+ * @updated 16 January 2026 - Added workflow settings integration (WP-07)
  */
 
 import { useAuth } from '../contexts/AuthContext';
 import { useViewAs } from '../contexts/ViewAsContext';
-import { usePermissions } from './usePermissions';
+import {
+  usePermissions,
+  canApproveWithSettings,
+  isFeatureEnabledWithSettings
+} from './usePermissions';
+import { useProjectSettings } from './useProjectSettings';
 import {
   isEditable,
   isComplete,
@@ -51,6 +57,9 @@ export function useTimesheetPermissions(timesheet = null) {
   const { effectiveRole: userRole } = useViewAs();
   const basePermissions = usePermissions();
 
+  // v2.1: Get workflow settings for settings-aware permission checks
+  const { settings: workflowSettings } = useProjectSettings();
+
   // Core role checks using effectiveRole
   // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   const isSupplierPM = userRole === 'supplier_pm';
@@ -59,6 +68,10 @@ export function useTimesheetPermissions(timesheet = null) {
 
   // For backward compatibility, isAdmin maps to supplier_pm capabilities
   const isAdmin = isSupplierPM;
+
+  // v2.1: Check if timesheets feature is enabled for this project
+  const timesheetsEnabled = isFeatureEnabledWithSettings(workflowSettings, 'timesheets');
+  const approvalRequired = isFeatureEnabledWithSettings(workflowSettings, 'timesheet_approval');
   
   // User identity
   const currentUserId = user?.id || null;
@@ -92,9 +105,15 @@ export function useTimesheetPermissions(timesheet = null) {
   
   /**
    * Can the user validate any timesheets?
-   * Customer PM and Admin can validate.
+   * v2.1: Uses workflow settings to determine approval authority.
+   * Falls back to Customer PM and Admin if no settings.
    */
-  const canValidateAny = basePermissions.canApproveTimesheet;
+  const canValidateAny = (() => {
+    // If approval not required, anyone with edit permission can complete
+    if (!approvalRequired) return canAdd;
+    // Use settings-aware check
+    return canApproveWithSettings(workflowSettings, 'timesheet', userRole);
+  })();
   
   // ============================================
   // OBJECT-AWARE PERMISSIONS (need timesheet)
@@ -167,16 +186,22 @@ export function useTimesheetPermissions(timesheet = null) {
   /**
    * Can the user validate (approve) this timesheet?
    * - Must be in Submitted status
-   * - Customer PM or Admin can validate
+   * - v2.1: Approval authority determined by project workflow settings
    */
   const canValidate = (() => {
     if (!timesheet) return false;
-    
+
     // Check workflow state
     if (!canBeValidated(timesheet.status)) return false;
-    
-    // Customer PM or Admin can validate
-    return isAdmin || isCustomerPM;
+
+    // v2.1: If approval not required in settings, anyone with edit can complete
+    if (!approvalRequired) return canAdd;
+
+    // Admin override
+    if (isAdmin) return true;
+
+    // Use settings-aware approval authority check
+    return canApproveWithSettings(workflowSettings, 'timesheet', userRole);
   })();
   
   /**
@@ -202,28 +227,33 @@ export function useTimesheetPermissions(timesheet = null) {
   // ============================================
   // RETURN OBJECT
   // ============================================
-  
+
   return {
     // User identity
     currentUserId,
     currentUserName,
     currentUserResourceId,
     userRole,
-    
+
     // Role checks
     isAdmin,
     isSupplierPM,
     isCustomerPM,
     isContributor,
-    
+
     // Ownership
     isOwner,
-    
+
+    // v2.1: Workflow settings flags
+    timesheetsEnabled,
+    approvalRequired,
+    workflowSettings,
+
     // Simple permissions (no timesheet needed)
     canAdd,
     canAddForOthers,
     canValidateAny,
-    
+
     // Object-aware permissions
     canView,
     canEdit,
@@ -231,11 +261,11 @@ export function useTimesheetPermissions(timesheet = null) {
     canSubmit,
     canValidate,
     canReject,
-    
+
     // Status flags
     isEditable: timesheetIsEditable,
     isComplete: timesheetIsComplete,
-    
+
     // Resource helpers (pass-through from base permissions)
     getAvailableResources: basePermissions.getAvailableResources,
     getDefaultResourceId: basePermissions.getDefaultResourceId

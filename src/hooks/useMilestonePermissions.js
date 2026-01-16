@@ -5,14 +5,21 @@
  * and acceptance certificate workflows. This hook centralises all
  * permission logic for milestone-related actions.
  *
- * @version 2.0 - Uses effectiveRole from ViewAsContext for proper role resolution
+ * @version 2.1 - Workflow settings awareness
  * @created 5 December 2025
  * @updated 15 January 2026 - Fixed role resolution to use ViewAsContext
+ * @updated 16 January 2026 - Added workflow settings integration (WP-07)
  */
 
 import { useAuth } from '../contexts/AuthContext';
 import { useViewAs } from '../contexts/ViewAsContext';
-import { usePermissions } from './usePermissions';
+import {
+  usePermissions,
+  canApproveWithSettings,
+  isFeatureEnabledWithSettings,
+  requiresDualSignatureWithSettings
+} from './usePermissions';
+import { useProjectSettings } from './useProjectSettings';
 import { isBaselineLocked } from '../lib/milestoneCalculations';
 
 /**
@@ -41,12 +48,26 @@ export function useMilestonePermissions(milestone = null) {
     canCreateCertificate
   } = usePermissions();
 
+  // v2.1: Get workflow settings for settings-aware permission checks
+  const { settings: workflowSettings } = useProjectSettings();
+
   // Core role checks using effectiveRole
   // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   // isAdmin now uses hasFullAdminCapabilities from ViewAsContext for admin-level override
   const isAdmin = hasFullAdminCapabilities;
   const isSupplierPM = userRole === 'supplier_pm';
   const isCustomerPM = userRole === 'customer_pm';
+
+  // v2.1: Check if milestone workflow features are enabled for this project
+  const baselinesRequired = isFeatureEnabledWithSettings(workflowSettings, 'baselines');
+  const variationsEnabled = isFeatureEnabledWithSettings(workflowSettings, 'variations');
+  const certificatesRequired = isFeatureEnabledWithSettings(workflowSettings, 'certificates');
+  const milestoneBillingEnabled = isFeatureEnabledWithSettings(workflowSettings, 'milestone_billing');
+
+  // v2.1: Check dual signature requirements from settings
+  const baselineDualSignature = requiresDualSignatureWithSettings(workflowSettings, 'baseline');
+  const certificateDualSignature = requiresDualSignatureWithSettings(workflowSettings, 'certificate');
+  const variationDualSignature = requiresDualSignatureWithSettings(workflowSettings, 'variation');
   
   // User identity
   const currentUserId = user?.id || null;
@@ -90,7 +111,7 @@ export function useMilestonePermissions(milestone = null) {
   
   /**
    * Can the user sign the baseline as Supplier PM?
-   * - Admin or Supplier PM can sign
+   * - v2.1: Checks approval authority from workflow settings
    * - Cannot sign if already signed by this party
    * - Cannot sign if baseline is already locked
    */
@@ -98,12 +119,15 @@ export function useMilestonePermissions(milestone = null) {
     if (!canSignAsSupplier) return false;
     if (baselineLocked) return false;
     if (milestone?.baseline_supplier_pm_signed_at) return false;
+    // v2.1: Check if baselines require supplier signature based on settings
+    // If baseline_approval is 'customer_only', supplier doesn't need to sign
+    if (!canApproveWithSettings(workflowSettings, 'baseline', 'supplier_pm')) return false;
     return true;
   })();
-  
+
   /**
    * Can the user sign the baseline as Customer PM?
-   * - Only Customer PM can sign
+   * - v2.1: Checks approval authority from workflow settings
    * - Cannot sign if already signed by this party
    * - Cannot sign if baseline is already locked
    */
@@ -111,6 +135,9 @@ export function useMilestonePermissions(milestone = null) {
     if (!canSignAsCustomer) return false;
     if (baselineLocked) return false;
     if (milestone?.baseline_customer_pm_signed_at) return false;
+    // v2.1: Check if baselines require customer signature based on settings
+    // If baseline_approval is 'supplier_only', customer doesn't need to sign
+    if (!canApproveWithSettings(workflowSettings, 'baseline', 'customer_pm')) return false;
     return true;
   })();
   
@@ -133,7 +160,7 @@ export function useMilestonePermissions(milestone = null) {
   
   /**
    * Can the user sign the certificate as Supplier PM?
-   * - Admin or Supplier PM can sign
+   * - v2.1: Checks approval authority from workflow settings
    * @param {Object} certificate - Certificate object to check
    */
   const canSignCertificateAsSupplier = (certificate) => {
@@ -141,12 +168,14 @@ export function useMilestonePermissions(milestone = null) {
     if (!certificate) return false;
     if (certificate.status === 'Signed') return false;
     if (certificate.supplier_pm_signed_at) return false;
+    // v2.1: Check if certificates require supplier signature based on settings
+    if (!canApproveWithSettings(workflowSettings, 'certificate', 'supplier_pm')) return false;
     return true;
   };
-  
+
   /**
    * Can the user sign the certificate as Customer PM?
-   * - Only Customer PM can sign
+   * - v2.1: Checks approval authority from workflow settings
    * @param {Object} certificate - Certificate object to check
    */
   const canSignCertificateAsCustomer = (certificate) => {
@@ -154,41 +183,53 @@ export function useMilestonePermissions(milestone = null) {
     if (!certificate) return false;
     if (certificate.status === 'Signed') return false;
     if (certificate.customer_pm_signed_at) return false;
+    // v2.1: Check if certificates require customer signature based on settings
+    if (!canApproveWithSettings(workflowSettings, 'certificate', 'customer_pm')) return false;
     return true;
   };
   
   // ============================================
   // RETURN OBJECT
   // ============================================
-  
+
   return {
     // User identity
     currentUserId,
     currentUserName,
     userRole,
-    
+
     // Role checks
     isAdmin,
     isSupplierPM,
     isCustomerPM,
-    
+
+    // v2.1: Workflow settings flags
+    baselinesRequired,
+    variationsEnabled,
+    certificatesRequired,
+    milestoneBillingEnabled,
+    baselineDualSignature,
+    certificateDualSignature,
+    variationDualSignature,
+    workflowSettings,
+
     // Basic permissions
     canView,
     canEdit,
     canDelete,
-    
+
     // Baseline permissions
     canEditBaseline,
     canSignBaselineAsSupplier,
     canSignBaselineAsCustomer,
     canResetBaseline,
     isBaselineLocked: baselineLocked,
-    
+
     // Certificate permissions
     canGenerateCertificate: canGenerateCert,
     canSignCertificateAsSupplier,
     canSignCertificateAsCustomer,
-    
+
     // Legacy aliases for compatibility
     canSignAsSupplier,
     canSignAsCustomer

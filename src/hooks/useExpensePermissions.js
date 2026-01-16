@@ -7,19 +7,25 @@
  *
  * Workflow: Draft → Submitted → Approved/Rejected → Paid
  * - Contributors/Supplier PM submit their own expenses
- * - Customer PM validates chargeable expenses
- * - Supplier PM validates non-chargeable expenses
+ * - Approval authority (from project settings) determines who can validate
+ * - Supports conditional approval: chargeable → customer, non-chargeable → supplier
  * - Admin has full access
  *
- * @version 2.0 - Uses effectiveRole from ViewAsContext for proper role resolution
+ * @version 2.1 - Workflow settings awareness
  * @created 28 December 2025
  * @updated 15 January 2026 - Fixed role resolution to use ViewAsContext
+ * @updated 16 January 2026 - Added workflow settings integration (WP-07)
  * @implements TD-001 Phase 1
  */
 
 import { useAuth } from '../contexts/AuthContext';
 import { useViewAs } from '../contexts/ViewAsContext';
-import { usePermissions } from './usePermissions';
+import {
+  usePermissions,
+  canApproveWithSettings,
+  isFeatureEnabledWithSettings
+} from './usePermissions';
+import { useProjectSettings } from './useProjectSettings';
 
 // Expense status constants
 const EXPENSE_STATUS = {
@@ -90,6 +96,9 @@ export function useExpensePermissions(expense = null) {
   const { effectiveRole: userRole } = useViewAs();
   const basePermissions = usePermissions();
 
+  // v2.1: Get workflow settings for settings-aware permission checks
+  const { settings: workflowSettings } = useProjectSettings();
+
   // Core role checks using effectiveRole
   // Note: v3.0 removed admin project role - supplier_pm now has full management capabilities
   const isSupplierPM = userRole === 'supplier_pm';
@@ -99,6 +108,11 @@ export function useExpensePermissions(expense = null) {
 
   // For backward compatibility, isAdmin maps to supplier_pm capabilities
   const isAdmin = isSupplierPM;
+
+  // v2.1: Check if expenses feature is enabled for this project
+  const expensesEnabled = isFeatureEnabledWithSettings(workflowSettings, 'expenses');
+  const approvalRequired = isFeatureEnabledWithSettings(workflowSettings, 'expense_approval');
+  const receiptRequired = isFeatureEnabledWithSettings(workflowSettings, 'expense_receipts');
   
   // User identity
   const currentUserId = user?.id || null;
@@ -147,8 +161,14 @@ export function useExpensePermissions(expense = null) {
   
   /**
    * Can the user validate any expense (role check only)?
+   * v2.1: Uses workflow settings to determine approval authority.
    */
-  const canValidateAny = canValidateChargeable || canValidateNonChargeable;
+  const canValidateAny = (() => {
+    // If approval not required, anyone with edit permission can complete
+    if (!approvalRequired) return canAdd;
+    // Use settings-aware check (without context, so either chargeable or non-chargeable)
+    return canValidateChargeable || canValidateNonChargeable;
+  })();
   
   // ============================================
   // OBJECT-AWARE PERMISSIONS (need expense)
@@ -222,24 +242,23 @@ export function useExpensePermissions(expense = null) {
   /**
    * Can the user validate (approve) this expense?
    * - Must be in Submitted status
-   * - Chargeable: Customer PM or Admin
-   * - Non-chargeable: Supplier PM or Admin
+   * - v2.1: Approval authority determined by project workflow settings
+   * - Supports conditional approval: chargeable → customer, non-chargeable → supplier
    */
   const canValidate = (() => {
     if (!expense) return false;
-    
+
     // Check workflow state
     if (!canBeValidated(expense.status)) return false;
-    
-    // Admin can validate any
+
+    // v2.1: If approval not required in settings, anyone with edit can complete
+    if (!approvalRequired) return canAdd;
+
+    // Admin override
     if (isAdmin) return true;
-    
-    // Check based on chargeable status
-    if (isChargeable) {
-      return isCustomerPM;
-    } else {
-      return isSupplierPM;
-    }
+
+    // Use settings-aware approval authority check with chargeable context
+    return canApproveWithSettings(workflowSettings, 'expense', userRole, { isChargeable });
   })();
   
   /**
@@ -302,34 +321,40 @@ export function useExpensePermissions(expense = null) {
   // ============================================
   // RETURN OBJECT
   // ============================================
-  
+
   return {
     // User identity
     currentUserId,
     currentUserName,
     currentUserResourceId,
     userRole,
-    
+
     // Role checks
     isAdmin,
     isSupplierPM,
     isCustomerPM,
     isContributor,
     isViewer,
-    
+
     // Ownership
     isOwner,
-    
+
     // Expense properties
     isChargeable,
-    
+
+    // v2.1: Workflow settings flags
+    expensesEnabled,
+    approvalRequired,
+    receiptRequired,
+    workflowSettings,
+
     // Simple permissions (no expense needed)
     canAdd,
     canAddForOthers,
     canValidateChargeable,
     canValidateNonChargeable,
     canValidateAny,
-    
+
     // Object-aware permissions
     canView,
     canEdit,
@@ -337,19 +362,19 @@ export function useExpensePermissions(expense = null) {
     canSubmit,
     canValidate,
     canReject,
-    
+
     // Field-level permissions
     canEditChargeable,
     canEditProcurement,
     canSeeProcurement,
-    
+
     // Status flags
     isEditable: expenseIsEditable,
     isComplete: expenseIsComplete,
-    
+
     // Helper functions
     hasRole,
-    
+
     // Resource helpers (pass-through from base permissions)
     getAvailableResources: basePermissions.getAvailableResources,
     getDefaultResourceId: basePermissions.getDefaultResourceId
