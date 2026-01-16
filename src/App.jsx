@@ -82,6 +82,8 @@ const ProjectManagement = lazy(() => import('./pages/admin/ProjectManagement'));
 const OrganisationSettings = lazy(() => import('./pages/admin/OrganisationSettings'));
 const OrganisationMembers = lazy(() => import('./pages/admin/OrganisationMembers'));
 const OrganisationAdmin = lazy(() => import('./pages/admin/OrganisationAdmin'));
+const SystemUsers = lazy(() => import('./pages/admin/SystemUsers'));
+const SystemAdmin = lazy(() => import('./pages/admin/SystemAdmin'));
 
 // Evaluator pages
 const EvaluatorDashboard = lazy(() => import('./pages/evaluator/EvaluatorDashboard'));
@@ -509,7 +511,15 @@ export default function App() {
                             <Route path="/admin/organisation/members" element={
                               <Navigate to="/admin/organisation?tab=members" replace />
                             } />
-                            
+
+                            {/* System Admin routes (system admin only) */}
+                            <Route path="/admin/users" element={
+                              <ProtectedRoute adminOnly><SystemUsers /></ProtectedRoute>
+                            } />
+                            <Route path="/admin/system" element={
+                              <ProtectedRoute adminOnly><SystemAdmin /></ProtectedRoute>
+                            } />
+
                             {/* ========================================
                                 EVALUATOR TOOL ROUTES
                                 ======================================== */}
