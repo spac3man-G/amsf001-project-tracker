@@ -1,0 +1,753 @@
+/**
+ * MilestoneSidePanel styles
+ * Microsoft Planner-style slide-out panel for milestones
+ *
+ * @version 1.0
+ * @created 17 January 2026
+ */
+
+/* Panel container */
+.milestone-side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 480px;
+  max-width: 100vw;
+  height: 100vh;
+  background: var(--color-bg, #fff);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+
+.milestone-side-panel.open {
+  transform: translateX(0);
+}
+
+/* Backdrop */
+.milestone-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.milestone-panel-backdrop.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Header */
+.milestone-side-panel .side-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-bg, #fff);
+  flex-shrink: 0;
+}
+
+.milestone-side-panel .side-panel-header-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.milestone-side-panel .side-panel-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius, 8px);
+  flex-shrink: 0;
+}
+
+.milestone-side-panel .side-panel-status-icon.not-started {
+  background: var(--color-bg-tertiary, #e5e7eb);
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.milestone-side-panel .side-panel-status-icon.in-progress {
+  background: var(--color-info-light, #dbeafe);
+  color: var(--color-info-dark, #1e40af);
+}
+
+.milestone-side-panel .side-panel-status-icon.completed {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-dark, #065f46);
+}
+
+.milestone-side-panel .side-panel-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.milestone-side-panel .side-panel-ref {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-primary, #4f46e5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.milestone-side-panel .side-panel-name-field {
+  margin: 0;
+}
+
+.milestone-side-panel .side-panel-name-field .inline-edit-value {
+  padding: 4px 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+}
+
+.milestone-side-panel .side-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.milestone-side-panel .save-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.milestone-side-panel .save-status.saving {
+  color: var(--color-text-secondary, #6b7280);
+  background: var(--color-bg-secondary, #f9fafb);
+}
+
+.milestone-side-panel .save-status.saved {
+  color: var(--color-success, #10b981);
+  background: var(--color-success-light, #d1fae5);
+}
+
+.milestone-side-panel .save-status.error {
+  color: var(--color-danger, #ef4444);
+  background: var(--color-danger-light, #fee2e2);
+}
+
+.milestone-side-panel .side-panel-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.milestone-side-panel .side-panel-status-badge .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.milestone-side-panel .side-panel-status-badge.not-started {
+  background: var(--color-bg-tertiary, #e5e7eb);
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.milestone-side-panel .side-panel-status-badge.in-progress {
+  background: var(--color-info-light, #dbeafe);
+  color: var(--color-info-dark, #1e40af);
+}
+
+.milestone-side-panel .side-panel-status-badge.completed {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-dark, #065f46);
+}
+
+.milestone-side-panel .side-panel-breach-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--color-warning-light, #fef3c7);
+  color: var(--color-warning-dark, #92400e);
+}
+
+.milestone-side-panel .side-panel-expand-btn,
+.milestone-side-panel .side-panel-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.milestone-side-panel .side-panel-expand-btn:hover,
+.milestone-side-panel .side-panel-close-btn:hover {
+  background: var(--color-bg-hover, #f3f4f6);
+  color: var(--color-text-primary, #111827);
+}
+
+/* Content */
+.milestone-side-panel .side-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+/* Breach Warning Banner */
+.milestone-side-panel .side-panel-breach-banner {
+  display: flex;
+  gap: 12px;
+  margin: 0 20px 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius, 8px);
+  color: #92400e;
+}
+
+.milestone-side-panel .side-panel-breach-banner > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.milestone-side-panel .breach-banner-content {
+  flex: 1;
+}
+
+.milestone-side-panel .breach-banner-content strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.875rem;
+}
+
+.milestone-side-panel .breach-banner-content p {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.milestone-side-panel .breach-link {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #92400e;
+  text-decoration: underline;
+}
+
+.milestone-side-panel .breach-link:hover {
+  color: #78350f;
+}
+
+/* Sections */
+.milestone-side-panel .side-panel-section {
+  border-bottom: 1px solid var(--color-border-light, #f3f4f6);
+}
+
+.milestone-side-panel .side-panel-section:last-of-type {
+  border-bottom: none;
+}
+
+.milestone-side-panel .side-panel-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.milestone-side-panel .side-panel-section-header:hover {
+  background: var(--color-bg-hover, #f9fafb);
+}
+
+.milestone-side-panel .side-panel-section-header svg {
+  color: var(--color-text-secondary, #6b7280);
+  flex-shrink: 0;
+}
+
+.milestone-side-panel .side-panel-section-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-secondary, #6b7280);
+  background: var(--color-bg-tertiary, #e5e7eb);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.milestone-side-panel .section-status-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.milestone-side-panel .section-status-badge.locked {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-dark, #065f46);
+}
+
+.milestone-side-panel .section-status-badge.signed,
+.milestone-side-panel .section-status-badge.cert-signed {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-dark, #065f46);
+}
+
+.milestone-side-panel .section-status-badge.cert-draft {
+  background: var(--color-bg-tertiary, #e5e7eb);
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.milestone-side-panel .section-status-badge.cert-pending-supplier,
+.milestone-side-panel .section-status-badge.cert-pending-customer {
+  background: var(--color-warning-light, #fef3c7);
+  color: var(--color-warning-dark, #92400e);
+}
+
+.milestone-side-panel .side-panel-section-content {
+  padding: 0 20px 16px 20px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fields */
+.milestone-side-panel .side-panel-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.milestone-side-panel .side-panel-field:last-child {
+  margin-bottom: 0;
+}
+
+.milestone-side-panel .side-panel-field-full {
+  flex-direction: column;
+}
+
+.milestone-side-panel .side-panel-field-full .inline-edit-field {
+  width: 100%;
+}
+
+.milestone-side-panel .side-panel-field-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg-secondary, #f9fafb);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-text-secondary, #6b7280);
+  flex-shrink: 0;
+}
+
+.milestone-side-panel .side-panel-field .inline-edit-field {
+  flex: 1;
+}
+
+.milestone-side-panel .side-panel-field-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.milestone-side-panel .side-panel-field-readonly label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: uppercase;
+}
+
+.milestone-side-panel .side-panel-field-readonly span {
+  font-size: 0.9375rem;
+  color: var(--color-text-primary, #111827);
+}
+
+/* Progress */
+.milestone-side-panel .side-panel-progress {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.milestone-side-panel .side-panel-progress label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: uppercase;
+}
+
+.milestone-side-panel .side-panel-progress-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.milestone-side-panel .side-panel-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--color-bg-tertiary, #e5e7eb);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.milestone-side-panel .side-panel-progress-fill {
+  height: 100%;
+  background: var(--color-primary, #4f46e5);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.milestone-side-panel .side-panel-progress-fill.complete {
+  background: var(--color-success, #10b981);
+}
+
+.milestone-side-panel .side-panel-progress-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+  min-width: 40px;
+  text-align: right;
+}
+
+.milestone-side-panel .side-panel-progress-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+/* Schedule */
+.milestone-side-panel .side-panel-schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--color-border-light, #f1f5f9);
+}
+
+.milestone-side-panel .side-panel-schedule-row:last-child {
+  border-bottom: none;
+}
+
+.milestone-side-panel .side-panel-schedule-row label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #6b7280);
+  min-width: 70px;
+}
+
+.milestone-side-panel .side-panel-schedule-row span {
+  font-size: 0.875rem;
+  color: var(--color-text-primary, #111827);
+}
+
+.milestone-side-panel .schedule-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-dark, #065f46);
+}
+
+/* Deliverables list */
+.milestone-side-panel .side-panel-deliverables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.milestone-side-panel .deliverable-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--color-bg-secondary, #f9fafb);
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.8rem;
+}
+
+.milestone-side-panel .deliverable-item.completed {
+  background: var(--color-success-light, #d1fae5);
+}
+
+.milestone-side-panel .deliverable-check {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.milestone-side-panel .deliverable-check.checked {
+  color: var(--color-success, #10b981);
+}
+
+.milestone-side-panel .deliverable-check .empty-circle {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.milestone-side-panel .deliverable-ref {
+  font-weight: 600;
+  color: var(--color-primary, #4f46e5);
+  flex-shrink: 0;
+}
+
+.milestone-side-panel .deliverable-name {
+  flex: 1;
+  color: var(--color-text-primary, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.milestone-side-panel .deliverable-status {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.milestone-side-panel .deliverable-status.delivered {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-dark, #065f46);
+}
+
+.milestone-side-panel .deliverable-status.in-progress {
+  background: var(--color-info-light, #dbeafe);
+  color: var(--color-info-dark, #1e40af);
+}
+
+.milestone-side-panel .deliverable-status.not-started {
+  background: var(--color-bg-tertiary, #e5e7eb);
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.milestone-side-panel .deliverable-status.submitted-for-review,
+.milestone-side-panel .deliverable-status.review-complete {
+  background: var(--color-warning-light, #fef3c7);
+  color: var(--color-warning-dark, #92400e);
+}
+
+.milestone-side-panel .deliverable-status.returned-for-more-work {
+  background: var(--color-danger-light, #fee2e2);
+  color: var(--color-danger-dark, #991b1b);
+}
+
+.milestone-side-panel .deliverable-overflow {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #6b7280);
+  padding: 4px 10px;
+  font-style: italic;
+}
+
+/* Empty state */
+.milestone-side-panel .side-panel-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.milestone-side-panel .side-panel-empty-state svg {
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.milestone-side-panel .side-panel-empty-state span {
+  font-size: 0.875rem;
+}
+
+.milestone-side-panel .side-panel-empty-state .hint {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  margin-top: 4px;
+}
+
+/* Links */
+.milestone-side-panel .side-panel-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--color-primary, #4f46e5);
+  text-decoration: none;
+}
+
+.milestone-side-panel .side-panel-link:hover {
+  text-decoration: underline;
+}
+
+/* Timestamps */
+.milestone-side-panel .side-panel-timestamps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  border-top: 1px solid var(--color-border-light, #f3f4f6);
+}
+
+/* Footer */
+.milestone-side-panel .side-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-bg, #fff);
+  flex-shrink: 0;
+}
+
+.milestone-side-panel .side-panel-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.milestone-side-panel .side-panel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.milestone-side-panel .side-panel-btn.secondary {
+  background: var(--color-bg-secondary, #f3f4f6);
+  color: var(--color-text-primary, #111827);
+}
+
+.milestone-side-panel .side-panel-btn.secondary:hover {
+  background: var(--color-bg-tertiary, #e5e7eb);
+}
+
+.milestone-side-panel .side-panel-btn.success {
+  background: var(--color-success, #10b981);
+  color: white;
+}
+
+.milestone-side-panel .side-panel-btn.success:hover {
+  background: var(--color-success-dark, #059669);
+}
+
+.milestone-side-panel .side-panel-btn.danger {
+  background: transparent;
+  color: var(--color-danger, #ef4444);
+}
+
+.milestone-side-panel .side-panel-btn.danger:hover {
+  background: var(--color-danger-light, #fee2e2);
+}
+
+/* Focus states for accessibility */
+.milestone-side-panel .side-panel-section-header:focus-visible {
+  outline: 2px solid var(--color-primary, #4f46e5);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.milestone-side-panel .side-panel-btn:focus-visible {
+  outline: 2px solid var(--color-primary, #4f46e5);
+  outline-offset: 2px;
+}
+
+/* Responsive */
+/* Wider panel for large screens */
+@media (min-width: 1280px) {
+  .milestone-side-panel {
+    width: 560px;
+  }
+}
+
+/* Full width on small screens */
+@media (max-width: 640px) {
+  .milestone-side-panel {
+    width: 100vw;
+  }
+
+  .milestone-side-panel .side-panel-header {
+    padding: 12px 16px;
+  }
+
+  .milestone-side-panel .side-panel-section-header {
+    padding: 10px 16px;
+  }
+
+  .milestone-side-panel .side-panel-section-content {
+    padding: 0 16px 12px 16px;
+  }
+
+  .milestone-side-panel .side-panel-footer {
+    padding: 12px 16px;
+  }
+
+  .milestone-side-panel .side-panel-timestamps {
+    padding: 12px 16px;
+  }
+
+  .milestone-side-panel .side-panel-breach-banner {
+    margin: 0 16px 12px;
+  }
+}

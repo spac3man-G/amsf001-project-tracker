@@ -7,10 +7,11 @@
  * - Acceptance certificate workflow
  * - Sortable columns
  * - Soft delete with undo capability
+ * - Side panel view mode (v4.7)
  *
- * @version 4.6 - Added workflow settings integration (WP-09)
+ * @version 4.7 - Added Microsoft Planner-style side panel view mode
  * @refactored 5 December 2025
- * @updated 16 January 2026 - Conditional baseline/certificate columns
+ * @updated 17 January 2026 - Added MilestoneSidePanel integration
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -26,7 +27,9 @@ import {
   Info,
   ChevronUp,
   ChevronDown,
-  Layers
+  Layers,
+  PanelRight,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
@@ -37,7 +40,8 @@ import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import {
   CertificateModal,
   MilestoneAddForm,
-  MilestoneEditModal
+  MilestoneEditModal,
+  MilestoneSidePanel
 } from '../../components/milestones';
 import { 
   calculateMilestoneStatus, 
@@ -97,6 +101,15 @@ export default function MilestonesContent() {
   const [components, setComponents] = useState([]);
   const [milestoneComponentMap, setMilestoneComponentMap] = useState({});
   const [selectedComponentId, setSelectedComponentId] = useState('all');
+
+  // v4.7: View mode and side panel state
+  const [viewMode, setViewMode] = useState(() =>
+    localStorage.getItem('milestones-view-mode') || 'panel'
+  );
+  const [sidePanel, setSidePanel] = useState({
+    isOpen: false,
+    milestone: null
+  });
 
   const emptyForm = {
     milestone_ref: '', name: '', description: '',
@@ -433,6 +446,85 @@ export default function MilestonesContent() {
     }
   }
 
+  // v4.7: Handle view mode toggle
+  function handleViewModeChange(mode) {
+    setViewMode(mode);
+    localStorage.setItem('milestones-view-mode', mode);
+  }
+
+  // v4.7: Handle row click based on view mode
+  function handleRowClick(milestone) {
+    if (viewMode === 'panel') {
+      setSidePanel({ isOpen: true, milestone });
+    } else {
+      navigate(`/milestones/${milestone.id}`);
+    }
+  }
+
+  // v4.7: Close side panel
+  function closeSidePanel() {
+    setSidePanel({ isOpen: false, milestone: null });
+  }
+
+  // v4.7: Handle update from side panel
+  async function handlePanelUpdate() {
+    await fetchMilestones();
+    await fetchCertificates();
+    // If panel is open, refresh the milestone data
+    if (sidePanel.isOpen && sidePanel.milestone) {
+      const updatedMilestone = milestones.find(m => m.id === sidePanel.milestone.id);
+      if (updatedMilestone) {
+        setSidePanel(prev => ({ ...prev, milestone: updatedMilestone }));
+      }
+    }
+  }
+
+  // v4.7: Handle baseline signature from side panel
+  async function handleSignBaseline(milestoneId, signerRole) {
+    try {
+      await milestonesService.signBaseline(
+        milestoneId,
+        signerRole,
+        currentUserId,
+        currentUserName
+      );
+      showSuccess('Baseline signed successfully!');
+      await handlePanelUpdate();
+    } catch (error) {
+      console.error('Error signing baseline:', error);
+      showError('Failed to sign baseline: ' + error.message);
+    }
+  }
+
+  // v4.7: Handle certificate signature from side panel
+  async function handleSignCertificateFromPanel(certificateId, signerRole) {
+    try {
+      await milestonesService.signCertificate(
+        certificateId,
+        signerRole,
+        currentUserId,
+        currentUserName
+      );
+      showSuccess('Certificate signed successfully!');
+      await handlePanelUpdate();
+    } catch (error) {
+      console.error('Error signing certificate:', error);
+      showError('Failed to sign certificate: ' + error.message);
+    }
+  }
+
+  // v4.7: Handle delete from side panel
+  async function handleDeleteFromPanel(milestone) {
+    if (!milestone) return;
+    setDeleteDialog({ isOpen: true, milestone });
+    closeSidePanel();
+  }
+
+  // v4.7: Open full detail page from side panel
+  function handleOpenDetailPage(milestone) {
+    navigate(`/milestones/${milestone.id}`);
+  }
+
   const canEdit = canEditMilestone;
 
   if (loading) return <LoadingSpinner message="Loading milestones..." size="large" fullPage />;
@@ -518,8 +610,27 @@ export default function MilestonesContent() {
             <p>Track project milestones and deliverables</p>
           </div>
           <div className="ms-header-actions">
-            <button 
-              className="ms-btn ms-btn-secondary" 
+            {/* v4.7: View mode toggle */}
+            <div className="ms-view-toggle" data-testid="milestones-view-toggle">
+              <button
+                type="button"
+                className={`ms-view-toggle-btn ${viewMode === 'panel' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('panel')}
+                title="Side panel view"
+              >
+                <PanelRight size={16} />
+              </button>
+              <button
+                type="button"
+                className={`ms-view-toggle-btn ${viewMode === 'detail' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('detail')}
+                title="Full detail page"
+              >
+                <ExternalLink size={16} />
+              </button>
+            </div>
+            <button
+              className="ms-btn ms-btn-secondary"
               onClick={handleRefresh}
               disabled={refreshing}
               data-testid="milestones-refresh-button"
@@ -528,8 +639,8 @@ export default function MilestonesContent() {
               Refresh
             </button>
             {canEdit && !showAddForm && (
-              <button 
-                className="ms-btn ms-btn-primary" 
+              <button
+                className="ms-btn ms-btn-primary"
                 onClick={() => setShowAddForm(true)}
                 data-testid="add-milestone-button"
               >
@@ -644,9 +755,10 @@ export default function MilestonesContent() {
                   const baselineDisplay = getBaselineAgreedDisplay(milestone);
                   
                   return (
-                    <tr 
+                    <tr
                       key={milestone.id}
-                      onClick={() => navigate(`/milestones/${milestone.id}`)}
+                      onClick={() => handleRowClick(milestone)}
+                      className={sidePanel.isOpen && sidePanel.milestone?.id === milestone.id ? 'ms-row-selected' : ''}
                       data-testid={`milestone-row-${milestone.id}`}
                     >
                       <td>
@@ -787,6 +899,30 @@ export default function MilestonesContent() {
         cancelText="Cancel"
         type="danger"
         isLoading={saving}
+      />
+
+      {/* v4.7: Side Panel Backdrop */}
+      {sidePanel.isOpen && (
+        <div
+          className="milestone-panel-backdrop visible"
+          onClick={closeSidePanel}
+        />
+      )}
+
+      {/* v4.7: Milestone Side Panel */}
+      <MilestoneSidePanel
+        isOpen={sidePanel.isOpen}
+        milestone={sidePanel.milestone}
+        deliverables={sidePanel.milestone ? milestoneDeliverables[sidePanel.milestone.id] || [] : []}
+        certificate={sidePanel.milestone ? certificates[sidePanel.milestone.id] : null}
+        components={components}
+        componentMap={milestoneComponentMap}
+        onClose={closeSidePanel}
+        onUpdate={handlePanelUpdate}
+        onDelete={handleDeleteFromPanel}
+        onSignBaseline={handleSignBaseline}
+        onSignCertificate={handleSignCertificateFromPanel}
+        onOpenModal={handleOpenDetailPage}
       />
     </div>
   );
