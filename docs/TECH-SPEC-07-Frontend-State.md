@@ -1,11 +1,17 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.5
+**Document Version:** 5.6
 **Created:** 11 December 2025
 **Last Updated:** 16 January 2026
-**Session:** 1.7.5
+**Session:** 1.8.6
 **Author:** Claude AI (Anthropic)
 
+> **Version 5.6 Updates (16 January 2026):**
+> - Added Section 17: Workflow Settings System (new for project customization)
+> - Documents 3 new hooks: useProjectSettings, useWorkflowApproval, useWorkflowFeatures
+> - Documents 5 settings components: CollapsibleSection, ToggleSwitch, SettingRow, TemplateSelector, WorkflowSettingsTab
+> - Added Project Settings page integration
+>
 > **Version 5.5 Updates (16 January 2026):**
 > - Added Section 16: Inline Editing Components (January 2026)
 > - Documents InlineEditField component (click-to-edit field)
@@ -81,6 +87,7 @@
 14. [Planning & Estimator Tools](#14-planning--estimator-tools) *(NEW - December 2025)*
 15. [Evaluator Frontend](#15-evaluator-frontend) *(NEW - January 2026)*
 16. [Inline Editing Components](#16-inline-editing-components-january-2026) *(NEW - January 2026)*
+17. [Workflow Settings System](#17-workflow-settings-system) *(NEW - January 2026)*
 - [Appendix A: Role Display Configuration](#appendix-a-role-display-configuration)
 - [Appendix B: Context Import Patterns](#appendix-b-context-import-patterns)
 - [Document History](#document-history)
@@ -3191,6 +3198,298 @@ src/
 
 ---
 
+## 17. Workflow Settings System
+
+*Added: 16 January 2026*
+
+This section documents the workflow settings system that enables per-project customization of approval workflows, feature toggles, and templates.
+
+### 17.1 Overview
+
+The workflow settings system provides:
+- **Per-project configuration** of approval workflows
+- **Feature toggles** for optional modules (RAID, Variations, etc.)
+- **Template system** for quick project setup
+- **MS Planner-style UI** for settings management
+
+### 17.2 React Hooks
+
+#### 17.2.1 useProjectSettings
+
+**File:** `src/hooks/useProjectSettings.js`
+
+Main hook for managing project workflow settings.
+
+```javascript
+const {
+  settings,        // Current settings object
+  loading,         // Loading state
+  error,           // Error state
+  updateSetting,   // Update single setting
+  updateSettings,  // Update multiple settings
+  applyTemplate,   // Apply a template
+  reloadSettings,  // Force reload
+} = useProjectSettings(projectId);
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `settings` | `Object` | All workflow settings with defaults applied |
+| `loading` | `boolean` | True while fetching settings |
+| `error` | `string\|null` | Error message if fetch failed |
+| `updateSetting` | `function` | `(key, value) => void` - Update single setting |
+| `updateSettings` | `function` | `(settings) => void` - Update multiple settings |
+| `applyTemplate` | `function` | `(templateId) => void` - Apply template |
+| `reloadSettings` | `function` | `() => void` - Force reload |
+
+**Usage:**
+
+```javascript
+import { useProjectSettings } from '../hooks';
+
+function WorkflowSettings({ projectId }) {
+  const { settings, updateSetting, loading } = useProjectSettings(projectId);
+
+  if (loading) return <Spinner />;
+
+  return (
+    <ToggleSwitch
+      checked={settings.wf_timesheets_enabled}
+      onChange={(val) => updateSetting('wf_timesheets_enabled', val)}
+    />
+  );
+}
+```
+
+#### 17.2.2 useWorkflowApproval
+
+Hook for checking approval permissions based on project settings.
+
+```javascript
+const {
+  canApprove,         // Can current role approve entity type
+  isSupplierApprover, // Is supplier the approver
+  isCustomerApprover, // Is customer the approver
+  getApprovalStatus,  // Get detailed approval info
+} = useWorkflowApproval(projectId);
+```
+
+| Function | Parameters | Returns | Description |
+|----------|------------|---------|-------------|
+| `canApprove` | `entityType, context?` | `boolean` | Check if current role can approve |
+| `isSupplierApprover` | `entityType` | `boolean` | Check if supplier is approver |
+| `isCustomerApprover` | `entityType` | `boolean` | Check if customer is approver |
+| `getApprovalStatus` | `entityType, context?` | `ApprovalStatus` | Get detailed status |
+
+**Entity Types:** `'baseline'`, `'deliverable'`, `'timesheet'`, `'expense'`, `'variation'`, `'certificate'`, `'invoice'`
+
+**Usage:**
+
+```javascript
+import { useWorkflowApproval } from '../hooks';
+
+function ApproveButton({ entityType, entity }) {
+  const { canApprove } = useWorkflowApproval(projectId);
+
+  if (!canApprove(entityType, { amount: entity.amount })) {
+    return null;
+  }
+
+  return <Button onClick={handleApprove}>Approve</Button>;
+}
+```
+
+#### 17.2.3 useWorkflowFeatures
+
+Hook for checking feature toggles.
+
+```javascript
+const {
+  baselinesEnabled,
+  variationsEnabled,
+  timesheetsEnabled,
+  expensesEnabled,
+  raidEnabled,
+  certificatesEnabled,
+  invoicesEnabled,
+  planningEnabled,
+  estimatorEnabled,
+  isFeatureEnabled,  // Generic check
+} = useWorkflowFeatures(projectId);
+```
+
+**Usage:**
+
+```javascript
+import { useWorkflowFeatures } from '../hooks';
+
+function Sidebar() {
+  const { raidEnabled, variationsEnabled } = useWorkflowFeatures(projectId);
+
+  return (
+    <nav>
+      {raidEnabled && <NavItem to="/raid">RAID Log</NavItem>}
+      {variationsEnabled && <NavItem to="/variations">Variations</NavItem>}
+    </nav>
+  );
+}
+```
+
+### 17.3 Settings UI Components
+
+All components are located in `src/components/settings/`.
+
+#### 17.3.1 CollapsibleSection
+
+Expandable/collapsible section with chevron toggle.
+
+```jsx
+<CollapsibleSection
+  title="Milestone Settings"
+  defaultExpanded={true}
+  icon={Flag}
+>
+  {/* Section content */}
+</CollapsibleSection>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Section header text |
+| `icon` | `Component` | - | Lucide icon component |
+| `defaultExpanded` | `boolean` | `true` | Initial expanded state |
+| `children` | `ReactNode` | - | Section content |
+
+#### 17.3.2 ToggleSwitch
+
+Fluent-style toggle switch with label and description.
+
+```jsx
+<ToggleSwitch
+  label="Enable Timesheets"
+  description="Allow team members to log time"
+  checked={settings.wf_timesheets_enabled}
+  onChange={(val) => updateSetting('wf_timesheets_enabled', val)}
+  disabled={false}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Toggle label |
+| `description` | `string` | - | Help text below label |
+| `checked` | `boolean` | `false` | Toggle state |
+| `onChange` | `function` | required | `(value: boolean) => void` |
+| `disabled` | `boolean` | `false` | Disable toggle |
+
+#### 17.3.3 SettingRow
+
+Combined toggle + dropdown for setting rows.
+
+```jsx
+<SettingRow
+  label="Timesheet Approval"
+  description="Who approves submitted timesheets"
+  enabled={settings.wf_timesheets_enabled}
+  onEnabledChange={(val) => updateSetting('wf_timesheets_enabled', val)}
+  authority={settings.wf_timesheet_approval}
+  onAuthorityChange={(val) => updateSetting('wf_timesheet_approval', val)}
+/>
+```
+
+**Also exports:**
+- `SimpleSettingRow` - Toggle-only row without authority dropdown
+- `NumberSettingRow` - Toggle with numeric input field
+- `AUTHORITY_OPTIONS` - Standard dropdown options array
+
+#### 17.3.4 TemplateSelector
+
+Template picker with apply confirmation.
+
+```jsx
+<TemplateSelector
+  projectId={projectId}
+  onApply={handleTemplateApply}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `projectId` | `string` | Current project ID |
+| `onApply` | `function` | Callback when template applied |
+
+Displays confirmation dialog before applying template.
+
+#### 17.3.5 WorkflowSettingsTab
+
+Complete workflow settings tab assembly.
+
+```jsx
+<WorkflowSettingsTab projectId={projectId} />
+```
+
+Contains:
+- Template selector
+- Milestone settings section
+- Deliverable settings section
+- Timesheet settings section
+- Expense settings section
+- Other features section
+- Info card with usage notes
+
+### 17.4 Project Settings Page Integration
+
+The Workflow tab is added to `src/pages/ProjectSettings.jsx`:
+
+```javascript
+import { Workflow } from 'lucide-react';
+import { WorkflowSettingsTab } from '../components/settings';
+
+const TABS = [
+  { id: 'settings', label: 'Settings', icon: SettingsIcon },
+  { id: 'workflow', label: 'Workflow', icon: Workflow },
+  // ... other tabs
+];
+
+// In render:
+{activeTab === 'workflow' && (
+  <WorkflowSettingsTab projectId={project.id} />
+)}
+```
+
+### 17.5 File Structure
+
+```
+src/
+├── hooks/
+│   ├── useProjectSettings.js    # 3 hooks (300+ lines)
+│   └── index.js                 # Barrel export
+├── services/
+│   ├── projectSettings.service.js  # Service (500+ lines)
+│   └── index.js                    # Barrel export
+└── components/
+    └── settings/
+        ├── CollapsibleSection.jsx
+        ├── CollapsibleSection.css
+        ├── ToggleSwitch.jsx
+        ├── ToggleSwitch.css
+        ├── SettingRow.jsx
+        ├── SettingRow.css
+        ├── TemplateSelector.jsx
+        ├── TemplateSelector.css
+        ├── WorkflowSettingsTab.jsx
+        ├── WorkflowSettingsTab.css
+        └── index.js               # Barrel export
+```
+
+### 17.6 Cross-References
+
+- **Service Layer:** See TECH-SPEC-08-Services.md Section 18
+- **Database Schema:** See TECH-SPEC-02-Database-Core.md Section 2.1
+- **Workflow Categories:** See TECH-SPEC-08-Services.md Section 17
+
+---
+
 ## Appendix A: Role Display Configuration
 
 ```javascript
@@ -3231,7 +3530,7 @@ import { useHelp } from '../contexts/HelpContext';
 import { useTestUsers } from '../contexts/TestUserContext';
 
 // Hooks (via barrel export)
-import { 
+import {
   usePermissions,
   useForm,
   useDashboardLayout,
@@ -3247,6 +3546,10 @@ import {
   useDeliverableMetrics,
   useDocumentTemplates,
   useReadOnly,
+  // Workflow Settings Hooks (NEW - January 2026)
+  useProjectSettings,
+  useWorkflowApproval,
+  useWorkflowFeatures,
 } from '../hooks';
 
 // Permission utilities
@@ -3279,3 +3582,4 @@ import {
 | 5.3 | 7 Jan 2026 | Claude AI | **Evaluator Module Reference**: Added Section 8.6 (EvaluationContext), Section 8.7 (ReportBuilderContext), Section 15 (Evaluator Frontend summary). Cross-references to TECH-SPEC-11-Evaluator.md |
 | 5.4 | 15 Jan 2026 | Claude AI | **PlannerGrid Component**: Added Section 14.1a documenting AG Grid Enterprise component with selection sync, checkbox column, date synchronization, and table-style appearance |
 | 5.5 | 16 Jan 2026 | Claude AI | **Inline Editing Components**: Added Section 16 documenting InlineEditField, InlineChecklist, and DeliverableSidePanel components (Microsoft Planner-style UX) |
+| 5.6 | 16 Jan 2026 | Claude AI | **Workflow Settings System**: Added Section 17 documenting useProjectSettings, useWorkflowApproval, useWorkflowFeatures hooks and settings UI components (CollapsibleSection, ToggleSwitch, SettingRow, TemplateSelector, WorkflowSettingsTab) |

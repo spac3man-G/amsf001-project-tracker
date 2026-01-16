@@ -1,11 +1,17 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 5.4
+**Document Version:** 5.5
 **Created:** 11 December 2025
 **Updated:** 16 January 2026
-**Session:** 1.8.5
+**Session:** 1.8.6
 **Status:** Complete
 
+> **Version 5.5 Updates (16 January 2026):**
+> - Added Section 18: Project Settings Service (new for workflow customization)
+> - Documents projectSettings.service.js (settings management, templates, approval logic)
+> - Documents 24 workflow setting columns with approval authority options
+> - Documents 5 system templates for common project types
+>
 > **Version 5.4 Updates (16 January 2026):**
 > - Updated Section 5.1: Added Baseline Breach Methods to Milestones Service
 > - Documents `setBaselineBreach()`, `checkAndClearBreach()`, `checkDeliverableDateBreach()`
@@ -70,6 +76,7 @@
 15. [Planning & Estimator Services](#15-planning--estimator-services) *(NEW - December 2025)*
 16. [Evaluator Services](#16-evaluator-services) *(NEW - January 2026)*
 17. [Workflow System](#17-workflow-system) *(NEW - January 2026)*
+18. [Project Settings Service](#18-project-settings-service) *(NEW - January 2026)*
 
 ---
 
@@ -3205,3 +3212,180 @@ The workflow system supports deep linking via URL query parameters:
 
 - **NotificationContext:** See TECH-SPEC-07-Frontend-State.md Section 8
 - **WorkflowSummary Page:** See TECH-SPEC-07-Frontend-State.md Section 10
+
+---
+
+## 18. Project Settings Service
+
+*Added: 16 January 2026*
+
+### 18.1 Overview
+
+The Project Settings Service provides per-project workflow customization, enabling administrators to configure approval workflows, enable/disable features, and apply workflow templates.
+
+**File:** `src/services/projectSettings.service.js`
+
+### 18.2 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Settings UI Components                    │
+│  (WorkflowSettingsTab, TemplateSelector, SettingRow)        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     React Hooks                              │
+│  useProjectSettings, useWorkflowApproval, useWorkflowFeatures│
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 ProjectSettingsService                       │
+│  (settings CRUD, template management, approval logic)        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│               Database Tables                                │
+│  projects (24 workflow columns) + project_templates          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 18.3 Workflow Setting Columns
+
+The `projects` table includes 24 workflow customization columns:
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `wf_baselines_enabled` | boolean | true | Enable milestone baselining feature |
+| `wf_baseline_approval` | text | 'both' | Who signs baselines |
+| `wf_deliverable_review_required` | boolean | true | Require review before sign-off |
+| `wf_deliverable_approval` | text | 'both' | Who signs deliverables |
+| `wf_deliverable_quality_required` | boolean | true | KPI/QS assessment required |
+| `wf_timesheets_enabled` | boolean | true | Enable timesheet module |
+| `wf_timesheet_approval` | text | 'customer_only' | Who approves timesheets |
+| `wf_timesheet_max_daily_hours` | integer | 12 | Maximum hours per day |
+| `wf_expenses_enabled` | boolean | true | Enable expenses module |
+| `wf_expense_approval` | text | 'conditional' | Who approves expenses |
+| `wf_expense_receipt_required_above` | numeric | 50.00 | Receipt required threshold |
+| `wf_expense_auto_approve_below` | numeric | 25.00 | Auto-approve threshold |
+| `wf_variations_enabled` | boolean | true | Enable variations module |
+| `wf_variation_approval` | text | 'both' | Who approves variations |
+| `wf_variation_requires_costing` | boolean | true | Costing required |
+| `wf_certificates_enabled` | boolean | true | Enable milestone certificates |
+| `wf_certificate_approval` | text | 'both' | Who signs certificates |
+| `wf_invoice_enabled` | boolean | true | Enable partner invoicing |
+| `wf_invoice_approval` | text | 'supplier_only' | Who approves invoices |
+| `wf_raid_enabled` | boolean | true | Enable RAID log |
+| `wf_raid_review_frequency_days` | integer | 14 | Review frequency |
+| `wf_planning_enabled` | boolean | true | Enable planning module |
+| `wf_planning_auto_sync` | boolean | true | Auto-sync planning data |
+| `wf_estimator_enabled` | boolean | true | Enable estimator |
+
+### 18.4 Approval Authority Options
+
+```javascript
+export const APPROVAL_AUTHORITY = {
+  BOTH: 'both',              // Both supplier and customer sign
+  SUPPLIER_ONLY: 'supplier_only',  // Supplier PM only
+  CUSTOMER_ONLY: 'customer_only',  // Customer PM only
+  NONE: 'none',              // No approval required
+  CONDITIONAL: 'conditional', // Based on additional criteria
+  EITHER: 'either'           // Either party can sign
+};
+```
+
+### 18.5 Service Methods
+
+#### Settings Management
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getSettings` | `projectId` | `Settings` | Get workflow settings with defaults |
+| `updateSettings` | `projectId, settings` | `Settings` | Update one or more settings |
+| `resetToDefaults` | `projectId` | `Settings` | Reset all settings to defaults |
+
+#### Template Management
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getTemplates` | `organisationId?` | `Template[]` | Get available templates |
+| `applyTemplate` | `projectId, templateId` | `Settings` | Apply template to project |
+
+#### Approval Logic
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `canApprove` | `settings, entityType, role, context?` | `boolean` | Check if role can approve |
+| `isFeatureEnabled` | `settings, feature` | `boolean` | Check if feature is enabled |
+| `requiresDualSignature` | `settings, entityType` | `boolean` | Check if both parties sign |
+| `getApprovalRequirements` | `settings, entityType` | `Requirements` | Get detailed requirements |
+
+### 18.6 System Templates
+
+Five system templates are provided for common project types:
+
+| ID | Name | Key Settings |
+|----|------|--------------|
+| `system-formal-fp` | Formal Fixed-Price | All enabled, dual signatures, strict |
+| `system-time-materials` | Time & Materials | Timesheets customer-only, no baselines |
+| `system-internal` | Internal Project | Minimal approvals, self-approval |
+| `system-agile` | Agile / Iterative | No baselines, no certificates |
+| `system-regulated` | Regulated Industry | All enabled, strict thresholds |
+
+#### Template Settings Comparison
+
+| Setting | Formal | T&M | Internal | Agile | Regulated |
+|---------|--------|-----|----------|-------|-----------|
+| Baselines | both | none | none | none | both |
+| Deliverables | both | both | supplier | either | both |
+| Timesheets | customer | customer | none | supplier | both |
+| Expenses | conditional | customer | none | either | both |
+| Receipt threshold | $50 | $100 | N/A | $100 | $25 |
+
+### 18.7 Usage Examples
+
+```javascript
+import { projectSettingsService } from '../services';
+
+// Get project settings
+const settings = await projectSettingsService.getSettings(projectId);
+
+// Update a single setting
+await projectSettingsService.updateSettings(projectId, {
+  wf_timesheet_approval: 'supplier_only'
+});
+
+// Apply a template
+await projectSettingsService.applyTemplate(projectId, 'system-agile');
+
+// Check approval authority
+const canApprove = projectSettingsService.canApprove(
+  settings,
+  'timesheet',
+  'customer_pm',
+  { amount: 500 }
+);
+
+// Check if feature is enabled
+if (projectSettingsService.isFeatureEnabled(settings, 'timesheets')) {
+  // Show timesheets UI
+}
+```
+
+### 18.8 Related Hooks
+
+| Hook | Purpose | Location |
+|------|---------|----------|
+| `useProjectSettings` | Main settings hook with CRUD operations | `src/hooks/useProjectSettings.js` |
+| `useWorkflowApproval` | Approval permission checks | `src/hooks/useProjectSettings.js` |
+| `useWorkflowFeatures` | Feature flag checks | `src/hooks/useProjectSettings.js` |
+
+See TECH-SPEC-07-Frontend-State.md Section 12 for hook documentation.
+
+### 18.9 Cross-References
+
+- **Database Schema:** See TECH-SPEC-02-Database-Core.md Section 2.1
+- **Settings UI Components:** See TECH-SPEC-07-Frontend-State.md Section 12
+- **Workflow System:** See Section 17 above for workflow categories

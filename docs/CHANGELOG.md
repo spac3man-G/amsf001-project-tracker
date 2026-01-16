@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.17] - 2026-01-17
+
+### Added
+
+#### Customizable Workflow Settings
+
+Per-project workflow configuration allowing different approval authorities and feature toggles.
+
+**Database Schema (`202601170001_add_project_workflow_settings.sql`):**
+- Added 24 workflow setting columns to `projects` table
+- Columns cover: baselines, variations, certificates, deliverables, timesheets, expenses
+- All columns have defaults matching current dual-signature behavior
+
+**Project Templates (`202601170002_create_project_templates.sql`):**
+- New `project_templates` table for reusable workflow configurations
+- RLS policies for system vs organization templates
+- Foreign key `template_id` added to projects table
+
+**System Templates (`202601170003_seed_system_templates.sql`):**
+- Formal Fixed-Price: Full governance with dual-signature workflows
+- Time & Materials: Flexible tracking with customer approval focus
+- Internal Project: Minimal governance for internal initiatives
+- Agile/Iterative: Light governance with frequent delivery
+- Regulated Industry: Maximum governance with full audit trail
+
+**Project Settings Service (`src/services/projectSettings.service.js`):**
+- `getSettings(projectId)` - Fetch workflow settings with defaults
+- `updateSettings(projectId, settings)` - Update multiple settings
+- `getTemplates(orgId)` - Get available templates (system + org)
+- `applyTemplate(projectId, templateId)` - Apply template to project
+- `canApprove(settings, entityType, role)` - Check approval authority
+- `isFeatureEnabled(settings, feature)` - Check feature toggles
+- `requiresDualSignature(settings, entityType)` - Check dual-signature requirement
+
+**React Hooks (`src/hooks/useProjectSettings.js`):**
+- `useProjectSettings()` - Main hook with settings state and actions
+- `useWorkflowApproval()` - Approval checking with role awareness
+- `useWorkflowFeatures()` - Lightweight feature flag checks
+
+**Settings UI Components (`src/components/settings/`):**
+- `CollapsibleSection` - Expandable section with chevron toggle
+- `ToggleSwitch` - Fluent-style toggle with label/description
+- `SettingRow` - Combined toggle + dropdown for settings
+- `SimpleSettingRow` - Toggle-only setting row
+- `NumberSettingRow` - Toggle with number input
+- `TemplateSelector` - Template picker with apply confirmation
+- `WorkflowSettingsTab` - Full settings tab assembly
+
+**Project Settings Page:**
+- Added "Workflow" tab to Project Settings page
+- Template selector at top for quick configuration
+- Collapsible sections: Milestones, Deliverables, Timesheets, Expenses, Modules
+- Settings auto-save on change with optimistic UI
+
+### Changed
+
+#### Deliverables Side Panel Default
+
+- Changed default view mode from 'modal' to 'panel' for Deliverables page
+- Users now see MS Planner-style slide-out panel by default
+- Toggle still available to switch to classic modal view
+
+---
+
 ## [0.9.16] - 2026-01-16
 
 ### Added
