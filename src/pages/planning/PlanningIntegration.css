@@ -618,21 +618,297 @@
     margin: 10px;
     border-radius: 8px;
   }
-  
+
   .baseline-modal-change-comparison {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .baseline-modal-change-arrow {
     transform: rotate(90deg);
   }
-  
+
   .baseline-modal-footer {
     flex-direction: column;
   }
-  
+
   .baseline-modal-btn {
     width: 100%;
   }
+}
+
+/* ==========================================================================
+   Commit Dropdown Button
+   ========================================================================== */
+
+.planning-commit-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.planning-commit-dropdown .planning-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planning-commit-dropdown .planning-toolbar-btn svg.rotate-180 {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+.planning-commit-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+  min-width: 220px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  padding: 4px;
+  animation: dropdownSlide 0.15s ease-out;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.planning-commit-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.planning-commit-dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+.planning-commit-dropdown-item svg {
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.planning-commit-dropdown-count {
+  margin-left: auto;
+  background: #f59e0b;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.planning-commit-dropdown-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 4px 0;
+}
+
+/* ==========================================================================
+   Commit Components Modal
+   ========================================================================== */
+
+.commit-components-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.commit-components-actions .btn-text {
+  color: #3b82f6;
+  font-size: 13px;
+}
+
+.commit-components-actions .btn-text:hover {
+  text-decoration: underline;
+}
+
+.commit-components-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.commit-components-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.commit-component-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: white;
+}
+
+.commit-component-row:hover {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+
+.commit-component-row.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.commit-component-row.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.commit-component-row.disabled:hover {
+  border-color: #e5e7eb;
+  background: white;
+}
+
+.commit-component-checkbox {
+  flex-shrink: 0;
+}
+
+.commit-component-checkbox .text-primary {
+  color: #3b82f6;
+}
+
+.commit-component-checkbox .text-muted {
+  color: #d1d5db;
+}
+
+.commit-component-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.commit-component-name {
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
+
+.commit-component-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.commit-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.commit-stat.uncommitted {
+  color: #f59e0b;
+}
+
+.commit-stat.committed {
+  color: #22c55e;
+}
+
+.commit-component-badge {
+  flex-shrink: 0;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.commit-component-badge.selected {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.commit-selected-count {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ==========================================================================
+   Component Row Visual Indicators in Planning Grid
+   ========================================================================== */
+
+/* Component row with uncommitted items (orange left border) */
+.planning-component-uncommitted {
+  position: relative;
+}
+
+.planning-component-uncommitted::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #f59e0b;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Component row fully committed (green left border) */
+.planning-component-committed {
+  position: relative;
+}
+
+.planning-component-committed::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #22c55e;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Component commit status badge */
+.component-commit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.component-commit-badge-uncommitted {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.component-commit-badge-committed {
+  background: #d1fae5;
+  color: #065f46;
 }

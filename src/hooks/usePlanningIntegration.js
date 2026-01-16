@@ -1,15 +1,16 @@
 /**
  * usePlanningIntegration Hook
- * 
+ *
  * Provides all the integration logic between Planner and Tracker including:
  * - Baseline protection checking
- * - Commit to Tracker functionality
+ * - Commit to Tracker functionality (with component-based selection)
  * - Visual indicator data enrichment
  * - Variation creation from changes
- * 
+ *
  * @module hooks/usePlanningIntegration
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-05
+ * @updated 2026-01-17 - Added component-based commit selection
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
@@ -77,8 +78,13 @@ export function usePlanningIntegration({
   const [commitSummary, setCommitSummary] = useState({
     committed: 0,
     uncommitted: 0,
-    baselineLocked: 0
+    baselineLocked: 0,
+    byComponent: {}
   });
+
+  // Component selection for commit dialog
+  const [showCommitDialog, setShowCommitDialog] = useState(false);
+  const [selectedComponentsForCommit, setSelectedComponentsForCommit] = useState([]);
   
   // Baseline status cache (milestone ID -> baseline data)
   const [baselineStatusCache, setBaselineStatusCache] = useState(new Map());
@@ -576,36 +582,36 @@ export function usePlanningIntegration({
   // =========================================================================
   
   /**
-   * Commit the plan to the Tracker
+   * Commit the plan to the Tracker (all uncommitted items)
    */
   const handleCommitToTracker = useCallback(async () => {
     if (uncommittedCount === 0) {
       if (showWarning) showWarning('No items to commit');
       return;
     }
-    
+
     if (!canCommitPlan) {
       if (showError) showError('You do not have permission to commit the plan');
       return;
     }
-    
+
     // Confirm before committing
     const confirmed = window.confirm(
       `Commit ${uncommittedCount} item${uncommittedCount !== 1 ? 's' : ''} to Tracker?\n\n` +
       `This will create milestones and deliverables in the Tracker.`
     );
-    
+
     if (!confirmed) return;
-    
+
     setIsCommitting(true);
-    
+
     try {
       const result = await planCommitService.commitPlan(projectId, user?.id);
-      
+
       // Build message parts
       let message = '';
       const skippedCount = result.skipped?.length || 0;
-      
+
       if (result.errors.length > 0) {
         if (showWarning) {
           message = `Committed ${result.count} items. ${result.errors.length} failed: ${result.errors.map(e => e.item).join(', ')}`;
@@ -629,17 +635,17 @@ export function usePlanningIntegration({
           showSuccess(message);
         }
       }
-      
+
       // Log skipped items to console for debugging
       if (skippedCount > 0) {
         console.log('[usePlanningIntegration] Skipped items:', result.skipped);
       }
-      
+
       // Refresh items to show new published status
       if (fetchItems) await fetchItems();
       await fetchCommitSummary();
       await fetchBaselineStatus();
-      
+
     } catch (error) {
       console.error('[usePlanningIntegration] Commit error:', error);
       if (showError) showError('Failed to commit plan: ' + error.message);
@@ -647,16 +653,100 @@ export function usePlanningIntegration({
       setIsCommitting(false);
     }
   }, [
-    uncommittedCount, 
-    canCommitPlan, 
-    projectId, 
-    user, 
-    fetchItems, 
+    uncommittedCount,
+    canCommitPlan,
+    projectId,
+    user,
+    fetchItems,
     fetchCommitSummary,
     fetchBaselineStatus,
-    showSuccess, 
-    showWarning, 
+    showSuccess,
+    showWarning,
     showError
+  ]);
+
+  /**
+   * Commit selected components to the Tracker
+   *
+   * @param {Array<string>} componentIds - Array of component IDs to commit
+   */
+  const handleCommitSelectedComponents = useCallback(async (componentIds) => {
+    if (!componentIds || componentIds.length === 0) {
+      if (showWarning) showWarning('No components selected');
+      return;
+    }
+
+    if (!canCommitPlan) {
+      if (showError) showError('You do not have permission to commit the plan');
+      return;
+    }
+
+    setIsCommitting(true);
+    setShowCommitDialog(false);
+
+    try {
+      const result = await planCommitService.commitPlan(projectId, user?.id, componentIds);
+
+      // Build message parts
+      let message = '';
+      const skippedCount = result.skipped?.length || 0;
+
+      if (result.errors.length > 0) {
+        if (showWarning) {
+          message = `Committed ${result.count} items. ${result.errors.length} failed: ${result.errors.map(e => e.item).join(', ')}`;
+          if (skippedCount > 0) {
+            message += `. ${skippedCount} invalid items skipped.`;
+          }
+          showWarning(message);
+        }
+      } else if (result.count === 0 && skippedCount > 0) {
+        if (showWarning) {
+          showWarning(
+            `No valid items to commit. ${skippedCount} items skipped due to missing data (name, dates, or parent).`
+          );
+        }
+      } else if (result.count === 0) {
+        if (showInfo) {
+          showInfo('No uncommitted items found in selected components.');
+        }
+      } else {
+        if (showSuccess) {
+          message = `Successfully committed ${result.count} items to Tracker (${result.milestones.length} milestones, ${result.deliverables.length} deliverables)`;
+          if (skippedCount > 0) {
+            message += `. ${skippedCount} invalid items skipped.`;
+          }
+          showSuccess(message);
+        }
+      }
+
+      // Log skipped items to console for debugging
+      if (skippedCount > 0) {
+        console.log('[usePlanningIntegration] Skipped items:', result.skipped);
+      }
+
+      // Reset selection and refresh
+      setSelectedComponentsForCommit([]);
+      if (fetchItems) await fetchItems();
+      await fetchCommitSummary();
+      await fetchBaselineStatus();
+
+    } catch (error) {
+      console.error('[usePlanningIntegration] Commit error:', error);
+      if (showError) showError('Failed to commit plan: ' + error.message);
+    } finally {
+      setIsCommitting(false);
+    }
+  }, [
+    canCommitPlan,
+    projectId,
+    user,
+    fetchItems,
+    fetchCommitSummary,
+    fetchBaselineStatus,
+    showSuccess,
+    showWarning,
+    showError,
+    showInfo
   ]);
   
   // =========================================================================
@@ -671,13 +761,15 @@ export function usePlanningIntegration({
     pendingChanges,
     isCommitting,
     commitSummary,
-    
+    showCommitDialog,
+    selectedComponentsForCommit,
+
     // Computed
     canCommitPlan,
     canCreateVariation,
     uncommittedCount,
     enrichedItems,
-    
+
     // Handlers - Baseline Modal
     handleCloseBaselineModal,
     handleDiscardChanges,
@@ -685,19 +777,22 @@ export function usePlanningIntegration({
     handleClearPendingChanges,
     handleCreateVariationFromChange,
     handleCreateVariationFromAllChanges,
-    
+
     // Handlers - Updates
     handleUpdateWithBaselineCheck,
     checkBaselineProtection,
     getMilestoneForItem,
-    
+
     // Handlers - Commit
     handleCommitToTracker,
-    
+    handleCommitSelectedComponents,
+    setShowCommitDialog,
+    setSelectedComponentsForCommit,
+
     // Refresh functions
     fetchBaselineStatus,
     fetchCommitSummary,
-    
+
     // Utilities
     isBaselineField
   };

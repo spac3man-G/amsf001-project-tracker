@@ -1,13 +1,14 @@
 /**
  * PlanCommitService
- * 
+ *
  * Handles committing plan items from the Planner to the Tracker.
  * Creates milestones and deliverables from plan_items and maintains
  * the linking between planning and tracking entities.
- * 
+ *
  * @module services/planCommitService
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-05
+ * @updated 2026-01-17 - Added component-based commit filtering
  */
 
 import { supabase } from '../lib/supabase';
@@ -53,33 +54,52 @@ class PlanCommitService {
   /**
    * Commit a plan from Planner to Tracker
    * Creates milestones and deliverables from unpublished plan_items
-   * 
+   *
    * @param {string} projectId - Project UUID
    * @param {string} userId - User UUID performing the commit
+   * @param {Array<string>|null} componentIds - Optional array of component IDs to filter by.
+   *        If provided, only items under these components will be committed.
+   *        If null/undefined, all unpublished items are committed.
    * @returns {Promise<{milestones: Array, deliverables: Array, tasks: number, count: number, errors: Array}>}
    */
-  async commitPlan(projectId, userId) {
+  async commitPlan(projectId, userId, componentIds = null) {
     console.log('[PlanCommitService] Starting commit for project:', projectId);
-    
+    if (componentIds) {
+      console.log('[PlanCommitService] Filtering to components:', componentIds);
+    }
+
     // 1. Get all unpublished plan items (excluding soft-deleted)
-    const { data: items, error: fetchError } = await supabase
+    const { data: allItems, error: fetchError } = await supabase
       .from('plan_items')
       .select('*')
       .eq('project_id', projectId)
       .eq('is_published', false)
       .eq('is_deleted', false)  // Exclude soft-deleted items
       .order('sort_order', { ascending: true });
-    
+
     if (fetchError) {
       console.error('[PlanCommitService] Error fetching items:', fetchError);
       throw new Error(`Failed to fetch plan items: ${fetchError.message}`);
     }
-    
-    if (!items || items.length === 0) {
+
+    if (!allItems || allItems.length === 0) {
       console.log('[PlanCommitService] No items to commit');
       return { milestones: [], deliverables: [], tasks: 0, count: 0, errors: [] };
     }
-    
+
+    // 2. Filter to selected components if specified
+    let items = allItems;
+    if (componentIds && componentIds.length > 0) {
+      const descendantIds = this.getDescendantIds(allItems, componentIds);
+      items = allItems.filter(i => descendantIds.has(i.id));
+      console.log(`[PlanCommitService] Filtered from ${allItems.length} to ${items.length} items under selected components`);
+    }
+
+    if (items.length === 0) {
+      console.log('[PlanCommitService] No items to commit after component filtering');
+      return { milestones: [], deliverables: [], tasks: 0, count: 0, errors: [] };
+    }
+
     console.log(`[PlanCommitService] Found ${items.length} items to process`);
     
     // 2. Filter out invalid items (instead of failing validation)
@@ -785,7 +805,7 @@ class PlanCommitService {
   
   /**
    * Check if item is a descendant of parentId
-   * 
+   *
    * @param {Object} item - Item to check
    * @param {string} parentId - Potential ancestor ID
    * @param {Array} allItems - All items for traversal
@@ -799,32 +819,64 @@ class PlanCommitService {
     }
     return false;
   }
+
+  /**
+   * Get all descendant IDs for given component IDs (including the components themselves)
+   *
+   * @param {Array} items - All plan items
+   * @param {Array<string>} componentIds - Array of component IDs to get descendants for
+   * @returns {Set<string>} Set of all descendant item IDs (including the component IDs)
+   */
+  getDescendantIds(items, componentIds) {
+    const descendants = new Set();
+
+    // Helper to recursively add all children
+    const addDescendants = (parentId) => {
+      items.filter(i => i.parent_id === parentId).forEach(item => {
+        descendants.add(item.id);
+        addDescendants(item.id);
+      });
+    };
+
+    // For each component, add itself and all descendants
+    for (const componentId of componentIds) {
+      descendants.add(componentId);
+      addDescendants(componentId);
+    }
+
+    return descendants;
+  }
   
   /**
-   * Get commit summary for a project
-   * 
+   * Get commit summary for a project, including per-component breakdown
+   *
    * @param {string} projectId - Project UUID
-   * @returns {Promise<{committed: number, uncommitted: number, baselineLocked: number}>}
+   * @returns {Promise<{committed: number, uncommitted: number, baselineLocked: number, byComponent: Object}>}
    */
   async getCommitSummary(projectId) {
-    const { data: items, error } = await supabase
+    // Fetch all items including components for hierarchy traversal
+    const { data: allItems, error } = await supabase
       .from('plan_items')
-      .select('id, is_published, item_type, published_milestone_id')
+      .select('id, is_published, item_type, published_milestone_id, parent_id, name, is_deleted')
       .eq('project_id', projectId)
-      .in('item_type', ['milestone', 'deliverable']);
-    
+      .eq('is_deleted', false);
+
     if (error) {
       throw new Error(`Failed to get commit summary: ${error.message}`);
     }
-    
-    const committed = items?.filter(i => i.is_published).length || 0;
-    const uncommitted = items?.filter(i => !i.is_published).length || 0;
-    
+
+    // Filter to only milestones and deliverables for counts
+    const items = allItems?.filter(i => i.item_type === 'milestone' || i.item_type === 'deliverable') || [];
+    const components = allItems?.filter(i => i.item_type === 'component') || [];
+
+    const committed = items.filter(i => i.is_published).length;
+    const uncommitted = items.filter(i => !i.is_published).length;
+
     // Count baseline locked items
     const milestoneIds = [...new Set(
-      items?.filter(i => i.published_milestone_id).map(i => i.published_milestone_id) || []
+      items.filter(i => i.published_milestone_id).map(i => i.published_milestone_id)
     )];
-    
+
     let baselineLocked = 0;
     if (milestoneIds.length > 0) {
       const { data: milestones } = await supabase
@@ -832,11 +884,53 @@ class PlanCommitService {
         .select('id, baseline_locked')
         .in('id', milestoneIds)
         .eq('baseline_locked', true);
-      
+
       baselineLocked = milestones?.length || 0;
     }
-    
-    return { committed, uncommitted, baselineLocked };
+
+    // Build per-component summary
+    const byComponent = {};
+
+    // Helper to find component ancestor for an item
+    const findComponentAncestor = (item) => {
+      let current = item;
+      let iterations = 0;
+      while (current && iterations < 100) {
+        iterations++;
+        if (current.item_type === 'component') {
+          return current;
+        }
+        if (!current.parent_id) break;
+        current = allItems.find(i => i.id === current.parent_id);
+      }
+      return null;
+    };
+
+    // Initialize component stats
+    for (const comp of components) {
+      byComponent[comp.id] = {
+        id: comp.id,
+        name: comp.name,
+        committed: 0,
+        uncommitted: 0,
+        total: 0
+      };
+    }
+
+    // Count items per component
+    for (const item of items) {
+      const component = findComponentAncestor(item);
+      if (component && byComponent[component.id]) {
+        byComponent[component.id].total++;
+        if (item.is_published) {
+          byComponent[component.id].committed++;
+        } else {
+          byComponent[component.id].uncommitted++;
+        }
+      }
+    }
+
+    return { committed, uncommitted, baselineLocked, byComponent };
   }
 }
 
