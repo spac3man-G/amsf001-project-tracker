@@ -189,3 +189,15 @@ export {
 export {
   planItemsService
 } from './planItemsService';
+
+// Project Settings Service (Workflow configuration)
+export {
+  projectSettingsService,
+  ProjectSettingsService,
+  WORKFLOW_SETTING_COLUMNS,
+  APPROVAL_AUTHORITY,
+  TIMESHEET_APPROVAL_AUTHORITY,
+  EXPENSE_APPROVAL_AUTHORITY,
+  MILESTONE_BILLING_TYPE,
+  DEFAULT_WORKFLOW_SETTINGS
+} from './projectSettings.service';

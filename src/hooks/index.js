@@ -60,3 +60,15 @@ export { default as useResizableColumns } from './useResizableColumns';
 
 // Evaluator - AI Scoring
 export { useAIScoring } from './evaluator/useAIScoring';
+
+// Project Settings (Workflow Configuration)
+export {
+  useProjectSettings,
+  useWorkflowApproval,
+  useWorkflowFeatures,
+  APPROVAL_AUTHORITY,
+  TIMESHEET_APPROVAL_AUTHORITY,
+  EXPENSE_APPROVAL_AUTHORITY,
+  MILESTONE_BILLING_TYPE,
+  DEFAULT_WORKFLOW_SETTINGS
+} from './useProjectSettings';
