@@ -324,19 +324,11 @@ export const NAV_ITEMS = {
     section: 'planner'
   },
   // variations is now a tab within Milestones page
-  systemUsers: {
-    id: 'systemUsers',
-    path: '/admin/users',
-    icon: Shield,
-    label: 'System Users',
-    allowedRoles: [],  // System admin only - filtered in getNavigationForUser
-    readOnlyRoles: []
-  },
-  systemAdmin: {
-    id: 'systemAdmin',
+  system: {
+    id: 'system',
     path: '/admin/system',
     icon: Shield,
-    label: 'System Admin',
+    label: 'System',
     allowedRoles: [],  // System admin only - filtered in getNavigationForUser
     readOnlyRoles: []
   },
@@ -696,25 +688,16 @@ export function getNavigationForUser({ isSystemAdmin = false, isOrgAdmin = false
   
   // Special handling for system-level items
   // These should ONLY be visible to system admins, not org admins
-  const hasSystemUsers = navItems.some(item => item.id === 'systemUsers');
-  const hasSystemAdmin = navItems.some(item => item.id === 'systemAdmin');
-  
-  // Add system-level items for system admins
-  if (isSystemAdmin && !hasSystemUsers) {
-    navItems = [...navItems, NAV_ITEMS.systemUsers];
+  const hasSystem = navItems.some(item => item.id === 'system');
+
+  // Add system item for system admins
+  if (isSystemAdmin && !hasSystem) {
+    navItems = [...navItems, NAV_ITEMS.system];
   }
-  if (isSystemAdmin && !hasSystemAdmin) {
-    navItems = [...navItems, NAV_ITEMS.systemAdmin];
-  }
-  
-  // Remove system-level items if user is not a system admin
-  // (This handles the case where effectiveRole is 'admin' due to org admin,
-  //  but they shouldn't see system-level items)
-  if (!isSystemAdmin && hasSystemUsers) {
-    navItems = navItems.filter(item => item.id !== 'systemUsers');
-  }
-  if (!isSystemAdmin && hasSystemAdmin) {
-    navItems = navItems.filter(item => item.id !== 'systemAdmin');
+
+  // Remove system item if user is not a system admin
+  if (!isSystemAdmin && hasSystem) {
+    navItems = navItems.filter(item => item.id !== 'system');
   }
   
   return navItems;
