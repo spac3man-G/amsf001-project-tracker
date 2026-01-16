@@ -90,11 +90,11 @@ export default function DeliverablesContent() {
   const [sortColumn, setSortColumn] = useState('deliverable_ref');
   const [sortDirection, setSortDirection] = useState('asc');
 
-  // View mode: 'modal' (default/classic) or 'panel' (Planner-style prototype)
+  // View mode: 'modal' (classic) or 'panel' (Planner-style, default)
   const [viewMode, setViewMode] = useState(() => {
     // Check localStorage for saved preference
     const saved = localStorage.getItem('deliverables-view-mode');
-    return saved || 'modal';
+    return saved || 'panel';
   });
 
   // Detail modal state (classic mode)
