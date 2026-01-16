@@ -9,14 +9,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { milestonesService } from '../services';
-import { 
-  Settings as SettingsIcon, 
-  Save, 
-  RefreshCw, 
-  AlertCircle, 
-  CheckCircle, 
-  DollarSign, 
-  Target, 
+import {
+  Settings as SettingsIcon,
+  Save,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  DollarSign,
+  Target,
   Info,
   FileText,
   Plus,
@@ -33,7 +33,8 @@ import {
   ChevronUp,
   Briefcase,
   CheckSquare,
-  X
+  X,
+  Workflow
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -41,6 +42,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useResourcePermissions } from '../hooks/useResourcePermissions';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingSpinner, PageHeader, ConfirmDialog } from '../components/common';
+import { WorkflowSettingsTab } from '../components/settings';
 import { resourcesService, timesheetsService, partnersService } from '../services';
 import { timesheetContributesToSpend, hoursToDays } from '../config/metricsConfig';
 import {
@@ -60,6 +62,7 @@ import './ProjectSettings.css';
 // Tab configuration
 const TABS = [
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
+  { id: 'workflow', label: 'Workflow', icon: Workflow },
   { id: 'resources', label: 'Resources', icon: User },
   { id: 'audit', label: 'Audit Log', icon: FileText },
   { id: 'deleted', label: 'Deleted Items', icon: Trash2 }
@@ -138,10 +141,13 @@ export default function ProjectSettings() {
       {/* Tab Content */}
       <div className="project-settings-content">
         {activeTab === 'settings' && (
-          <SettingsTab 
+          <SettingsTab
             projectId={projectId}
             refreshProject={refreshProject}
           />
+        )}
+        {activeTab === 'workflow' && (
+          <WorkflowSettingsTab />
         )}
         {activeTab === 'resources' && (
           <ResourcesTab 
