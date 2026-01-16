@@ -1,13 +1,20 @@
 # AMSF001 Technical Specification: Database Schema - Core Tables
 
-**Document:** TECH-SPEC-02-Database-Core.md  
-**Version:** 5.2  
-**Created:** 10 December 2025  
-**Updated:** 7 January 2026  
-**Session:** Documentation Review Phase 5 (consolidated architecture docs)  
+**Document:** TECH-SPEC-02-Database-Core.md
+**Version:** 5.3
+**Created:** 10 December 2025
+**Updated:** 16 January 2026
+**Session:** WP-12 Final Documentation
 
 ---
 
+> **📝 Version 5.3 Updates (16 January 2026)**
+>
+> Added workflow settings columns and project templates (v0.9.17):
+> - Added Section 5.4: Workflow Settings Columns (24 columns for approval authority and feature toggles)
+> - Added Section 5A: Project Templates Table (reusable workflow configurations)
+> - Updated Core Tables Summary to include `project_templates`
+>
 > **📝 Version 5.2 Updates (7 January 2026)**
 > 
 > Consolidated content from MILESTONE-DELIVERABLE-ARCHITECTURE.md:
@@ -80,6 +87,7 @@ This document covers the core entity tables that form the foundation of the AMSF
 | `user_organisations` | Org membership junction | Per organisation |
 | `org_invitations` | Pending org invitations | Per organisation |
 | `projects` | Project definitions | Per organisation |
+| `project_templates` | Workflow templates | System + Org |
 | `profiles` | User accounts | System-wide |
 | `user_projects` | Project membership junction | Per project |
 | `milestones` | Payment milestones | Per project (~10-50) |
@@ -464,11 +472,115 @@ The `settings` column stores project-specific configuration:
 }
 ```
 
-### 5.4 Relationships
+### 5.4 Workflow Settings Columns (v0.9.17)
 
-- **Parent:** `organisations(id)` via `organisation_id` (NEW)
+The `projects` table includes 24 workflow customization columns for per-project approval authorities and feature toggles.
+
+#### Approval Authority Columns
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `baseline_approval_authority` | TEXT | 'dual' | Who can approve baselines: 'supplier_only', 'customer_only', 'dual', 'none' |
+| `variation_approval_authority` | TEXT | 'dual' | Who can approve variations |
+| `certificate_approval_authority` | TEXT | 'dual' | Who can approve milestone certificates |
+| `deliverable_approval_authority` | TEXT | 'dual' | Who can approve deliverables |
+| `timesheet_approval_authority` | TEXT | 'customer_only' | Who can approve timesheets |
+| `expense_approval_authority` | TEXT | 'conditional' | Expense approval: 'supplier_only', 'customer_only', 'dual', 'conditional' |
+
+#### Feature Toggle Columns
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `baselines_required` | BOOLEAN | true | Whether baseline commitment is required |
+| `variations_enabled` | BOOLEAN | true | Whether change control variations are enabled |
+| `certificates_required` | BOOLEAN | true | Whether milestone acceptance certificates are required |
+| `kpis_enabled` | BOOLEAN | true | Whether KPI tracking is enabled |
+| `quality_standards_enabled` | BOOLEAN | true | Whether quality standards are enabled |
+| `timesheets_enabled` | BOOLEAN | true | Whether timesheet tracking is enabled |
+| `expenses_enabled` | BOOLEAN | true | Whether expense tracking is enabled |
+| `raid_enabled` | BOOLEAN | true | Whether RAID log is enabled |
+| `milestone_billing_enabled` | BOOLEAN | true | Whether milestone-based billing is enabled |
+
+#### Dual Signature Columns
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `baseline_dual_signature` | BOOLEAN | true | Whether baselines require dual signature |
+| `certificate_dual_signature` | BOOLEAN | true | Whether certificates require dual signature |
+| `variation_dual_signature` | BOOLEAN | true | Whether variations require dual signature |
+| `deliverable_review_required` | BOOLEAN | true | Whether deliverables require customer review |
+
+#### Additional Settings
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `expense_receipt_required` | BOOLEAN | true | Whether receipt scan is required for expenses |
+| `expense_approval_threshold` | DECIMAL | null | Threshold above which expenses need approval |
+| `timesheet_approval_threshold` | DECIMAL | null | Threshold above which timesheets need approval |
+| `template_id` | UUID | null | FK to project_templates (workflow template used) |
+
+### 5.5 Relationships
+
+- **Parent:** `organisations(id)` via `organisation_id`
+- **Template:** `project_templates(id)` via `template_id`
 - **Referenced by:** All data tables via `project_id`
 - **References:** `auth.users` via `created_by`
+
+---
+
+## 5A. Project Templates Table (v0.9.17)
+
+The `project_templates` table stores reusable workflow configurations that can be applied to projects.
+
+### 5A.1 Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS project_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  is_system BOOLEAN DEFAULT false,
+  organisation_id UUID REFERENCES organisations(id),
+  settings JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_by UUID REFERENCES auth.users(id)
+);
+```
+
+### 5A.2 Column Reference
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | UUID | No | Primary key, auto-generated |
+| `name` | TEXT | No | Template display name |
+| `description` | TEXT | Yes | Template description |
+| `is_system` | BOOLEAN | No | True for system templates (read-only) |
+| `organisation_id` | UUID | Yes | Org-specific templates (null for system) |
+| `settings` | JSONB | No | Workflow settings object |
+| `created_at` | TIMESTAMPTZ | Yes | Creation timestamp |
+| `created_by` | UUID | Yes | User who created the template |
+| `updated_at` | TIMESTAMPTZ | Yes | Last modification timestamp |
+| `updated_by` | UUID | Yes | User who last modified |
+
+### 5A.3 System Templates
+
+Five system templates are seeded:
+
+| Template | Description |
+|----------|-------------|
+| **Formal Fixed-Price** | Full governance with dual-signature workflows |
+| **Time & Materials** | Flexible tracking with customer approval focus |
+| **Internal Project** | Minimal governance for internal initiatives |
+| **Agile/Iterative** | Light governance with frequent delivery |
+| **Regulated Industry** | Maximum governance with full audit trail |
+
+### 5A.4 RLS Policies
+
+- System templates (`is_system = true`) are read-only for all users
+- Org-specific templates can be created/edited by org admins
+- Users can view system templates and templates for their organisation
 
 ---
 

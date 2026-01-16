@@ -1,10 +1,16 @@
 # TECH-SPEC-00: Master Overview & Index
 
-> **Version:** 1.0  
-> **Created:** 7 January 2026  
-> **Status:** Complete  
+> **Version:** 1.1
+> **Created:** 7 January 2026
+> **Updated:** 16 January 2026
+> **Status:** Complete
 > **Purpose:** Master navigation index for all TECH-SPEC documentation
 
+> **Version 1.1 (16 January 2026):**
+> - Added `project_templates` table to Core/Multi-tenancy section
+> - Added `projectSettings.service.js` to services index
+> - Updated table count from 58+ to 59+
+>
 > **Version 1.0 (7 January 2026):**
 > - Created as master index for 9 TECH-SPEC documents
 > - Added comprehensive quick reference tables
@@ -96,7 +102,7 @@ Organisation (Tier 1)     →  Top-level tenant (company)
 
 | Document | Category | Tables |
 |----------|----------|--------|
-| **TECH-SPEC-02** | Core/Multi-tenancy | `organisations`, `user_organisations`, `projects`, `profiles`, `user_projects`, `org_invitations` |
+| **TECH-SPEC-02** | Core/Multi-tenancy | `organisations`, `user_organisations`, `projects`, `profiles`, `user_projects`, `org_invitations`, `project_templates` |
 | **TECH-SPEC-02** | Milestones/Deliverables | `milestones`, `deliverables`, `deliverable_tasks`, `deliverable_kpis`, `deliverable_quality_standards`, `deliverable_kpi_assessments`, `deliverable_qs_assessments`, `milestone_certificates`, `milestone_baseline_versions` |
 | **TECH-SPEC-02** | Resources | `resources`, `resource_availability` |
 | **TECH-SPEC-02** | Planning/Estimates | `plan_items`, `project_plans`, `estimates`, `estimate_components`, `estimate_tasks`, `estimate_resources` |
@@ -117,7 +123,7 @@ Organisation (Tier 1)     →  Top-level tenant (company)
 
 | Module | Table Count |
 |--------|-------------|
-| Core/Multi-tenancy | 6 |
+| Core/Multi-tenancy | 7 |
 | Milestones/Deliverables | 9 |
 | Resources | 2 |
 | Planning/Estimates | 6 |
@@ -127,7 +133,7 @@ Organisation (Tier 1)     →  Top-level tenant (company)
 | Variations | 3 |
 | Supporting | 4 |
 | **Evaluator** | 17 |
-| **TOTAL** | **58+** |
+| **TOTAL** | **59+** |
 
 ---
 
@@ -140,6 +146,7 @@ Organisation (Tier 1)     →  Top-level tenant (company)
 | `organisation.service.js` | Organisation CRUD, member management | TECH-SPEC-08 §3 |
 | `invitation.service.js` | Org invitation workflow | TECH-SPEC-08 §3 |
 | `subscription.service.js` | Subscription management | TECH-SPEC-08 §3 |
+| `projectSettings.service.js` | Workflow settings, templates | TECH-SPEC-08 §18 |
 | `milestones.service.js` | Milestone management, certificates | TECH-SPEC-08 §4 |
 | `deliverables.service.js` | Deliverable workflow, sign-offs | TECH-SPEC-08 §5 |
 | `resources.service.js` | Resource management, utilization | TECH-SPEC-08 §6 |

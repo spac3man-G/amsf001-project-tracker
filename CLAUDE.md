@@ -167,6 +167,64 @@ See TECH-SPEC-07 Section 16 for component documentation.
 
 ---
 
+## COMPLETE: Workflow Settings System (17 January 2026)
+
+**Status**: COMPLETE (WP-01 through WP-10)
+
+### Overview
+
+Per-project workflow customization enabling different approval authorities, feature toggles, and workflow templates.
+
+### Key Features
+
+1. **Approval Authority Settings** - Configure who can approve baselines, variations, certificates, deliverables, timesheets, and expenses
+2. **Feature Toggles** - Enable/disable RAID, Variations, KPIs, Quality Standards, etc.
+3. **Workflow Templates** - 5 system templates for quick project setup:
+   - Formal Fixed-Price, Time & Materials, Internal Project, Agile/Iterative, Regulated Industry
+4. **Settings UI** - MS Planner-style collapsible sections with auto-save
+
+### Technical Details
+
+| Component | Location |
+|-----------|----------|
+| Database columns | 24 new columns on `projects` table |
+| Templates table | `project_templates` |
+| Service | `src/services/projectSettings.service.js` |
+| Hook | `src/hooks/useProjectSettings.js` |
+| Settings UI | `src/components/settings/WorkflowSettingsTab.jsx` |
+
+### Approval Authority Options
+
+| Value | Description |
+|-------|-------------|
+| `supplier_only` | Only supplier PM can approve |
+| `customer_only` | Only customer PM can approve |
+| `dual` | Both supplier and customer must sign |
+| `conditional` | Depends on context (e.g., chargeable vs non-chargeable expenses) |
+| `none` | No approval required |
+
+### Using Workflow Settings in Code
+
+```javascript
+// Check if feature is enabled
+import { useWorkflowFeatures } from '../hooks/useProjectSettings';
+const { timesheetsEnabled, raidEnabled } = useWorkflowFeatures();
+
+// Check approval authority
+import { usePermissions } from '../hooks/usePermissions';
+const { canApproveEntity } = usePermissions();
+const canApprove = canApproveEntity('timesheets', timesheet);
+```
+
+### Documentation
+
+- **TECH-SPEC-02** Section 5.4: Workflow settings columns
+- **TECH-SPEC-02** Section 5A: Project templates table
+- **TECH-SPEC-07** Section 17: Workflow settings hooks and components
+- **TECH-SPEC-08** Section 18: Project settings service
+
+---
+
 ## IN PROGRESS: Member Project Assignments Feature (13 January 2026)
 
 **Status**: BLOCKED - Database function error, needs debugging

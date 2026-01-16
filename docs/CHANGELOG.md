@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.19] - 2026-01-16
+
+### Added
+
+#### WP-11 Testing & Validation
+
+**Unit Test Coverage:**
+- Added `ContextMenu.test.jsx` - 17 tests for right-click context menu component
+- Added `InlineEditField.test.jsx` - 38 tests for inline editing component
+- All 633 unit tests now passing
+
+**Documentation Updates (WP-12):**
+- Updated TECH-SPEC-00 v1.1: Added `project_templates` table and `projectSettings.service.js`
+- Updated TECH-SPEC-02 v5.3: Added Section 5.4 (Workflow Settings Columns) and Section 5A (Project Templates)
+- Updated TECH-SPEC-07 v5.8: Added Section 16.4 (ContextMenu Component)
+- Updated CLAUDE.md: Added Workflow Settings System section
+
+### Fixed
+
+#### Permission Test Fixes (AUDIT-06-001)
+
+Updated all permission tests for v3.0 role simplification:
+- `permissions.test.js` - Updated for `ROLES.ADMIN` → `supplier_pm` mapping
+- `permissions-matrix.test.js` - Updated role groups and approval authority tests
+- `org-permissions.test.js` - Updated for 3 org roles (org_admin, supplier_pm, org_member)
+- `usePermissions.test.jsx` - Updated integration tests for v3.0 behavior
+
+Key v3.0 changes reflected in tests:
+- `canApproveTimesheets` now customer-side only (not supplier_pm)
+- `canValidateChargeableExpenses` now customer-side only
+- `canDeleteMilestone`, `canDeleteResource`, `canManageUsers` allowed for supplier_pm
+
+#### Runtime Error Fix
+
+- Fixed `canCreateDeliverable is not defined` error in DeliverablesContent.jsx
+- Missing destructuring from `usePermissions()` hook
+
+---
+
 ## [0.9.18] - 2026-01-16
 
 ### Added

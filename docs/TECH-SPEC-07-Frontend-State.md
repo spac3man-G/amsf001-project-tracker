@@ -1,11 +1,17 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.7
+**Document Version:** 5.8
 **Created:** 11 December 2025
 **Last Updated:** 16 January 2026
-**Session:** 1.8.7
+**Session:** WP-12 Final Documentation
 **Author:** Claude AI (Anthropic)
 
+> **Version 5.8 Updates (16 January 2026):**
+> - Added Section 16.4: ContextMenu Component (WP-10)
+> - Documents reusable right-click context menu with portal rendering
+> - Documents useContextMenu hook for state management
+> - Updated File Structure Summary (now Section 16.5)
+>
 > **Version 5.7 Updates (16 January 2026):**
 > - Updated Section 9.3: usePermissions v5.1 with workflow settings utilities
 > - Added `isFeatureEnabledWithSettings`, `canApproveWithSettings`, `getApprovalAuthorityWithSettings`, `requiresDualSignatureWithSettings`
@@ -3243,7 +3249,110 @@ planItemsService.toggleTaskComplete(taskId, isComplete);
 
 ---
 
-### 16.4 File Structure Summary
+### 16.4 ContextMenu Component (WP-10)
+
+**File:** `src/components/common/ContextMenu.jsx`
+
+Reusable right-click context menu component with portal-based rendering.
+
+#### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `items` | `MenuItem[]` | required | Array of menu items |
+| `position` | `{x, y}` | required | Screen position for menu |
+| `onClose` | `function` | required | Called when menu closes |
+
+#### MenuItem Structure
+
+```javascript
+{
+  label: string,           // Display text
+  icon: ReactNode,         // Optional Lucide icon
+  onClick: function,       // Click handler
+  disabled: boolean,       // Disable item
+  danger: boolean,         // Red styling (for delete actions)
+  divider: boolean,        // Render as divider line
+}
+```
+
+#### Features
+
+- **Portal rendering** - Uses ReactDOM.createPortal for proper z-index
+- **Viewport detection** - Auto-positions to stay within viewport bounds
+- **Keyboard navigation** - Arrow keys, Enter to select, Escape to close
+- **Click outside** - Closes on outside click
+- **Accessibility** - ARIA attributes and focus management
+
+#### useContextMenu Hook
+
+```javascript
+import { useContextMenu } from '../../components/common';
+
+const {
+  menuState,        // { visible, x, y, data }
+  showMenu,         // (event, data) => void
+  hideMenu,         // () => void
+} = useContextMenu();
+
+// Usage in table row
+<tr onContextMenu={(e) => showMenu(e, { item: row })}>
+```
+
+#### Usage Example
+
+```javascript
+import { ContextMenu, useContextMenu } from '../components/common';
+import { Eye, Edit2, Trash2 } from 'lucide-react';
+
+function MyTable() {
+  const { menuState, showMenu, hideMenu } = useContextMenu();
+
+  const menuItems = [
+    { label: 'Open', icon: <Eye size={14} />, onClick: () => handleOpen(menuState.data.item) },
+    { label: 'Edit', icon: <Edit2 size={14} />, onClick: () => handleEdit(menuState.data.item) },
+    { divider: true },
+    { label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => handleDelete(menuState.data.item) },
+  ];
+
+  return (
+    <>
+      <table>
+        <tbody>
+          {items.map(item => (
+            <tr key={item.id} onContextMenu={(e) => showMenu(e, { item })}>
+              ...
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {menuState.visible && (
+        <ContextMenu
+          items={menuItems}
+          position={{ x: menuState.x, y: menuState.y }}
+          onClose={hideMenu}
+        />
+      )}
+    </>
+  );
+}
+```
+
+#### CSS Classes
+
+```css
+.context-menu                 /* Menu container */
+.context-menu-item            /* Menu item */
+.context-menu-item.disabled   /* Disabled state */
+.context-menu-item.danger     /* Delete/danger styling */
+.context-menu-divider         /* Divider line */
+.context-menu-icon            /* Icon container */
+```
+
+---
+
+### 16.5 File Structure Summary
 
 ```
 src/
@@ -3252,7 +3361,9 @@ src/
 │   │   ├── InlineEditField.jsx     # Click-to-edit field (206 lines)
 │   │   ├── InlineEditField.css
 │   │   ├── InlineChecklist.jsx     # Always-editable checklist (352 lines)
-│   │   └── InlineChecklist.css
+│   │   ├── InlineChecklist.css
+│   │   ├── ContextMenu.jsx         # Right-click context menu
+│   │   └── ContextMenu.css
 │   └── deliverables/
 │       ├── DeliverableSidePanel.jsx # Slide-out panel (654 lines)
 │       └── DeliverableSidePanel.css
