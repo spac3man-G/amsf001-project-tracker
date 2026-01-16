@@ -1,18 +1,33 @@
 /**
  * Comprehensive Permission Matrix Tests
  * Location: src/__tests__/unit/permissions-matrix.test.js
- * 
- * Tests EVERY permission function against ALL 7 roles.
+ * Version: 3.0 - Updated for v3.0 role simplification (January 2026)
+ *
+ * Tests EVERY permission function against ALL roles.
  * This is the definitive test suite for permission logic.
+ *
+ * IMPORTANT: In v3.0, the project-level 'admin' role was removed.
+ * - supplier_pm now has full admin capabilities
+ * - ROLES.ADMIN is deprecated and maps to 'supplier_pm' for backwards compatibility
+ * - Only 6 project roles now: supplier_pm, supplier_finance, customer_pm, customer_finance, contributor, viewer
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   ROLES,
   PERMISSION_MATRIX,
   hasPermission,
   getPermissionsForRole,
 } from '../../lib/permissionMatrix';
+
+// Suppress deprecation warnings for tests that intentionally use ROLES.ADMIN
+beforeEach(() => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 import {
   // Timesheets
@@ -112,10 +127,11 @@ import {
 
 // ============================================
 // ALL ROLES ARRAY FOR ITERATION
+// v3.0: Admin role removed - supplier_pm has full capabilities
 // ============================================
 
 const ALL_ROLES = [
-  ROLES.ADMIN,
+  // ROLES.ADMIN removed in v3.0 - now supplier_pm has full capabilities
   ROLES.SUPPLIER_PM,
   ROLES.SUPPLIER_FINANCE,
   ROLES.CUSTOMER_PM,
@@ -124,10 +140,13 @@ const ALL_ROLES = [
   ROLES.VIEWER,
 ];
 
-const SUPPLIER_SIDE = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE];
-const CUSTOMER_SIDE = [ROLES.ADMIN, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE];
-const MANAGERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM];
-const WORKERS = [ROLES.ADMIN, ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR];
+// v3.0: ROLES.ADMIN removed from these groups - supplier_pm has full capabilities
+const SUPPLIER_SIDE = [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE];
+const CUSTOMER_SIDE = [ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE];
+const MANAGERS = [ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM];
+const WORKERS = [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR];
+// Full management capabilities - supplier_pm only in v3.0
+const FULL_MANAGEMENT = [ROLES.SUPPLIER_PM];
 
 // ============================================
 // HELPER FUNCTIONS
@@ -321,8 +340,8 @@ describe('Milestone Permissions - Complete Matrix', () => {
 
   testPermissionForAllRoles(
     canDeleteMilestone,
-    [ROLES.ADMIN],
-    'canDeleteMilestone (admin only)'
+    FULL_MANAGEMENT,
+    'canDeleteMilestone (supplier_pm only in v3.0)'
   );
 
   testPermissionForAllRoles(
@@ -343,16 +362,17 @@ describe('Milestone Permissions - Complete Matrix', () => {
 // ============================================
 
 describe('Deliverable Permissions - Complete Matrix', () => {
+  // v3.0: Only supplier_pm and contributors can create/edit deliverables (not customer_pm)
   testPermissionForAllRoles(
     canCreateDeliverable,
-    [...MANAGERS, ROLES.CONTRIBUTOR],
-    'canCreateDeliverable'
+    [ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
+    'canCreateDeliverable (v3.0: supplier_pm + contributor)'
   );
 
   testPermissionForAllRoles(
     canEditDeliverable,
-    [...MANAGERS, ROLES.CONTRIBUTOR],
-    'canEditDeliverable'
+    [ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
+    'canEditDeliverable (v3.0: supplier_pm + contributor)'
   );
 
   testPermissionForAllRoles(
@@ -373,10 +393,11 @@ describe('Deliverable Permissions - Complete Matrix', () => {
     'canMarkDeliverableDelivered'
   );
 
+  // v3.0: Only supplier_pm and contributors can submit deliverables
   testPermissionForAllRoles(
     canSubmitDeliverable,
-    WORKERS,
-    'canSubmitDeliverable'
+    [ROLES.SUPPLIER_PM, ROLES.CONTRIBUTOR],
+    'canSubmitDeliverable (v3.0: supplier_pm + contributor)'
   );
 });
 
@@ -466,8 +487,8 @@ describe('Resource Permissions - Complete Matrix', () => {
 
   testPermissionForAllRoles(
     canDeleteResource,
-    [ROLES.ADMIN],
-    'canDeleteResource (admin only)'
+    FULL_MANAGEMENT,
+    'canDeleteResource (supplier_pm only in v3.0)'
   );
 
   testPermissionForAllRoles(
@@ -616,8 +637,8 @@ describe('Settings & Admin Permissions - Complete Matrix', () => {
 
   testPermissionForAllRoles(
     canManageUsers,
-    [ROLES.ADMIN],
-    'canManageUsers (admin only)'
+    FULL_MANAGEMENT,
+    'canManageUsers (supplier_pm only in v3.0)'
   );
 
   testPermissionForAllRoles(
@@ -670,31 +691,32 @@ describe('Invoice Permissions - Complete Matrix', () => {
 
 describe('Utility Functions', () => {
   describe('hasMinRole', () => {
-    it('Admin has min role of everyone', () => {
+    it('Supplier PM has min role of everyone (v3.0)', () => {
+      // In v3.0, supplier_pm is the highest role
       ALL_ROLES.forEach(role => {
-        expect(hasMinRole(ROLES.ADMIN, role)).toBe(true);
+        expect(hasMinRole(ROLES.SUPPLIER_PM, role)).toBe(true);
       });
     });
 
     it('Viewer only has min role of Viewer', () => {
       expect(hasMinRole(ROLES.VIEWER, ROLES.VIEWER)).toBe(true);
       expect(hasMinRole(ROLES.VIEWER, ROLES.CONTRIBUTOR)).toBe(false);
-      expect(hasMinRole(ROLES.VIEWER, ROLES.ADMIN)).toBe(false);
+      expect(hasMinRole(ROLES.VIEWER, ROLES.SUPPLIER_PM)).toBe(false);
     });
   });
 
   describe('isOneOf', () => {
     it('correctly identifies role membership', () => {
-      expect(isOneOf(ROLES.ADMIN, SUPPLIER_SIDE)).toBe(true);
-      expect(isOneOf(ROLES.ADMIN, CUSTOMER_SIDE)).toBe(true);
+      expect(isOneOf(ROLES.SUPPLIER_PM, SUPPLIER_SIDE)).toBe(true);
+      expect(isOneOf(ROLES.CUSTOMER_PM, CUSTOMER_SIDE)).toBe(true);
       expect(isOneOf(ROLES.CONTRIBUTOR, SUPPLIER_SIDE)).toBe(false);
       expect(isOneOf(ROLES.VIEWER, WORKERS)).toBe(false);
     });
   });
 
   describe('isFullAdmin', () => {
-    it('only admin and supplier_pm are full admins', () => {
-      expect(isFullAdmin(ROLES.ADMIN)).toBe(true);
+    it('only supplier_pm is full admin in v3.0', () => {
+      // v3.0: ROLES.ADMIN is deprecated and maps to supplier_pm
       expect(isFullAdmin(ROLES.SUPPLIER_PM)).toBe(true);
       expect(isFullAdmin(ROLES.SUPPLIER_FINANCE)).toBe(false);
       expect(isFullAdmin(ROLES.CUSTOMER_PM)).toBe(false);
@@ -704,8 +726,8 @@ describe('Utility Functions', () => {
   });
 
   describe('getRoleLabel', () => {
-    it('returns human-readable labels', () => {
-      expect(getRoleLabel(ROLES.ADMIN)).toBe('Admin');
+    it('returns human-readable labels (v3.0)', () => {
+      // v3.0: No separate admin role - ROLES.ADMIN maps to supplier_pm
       expect(getRoleLabel(ROLES.SUPPLIER_PM)).toBe('Supplier PM');
       expect(getRoleLabel(ROLES.SUPPLIER_FINANCE)).toBe('Supplier Finance');
       expect(getRoleLabel(ROLES.CUSTOMER_PM)).toBe('Customer PM');
@@ -722,39 +744,41 @@ describe('Utility Functions', () => {
 
 describe('Permission Matrix Validation', () => {
   describe('hasPermission direct access', () => {
-    it('correctly checks matrix permissions', () => {
+    it('correctly checks matrix permissions (v3.0)', () => {
       // All roles can view timesheets
       ALL_ROLES.forEach(role => {
         expect(hasPermission(role, 'timesheets', 'view')).toBe(true);
       });
 
-      // Only admin can manage users
-      expect(hasPermission(ROLES.ADMIN, 'users', 'manage')).toBe(true);
-      expect(hasPermission(ROLES.SUPPLIER_PM, 'users', 'manage')).toBe(false);
+      // v3.0: supplier_pm can manage users (full capabilities)
+      expect(hasPermission(ROLES.SUPPLIER_PM, 'users', 'manage')).toBe(true);
+      expect(hasPermission(ROLES.CUSTOMER_PM, 'users', 'manage')).toBe(false);
     });
 
     it('returns false for invalid entity', () => {
-      expect(hasPermission(ROLES.ADMIN, 'invalid_entity', 'view')).toBe(false);
+      expect(hasPermission(ROLES.SUPPLIER_PM, 'invalid_entity', 'view')).toBe(false);
     });
 
     it('returns false for invalid action', () => {
-      expect(hasPermission(ROLES.ADMIN, 'timesheets', 'invalid_action')).toBe(false);
+      expect(hasPermission(ROLES.SUPPLIER_PM, 'timesheets', 'invalid_action')).toBe(false);
     });
   });
 
   describe('getPermissionsForRole', () => {
-    it('returns complete permission object for admin', () => {
-      const perms = getPermissionsForRole(ROLES.ADMIN);
-      
+    it('returns complete permission object for supplier_pm (v3.0)', () => {
+      // In v3.0, supplier_pm has full admin capabilities
+      const perms = getPermissionsForRole(ROLES.SUPPLIER_PM);
+
       expect(perms.timesheets.view).toBe(true);
       expect(perms.timesheets.create).toBe(true);
-      expect(perms.timesheets.approve).toBe(true);
+      // Note: supplier_pm cannot approve timesheets (customer side approves)
+      expect(perms.timesheets.approve).toBe(false);
       expect(perms.users.manage).toBe(true);
     });
 
     it('returns restricted permissions for viewer', () => {
       const perms = getPermissionsForRole(ROLES.VIEWER);
-      
+
       expect(perms.timesheets.view).toBe(true);
       expect(perms.timesheets.create).toBe(false);
       expect(perms.timesheets.approve).toBe(false);
@@ -833,21 +857,22 @@ describe('Security Boundaries', () => {
     });
   });
 
-  describe('Destructive operations require high privilege', () => {
-    it('only admin can delete milestones', () => {
-      expect(canDeleteMilestone(ROLES.ADMIN)).toBe(true);
-      expect(canDeleteMilestone(ROLES.SUPPLIER_PM)).toBe(false);
+  describe('Destructive operations require high privilege (v3.0)', () => {
+    // In v3.0, supplier_pm has full admin capabilities
+    it('supplier_pm can delete milestones (v3.0)', () => {
+      expect(canDeleteMilestone(ROLES.SUPPLIER_PM)).toBe(true);
       expect(canDeleteMilestone(ROLES.SUPPLIER_FINANCE)).toBe(false);
+      expect(canDeleteMilestone(ROLES.CUSTOMER_PM)).toBe(false);
     });
 
-    it('only admin can delete resources', () => {
-      expect(canDeleteResource(ROLES.ADMIN)).toBe(true);
-      expect(canDeleteResource(ROLES.SUPPLIER_PM)).toBe(false);
+    it('supplier_pm can delete resources (v3.0)', () => {
+      expect(canDeleteResource(ROLES.SUPPLIER_PM)).toBe(true);
+      expect(canDeleteResource(ROLES.SUPPLIER_FINANCE)).toBe(false);
     });
 
-    it('only admin can manage users', () => {
-      expect(canManageUsers(ROLES.ADMIN)).toBe(true);
-      expect(canManageUsers(ROLES.SUPPLIER_PM)).toBe(false);
+    it('supplier_pm can manage users (v3.0)', () => {
+      expect(canManageUsers(ROLES.SUPPLIER_PM)).toBe(true);
+      expect(canManageUsers(ROLES.SUPPLIER_FINANCE)).toBe(false);
     });
   });
 

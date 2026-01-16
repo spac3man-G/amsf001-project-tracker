@@ -1,11 +1,16 @@
 /**
  * Unit Tests for Permission Functions
  * Location: src/__tests__/unit/permissions.test.js
- * 
+ * Version: 3.0 - Updated for v3.0 role simplification (January 2026)
+ *
  * Tests the permission logic from lib/permissions.js
+ *
+ * IMPORTANT: In v3.0, the project-level 'admin' role was removed.
+ * - supplier_pm now has full admin capabilities
+ * - ROLES.ADMIN is deprecated and maps to 'supplier_pm' for backwards compatibility
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   ROLES,
   hasPermission,
@@ -32,13 +37,23 @@ import {
   canAccessSettings,
 } from '../../lib/permissions';
 
+// Suppress deprecation warnings for tests that intentionally use ROLES.ADMIN
+beforeEach(() => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 // ============================================
 // ROLE CONSTANTS
 // ============================================
 
 describe('ROLES constant', () => {
-  it('should have all expected roles defined', () => {
-    expect(ROLES.ADMIN).toBe('admin');
+  it('should have all expected roles defined (v3.0 - admin removed)', () => {
+    // Note: ROLES.ADMIN is deprecated in v3.0 and maps to 'supplier_pm' for backwards compatibility
+    expect(ROLES.ADMIN).toBe('supplier_pm'); // Backward compatibility mapping
     expect(ROLES.SUPPLIER_PM).toBe('supplier_pm');
     expect(ROLES.SUPPLIER_FINANCE).toBe('supplier_finance');
     expect(ROLES.CUSTOMER_PM).toBe('customer_pm');
@@ -124,16 +139,18 @@ describe('Timesheet Permissions', () => {
   });
 
   describe('canApproveTimesheets', () => {
-    it('should allow customer side roles', () => {
-      expect(canApproveTimesheets(ROLES.ADMIN)).toBe(true);
+    it('should allow customer side roles only (v3.0)', () => {
+      // In v3.0, only customer side can approve timesheets (not supplier_pm)
       expect(canApproveTimesheets(ROLES.CUSTOMER_PM)).toBe(true);
       expect(canApproveTimesheets(ROLES.CUSTOMER_FINANCE)).toBe(true);
     });
 
-    it('should not allow supplier side (except admin)', () => {
+    it('should not allow supplier side or workers (v3.0)', () => {
+      // In v3.0, supplier_pm cannot approve timesheets (they submit timesheets, customers approve)
       expect(canApproveTimesheets(ROLES.SUPPLIER_PM)).toBe(false);
       expect(canApproveTimesheets(ROLES.SUPPLIER_FINANCE)).toBe(false);
       expect(canApproveTimesheets(ROLES.CONTRIBUTOR)).toBe(false);
+      expect(canApproveTimesheets(ROLES.VIEWER)).toBe(false);
     });
   });
 
@@ -244,10 +261,15 @@ describe('Milestone Permissions', () => {
   });
 
   describe('canDeleteMilestone', () => {
-    it('should only allow admin to delete milestones', () => {
-      expect(canDeleteMilestone(ROLES.ADMIN)).toBe(true);
-      expect(canDeleteMilestone(ROLES.SUPPLIER_PM)).toBe(false);
+    it('should allow supplier_pm to delete milestones (v3.0)', () => {
+      // In v3.0, supplier_pm has full management capabilities
+      expect(canDeleteMilestone(ROLES.SUPPLIER_PM)).toBe(true);
+    });
+
+    it('should not allow other roles to delete milestones', () => {
+      expect(canDeleteMilestone(ROLES.SUPPLIER_FINANCE)).toBe(false);
       expect(canDeleteMilestone(ROLES.CUSTOMER_PM)).toBe(false);
+      expect(canDeleteMilestone(ROLES.CONTRIBUTOR)).toBe(false);
     });
   });
 });
@@ -258,14 +280,17 @@ describe('Milestone Permissions', () => {
 
 describe('Deliverable Permissions', () => {
   describe('canCreateDeliverable', () => {
-    it('should allow managers and contributors', () => {
-      expect(canCreateDeliverable(ROLES.ADMIN)).toBe(true);
+    it('should allow supplier_pm and contributors (v3.0)', () => {
+      // In v3.0, only supplier_pm and contributors can create deliverables
       expect(canCreateDeliverable(ROLES.SUPPLIER_PM)).toBe(true);
-      expect(canCreateDeliverable(ROLES.CUSTOMER_PM)).toBe(true);
       expect(canCreateDeliverable(ROLES.CONTRIBUTOR)).toBe(true);
     });
 
-    it('should not allow viewers or finance roles', () => {
+    it('should not allow customer side, finance, or viewers (v3.0)', () => {
+      // Customer PM cannot create deliverables (they review/accept them)
+      expect(canCreateDeliverable(ROLES.CUSTOMER_PM)).toBe(false);
+      expect(canCreateDeliverable(ROLES.CUSTOMER_FINANCE)).toBe(false);
+      expect(canCreateDeliverable(ROLES.SUPPLIER_FINANCE)).toBe(false);
       expect(canCreateDeliverable(ROLES.VIEWER)).toBe(false);
     });
   });
@@ -286,13 +311,15 @@ describe('Deliverable Permissions', () => {
 
 describe('Admin Permissions', () => {
   describe('canManageUsers', () => {
-    it('should only allow admin', () => {
-      expect(canManageUsers(ROLES.ADMIN)).toBe(true);
+    it('should allow supplier_pm (v3.0 - has full management capabilities)', () => {
+      // In v3.0, supplier_pm has full admin capabilities including user management
+      expect(canManageUsers(ROLES.SUPPLIER_PM)).toBe(true);
     });
 
-    it('should not allow other roles including supplier_pm', () => {
-      expect(canManageUsers(ROLES.SUPPLIER_PM)).toBe(false);
+    it('should not allow other roles', () => {
+      expect(canManageUsers(ROLES.SUPPLIER_FINANCE)).toBe(false);
       expect(canManageUsers(ROLES.CUSTOMER_PM)).toBe(false);
+      expect(canManageUsers(ROLES.CUSTOMER_FINANCE)).toBe(false);
       expect(canManageUsers(ROLES.CONTRIBUTOR)).toBe(false);
       expect(canManageUsers(ROLES.VIEWER)).toBe(false);
     });

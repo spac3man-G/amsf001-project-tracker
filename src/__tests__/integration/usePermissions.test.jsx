@@ -1,17 +1,31 @@
 /**
  * Integration Tests for usePermissions Hook
  * Location: src/__tests__/integration/usePermissions.test.jsx
- * 
+ * Version: 3.0 - Updated for v3.0 role simplification (January 2026)
+ *
  * Tests the usePermissions hook with different context values
+ *
+ * IMPORTANT: In v3.0:
+ * - ROLES.ADMIN is deprecated and maps to 'supplier_pm'
+ * - supplier_pm has full admin capabilities EXCEPT approving timesheets/expenses (customer-side only)
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ROLES } from '../../lib/permissions';
 import { AuthContext } from '../../contexts/AuthContext';
 import { ViewAsContext } from '../../contexts/ViewAsContext';
 import { ProjectContext } from '../../contexts/ProjectContext';
+
+// Suppress deprecation warnings for tests that intentionally use ROLES.ADMIN
+beforeEach(() => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // ============================================
 // TEST WRAPPER FACTORY
@@ -84,28 +98,30 @@ describe('usePermissions Hook', () => {
   });
 
   // ============================================
-  // ADMIN ROLE TESTS
+  // ADMIN ROLE TESTS (v3.0 - ROLES.ADMIN maps to supplier_pm)
   // ============================================
 
-  describe('Admin role permissions', () => {
-    it('should have full access to timesheets', () => {
+  describe('Admin role permissions (supplier_pm)', () => {
+    it('should have full supplier-side access to timesheets', () => {
       const { result } = renderHook(() => usePermissions(), {
         wrapper: createWrapper({ role: ROLES.ADMIN }),
       });
 
       expect(result.current.canAddTimesheet).toBe(true);
       expect(result.current.canAddTimesheetForOthers).toBe(true);
-      expect(result.current.canApproveTimesheets).toBe(true);
+      // In v3.0, supplier_pm cannot approve timesheets (customer-side only)
+      expect(result.current.canApproveTimesheets).toBe(false);
     });
 
-    it('should have full access to expenses', () => {
+    it('should have full supplier-side access to expenses', () => {
       const { result } = renderHook(() => usePermissions(), {
         wrapper: createWrapper({ role: ROLES.ADMIN }),
       });
 
       expect(result.current.canAddExpense).toBe(true);
       expect(result.current.canAddExpenseForOthers).toBe(true);
-      expect(result.current.canValidateChargeableExpenses).toBe(true);
+      // In v3.0, supplier_pm cannot validate chargeable expenses (customer-side only)
+      expect(result.current.canValidateChargeableExpenses).toBe(false);
       expect(result.current.canValidateNonChargeableExpenses).toBe(true);
     });
 
