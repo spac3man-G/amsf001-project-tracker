@@ -1361,9 +1361,9 @@ export const planItemsService = {
    * @param {string} projectId - Project UUID
    * @returns {Array} List of task plan_items with id, name, status, progress, owner
    */
-  async getTasksForDeliverable(deliverableId, projectId) {
-    // Step 1: Find the plan_item that is linked to this deliverable
-    const { data: deliverablePlanItem, error: findError } = await supabase
+  async getTasksForDeliverable(deliverableId, projectId, deliverableName = null) {
+    // Step 1: Try to find the plan_item linked via published_deliverable_id
+    let { data: deliverablePlanItem, error: findError } = await supabase
       .from('plan_items')
       .select('id')
       .eq('published_deliverable_id', deliverableId)
@@ -1371,19 +1371,65 @@ export const planItemsService = {
       .eq('is_deleted', false)
       .single();
 
-    if (findError || !deliverablePlanItem) {
-      // No plan_item linked to this deliverable - return empty array
+    // Step 2: If no link exists, try to find by matching deliverable name
+    // This handles the case where the plan hasn't been committed yet
+    if ((findError || !deliverablePlanItem) && deliverableName) {
+      console.log('[PlanItemsService] No published link, trying name match:', deliverableName);
+
+      // Try exact name match first
+      let { data: nameMatchItem, error: nameError } = await supabase
+        .from('plan_items')
+        .select('id, name')
+        .eq('project_id', projectId)
+        .eq('item_type', 'deliverable')
+        .eq('is_deleted', false)
+        .eq('name', deliverableName)
+        .limit(1)
+        .maybeSingle();
+
+      // If no exact match, try partial match on key parts of the name
+      if (!nameMatchItem) {
+        // Extract core name (remove "Deliverable XXX: " prefix if present)
+        const coreName = deliverableName.replace(/^Deliverable\s+\d+:\s*/i, '').trim();
+        console.log('[PlanItemsService] Trying partial match with:', coreName);
+
+        const { data: partialMatch, error: partialError } = await supabase
+          .from('plan_items')
+          .select('id, name')
+          .eq('project_id', projectId)
+          .eq('item_type', 'deliverable')
+          .eq('is_deleted', false)
+          .ilike('name', `%${coreName}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (partialMatch) {
+          nameMatchItem = partialMatch;
+          console.log('[PlanItemsService] Found by partial match:', partialMatch.name);
+        }
+      }
+
+      if (nameMatchItem) {
+        deliverablePlanItem = nameMatchItem;
+        console.log('[PlanItemsService] Found plan_item by name match:', nameMatchItem.id, nameMatchItem.name);
+      } else {
+        console.log('[PlanItemsService] No plan_item found for:', deliverableName);
+      }
+    }
+
+    if (!deliverablePlanItem) {
+      // No plan_item found - return empty array
       return [];
     }
 
-    // Step 2: Get all child tasks of this deliverable plan_item
+    // Step 3: Get all child tasks of this deliverable plan_item
     const { data: tasks, error: tasksError } = await supabase
       .from('plan_items')
-      .select('id, name, description, status, progress, owner, wbs, sort_order')
+      .select('id, name, description, status, progress, wbs, assigned_resource_id')
       .eq('parent_id', deliverablePlanItem.id)
       .eq('item_type', 'task')
       .eq('is_deleted', false)
-      .order('sort_order', { ascending: true });
+      .order('wbs', { ascending: true });
 
     if (tasksError) {
       console.error('[PlanItemsService] getTasksForDeliverable error:', tasksError);
@@ -1391,6 +1437,345 @@ export const planItemsService = {
     }
 
     return tasks || [];
+  },
+
+  // ===========================================================================
+  // UNIFIED TASK CRUD (for Deliverable View → plan_items)
+  // ===========================================================================
+  // These methods allow creating/editing tasks from the Deliverable view
+  // while storing them in plan_items for unified access across all views.
+  // ===========================================================================
+
+  /**
+   * Create a task for a Tracker deliverable
+   * Auto-creates the parent structure (milestone/deliverable plan_items) if needed
+   *
+   * @param {string} projectId - Project UUID
+   * @param {string} deliverableId - Tracker deliverable UUID
+   * @param {Object} taskData - { name, owner?, status?, comment? }
+   * @returns {Promise<Object>} Created task plan_item
+   */
+  async createTaskForDeliverable(projectId, deliverableId, taskData) {
+    // Step 1: Find or create the deliverable plan_item
+    let deliverablePlanItem = await this._findOrCreateDeliverablePlanItem(projectId, deliverableId);
+
+    // Step 2: Get max sort_order among sibling tasks
+    const { data: siblings } = await supabase
+      .from('plan_items')
+      .select('sort_order')
+      .eq('parent_id', deliverablePlanItem.id)
+      .eq('item_type', 'task')
+      .eq('is_deleted', false)
+      .order('sort_order', { ascending: false })
+      .limit(1);
+
+    const nextSortOrder = (siblings?.[0]?.sort_order || 0) + 10;
+
+    // Step 3: Create the task
+    const taskInsertData = filterToDbColumns({
+      project_id: projectId,
+      parent_id: deliverablePlanItem.id,
+      item_type: 'task',
+      name: taskData.name,
+      description: taskData.comment || null, // comment maps to description
+      status: taskData.status || 'not_started',
+      progress: taskData.status === 'completed' ? 100 : 0,
+      sort_order: nextSortOrder,
+      indent_level: (deliverablePlanItem.indent_level || 0) + 1
+    });
+
+    // Store owner in description field for now (plan_items doesn't have owner column)
+    // We'll prepend owner to description if provided
+    if (taskData.owner) {
+      taskInsertData.description = taskData.owner + (taskData.comment ? ` | ${taskData.comment}` : '');
+    }
+
+    const { data, error } = await supabase
+      .from('plan_items')
+      .insert(taskInsertData)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Recalculate WBS
+    await this.recalculateWBS(projectId);
+
+    return data;
+  },
+
+  /**
+   * Find or create a deliverable plan_item for a Tracker deliverable
+   * Auto-creates milestone plan_item if needed
+   *
+   * @param {string} projectId - Project UUID
+   * @param {string} deliverableId - Tracker deliverable UUID
+   * @returns {Promise<Object>} Deliverable plan_item
+   */
+  async _findOrCreateDeliverablePlanItem(projectId, deliverableId) {
+    // Check if deliverable plan_item already exists
+    let { data: existing } = await supabase
+      .from('plan_items')
+      .select('id, indent_level, parent_id')
+      .eq('published_deliverable_id', deliverableId)
+      .eq('project_id', projectId)
+      .eq('is_deleted', false)
+      .single();
+
+    if (existing) return existing;
+
+    // Need to create - first get the Tracker deliverable details
+    const { data: deliverable, error: delError } = await supabase
+      .from('deliverables')
+      .select('id, name, milestone_id')
+      .eq('id', deliverableId)
+      .single();
+
+    if (delError || !deliverable) {
+      throw new Error('Deliverable not found');
+    }
+
+    // Find or create milestone plan_item
+    let milestonePlanItem = null;
+    if (deliverable.milestone_id) {
+      milestonePlanItem = await this._findOrCreateMilestonePlanItem(projectId, deliverable.milestone_id);
+    }
+
+    // Get max sort_order for positioning
+    const { data: maxOrder } = await supabase
+      .from('plan_items')
+      .select('sort_order')
+      .eq('project_id', projectId)
+      .eq('is_deleted', false)
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextSortOrder = (maxOrder?.sort_order || 0) + 10;
+
+    // Create the deliverable plan_item
+    const deliverablePlanItemData = filterToDbColumns({
+      project_id: projectId,
+      parent_id: milestonePlanItem?.id || null,
+      item_type: 'deliverable',
+      name: deliverable.name,
+      status: 'not_started',
+      progress: 0,
+      sort_order: nextSortOrder,
+      indent_level: milestonePlanItem ? (milestonePlanItem.indent_level || 0) + 1 : 0,
+      published_deliverable_id: deliverableId,
+      is_published: true
+    });
+
+    const { data: newDeliverablePlanItem, error: createError } = await supabase
+      .from('plan_items')
+      .insert(deliverablePlanItemData)
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    await this.recalculateWBS(projectId);
+
+    return newDeliverablePlanItem;
+  },
+
+  /**
+   * Find or create a milestone plan_item for a Tracker milestone
+   *
+   * @param {string} projectId - Project UUID
+   * @param {string} milestoneId - Tracker milestone UUID
+   * @returns {Promise<Object>} Milestone plan_item
+   */
+  async _findOrCreateMilestonePlanItem(projectId, milestoneId) {
+    // Check if milestone plan_item already exists
+    let { data: existing } = await supabase
+      .from('plan_items')
+      .select('id, indent_level')
+      .eq('published_milestone_id', milestoneId)
+      .eq('project_id', projectId)
+      .eq('is_deleted', false)
+      .single();
+
+    if (existing) return existing;
+
+    // Need to create - get the Tracker milestone details
+    const { data: milestone, error: msError } = await supabase
+      .from('milestones')
+      .select('id, name, milestone_ref')
+      .eq('id', milestoneId)
+      .single();
+
+    if (msError || !milestone) {
+      throw new Error('Milestone not found');
+    }
+
+    // Get max sort_order for positioning
+    const { data: maxOrder } = await supabase
+      .from('plan_items')
+      .select('sort_order')
+      .eq('project_id', projectId)
+      .eq('is_deleted', false)
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextSortOrder = (maxOrder?.sort_order || 0) + 10;
+
+    // Create the milestone plan_item at root level
+    const milestonePlanItemData = filterToDbColumns({
+      project_id: projectId,
+      parent_id: null, // Root level
+      item_type: 'milestone',
+      name: milestone.name,
+      status: 'not_started',
+      progress: 0,
+      sort_order: nextSortOrder,
+      indent_level: 0,
+      published_milestone_id: milestoneId,
+      is_published: true
+    });
+
+    const { data: newMilestonePlanItem, error: createError } = await supabase
+      .from('plan_items')
+      .insert(milestonePlanItemData)
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    return newMilestonePlanItem;
+  },
+
+  /**
+   * Update a task (simple fields only)
+   * For use from Deliverable view
+   *
+   * @param {string} taskId - Task plan_item UUID
+   * @param {Object} updates - { name?, owner?, status?, comment? }
+   * @returns {Promise<Object>} Updated task
+   */
+  async updateTaskSimple(taskId, updates) {
+    const dbUpdates = {};
+
+    if (updates.name !== undefined) {
+      dbUpdates.name = updates.name;
+    }
+
+    if (updates.status !== undefined) {
+      dbUpdates.status = updates.status;
+      // Sync progress with status
+      if (updates.status === 'completed') {
+        dbUpdates.progress = 100;
+      } else if (updates.status === 'not_started') {
+        dbUpdates.progress = 0;
+      }
+    }
+
+    // Handle end_date (target_date from Task View)
+    if (updates.end_date !== undefined) {
+      dbUpdates.end_date = updates.end_date;
+    }
+
+    // Owner and comment stored together in description
+    if (updates.owner !== undefined || updates.comment !== undefined) {
+      // Get current task to preserve existing values
+      const { data: task } = await supabase
+        .from('plan_items')
+        .select('description')
+        .eq('id', taskId)
+        .single();
+
+      // Parse existing owner/comment from description
+      const existingDesc = task?.description || '';
+      const parts = existingDesc.split(' | ');
+      const existingOwner = parts[0] || '';
+      const existingComment = parts.slice(1).join(' | ') || '';
+
+      const newOwner = updates.owner !== undefined ? updates.owner : existingOwner;
+      const newComment = updates.comment !== undefined ? updates.comment : existingComment;
+
+      dbUpdates.description = newOwner + (newComment ? ` | ${newComment}` : '');
+    }
+
+    if (Object.keys(dbUpdates).length === 0) {
+      return await this.getById(taskId);
+    }
+
+    const { data, error } = await supabase
+      .from('plan_items')
+      .update(dbUpdates)
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Toggle task completion status
+   *
+   * @param {string} taskId - Task plan_item UUID
+   * @param {boolean} isComplete - New completion state
+   * @returns {Promise<Object>} Updated task
+   */
+  async toggleTaskComplete(taskId, isComplete) {
+    const newStatus = isComplete ? 'completed' : 'not_started';
+    const newProgress = isComplete ? 100 : 0;
+
+    const { data, error } = await supabase
+      .from('plan_items')
+      .update({
+        status: newStatus,
+        progress: newProgress
+      })
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Soft delete a task
+   *
+   * @param {string} taskId - Task plan_item UUID
+   * @returns {Promise<Object>} Deleted task
+   */
+  async deleteTaskSimple(taskId) {
+    const { data, error } = await supabase
+      .from('plan_items')
+      .update({ is_deleted: true })
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Recalculate WBS for the project
+    if (data?.project_id) {
+      await this.recalculateWBS(data.project_id);
+    }
+
+    return data;
+  },
+
+  /**
+   * Parse owner and comment from task description
+   * Helper for reading back task data
+   *
+   * @param {string} description - Task description field
+   * @returns {Object} { owner, comment }
+   */
+  parseTaskDescription(description) {
+    if (!description) return { owner: '', comment: '' };
+    const parts = description.split(' | ');
+    return {
+      owner: parts[0] || '',
+      comment: parts.slice(1).join(' | ') || ''
+    };
   }
 };
 

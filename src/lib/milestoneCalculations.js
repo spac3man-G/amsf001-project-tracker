@@ -49,6 +49,41 @@ export const BASELINE_STATUS = Object.freeze({
   LOCKED: 'Locked'
 });
 
+/**
+ * Milestone health status (for breach/at-risk display)
+ * This determines the visual indicator (normal, at-risk/red)
+ */
+export const MILESTONE_HEALTH = Object.freeze({
+  NORMAL: 'normal',
+  BREACHED: 'breached'  // Shows as RED - baseline exceeded by deliverable dates
+});
+
+// ============================================
+// HEALTH STATUS FUNCTIONS
+// ============================================
+
+/**
+ * Get milestone health status
+ * Returns BREACHED if baseline_breached flag is true
+ *
+ * @param {Object} milestone - Milestone object with baseline_breached field
+ * @returns {string} MILESTONE_HEALTH value
+ */
+export function getMilestoneHealth(milestone) {
+  if (!milestone) return MILESTONE_HEALTH.NORMAL;
+  return milestone.baseline_breached ? MILESTONE_HEALTH.BREACHED : MILESTONE_HEALTH.NORMAL;
+}
+
+/**
+ * Check if milestone is breached (convenience function)
+ *
+ * @param {Object} milestone - Milestone object
+ * @returns {boolean} True if baseline is breached
+ */
+export function isMilestoneBreached(milestone) {
+  return milestone?.baseline_breached === true;
+}
+
 // ============================================
 // STATUS CALCULATION FUNCTIONS
 // ============================================

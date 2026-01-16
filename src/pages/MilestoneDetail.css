@@ -1603,3 +1603,95 @@
     gap: 0.25rem;
   }
 }
+
+/* ===========================================
+   BREACH STATUS (At Risk)
+   =========================================== */
+
+/* Breached/At Risk status badge */
+.milestone-status.status-breached {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Breach Warning Banner */
+.breach-banner {
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 1px solid #f87171;
+  border-left: 4px solid #dc2626;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.breach-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.breach-banner-content > svg {
+  flex-shrink: 0;
+  color: #dc2626;
+  margin-top: 0.125rem;
+}
+
+.breach-banner-text {
+  flex: 1;
+}
+
+.breach-banner-text strong {
+  display: block;
+  color: #991b1b;
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.breach-banner-text p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #7f1d1d;
+  line-height: 1.5;
+}
+
+.breach-banner-text .breach-reason {
+  margin-top: 0.5rem;
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+
+.breach-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.breach-action-button:hover {
+  background: #b91c1c;
+  color: white;
+}
+
+/* Mobile adjustments for breach banner */
+@media (max-width: 768px) {
+  .breach-banner-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .breach-action-button {
+    width: 100%;
+    justify-content: center;
+  }
+}

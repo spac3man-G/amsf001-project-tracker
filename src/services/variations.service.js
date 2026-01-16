@@ -522,6 +522,7 @@ export class VariationsService extends BaseService {
       for (const vm of variation.affected_milestones) {
         if (vm.milestone_id) {
           // Update milestone baselines and reset forecast to match new baseline
+          // Also clear any breach status since the new baseline is now approved
           const { error: updateError } = await supabase
             .from('milestones')
             .update({
@@ -534,7 +535,12 @@ export class VariationsService extends BaseService {
               forecast_end_date: vm.new_baseline_end,
               forecast_billable: vm.new_baseline_cost,
               // Update billable amount for invoicing (reflects new contract value)
-              billable: vm.new_baseline_cost
+              billable: vm.new_baseline_cost,
+              // Clear breach status - new baseline is now approved via dual-signed variation
+              baseline_breached: false,
+              baseline_breach_reason: null,
+              baseline_breached_at: null,
+              baseline_breached_by: null
             })
             .eq('id', vm.milestone_id);
 

@@ -583,6 +583,124 @@ export class MilestonesService extends BaseService {
       throw error;
     }
   }
+
+  /**
+   * Set or clear the baseline breach flag on a milestone
+   * Called when a deliverable date exceeds the baselined milestone end date
+   *
+   * @param {string} milestoneId - Milestone UUID
+   * @param {boolean} breached - Whether to set or clear the breach
+   * @param {Object} options - Optional breach details
+   * @param {string} options.reason - Explanation of why the breach occurred
+   * @param {string} options.breachedBy - User ID who caused the breach
+   */
+  async setBaselineBreach(milestoneId, breached, options = {}) {
+    try {
+      const updates = {
+        baseline_breached: breached
+      };
+
+      if (breached) {
+        updates.baseline_breach_reason = options.reason || null;
+        updates.baseline_breached_at = new Date().toISOString();
+        updates.baseline_breached_by = options.breachedBy || null;
+      } else {
+        // Clear all breach fields
+        updates.baseline_breach_reason = null;
+        updates.baseline_breached_at = null;
+        updates.baseline_breached_by = null;
+      }
+
+      const { data, error } = await supabase
+        .from('milestones')
+        .update(updates)
+        .eq('id', milestoneId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('MilestonesService setBaselineBreach error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a milestone should have its breach flag cleared
+   * Called after deliverable dates are changed to potentially auto-clear
+   *
+   * @param {string} milestoneId - Milestone UUID
+   * @returns {Promise<boolean>} Whether the breach was cleared
+   */
+  async checkAndClearBreach(milestoneId) {
+    try {
+      // Get the milestone
+      const milestone = await this.getById(milestoneId);
+      if (!milestone || !milestone.baseline_breached) {
+        return false; // Not breached, nothing to clear
+      }
+
+      // Get all deliverables for this milestone
+      const { data: deliverables, error: delError } = await supabase
+        .from('deliverables')
+        .select('id, target_date')
+        .eq('milestone_id', milestoneId)
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      if (delError) throw delError;
+
+      // Check if any deliverable exceeds milestone date
+      const milestoneEndDate = milestone.forecast_end_date || milestone.baseline_end_date || milestone.end_date;
+      const hasBreachingDeliverable = (deliverables || []).some(d =>
+        d.target_date && new Date(d.target_date) > new Date(milestoneEndDate)
+      );
+
+      // If no breaching deliverables, clear the breach
+      if (!hasBreachingDeliverable) {
+        await this.setBaselineBreach(milestoneId, false);
+        return true; // Breach was cleared
+      }
+
+      return false; // Still breached
+    } catch (error) {
+      console.error('MilestonesService checkAndClearBreach error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if setting a deliverable date would breach the milestone baseline
+   *
+   * @param {string} milestoneId - Milestone UUID
+   * @param {string|Date} proposedDate - The proposed deliverable date
+   * @returns {Promise<Object>} Breach check result
+   */
+  async checkDeliverableDateBreach(milestoneId, proposedDate) {
+    try {
+      const milestone = await this.getById(milestoneId);
+      if (!milestone) {
+        return { wouldBreach: false, reason: 'Milestone not found' };
+      }
+
+      const milestoneEndDate = milestone.forecast_end_date || milestone.baseline_end_date || milestone.end_date;
+      const propDate = new Date(proposedDate);
+      const endDate = new Date(milestoneEndDate);
+
+      const wouldBreach = propDate > endDate;
+
+      return {
+        wouldBreach,
+        isBaselined: milestone.baseline_locked || false,
+        milestoneEndDate,
+        proposedDate: proposedDate,
+        milestone
+      };
+    } catch (error) {
+      console.error('MilestonesService checkDeliverableDateBreach error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

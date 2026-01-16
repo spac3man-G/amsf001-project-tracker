@@ -22,11 +22,11 @@ import {
   X, Save, Send, CheckCircle, Trash2, Edit2,
   Package, Calendar, FileText, Clock,
   ThumbsUp, RotateCcw, Target, Award, PenTool,
-  Plus, Check, CheckSquare, ClipboardList
+  Plus, Check, CheckSquare, ClipboardList, AlertTriangle
 } from 'lucide-react';
 
 // Centralised utilities
-import { 
+import {
   DELIVERABLE_STATUS,
   SIGN_OFF_STATUS,
   getStatusConfig,
@@ -42,7 +42,9 @@ import { formatDate, formatDateTime } from '../../lib/formatters';
 import { useDeliverablePermissions } from '../../hooks/useDeliverablePermissions';
 import { useProject } from '../../contexts/ProjectContext';
 import { DualSignature, SignatureComplete } from '../common/SignatureBox';
-import { deliverablesService, planItemsService } from '../../services';
+import { deliverablesService, planItemsService, milestonesService } from '../../services';
+import InlineEditField from '../common/InlineEditField';
+import { useAuth } from '../../contexts/AuthContext';
 
 import './DeliverableDetailModal.css';
 
@@ -296,12 +298,15 @@ function TasksSection({ tasks, onToggleComplete, canEdit }) {
 
 /**
  * Tasks Edit Section Component - Full CRUD for edit mode
+ * Uses unified plan_items task system
  */
-function TasksEditSection({ 
-  tasks, 
-  deliverableId, 
-  onTasksChange, 
-  disabled 
+function TasksEditSection({
+  tasks,
+  deliverableId,
+  projectId,
+  deliverableName,
+  onTasksChange,
+  disabled
 }) {
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskOwner, setNewTaskOwner] = useState('');
@@ -316,54 +321,54 @@ function TasksEditSection({
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
   const handleAddTask = async () => {
-    if (!newTaskName.trim() || disabled) return;
+    if (!newTaskName.trim() || disabled || !projectId) return;
     try {
-      await deliverablesService.createTask(deliverableId, {
+      await planItemsService.createTaskForDeliverable(projectId, deliverableId, {
         name: newTaskName.trim(),
-        owner: newTaskOwner.trim() || null,
-        comment: newTaskComment.trim() || null
+        owner: newTaskOwner.trim() || '',
+        comment: newTaskComment.trim() || ''
       });
       setNewTaskName('');
       setNewTaskOwner('');
       setNewTaskComment('');
       onTasksChange();
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error('[TasksEditSection] Error adding task:', error);
     }
   };
 
   const handleUpdateTask = async (taskId) => {
     if (!editName.trim() || disabled) return;
     try {
-      await deliverablesService.updateTask(taskId, {
+      await planItemsService.updateTaskSimple(taskId, {
         name: editName.trim(),
-        owner: editOwner.trim() || null,
-        comment: editComment.trim() || null
+        owner: editOwner.trim() || '',
+        comment: editComment.trim() || ''
       });
       setEditingTask(null);
       onTasksChange();
     } catch (error) {
-      console.error('Error updating task:', error);
+      console.error('[TasksEditSection] Error updating task:', error);
     }
   };
 
   const handleDeleteTask = async (taskId) => {
     if (disabled) return;
     try {
-      await deliverablesService.deleteTask(taskId);
+      await planItemsService.deleteTaskSimple(taskId);
       onTasksChange();
     } catch (error) {
-      console.error('Error deleting task:', error);
+      console.error('[TasksEditSection] Error deleting task:', error);
     }
   };
 
   const handleToggleComplete = async (taskId, isComplete) => {
     if (disabled) return;
     try {
-      await deliverablesService.toggleTaskComplete(taskId, isComplete);
+      await planItemsService.toggleTaskComplete(taskId, isComplete);
       onTasksChange();
     } catch (error) {
-      console.error('Error toggling task:', error);
+      console.error('[TasksEditSection] Error toggling task:', error);
     }
   };
 
@@ -516,6 +521,82 @@ function TasksEditSection({
       {disabled && (
         <span className="hint">Only Supplier PM can edit tasks</span>
       )}
+    </div>
+  );
+}
+
+/**
+ * Inline Progress Slider - Click-to-edit progress bar
+ */
+function InlineProgressSlider({ value, onSave }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  // Sync with external value changes
+  useEffect(() => {
+    if (!isEditing) {
+      setEditValue(value);
+    }
+  }, [value, isEditing]);
+
+  const handleClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (editValue !== value) {
+      setSaving(true);
+      try {
+        await onSave(editValue);
+      } catch (error) {
+        console.error('Error saving progress:', error);
+        setEditValue(value); // Revert on error
+      } finally {
+        setSaving(false);
+      }
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setEditValue(value);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="inline-progress-edit">
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={editValue}
+          onChange={(e) => setEditValue(parseInt(e.target.value))}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="inline-progress-slider"
+          autoFocus
+          disabled={saving}
+        />
+        <span className="inline-progress-value">{editValue}%</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="progress-display clickable" onClick={handleClick}>
+      <div className="progress-bar">
+        <div
+          className="progress-bar-fill in-progress"
+          style={{ width: `${value}%` }}
+        />
+      </div>
+      <span className="progress-value">{value}%</span>
     </div>
   );
 }
@@ -738,15 +819,17 @@ export default function DeliverableDetailModal({
   onSign
 }) {
   const { projectId } = useProject();
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // Local tasks state for optimistic updates (deliverable_tasks checklist)
-  const [localTasks, setLocalTasks] = useState([]);
+  // Unified tasks state (from plan_items)
+  const [tasks, setTasks] = useState([]);
 
-  // Planner tasks state (plan_items with item_type='task')
-  const [plannerTasks, setPlannerTasks] = useState([]);
+  // Date extension dialog state
+  const [showDateExtensionDialog, setShowDateExtensionDialog] = useState(false);
+  const [pendingDate, setPendingDate] = useState(null);
 
   // Assessment state for customer sign-off
   const [kpiAssessments, setKpiAssessments] = useState({});
@@ -763,6 +846,10 @@ export default function DeliverableDetailModal({
   const canEditDescription = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor;
   const canEditProgress = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor;
   const canEditLinks = permissions.isSupplierPM || permissions.isAdmin;
+  // Task editing includes Contributors and Customer PM (per user request)
+  const canEditTasks = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor || permissions.isCustomerPM;
+  // Target date editing - same permissions as tasks
+  const canEditDate = permissions.isSupplierPM || permissions.isAdmin || permissions.isContributor || permissions.isCustomerPM;
 
   // Reset form and assessments when deliverable changes
   useEffect(() => {
@@ -784,23 +871,29 @@ export default function DeliverableDetailModal({
       setAssessmentKPIs(deliverable.deliverable_kpis || []);
       setAssessmentQS(deliverable.deliverable_quality_standards || []);
       
-      // Always fetch fresh tasks from server when modal opens
-      // This ensures we have the latest task completion state
-      deliverablesService.getTasksForDeliverable(deliverable.id)
-        .then(tasks => setLocalTasks(tasks))
-        .catch(err => {
-          console.error('Error fetching deliverable tasks:', err);
-          // Fallback to prop data if fetch fails
-          setLocalTasks(deliverable.deliverable_tasks || []);
-        });
-
-      // Fetch Planner tasks (plan_items with item_type='task' linked to this deliverable)
+      // Fetch unified tasks from plan_items
       if (projectId) {
-        planItemsService.getTasksForDeliverable(deliverable.id, projectId)
-          .then(tasks => setPlannerTasks(tasks))
+        planItemsService.getTasksForDeliverable(deliverable.id, projectId, deliverable.name)
+          .then(fetchedTasks => {
+            // Transform plan_items tasks to checklist format
+            const transformedTasks = (fetchedTasks || []).map(t => {
+              const { owner, comment } = planItemsService.parseTaskDescription(t.description);
+              return {
+                id: t.id,
+                name: t.name,
+                owner: owner,
+                comment: comment,
+                status: t.status,
+                is_complete: t.status === 'completed',
+                wbs: t.wbs,
+                progress: t.progress
+              };
+            });
+            setTasks(transformedTasks);
+          })
           .catch(err => {
-            console.error('Error fetching planner tasks:', err);
-            setPlannerTasks([]);
+            console.error('[DeliverableDetailModal] Error fetching tasks:', err);
+            setTasks([]);
           });
       }
     }
@@ -882,33 +975,48 @@ export default function DeliverableDetailModal({
     });
   }
 
-  // Task handlers
+  // Task handlers (unified - using plan_items)
   async function handleToggleTaskComplete(taskId, isComplete) {
     // Optimistic update - update UI immediately
-    setLocalTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, is_complete: isComplete } : task
+    setTasks(prev => prev.map(task =>
+      task.id === taskId ? { ...task, is_complete: isComplete, status: isComplete ? 'completed' : 'not_started' } : task
     ));
-    
+
     try {
-      await deliverablesService.toggleTaskComplete(taskId, isComplete);
+      await planItemsService.toggleTaskComplete(taskId, isComplete);
       // Success! Local state is already updated, and database is now in sync.
-      // Don't call onSave() here - it triggers a full page refresh which is jarring.
-      // The parent will get fresh data when the modal closes or on next navigation.
     } catch (error) {
-      console.error('Error toggling task:', error);
+      console.error('[DeliverableDetailModal] Error toggling task:', error);
       // Revert on error
-      setLocalTasks(prev => prev.map(task => 
-        task.id === taskId ? { ...task, is_complete: !isComplete } : task
+      setTasks(prev => prev.map(task =>
+        task.id === taskId ? { ...task, is_complete: !isComplete, status: !isComplete ? 'completed' : 'not_started' } : task
       ));
     }
   }
 
   function handleTasksChange() {
-    // Refresh local tasks from server
-    deliverablesService.getTasksForDeliverable(deliverable.id)
-      .then(tasks => setLocalTasks(tasks))
-      .catch(err => console.error('Error refreshing tasks:', err));
-    
+    // Refresh unified tasks from plan_items
+    if (projectId) {
+      planItemsService.getTasksForDeliverable(deliverable.id, projectId, deliverable.name)
+        .then(fetchedTasks => {
+          const transformedTasks = (fetchedTasks || []).map(t => {
+            const { owner, comment } = planItemsService.parseTaskDescription(t.description);
+            return {
+              id: t.id,
+              name: t.name,
+              owner: owner,
+              comment: comment,
+              status: t.status,
+              is_complete: t.status === 'completed',
+              wbs: t.wbs,
+              progress: t.progress
+            };
+          });
+          setTasks(transformedTasks);
+        })
+        .catch(err => console.error('[DeliverableDetailModal] Error refreshing tasks:', err));
+    }
+
     // Also trigger parent refresh
     if (onSave) {
       onSave(deliverable.id, {});
@@ -924,6 +1032,106 @@ export default function DeliverableDetailModal({
     } finally {
       setSaving(false);
     }
+  }
+
+  // Inline save handler for individual field updates (view mode inline editing)
+  async function handleInlineSave(field, value) {
+    const updates = { [field]: value };
+
+    // For progress changes, auto-transition status
+    if (field === 'progress') {
+      const newStatus = getAutoTransitionStatus(deliverable.status, value);
+      if (newStatus) {
+        updates.status = newStatus;
+      }
+    }
+
+    try {
+      await onSave(deliverable.id, updates);
+    } catch (error) {
+      console.error('[DeliverableDetailModal] Inline save error:', error);
+      throw error; // Re-throw so InlineEditField can revert
+    }
+  }
+
+  /**
+   * Handle target date changes with breach detection
+   */
+  async function handleTargetDateSave(newDate) {
+    if (!milestone) {
+      // No milestone assigned - save directly
+      await onSave(deliverable.id, { target_date: newDate });
+      return;
+    }
+
+    const milestoneEndDate = milestone.forecast_end_date || milestone.baseline_end_date || milestone.end_date;
+
+    // Check if date exceeds milestone
+    if (newDate && milestoneEndDate && new Date(newDate) > new Date(milestoneEndDate)) {
+      // Show confirmation dialog
+      setPendingDate(newDate);
+      setShowDateExtensionDialog(true);
+      return;
+    }
+
+    // Date is within bounds - save directly
+    await saveTargetDate(newDate);
+  }
+
+  /**
+   * Save target date and check for breach auto-clear
+   */
+  async function saveTargetDate(newDate) {
+    try {
+      await onSave(deliverable.id, { target_date: newDate });
+
+      // Check if this clears a breach (if dates are now within bounds)
+      if (milestone?.baseline_breached) {
+        await milestonesService.checkAndClearBreach(milestone.id);
+      }
+    } catch (error) {
+      console.error('[DeliverableDetailModal] Target date save error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle date extension confirmation
+   */
+  async function handleDateExtensionConfirm() {
+    const isBaselined = milestone?.baseline_locked || false;
+
+    try {
+      if (isBaselined) {
+        // Set breach flag on milestone
+        await milestonesService.setBaselineBreach(milestone.id, true, {
+          reason: `Deliverable ${deliverable.deliverable_ref} date (${pendingDate}) exceeds baselined milestone end date`,
+          breachedBy: user?.id
+        });
+      } else {
+        // Auto-extend milestone (no breach since not baselined)
+        await milestonesService.update(milestone.id, {
+          forecast_end_date: pendingDate,
+          end_date: pendingDate
+        });
+      }
+
+      // Save the deliverable date
+      await onSave(deliverable.id, { target_date: pendingDate });
+    } catch (error) {
+      console.error('[DeliverableDetailModal] Date extension error:', error);
+    } finally {
+      setShowDateExtensionDialog(false);
+      setPendingDate(null);
+    }
+  }
+
+  /**
+   * Cancel date extension
+   */
+  function handleDateExtensionCancel() {
+    setShowDateExtensionDialog(false);
+    setPendingDate(null);
   }
 
   function handleClose() {
@@ -1135,16 +1343,18 @@ export default function DeliverableDetailModal({
                 disabled={!canEditLinks}
               />
 
-              {/* Tasks - Supplier PM only */}
+              {/* Tasks - unified from plan_items */}
               <TasksEditSection
-                tasks={deliverable.deliverable_tasks || []}
+                tasks={tasks}
                 deliverableId={deliverable.id}
+                projectId={projectId}
+                deliverableName={deliverable.name}
                 onTasksChange={handleTasksChange}
                 disabled={!canEditLinks}
               />
             </div>
           ) : (
-            /* View Mode */
+            /* View Mode - with inline editing */
             <>
               {/* Key Details Grid */}
               <div className="deliverable-key-details">
@@ -1152,60 +1362,113 @@ export default function DeliverableDetailModal({
                   <FileText size={18} className="detail-item-icon" />
                   <div className="detail-item-content">
                     <div className="detail-item-label">Milestone</div>
-                    <div className="detail-item-value">
-                      {milestone ? (
-                        <Link to={`/milestones/${milestone.id}`}>
-                          {milestone.milestone_ref} - {milestone.name}
-                        </Link>
-                      ) : 'Not assigned'}
-                    </div>
+                    {canEditMilestone && !isComplete ? (
+                      <InlineEditField
+                        type="select"
+                        value={deliverable.milestone_id || ''}
+                        options={milestones?.map(m => ({
+                          value: m.id,
+                          label: `${m.milestone_ref} - ${m.name}`
+                        })) || []}
+                        onSave={(value) => handleInlineSave('milestone_id', value)}
+                        placeholder="Select milestone..."
+                        className="inline-milestone-select"
+                        showEditIcon
+                      />
+                    ) : (
+                      <div className="detail-item-value">
+                        {milestone ? (
+                          <Link to={`/milestones/${milestone.id}`}>
+                            {milestone.milestone_ref} - {milestone.name}
+                          </Link>
+                        ) : 'Not assigned'}
+                      </div>
+                    )}
                   </div>
                 </div>
-                
+
                 <div className="detail-item">
                   <Calendar size={18} className="detail-item-icon" />
                   <div className="detail-item-content">
-                    <div className="detail-item-label">Due Date</div>
-                    <div className="detail-item-value">
-                      {dueDate ? formatDate(dueDate) : 'Not set'}
-                    </div>
+                    <div className="detail-item-label">Target Date</div>
+                    {canEditDate && !isComplete ? (
+                      <InlineEditField
+                        type="date"
+                        value={deliverable.target_date || ''}
+                        onSave={handleTargetDateSave}
+                        placeholder="Set target date..."
+                        className="inline-date"
+                        showEditIcon
+                      />
+                    ) : (
+                      <div className="detail-item-value">
+                        {deliverable.target_date ? formatDate(deliverable.target_date) : dueDate ? formatDate(dueDate) : 'Not set'}
+                      </div>
+                    )}
                   </div>
                 </div>
-                
+
                 <div className="detail-item">
                   <Clock size={18} className="detail-item-icon" />
                   <div className="detail-item-content">
                     <div className="detail-item-label">Progress</div>
-                    <div className="progress-display">
-                      <div className="progress-bar">
-                        <div 
-                          className={`progress-bar-fill ${isComplete ? 'complete' : 'in-progress'}`}
-                          style={{ width: `${deliverable.progress || 0}%` }}
-                        />
+                    {canEditProgress && !isComplete && !isProgressSliderDisabled(deliverable.status) ? (
+                      <InlineProgressSlider
+                        value={deliverable.progress || 0}
+                        onSave={(value) => handleInlineSave('progress', value)}
+                      />
+                    ) : (
+                      <div className="progress-display">
+                        <div className="progress-bar">
+                          <div
+                            className={`progress-bar-fill ${isComplete ? 'complete' : 'in-progress'}`}
+                            style={{ width: `${deliverable.progress || 0}%` }}
+                          />
+                        </div>
+                        <span className="progress-value">{deliverable.progress || 0}%</span>
                       </div>
-                      <span className="progress-value">{deliverable.progress || 0}%</span>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Description - Inline editable */}
               <div className="deliverable-description">
                 <div className="section-label">Description</div>
-                <div className={`description-text ${!deliverable.description ? 'empty' : ''}`}>
-                  {deliverable.description || 'No description provided'}
-                </div>
+                {canEditDescription && !isComplete ? (
+                  <InlineEditField
+                    type="textarea"
+                    value={deliverable.description || ''}
+                    onSave={(value) => handleInlineSave('description', value)}
+                    placeholder="Click to add description..."
+                    className="inline-description"
+                    rows={3}
+                    showEditIcon
+                  />
+                ) : (
+                  <div className={`description-text ${!deliverable.description ? 'empty' : ''}`}>
+                    {deliverable.description || 'No description provided'}
+                  </div>
+                )}
               </div>
 
-              {/* Planner Tasks - from plan_items linked to this deliverable */}
-              <PlannerTasksSection tasks={plannerTasks} />
-
-              {/* Tasks Checklist - deliverable-specific tasks */}
-              <TasksSection
-                tasks={localTasks}
-                onToggleComplete={handleToggleTaskComplete}
-                canEdit={canEditLinks}
-              />
+              {/* Tasks - unified from plan_items */}
+              {canEditTasks && !isComplete ? (
+                <TasksEditSection
+                  tasks={tasks}
+                  deliverableId={deliverable.id}
+                  projectId={projectId}
+                  deliverableName={deliverable.name}
+                  onTasksChange={handleTasksChange}
+                  disabled={false}
+                />
+              ) : (
+                <TasksSection
+                  tasks={tasks}
+                  onToggleComplete={handleToggleTaskComplete}
+                  canEdit={canEditTasks && !isComplete}
+                />
+              )}
 
               {/* Linked KPIs - Only show if NOT in assessment mode */}
               {linkedKPIs.length > 0 && !showAssessmentSection && (
@@ -1394,7 +1657,7 @@ export default function DeliverableDetailModal({
 
                 {/* Edit Button */}
                 {permissions.canEdit && !isComplete && (
-                  <button 
+                  <button
                     className="btn btn-primary"
                     onClick={() => setIsEditing(true)}
                     data-testid="deliverable-edit-button"
@@ -1407,6 +1670,43 @@ export default function DeliverableDetailModal({
           </div>
         </div>
       </div>
+
+      {/* Date Extension Dialog */}
+      {showDateExtensionDialog && (
+        <div className="date-extension-overlay" onClick={handleDateExtensionCancel}>
+          <div className="date-extension-dialog" onClick={e => e.stopPropagation()}>
+            <div className="dialog-header">
+              <AlertTriangle size={24} className="warning-icon" />
+              <h3>Date Exceeds Milestone</h3>
+            </div>
+            <div className="dialog-body">
+              {milestone?.baseline_locked ? (
+                <>
+                  <p>This date extends past the milestone end date ({formatDate(milestone.forecast_end_date || milestone.end_date)}).</p>
+                  <p>Since the milestone is <strong>baselined</strong>, a <strong>Variation</strong> will be required to formally accept this change.</p>
+                  <p className="warning-text">
+                    Until the Variation is signed off by both parties, the milestone will be marked as <span className="text-red">At Risk (red)</span>.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>This date extends past the milestone end date ({formatDate(milestone?.forecast_end_date || milestone?.end_date)}).</p>
+                  <p>The milestone will also need extending.</p>
+                  <p className="info-text">Since the milestone isn't baselined yet, this requires no formal change.</p>
+                </>
+              )}
+            </div>
+            <div className="dialog-footer">
+              <button className="btn btn-secondary" onClick={handleDateExtensionCancel}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleDateExtensionConfirm}>
+                {milestone?.baseline_locked ? 'Proceed' : 'Yes, extend both'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

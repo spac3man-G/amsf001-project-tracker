@@ -11,7 +11,8 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import {
@@ -23,15 +24,17 @@ import {
   X,
   Maximize2,
   Minimize2,
-  RefreshCw
+  RefreshCw,
+  Plus
 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
-import { deliverablesService } from '../../services/deliverables.service';
+import { planItemsService, milestonesService, deliverablesService } from '../../services';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
 import './TaskGridView.css';
 
-// Register AG Grid Community modules (required for v31+)
-ModuleRegistry.registerModules([AllCommunityModule]);
+// Register AG Grid modules (Community + Enterprise for context menu)
+ModuleRegistry.registerModules([AllCommunityModule, AllEnterpriseModule]);
 
 // Status options for task workflow
 const STATUS_OPTIONS = [
@@ -107,6 +110,7 @@ export default function TaskGridView({
   isLoading = false
 }) {
   const { user } = useAuth();
+  const { projectId } = useProject();
   const gridRef = useRef(null);
 
   // Local state
@@ -114,6 +118,9 @@ export default function TaskGridView({
   const [saveStatus, setSaveStatus] = useState({ status: 'idle', message: '' });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [milestones, setMilestones] = useState([]);
+  const [deliverables, setDeliverables] = useState([]);
 
   // Refs for debouncing
   const saveTimerRef = useRef(null);
@@ -124,7 +131,23 @@ export default function TaskGridView({
     setRowData(tasks || []);
   }, [tasks]);
 
-  // Debounced save function
+  // Pre-load milestones and deliverables for Add Task dialog
+  useEffect(() => {
+    if (projectId) {
+      milestonesService.getAll(projectId).then(data => {
+        const sorted = (data || []).sort((a, b) =>
+          (a.milestone_ref || '').localeCompare(b.milestone_ref || '')
+        );
+        setMilestones(sorted);
+      }).catch(err => console.error('Error loading milestones:', err));
+
+      deliverablesService.getAll(projectId).then(data => {
+        setDeliverables(data || []);
+      }).catch(err => console.error('Error loading deliverables:', err));
+    }
+  }, [projectId]);
+
+  // Debounced save function - uses planItemsService for unified tasks
   const debouncedSave = useCallback(async (taskId, updates) => {
     // Store pending update
     pendingSavesRef.current.set(taskId, { ...pendingSavesRef.current.get(taskId), ...updates });
@@ -144,7 +167,8 @@ export default function TaskGridView({
         pendingSavesRef.current.clear();
 
         for (const [id, data] of saves) {
-          await deliverablesService.updateTask(id, data);
+          // Use planItemsService.updateTaskSimple for unified task system
+          await planItemsService.updateTaskSimple(id, data);
         }
 
         setSaveStatus({ status: 'saved', message: 'All changes saved' });
@@ -167,26 +191,51 @@ export default function TaskGridView({
 
   // Handle cell value changes
   const onCellValueChanged = useCallback((event) => {
-    const { data, colDef, newValue } = event;
+    const { data, colDef, newValue, oldValue, node, api } = event;
 
     // Build update object based on field
+    // Map Task View fields to plan_items fields
     const updates = {};
 
     switch (colDef.field) {
       case 'task_name':
         updates.name = newValue;
         break;
+      case 'summary':
+        // summary maps to comment portion of description in plan_items
+        // (description stores "Owner | Comment")
+        updates.comment = newValue || '';
+        break;
       case 'owner':
         updates.owner = newValue;
         break;
       case 'status':
-        updates.status = newValue;
+        // Map 'complete' to 'completed' for plan_items
+        updates.status = newValue === 'complete' ? 'completed' : newValue;
         break;
       case 'target_date':
-        updates.target_date = newValue || null;
+        // HARD BLOCK: Task date cannot exceed deliverable end date
+        if (newValue && data.deliverable_end_date) {
+          const taskDate = new Date(newValue);
+          const deliverableDate = new Date(data.deliverable_end_date);
+          if (taskDate > deliverableDate) {
+            // Revert the change
+            node.setDataValue('target_date', oldValue);
+            setSaveStatus({
+              status: 'error',
+              message: `Task date cannot exceed deliverable end date (${format(deliverableDate, 'dd MMM yyyy')})`
+            });
+            // Clear error after 4 seconds
+            setTimeout(() => setSaveStatus({ status: 'idle', message: '' }), 4000);
+            return;
+          }
+        }
+        // target_date maps to end_date in plan_items
+        updates.end_date = newValue || null;
         break;
       case 'is_complete':
-        updates.is_complete = newValue;
+        // is_complete maps to status
+        updates.status = newValue ? 'completed' : 'not_started';
         break;
       default:
         return;
@@ -231,6 +280,17 @@ export default function TaskGridView({
       cellEditor: 'agTextCellEditor',
       sortable: true,
       filter: true
+    },
+    {
+      field: 'summary',
+      headerName: 'Summary',
+      flex: 1,
+      minWidth: 150,
+      editable: canEdit,
+      cellEditor: 'agTextCellEditor',
+      sortable: true,
+      filter: true,
+      cellStyle: { color: '#6b7280' }
     },
     {
       field: 'owner',
@@ -289,6 +349,132 @@ export default function TaskGridView({
     params.api.sizeColumnsToFit();
   }, []);
 
+  // Insert task handler - creates task under same deliverable as reference
+  const handleInsertTask = useCallback(async (position, referenceTask) => {
+    if (!projectId || !referenceTask) return;
+
+    setSaveStatus({ status: 'saving', message: 'Creating task...' });
+
+    try {
+      // Get the deliverable ID from the reference task
+      // The task row has deliverable_ref but not the deliverable ID
+      // We need to find the deliverable via the task's parent in plan_items
+      const taskPlanItem = await planItemsService.getById(referenceTask.id);
+
+      if (!taskPlanItem || !taskPlanItem.parent_id) {
+        throw new Error('Could not find parent deliverable');
+      }
+
+      // Get the parent deliverable plan_item
+      const deliverablePlanItem = await planItemsService.getById(taskPlanItem.parent_id);
+
+      if (!deliverablePlanItem) {
+        throw new Error('Could not find deliverable');
+      }
+
+      // Create new task under the same deliverable
+      const deliverableId = deliverablePlanItem.published_deliverable_id || deliverablePlanItem.id;
+      const newTask = await planItemsService.createTaskForDeliverable(projectId, deliverableId, {
+        name: 'New Task',
+        status: 'not_started'
+      });
+
+      setSaveStatus({ status: 'saved', message: 'Task created' });
+      setTimeout(() => setSaveStatus({ status: 'idle', message: '' }), 2000);
+
+      // Refresh the grid
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      // Focus and start editing the new task after refresh
+      setTimeout(() => {
+        const rowNode = gridRef.current?.api?.getRowNode(String(newTask.id));
+        if (rowNode) {
+          gridRef.current.api.setFocusedCell(rowNode.rowIndex, 'task_name');
+          gridRef.current.api.startEditingCell({
+            rowIndex: rowNode.rowIndex,
+            colKey: 'task_name'
+          });
+        }
+      }, 200);
+    } catch (error) {
+      console.error('Error inserting task:', error);
+      setSaveStatus({ status: 'error', message: 'Failed to create task' });
+    }
+  }, [projectId, onRefresh]);
+
+  // Delete task handler
+  const handleDeleteTask = useCallback(async (taskId) => {
+    if (!taskId) return;
+
+    setSaveStatus({ status: 'saving', message: 'Deleting task...' });
+
+    try {
+      await planItemsService.deleteTaskSimple(taskId);
+
+      setSaveStatus({ status: 'saved', message: 'Task deleted' });
+      setTimeout(() => setSaveStatus({ status: 'idle', message: '' }), 2000);
+
+      // Refresh the grid
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      setSaveStatus({ status: 'error', message: 'Failed to delete task' });
+    }
+  }, [onRefresh]);
+
+  // Context menu items (Enterprise feature)
+  const getContextMenuItems = useCallback((params) => {
+    const { node } = params;
+
+    // If no edit permission or no row selected, show limited menu
+    if (!canEdit) {
+      return ['copy', 'copyWithHeaders'];
+    }
+
+    if (!node) {
+      return [
+        {
+          name: 'Add New Task...',
+          action: () => setShowAddDialog(true),
+          icon: '<span class="ag-icon ag-icon-plus"></span>'
+        }
+      ];
+    }
+
+    return [
+      {
+        name: 'Insert Task Below',
+        action: () => handleInsertTask('below', node.data),
+        icon: '<span class="ag-icon ag-icon-plus"></span>'
+      },
+      {
+        name: 'Insert Task Above',
+        action: () => handleInsertTask('above', node.data),
+        icon: '<span class="ag-icon ag-icon-plus"></span>'
+      },
+      'separator',
+      {
+        name: 'Add New Task...',
+        action: () => setShowAddDialog(true),
+        icon: '<span class="ag-icon ag-icon-plus"></span>'
+      },
+      'separator',
+      'copy',
+      'copyWithHeaders',
+      'separator',
+      {
+        name: 'Delete Task',
+        action: () => handleDeleteTask(node.data.id),
+        icon: '<span class="ag-icon ag-icon-cancel"></span>',
+        cssClasses: ['ag-menu-option-danger']
+      }
+    ];
+  }, [canEdit, handleInsertTask, handleDeleteTask]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -335,6 +521,17 @@ export default function TaskGridView({
         </div>
 
         <div className="toolbar-right">
+          {canEdit && (
+            <button
+              onClick={() => setShowAddDialog(true)}
+              className="toolbar-btn add-task-btn"
+              title="Add new task"
+            >
+              <Plus size={16} />
+              <span>Add Task</span>
+            </button>
+          )}
+
           <button
             onClick={onRefresh}
             className="toolbar-btn"
@@ -373,7 +570,8 @@ export default function TaskGridView({
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           animateRows={true}
-          suppressContextMenu={true}
+          suppressContextMenu={false}
+          getContextMenuItems={getContextMenuItems}
           getRowId={(params) => String(params.data.id)}
           rowHeight={40}
           headerHeight={44}
@@ -423,6 +621,188 @@ export default function TaskGridView({
           </div>
         </div>
       )}
+
+      {/* Add Task Dialog */}
+      {showAddDialog && (
+        <AddTaskDialog
+          isOpen={showAddDialog}
+          onClose={() => setShowAddDialog(false)}
+          projectId={projectId}
+          milestones={milestones}
+          deliverables={deliverables}
+          onTaskCreated={async (newTask) => {
+            setShowAddDialog(false);
+            if (onRefresh) {
+              await onRefresh();
+            }
+            // Focus and start editing the new task
+            setTimeout(() => {
+              const rowNode = gridRef.current?.api?.getRowNode(String(newTask.id));
+              if (rowNode) {
+                gridRef.current.api.setFocusedCell(rowNode.rowIndex, 'task_name');
+                gridRef.current.api.startEditingCell({
+                  rowIndex: rowNode.rowIndex,
+                  colKey: 'task_name'
+                });
+              }
+            }, 200);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Add Task Dialog Component
+ * Modal for creating a new task with milestone/deliverable selection
+ */
+function AddTaskDialog({ isOpen, onClose, projectId, milestones, deliverables, onTaskCreated }) {
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState('');
+  const [selectedDeliverableId, setSelectedDeliverableId] = useState('');
+  const [taskName, setTaskName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+
+  // Filter deliverables by selected milestone
+  const filteredDeliverables = useMemo(() => {
+    if (!selectedMilestoneId) return [];
+    return deliverables.filter(d => d.milestone_id === selectedMilestoneId);
+  }, [deliverables, selectedMilestoneId]);
+
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedMilestoneId('');
+      setSelectedDeliverableId('');
+      setTaskName('');
+      setError('');
+    }
+  }, [isOpen]);
+
+  // Reset deliverable when milestone changes
+  useEffect(() => {
+    setSelectedDeliverableId('');
+  }, [selectedMilestoneId]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!selectedDeliverableId || !taskName.trim()) {
+      setError('Please select a deliverable and enter a task name');
+      return;
+    }
+
+    setCreating(true);
+    setError('');
+
+    try {
+      const newTask = await planItemsService.createTaskForDeliverable(
+        projectId,
+        selectedDeliverableId,
+        {
+          name: taskName.trim(),
+          status: 'not_started'
+        }
+      );
+
+      if (onTaskCreated) {
+        onTaskCreated(newTask);
+      }
+    } catch (err) {
+      console.error('Error creating task:', err);
+      setError('Failed to create task. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="add-task-overlay" onClick={onClose}>
+      <div className="add-task-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>Add New Task</h3>
+          <button onClick={onClose} className="close-btn" disabled={creating}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            {error && <div className="error-message">{error}</div>}
+
+            <div className="form-group">
+              <label htmlFor="milestone">Milestone</label>
+              <select
+                id="milestone"
+                value={selectedMilestoneId}
+                onChange={(e) => setSelectedMilestoneId(e.target.value)}
+                disabled={creating}
+              >
+                <option value="">-- Select Milestone --</option>
+                {milestones.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.milestone_ref} - {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="deliverable">Deliverable</label>
+              <select
+                id="deliverable"
+                value={selectedDeliverableId}
+                onChange={(e) => setSelectedDeliverableId(e.target.value)}
+                disabled={creating || !selectedMilestoneId}
+              >
+                <option value="">-- Select Deliverable --</option>
+                {filteredDeliverables.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.deliverable_ref} - {d.name}
+                  </option>
+                ))}
+              </select>
+              {selectedMilestoneId && filteredDeliverables.length === 0 && (
+                <span className="hint">No deliverables in this milestone</span>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="taskName">Task Name</label>
+              <input
+                type="text"
+                id="taskName"
+                value={taskName}
+                onChange={(e) => setTaskName(e.target.value)}
+                placeholder="Enter task name..."
+                disabled={creating}
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-secondary"
+              disabled={creating}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={creating || !selectedDeliverableId || !taskName.trim()}
+            >
+              {creating ? 'Creating...' : 'Create Task'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

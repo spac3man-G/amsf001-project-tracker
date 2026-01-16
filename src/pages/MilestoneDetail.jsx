@@ -27,13 +27,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingSpinner, ConfirmDialog, DualSignature, SignatureComplete } from '../components/common';
 import { useMilestonePermissions } from '../hooks/useMilestonePermissions';
-import { 
-  calculateMilestoneStatus, 
+import {
+  calculateMilestoneStatus,
   calculateMilestoneProgress,
   calculateBaselineStatus,
   canGenerateCertificate as checkCanGenerateCertificate,
   getCertificateStatusInfo,
   isCertificateFullySigned,
+  isMilestoneBreached,
   getStatusCssClass,
   getBaselineStatusCssClass,
   BASELINE_STATUS
@@ -400,6 +401,7 @@ export default function MilestoneDetail() {
   const progress = calculateMilestoneProgress(deliverables);
   const totalDeliverables = deliverables.length;
   const deliveredCount = deliverables.filter(d => d.status === 'Delivered').length;
+  const isBreached = isMilestoneBreached(milestone);
 
   // Baseline status using shared utility
   const baselineStatus = calculateBaselineStatus(milestone);
@@ -439,8 +441,12 @@ export default function MilestoneDetail() {
         <div className="milestone-title-block">
           <div className="milestone-ref-row">
             <span className="milestone-ref" data-testid="milestone-detail-ref">{milestone.milestone_ref}</span>
-            <span className={`milestone-status ${getStatusCssClass(computedStatus)}`} data-testid="milestone-detail-status">
-              {computedStatus}
+            <span
+              className={`milestone-status ${isBreached ? 'status-breached' : getStatusCssClass(computedStatus)}`}
+              data-testid="milestone-detail-status"
+            >
+              {isBreached && <AlertTriangle size={14} style={{ marginRight: '4px' }} />}
+              {isBreached ? 'At Risk' : computedStatus}
             </span>
           </div>
           <h1 className="milestone-name" data-testid="milestone-detail-name">{milestone.name}</h1>
@@ -465,7 +471,29 @@ export default function MilestoneDetail() {
 
       {/* Content */}
       <div className="milestone-content" data-testid="milestone-detail-content">
-        
+
+        {/* Breach Warning Banner */}
+        {isBreached && (
+          <div className="breach-banner" data-testid="milestone-breach-banner">
+            <div className="breach-banner-content">
+              <AlertTriangle size={24} />
+              <div className="breach-banner-text">
+                <strong>Baseline Breach</strong>
+                <p>
+                  One or more deliverable dates exceed the baselined milestone end date.
+                  A signed Variation is required to update the baseline and resolve this status.
+                </p>
+                {milestone.baseline_breach_reason && (
+                  <p className="breach-reason"><em>{milestone.baseline_breach_reason}</em></p>
+                )}
+              </div>
+              <Link to={`/variations?milestone_id=${milestone.id}`} className="breach-action-button">
+                Create Variation
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Key Metrics Row */}
         <div className="metrics-grid" data-testid="milestone-metrics-grid">
           {/* Progress Card */}

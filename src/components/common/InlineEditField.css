@@ -1,0 +1,137 @@
+/**
+ * InlineEditField styles
+ * Microsoft Planner-style click-to-edit fields
+ */
+
+.inline-edit-field {
+  position: relative;
+}
+
+.inline-edit-field.clickable {
+  cursor: pointer;
+}
+
+.inline-edit-field.clickable:hover .inline-edit-value {
+  background-color: var(--color-bg-hover, #f3f4f6);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.inline-edit-field.disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.inline-edit-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #6b7280);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.inline-edit-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  min-height: 38px;
+  border-radius: var(--radius-sm, 4px);
+  transition: background-color 0.15s ease;
+}
+
+.inline-edit-value span {
+  flex: 1;
+  color: var(--color-text-primary, #111827);
+}
+
+.inline-edit-value span.placeholder {
+  color: var(--color-text-tertiary, #9ca3af);
+  font-style: italic;
+}
+
+.inline-edit-icon {
+  color: var(--color-text-tertiary, #9ca3af);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.inline-edit-field.clickable:hover .inline-edit-icon {
+  opacity: 1;
+}
+
+/* Editing state */
+.inline-edit-input-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.inline-edit-input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 2px solid var(--color-primary, #4f46e5);
+  border-radius: var(--radius-sm, 4px);
+  font-size: inherit;
+  font-family: inherit;
+  background: var(--color-bg, #fff);
+  color: var(--color-text-primary, #111827);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.inline-edit-input:focus {
+  border-color: var(--color-primary, #4f46e5);
+}
+
+.inline-edit-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.inline-edit-select {
+  cursor: pointer;
+}
+
+.inline-edit-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.inline-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.inline-edit-btn.save {
+  background-color: var(--color-success, #10b981);
+  color: white;
+}
+
+.inline-edit-btn.save:hover {
+  background-color: var(--color-success-dark, #059669);
+}
+
+.inline-edit-btn.cancel {
+  background-color: var(--color-bg-tertiary, #e5e7eb);
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.inline-edit-btn.cancel:hover {
+  background-color: var(--color-bg-hover, #d1d5db);
+}
+
+.inline-edit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

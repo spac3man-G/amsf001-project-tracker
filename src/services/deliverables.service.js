@@ -616,6 +616,8 @@ export class DeliverablesService extends BaseService {
         return {
           deliverable_ref: publishedDeliverable?.deliverable_ref || deliverableItem?.wbs || '',
           deliverable_name: publishedDeliverable?.name || deliverableItem?.name || '',
+          deliverable_id: publishedDeliverable?.id || deliverableItem?.published_deliverable_id || deliverableItem?.id,
+          deliverable_end_date: publishedDeliverable?.target_date || deliverableItem?.end_date || null,
           milestone_id: publishedMilestone?.id || milestoneItem?.published_milestone_id,
           milestone_ref: publishedMilestone?.milestone_ref || milestoneItem?.wbs || '',
           milestone_name: publishedMilestone?.name || milestoneItem?.name || ''
@@ -634,10 +636,18 @@ export class DeliverablesService extends BaseService {
       // Transform to flat structure for AG Grid
       return filteredTasks.map(task => {
         const parentInfo = findParentInfo(task);
+
+        // Parse owner and summary from description (format: "Owner | Comment")
+        const desc = task.description || '';
+        const descParts = desc.split(' | ');
+        const ownerFromDesc = descParts[0] || '';
+        const summaryFromDesc = descParts.slice(1).join(' | ') || '';
+
         return {
           id: task.id,
           task_name: task.name,
-          owner: task.assigned_resource_id || '', // plan_items uses assigned_resource_id
+          owner: ownerFromDesc || task.assigned_resource_id || '',
+          summary: summaryFromDesc,
           status: task.status || 'not_started',
           target_date: task.end_date, // Use end_date as target date
           is_complete: task.status === 'completed' || task.progress === 100,

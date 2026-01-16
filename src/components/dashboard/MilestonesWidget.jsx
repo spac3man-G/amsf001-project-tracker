@@ -10,18 +10,20 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Milestone, CheckCircle, Clock, FileText, Circle } from 'lucide-react';
+import { Milestone, CheckCircle, Clock, FileText, Circle, AlertTriangle } from 'lucide-react';
 import { milestonesService, deliverablesService } from '../../services';
 import { useProject } from '../../contexts/ProjectContext';
 import { SkeletonWidget } from '../common';
+import { isMilestoneBreached } from '../../lib/milestoneCalculations';
 
 export default function MilestonesWidget({ refreshTrigger }) {
   const navigate = useNavigate();
   const { projectId } = useProject();
-  
+
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
+    atRisk: 0,
     approved: 0,
     awaitingSignatures: 0,
     awaitingCertificate: 0,
@@ -63,14 +65,20 @@ export default function MilestonesWidget({ refreshTrigger }) {
       certificates.forEach(cert => { certsMap[cert.milestone_id] = cert; });
 
       // Calculate stats
+      let atRisk = 0;
       let approved = 0;
       let awaitingSignatures = 0;
       let awaitingCertificate = 0;
       let inProgress = 0;
 
       milestones.forEach(milestone => {
+        // Count at-risk (breached) milestones separately
+        if (isMilestoneBreached(milestone)) {
+          atRisk++;
+        }
+
         const deliverables = milestoneDeliverables[milestone.id] || [];
-        const allDelivered = deliverables.length > 0 && 
+        const allDelivered = deliverables.length > 0 &&
           deliverables.every(d => d.status === 'Delivered');
         const certificate = certsMap[milestone.id];
 
@@ -91,6 +99,7 @@ export default function MilestonesWidget({ refreshTrigger }) {
 
       setStats({
         total: milestones.length,
+        atRisk,
         approved,
         awaitingSignatures,
         awaitingCertificate,
@@ -126,6 +135,16 @@ export default function MilestonesWidget({ refreshTrigger }) {
       </div>
       
       <div className="widget-breakdown">
+        {stats.atRisk > 0 && (
+          <div className="widget-row" data-testid="milestones-widget-at-risk">
+            <div className="widget-row-icon at-risk">
+              <AlertTriangle size={16} />
+            </div>
+            <span className="widget-row-label">At Risk (Breached)</span>
+            <span className="widget-row-value at-risk">{stats.atRisk}</span>
+          </div>
+        )}
+
         <div className="widget-row">
           <div className="widget-row-icon approved">
             <CheckCircle size={16} />
@@ -133,7 +152,7 @@ export default function MilestonesWidget({ refreshTrigger }) {
           <span className="widget-row-label">Approved (Signed)</span>
           <span className="widget-row-value">{stats.approved}</span>
         </div>
-        
+
         <div className="widget-row">
           <div className="widget-row-icon pending">
             <Clock size={16} />
@@ -141,7 +160,7 @@ export default function MilestonesWidget({ refreshTrigger }) {
           <span className="widget-row-label">Awaiting Signatures</span>
           <span className="widget-row-value">{stats.awaitingSignatures}</span>
         </div>
-        
+
         <div className="widget-row">
           <div className="widget-row-icon awaiting">
             <FileText size={16} />
@@ -149,7 +168,7 @@ export default function MilestonesWidget({ refreshTrigger }) {
           <span className="widget-row-label">Awaiting Certificate</span>
           <span className="widget-row-value">{stats.awaitingCertificate}</span>
         </div>
-        
+
         <div className="widget-row">
           <div className="widget-row-icon progress">
             <Circle size={16} />

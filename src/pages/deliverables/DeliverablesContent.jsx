@@ -11,11 +11,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService, planItemsService } from '../../services';
-import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle, ChevronUp, ChevronDown, Layers } from 'lucide-react';
-import { 
+import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle, ChevronUp, ChevronDown, Layers, PanelRightOpen, Maximize2 } from 'lucide-react';
+import {
   DELIVERABLE_STATUS,
   DELIVERABLE_STATUS_CONFIG,
-  getStatusOptions 
+  getStatusOptions
 } from '../../lib/deliverableCalculations';
 import { useTestUsers } from '../../contexts/TestUserContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -25,7 +25,7 @@ import { useMetrics } from '../../contexts/MetricsContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { LoadingSpinner, PageHeader, ConfirmDialog, MultiSelectList } from '../../components/common';
 import { formatDate } from '../../lib/formatters';
-import { DeliverableDetailModal } from '../../components/deliverables';
+import { DeliverableDetailModal, DeliverableSidePanel } from '../../components/deliverables';
 import '../Deliverables.css';
 
 // Sort indicator component - defined outside main component to avoid re-render issues
@@ -90,8 +90,18 @@ export default function DeliverablesContent() {
   const [sortColumn, setSortColumn] = useState('deliverable_ref');
   const [sortDirection, setSortDirection] = useState('asc');
 
-  // Detail modal state
+  // View mode: 'modal' (default/classic) or 'panel' (Planner-style prototype)
+  const [viewMode, setViewMode] = useState(() => {
+    // Check localStorage for saved preference
+    const saved = localStorage.getItem('deliverables-view-mode');
+    return saved || 'modal';
+  });
+
+  // Detail modal state (classic mode)
   const [detailModal, setDetailModal] = useState({ isOpen: false, deliverable: null });
+
+  // Side panel state (Planner-style prototype)
+  const [sidePanel, setSidePanel] = useState({ isOpen: false, deliverable: null });
 
   // Delete confirmation dialog state
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, deliverable: null });
@@ -314,7 +324,38 @@ export default function DeliverablesContent() {
   }
 
   function handleRowClick(d) {
-    setDetailModal({ isOpen: true, deliverable: d });
+    console.log('Row clicked, viewMode:', viewMode, 'deliverable:', d?.deliverable_ref);
+    if (viewMode === 'panel') {
+      console.log('Opening side panel');
+      setSidePanel({ isOpen: true, deliverable: d });
+    } else {
+      console.log('Opening modal');
+      setDetailModal({ isOpen: true, deliverable: d });
+    }
+  }
+
+  // Toggle view mode and save preference
+  function handleViewModeChange(mode) {
+    setViewMode(mode);
+    localStorage.setItem('deliverables-view-mode', mode);
+    // Close any open views when switching modes
+    setDetailModal({ isOpen: false, deliverable: null });
+    setSidePanel({ isOpen: false, deliverable: null });
+  }
+
+  // Panel-specific handlers
+  function handlePanelUpdate() {
+    fetchData();
+    refreshMetrics();
+  }
+
+  function handlePanelStatusChange(deliverable, newStatus) {
+    handleStatusChange(deliverable, newStatus);
+    setSidePanel({ isOpen: false, deliverable: null });
+  }
+
+  function handlePanelSign(deliverableId, signerRole) {
+    return handleSign(deliverableId, signerRole);
   }
 
   // Handle column sort
@@ -422,17 +463,35 @@ export default function DeliverablesContent() {
             </div>
           </div>
           <div className="del-header-actions">
-            <button 
-              className="del-btn del-btn-secondary" 
-              onClick={handleRefresh} 
+            {/* View Mode Toggle */}
+            <div className="del-view-mode-toggle" title="Switch between Modal (classic) and Panel (Planner-style) views">
+              <button
+                className={`del-view-mode-btn ${viewMode === 'modal' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('modal')}
+                title="Modal view (classic)"
+              >
+                <Maximize2 size={16} />
+              </button>
+              <button
+                className={`del-view-mode-btn ${viewMode === 'panel' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('panel')}
+                title="Panel view (Planner-style)"
+              >
+                <PanelRightOpen size={16} />
+              </button>
+            </div>
+
+            <button
+              className="del-btn del-btn-secondary"
+              onClick={handleRefresh}
               disabled={refreshing}
               data-testid="deliverables-refresh-button"
             >
               <RefreshCw size={18} className={refreshing ? 'spinning' : ''} /> Refresh
             </button>
             {canEdit && (
-              <button 
-                className="del-btn del-btn-primary" 
+              <button
+                className="del-btn del-btn-primary"
                 onClick={() => setShowAddForm(!showAddForm)}
                 data-testid="add-deliverable-button"
               >
@@ -725,6 +784,32 @@ export default function DeliverablesContent() {
         cancelText="Cancel"
         type="danger"
       />
+
+      {/* Side Panel (Planner-style prototype) */}
+      <DeliverableSidePanel
+        isOpen={sidePanel.isOpen}
+        deliverable={sidePanel.deliverable}
+        milestones={milestones}
+        kpis={kpis}
+        qualityStandards={qualityStandards}
+        onClose={() => setSidePanel({ isOpen: false, deliverable: null })}
+        onUpdate={handlePanelUpdate}
+        onStatusChange={handlePanelStatusChange}
+        onDelete={handleDeleteClick}
+        onSign={handlePanelSign}
+        onOpenModal={(d) => {
+          setSidePanel({ isOpen: false, deliverable: null });
+          setDetailModal({ isOpen: true, deliverable: d });
+        }}
+      />
+
+      {/* Panel backdrop */}
+      {sidePanel.isOpen && (
+        <div
+          className="side-panel-backdrop visible"
+          onClick={() => setSidePanel({ isOpen: false, deliverable: null })}
+        />
+      )}
     </div>
   );
 }

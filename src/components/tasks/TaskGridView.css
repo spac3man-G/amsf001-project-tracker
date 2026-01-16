@@ -350,3 +350,236 @@
 .ag-theme-alpine .ag-cell-inline-editing {
   padding: 0 8px;
 }
+
+/* Add Task Button */
+.toolbar-btn.add-task-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background-color: #007aff;
+  color: white;
+  border-radius: 6px;
+}
+
+.toolbar-btn.add-task-btn:hover {
+  background-color: #0066d6;
+}
+
+.toolbar-btn.add-task-btn span {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Add Task Dialog Overlay */
+.add-task-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+/* Add Task Dialog Modal */
+.add-task-modal {
+  background-color: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: modal-appear 0.15s ease-out;
+}
+
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.add-task-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.add-task-modal .modal-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.add-task-modal .modal-body {
+  padding: 1.25rem;
+}
+
+.add-task-modal .form-group {
+  margin-bottom: 1rem;
+}
+
+.add-task-modal .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.add-task-modal label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.375rem;
+}
+
+.add-task-modal select,
+.add-task-modal input[type="text"] {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #1f2937;
+  background-color: white;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.add-task-modal select:focus,
+.add-task-modal input[type="text"]:focus {
+  outline: none;
+  border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+.add-task-modal select:disabled,
+.add-task-modal input[type="text"]:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.add-task-modal .hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.add-task-modal .error-message {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 0.625rem 0.875rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.add-task-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  border-radius: 0 0 12px 12px;
+}
+
+.add-task-modal .btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.add-task-modal .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.add-task-modal .btn-secondary {
+  background-color: #f1f5f9;
+  color: #1d1d1f;
+  border: 1px solid #d2d2d7;
+}
+
+.add-task-modal .btn-secondary:hover:not(:disabled) {
+  background-color: #e2e8f0;
+}
+
+.add-task-modal .btn-primary {
+  background-color: #007aff;
+  color: white;
+}
+
+.add-task-modal .btn-primary:hover:not(:disabled) {
+  background-color: #0066d6;
+}
+
+/* Context Menu Styling - Fix transparency */
+.task-grid .ag-theme-alpine .ag-menu {
+  background-color: #ffffff !important;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  z-index: 10000;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-list {
+  background-color: #ffffff !important;
+  padding: 4px 0;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-option {
+  background-color: #ffffff !important;
+  padding: 10px 16px;
+  transition: background-color 0.1s ease;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-option:hover {
+  background-color: #f0f2f5 !important;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-option-active {
+  background-color: #f0f2f5 !important;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-option-text {
+  color: #1d1d1f;
+  font-size: 0.875rem;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-option-icon {
+  color: #676879;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-separator {
+  background-color: #ffffff !important;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-separator-part {
+  background-color: #e2e8f0;
+  height: 1px;
+  margin: 4px 12px;
+}
+
+/* Context Menu Danger Class */
+.task-grid .ag-theme-alpine .ag-menu-option.ag-menu-option-danger .ag-menu-option-text {
+  color: #dc2626;
+}
+
+.task-grid .ag-theme-alpine .ag-menu-option.ag-menu-option-danger:hover {
+  background-color: #fef2f2 !important;
+}

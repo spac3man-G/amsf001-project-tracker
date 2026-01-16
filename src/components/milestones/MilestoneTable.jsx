@@ -13,9 +13,18 @@
 
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Edit2, Trash2, FileCheck, Award } from 'lucide-react';
+import { Edit2, Trash2, FileCheck, Award, AlertTriangle } from 'lucide-react';
+import { isMilestoneBreached } from '../../lib/milestoneCalculations';
 
-function getStatusColor(status) {
+// Breached status takes priority - shown as RED
+const BREACHED_COLORS = { bg: '#fee2e2', color: '#dc2626' };
+
+function getStatusColor(status, milestone) {
+  // If milestone is breached, always show RED
+  if (isMilestoneBreached(milestone)) {
+    return BREACHED_COLORS;
+  }
+
   switch (status) {
     case 'Completed': return { bg: '#dcfce7', color: '#16a34a' };
     case 'In Progress': return { bg: '#dbeafe', color: '#2563eb' };
@@ -70,12 +79,13 @@ export default function MilestoneTable({
             </tr>
           ) : (
             milestones.map(milestone => {
-              const statusColors = getStatusColor(milestone.computedStatus);
+              const isBreached = isMilestoneBreached(milestone);
+              const statusColors = getStatusColor(milestone.computedStatus, milestone);
               const cert = certificates[milestone.id];
               const deliverableCount = milestoneDeliverables[milestone.id]?.length || 0;
-              
+
               return (
-                <tr 
+                <tr
                   key={milestone.id}
                   onClick={() => navigate(`/milestones/${milestone.id}`)}
                   style={{ cursor: 'pointer' }}
@@ -86,15 +96,19 @@ export default function MilestoneTable({
                   </td>
                   <td style={{ fontWeight: '500' }}>{milestone.name}</td>
                   <td>
-                    <span style={{ 
+                    <span style={{
                       padding: '0.25rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.85rem',
                       backgroundColor: statusColors.bg,
                       color: statusColors.color,
-                      fontWeight: '500'
+                      fontWeight: '500',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
                     }}>
-                      {milestone.computedStatus}
+                      {isBreached && <AlertTriangle size={14} />}
+                      {isBreached ? 'At Risk' : milestone.computedStatus}
                     </span>
                     {deliverableCount > 0 && (
                       <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: '#64748b' }}>

@@ -435,32 +435,103 @@
   color: var(--ds-text-secondary);
 }
 
+/* =============================================================================
+   View Mode Toggle (Planner-style prototype)
+   ============================================================================= */
+
+.del-view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--ds-bg-tertiary);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.del-view-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--ds-transition), color var(--ds-transition);
+}
+
+.del-view-mode-btn:hover {
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-primary);
+}
+
+.del-view-mode-btn.active {
+  background: var(--ds-teal);
+  color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* Side panel backdrop */
+.side-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.side-panel-backdrop.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Adjust content when panel is open */
+.deliverables-page:has(.deliverable-side-panel.open) .del-table-card {
+  margin-right: 480px;
+  transition: margin-right 0.3s ease;
+}
+
+@media (max-width: 960px) {
+  .deliverables-page:has(.deliverable-side-panel.open) .del-table-card {
+    margin-right: 0;
+  }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .del-header {
     padding: 20px;
   }
-  
+
   .del-header-content {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
   }
-  
+
   .del-content {
     padding: 20px;
   }
-  
+
   .del-filters {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .del-filter-select {
     width: 100%;
   }
-  
+
   .del-form-row {
     flex-direction: column;
+  }
+
+  .del-view-mode-toggle {
+    order: -1;
   }
 }
