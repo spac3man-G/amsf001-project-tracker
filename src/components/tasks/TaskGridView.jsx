@@ -77,20 +77,6 @@ const DeliverableCellRenderer = (props) => {
   );
 };
 
-// Custom cell renderer for checkbox
-const CheckboxCellRenderer = (props) => {
-  return (
-    <div className="checkbox-cell">
-      <input
-        type="checkbox"
-        checked={props.value || false}
-        onChange={() => {}}
-        className="task-checkbox"
-      />
-    </div>
-  );
-};
-
 // Date formatter
 const formatDate = (value) => {
   if (!value) return '';
@@ -233,10 +219,6 @@ export default function TaskGridView({
         // target_date maps to end_date in plan_items
         updates.end_date = newValue || null;
         break;
-      case 'is_complete':
-        // is_complete maps to status
-        updates.status = newValue ? 'completed' : 'not_started';
-        break;
       default:
         return;
     }
@@ -302,19 +284,6 @@ export default function TaskGridView({
       filter: true
     },
     {
-      field: 'status',
-      headerName: 'Status',
-      width: 130,
-      editable: canEdit,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: STATUS_OPTIONS.map(o => o.value)
-      },
-      cellRenderer: StatusCellRenderer,
-      sortable: true,
-      filter: true
-    },
-    {
       field: 'target_date',
       headerName: 'Target Date',
       width: 130,
@@ -325,12 +294,15 @@ export default function TaskGridView({
       filter: 'agDateColumnFilter'
     },
     {
-      field: 'is_complete',
-      headerName: 'Done',
-      width: 80,
+      field: 'status',
+      headerName: 'Status',
+      width: 130,
       editable: canEdit,
-      cellRenderer: CheckboxCellRenderer,
-      cellEditor: 'agCheckboxCellEditor',
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: STATUS_OPTIONS.map(o => o.value)
+      },
+      cellRenderer: StatusCellRenderer,
       sortable: true,
       filter: true
     }

@@ -638,10 +638,11 @@ export class DeliverablesService extends BaseService {
         const parentInfo = findParentInfo(task);
 
         // Parse owner and summary from description (format: "Owner | Comment")
+        // If no pipe character, entire description is summary and owner is empty
         const desc = task.description || '';
-        const descParts = desc.split(' | ');
-        const ownerFromDesc = descParts[0] || '';
-        const summaryFromDesc = descParts.slice(1).join(' | ') || '';
+        const pipeIndex = desc.indexOf(' | ');
+        const ownerFromDesc = pipeIndex !== -1 ? desc.substring(0, pipeIndex) : '';
+        const summaryFromDesc = pipeIndex !== -1 ? desc.substring(pipeIndex + 3) : desc;
 
         return {
           id: task.id,
