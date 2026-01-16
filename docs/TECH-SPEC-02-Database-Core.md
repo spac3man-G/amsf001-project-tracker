@@ -723,6 +723,30 @@ CREATE TABLE IF NOT EXISTS milestones (
 | `baseline_customer_pm_name` | TEXT | Customer PM name at signing |
 | `baseline_customer_pm_signed_at` | TIMESTAMPTZ | Customer signature timestamp |
 
+#### Baseline Breach Fields (Added 16 January 2026)
+
+These fields track when deliverable dates exceed the baselined milestone dates, indicating the milestone is "at risk" and may require a Variation to resolve.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `baseline_breached` | BOOLEAN | True when a deliverable date exceeds baselined milestone end date. Shows milestone as RED/at-risk across the app. |
+| `baseline_breach_reason` | TEXT | Explanation of why the breach occurred (e.g., which deliverable caused it) |
+| `baseline_breached_at` | TIMESTAMPTZ | Timestamp when the breach was first detected |
+| `baseline_breached_by` | UUID | User who made the change that caused the breach |
+
+**Breach Detection Workflow:**
+1. User sets a deliverable `target_date` that exceeds the milestone's baselined `end_date`
+2. System sets `baseline_breached = true` with reason and timestamp
+3. Milestone displays as RED "At Risk" status across all views:
+   - MilestoneTable with warning icon and red badge
+   - MilestoneDetail with breach banner and "Create Variation" CTA
+   - Dashboard MilestonesWidget with breach count
+4. Breach is cleared when:
+   - A dual-signed Variation is applied to extend the milestone dates
+   - The deliverable dates are manually corrected to not exceed the milestone
+
+**Migration:** `supabase/migrations/202601160002_add_baseline_breach_fields.sql`
+
 #### Acceptance Certificate Fields
 
 | Column | Type | Description |

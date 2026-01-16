@@ -1,11 +1,16 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 5.3
+**Document Version:** 5.4
 **Created:** 11 December 2025
-**Updated:** 15 January 2026
-**Session:** 1.8.4
+**Updated:** 16 January 2026
+**Session:** 1.8.5
 **Status:** Complete
 
+> **Version 5.4 Updates (16 January 2026):**
+> - Updated Section 5.1: Added Baseline Breach Methods to Milestones Service
+> - Documents `setBaselineBreach()`, `checkAndClearBreach()`, `checkDeliverableDateBreach()`
+> - Documents breach flag logic and return values
+>
 > **Version 5.3 Updates (15 January 2026):**
 > - Added Section 15.1.3: Component Filter Methods
 > - Added Section 15.1.4: Planning Date Utilities (planningDateUtils.js)
@@ -862,6 +867,42 @@ Manages milestones, baseline commitments, and acceptance certificates.
 |--------|------------|-------------|
 | `signBaseline(milestoneId, signerRole, userId, userName)` | milestoneId, role, userId, userName | Sign baseline commitment |
 | `resetBaseline(milestoneId)` | milestoneId | Reset all baseline signatures |
+
+#### Baseline Breach Methods (Added 16 January 2026)
+
+Track when deliverable dates exceed baselined milestone dates, indicating the milestone is "at risk".
+
+| Method | Parameters | Description |
+|--------|------------|-------------|
+| `setBaselineBreach(milestoneId, breached, options)` | milestoneId, breached, { reason, breachedBy } | Set or clear baseline breach flag |
+| `checkAndClearBreach(milestoneId)` | milestoneId | Auto-clear breach if no deliverables exceed date |
+| `checkDeliverableDateBreach(milestoneId, proposedDate)` | milestoneId, proposedDate | Check if a date would cause a breach |
+
+**Breach Flag Logic:**
+- `baseline_breached` is set to `true` when a deliverable's date exceeds the milestone's end date
+- Shows the milestone as "at risk" (RED) across the application
+- Automatically cleared when all deliverable dates are back within range
+- Can be resolved by signing a Variation or adjusting deliverable dates
+
+**Return Values:**
+
+```javascript
+// setBaselineBreach - returns updated milestone
+{ id, baseline_breached, baseline_breach_reason, baseline_breached_at, baseline_breached_by, ... }
+
+// checkAndClearBreach - returns boolean
+true  // breach was cleared
+false // still breached or was not breached
+
+// checkDeliverableDateBreach - returns breach check result
+{
+  wouldBreach: boolean,
+  isBaselined: boolean,
+  milestoneEndDate: string,
+  proposedDate: string,
+  milestone: object
+}
+```
 
 #### Example Usage
 
@@ -2249,6 +2290,7 @@ All services use the singleton pattern and are exported through a barrel file fo
 | 5.1 | 7 Jan 2026 | Claude AI | **Evaluator Services Reference**: Added Section 16 with cross-reference to TECH-SPEC-11-Evaluator.md, updated file structure to include evaluator/ subfolder |
 | 5.2 | 15 Jan 2026 | Claude AI | **Component Filter Methods**: Added Section 15.1.3 (getComponents, getMilestoneComponentMap methods) |
 | 5.3 | 15 Jan 2026 | Claude AI | **Planning Date Utilities**: Added Section 15.1.4 documenting planningDateUtils.js with date sync functions |
+| 5.4 | 16 Jan 2026 | Claude AI | **Baseline Breach Methods**: Added setBaselineBreach, checkAndClearBreach, checkDeliverableDateBreach to Section 5.1 Milestones Service |
 
 ---
 

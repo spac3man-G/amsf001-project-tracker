@@ -1,11 +1,18 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.4
+**Document Version:** 5.5
 **Created:** 11 December 2025
-**Last Updated:** 15 January 2026
-**Session:** 1.7.4
+**Last Updated:** 16 January 2026
+**Session:** 1.7.5
 **Author:** Claude AI (Anthropic)
 
+> **Version 5.5 Updates (16 January 2026):**
+> - Added Section 16: Inline Editing Components (January 2026)
+> - Documents InlineEditField component (click-to-edit field)
+> - Documents InlineChecklist component (always-editable checklist)
+> - Documents DeliverableSidePanel component (slide-out panel)
+> - All components follow Microsoft Planner design patterns
+>
 > **Version 5.4 Updates (15 January 2026):**
 > - Added Section 14.1a: PlannerGrid Component (AG Grid Enterprise)
 > - Documented selection sync, checkbox column, WBS column, date synchronization
@@ -73,6 +80,7 @@
 13. [New UI Components (December 2025)](#13-new-ui-components-december-2025) *(NEW)*
 14. [Planning & Estimator Tools](#14-planning--estimator-tools) *(NEW - December 2025)*
 15. [Evaluator Frontend](#15-evaluator-frontend) *(NEW - January 2026)*
+16. [Inline Editing Components](#16-inline-editing-components-january-2026) *(NEW - January 2026)*
 - [Appendix A: Role Display Configuration](#appendix-a-role-display-configuration)
 - [Appendix B: Context Import Patterns](#appendix-b-context-import-patterns)
 - [Document History](#document-history)
@@ -2920,6 +2928,269 @@ The module exposes 8 API endpoints in `api/evaluator/`:
 
 ---
 
+## 16. Inline Editing Components (January 2026)
+
+> **Added:** 16 January 2026
+>
+> Microsoft Planner-style inline editing components for a modern, click-to-edit UX.
+
+### 16.1 InlineEditField Component
+
+**File:** `src/components/common/InlineEditField.jsx` (206 lines)
+
+**Purpose:** Click-to-edit field component that displays a value and transforms into an editable input on click. Provides auto-save functionality and supports multiple input types.
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | string | - | Current field value |
+| `onChange` | function | - | Called when value changes (controlled mode) |
+| `onSave` | function | - | Called when value should be saved (async supported) |
+| `placeholder` | string | 'Click to edit...' | Placeholder text when empty |
+| `type` | string | 'text' | Input type: 'text', 'textarea', 'select' |
+| `options` | array | [] | For select type: `[{ value, label }]` |
+| `disabled` | boolean | false | Disable editing |
+| `className` | string | '' | Additional CSS class |
+| `label` | string | - | Optional label above field |
+| `showEditIcon` | boolean | false | Show pencil icon on hover |
+| `autoSave` | boolean | true | Auto-save on blur |
+| `rows` | number | 3 | Number of rows for textarea |
+
+**State:**
+
+```javascript
+const [isEditing, setIsEditing] = useState(false);
+const [editValue, setEditValue] = useState(value || '');
+const [saving, setSaving] = useState(false);
+```
+
+**Keyboard Handling:**
+
+| Key | Action |
+|-----|--------|
+| Enter | Save (text/select only) |
+| Escape | Cancel editing |
+
+**CSS Classes:**
+
+```css
+.inline-edit-field          /* Container */
+.inline-edit-field.editing  /* Edit mode */
+.inline-edit-field.disabled /* Disabled state */
+.inline-edit-field.empty    /* Empty value */
+.inline-edit-value          /* Display value */
+.inline-edit-input          /* Input element */
+.inline-edit-textarea       /* Textarea element */
+.inline-edit-select         /* Select element */
+```
+
+---
+
+### 16.2 InlineChecklist Component
+
+**File:** `src/components/common/InlineChecklist.jsx` (352 lines)
+
+**Purpose:** Always-editable checklist component following Microsoft Planner patterns. Supports toggle, inline editing, and "Add an item" input always visible at bottom.
+
+**Main Component Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `items` | array | [] | Array of checklist items |
+| `onToggle` | function | - | `(id, isComplete) => void` |
+| `onCreate` | function | - | `(taskData) => void` |
+| `onUpdate` | function | - | `(id, updates) => void` |
+| `onDelete` | function | - | `(id) => void` |
+| `disabled` | boolean | false | Disable all editing |
+| `title` | string | 'Checklist' | Header title |
+| `showProgress` | boolean | true | Show progress bar |
+| `showDetails` | boolean | true | Allow expanding item details |
+| `placeholder` | string | 'Add an item' | Add input placeholder |
+
+**Item Structure:**
+
+```javascript
+{
+  id: string,
+  name: string,
+  owner: string | null,
+  status: 'not_started' | 'in_progress' | 'blocked' | 'complete',
+  is_complete: boolean,
+  target_date: string | null,
+  sort_order: number | null,
+  is_deleted: boolean
+}
+```
+
+**Status Options:**
+
+```javascript
+const TASK_STATUS_OPTIONS = [
+  { value: 'not_started', label: 'Not Started', color: '#6b7280' },
+  { value: 'in_progress', label: 'In Progress', color: '#3b82f6' },
+  { value: 'blocked', label: 'Blocked', color: '#ef4444' },
+  { value: 'complete', label: 'Complete', color: '#10b981' },
+];
+```
+
+**Sub-component: ChecklistItem**
+
+Renders individual checklist items with:
+- Drag handle (visual placeholder)
+- Checkbox toggle
+- Click-to-edit name
+- Owner display
+- Status dot indicator
+- Expandable details section
+
+**Features:**
+
+| Feature | Description |
+|---------|-------------|
+| Toggle completion | Click checkbox to mark complete/incomplete |
+| Inline name editing | Click item name to edit, Enter to save, Escape to cancel |
+| Expandable details | Owner, target date, status fields |
+| Progress tracking | Automatic `completedCount/totalCount` display |
+| Progress bar | Visual progress indicator |
+| Rapid entry | "Add an item" stays focused for multiple entries |
+
+**CSS Classes:**
+
+```css
+.inline-checklist           /* Container */
+.checklist-header           /* Header with title and progress */
+.checklist-items            /* Items container */
+.checklist-item             /* Individual item */
+.checklist-item.completed   /* Completed item (strikethrough) */
+.checklist-item.expanded    /* Expanded item */
+.checklist-checkbox         /* Checkbox button */
+.checklist-checkbox.checked /* Checked state */
+.checklist-add              /* Add item section */
+.checklist-add-trigger      /* "Add an item" button */
+```
+
+---
+
+### 16.3 DeliverableSidePanel Component
+
+**File:** `src/components/deliverables/DeliverableSidePanel.jsx` (654 lines)
+
+**Purpose:** Microsoft Planner-style slide-out panel for editing deliverable details without leaving the list view. Provides inline editing, task management, and workflow actions.
+
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `isOpen` | boolean | Panel visibility |
+| `deliverable` | object | Deliverable to display |
+| `milestones` | array | Available milestones for selection |
+| `kpis` | array | Available KPIs |
+| `qualityStandards` | array | Available quality standards |
+| `onClose` | function | Close panel handler |
+| `onUpdate` | function | Refresh data handler |
+| `onStatusChange` | function | `(deliverable, newStatus) => void` |
+| `onDelete` | function | `(deliverable) => void` |
+| `onSign` | function | `(deliverableId, signerRole) => void` |
+| `onOpenModal` | function | Opens full modal view |
+
+**State:**
+
+```javascript
+const [tasks, setTasks] = useState([]);           // Tasks from plan_items
+const [saving, setSaving] = useState(false);
+const [saveStatus, setSaveStatus] = useState(null); // 'saving', 'saved', 'error'
+const [sectionsExpanded, setSectionsExpanded] = useState({
+  details: true,
+  tasks: true,
+  kpis: false,
+  qualityStandards: false,
+  signOff: true,
+});
+```
+
+**Collapsible Sections:**
+
+| Section | Content | Default |
+|---------|---------|---------|
+| Details | Milestone, due date, progress, description | Expanded |
+| Tasks | InlineChecklist for task management | Expanded |
+| Linked KPIs | Related KPI badges | Collapsed |
+| Quality Standards | Related QS badges | Collapsed |
+| Sign-off | DualSignature component | Expanded |
+
+**Key Features:**
+
+| Feature | Implementation |
+|---------|----------------|
+| Inline field editing | Uses InlineEditField for name, description, milestone |
+| Progress slider | Direct progress percentage editing |
+| Task management | Full CRUD via InlineChecklist and plan_items service |
+| Auto-calculated progress | Updates from task completion status |
+| Save status indicator | Shows "Saving...", "Saved", "Error" feedback |
+| Workflow actions | Submit for Review, Return, Accept buttons |
+| Sign-off | DualSignature for supplier/customer sign-off |
+
+**Permission-Based UI:**
+
+```javascript
+// Derived from useDeliverablePermissions hook
+const canEdit = permissions.isSupplierPM || permissions.isAdmin ||
+                permissions.isContributor || permissions.isCustomerPM;
+const showSubmitForReview = permissions.canSubmit;
+const showReviewActions = permissions.canReview;
+const showSignOffSection = deliverable.status === 'review_complete' ||
+                           hasAnySignature || isComplete;
+```
+
+**Task Integration (plan_items):**
+
+```javascript
+// Load tasks from unified plan_items source
+planItemsService.getTasksForDeliverable(deliverable.id, projectId, deliverable.name);
+
+// Create tasks linked to deliverable
+planItemsService.createTaskForDeliverable(projectId, deliverable.id, taskData);
+
+// Toggle task completion
+planItemsService.toggleTaskComplete(taskId, isComplete);
+```
+
+**CSS Classes:**
+
+```css
+.deliverable-side-panel           /* Container */
+.deliverable-side-panel.open      /* Open state */
+.side-panel-header                /* Header with title and actions */
+.side-panel-content               /* Scrollable content area */
+.side-panel-section               /* Collapsible section */
+.side-panel-section-header        /* Section toggle button */
+.side-panel-section-content       /* Section content */
+.side-panel-field                 /* Individual field */
+.side-panel-footer                /* Footer with actions */
+.side-panel-btn                   /* Action buttons */
+.save-status                      /* Save indicator */
+```
+
+---
+
+### 16.4 File Structure Summary
+
+```
+src/
+├── components/
+│   ├── common/
+│   │   ├── InlineEditField.jsx     # Click-to-edit field (206 lines)
+│   │   ├── InlineEditField.css
+│   │   ├── InlineChecklist.jsx     # Always-editable checklist (352 lines)
+│   │   └── InlineChecklist.css
+│   └── deliverables/
+│       ├── DeliverableSidePanel.jsx # Slide-out panel (654 lines)
+│       └── DeliverableSidePanel.css
+```
+
+---
+
 ## Appendix A: Role Display Configuration
 
 ```javascript
@@ -3007,3 +3278,4 @@ import {
 | 5.2 | 6 Jan 2026 | Claude AI | **UI Utility Hooks**: Added Section 10.3 documenting useResizableColumns hook, localStorage persistence patterns |
 | 5.3 | 7 Jan 2026 | Claude AI | **Evaluator Module Reference**: Added Section 8.6 (EvaluationContext), Section 8.7 (ReportBuilderContext), Section 15 (Evaluator Frontend summary). Cross-references to TECH-SPEC-11-Evaluator.md |
 | 5.4 | 15 Jan 2026 | Claude AI | **PlannerGrid Component**: Added Section 14.1a documenting AG Grid Enterprise component with selection sync, checkbox column, date synchronization, and table-style appearance |
+| 5.5 | 16 Jan 2026 | Claude AI | **Inline Editing Components**: Added Section 16 documenting InlineEditField, InlineChecklist, and DeliverableSidePanel components (Microsoft Planner-style UX) |

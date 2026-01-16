@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.16] - 2026-01-16
+
+### Added
+
+#### Baseline Breach Detection System
+
+Automatically detects and flags milestones "at risk" when deliverable dates exceed baselined milestone end dates.
+
+**Database Changes:**
+- Added `baseline_breached` (BOOLEAN) to milestones table
+- Added `baseline_breach_reason` (TEXT) for breach explanation
+- Added `baseline_breached_at` (TIMESTAMPTZ) for detection timestamp
+- Added `baseline_breached_by` (UUID) for user tracking
+- Created index `idx_milestones_baseline_breached` for performance
+
+**Service Methods (`milestones.service.js`):**
+- `setBaselineBreach(milestoneId, breached, options)` - Set/clear breach flag with optional reason
+- `checkAndClearBreach(milestoneId)` - Auto-clear breach if no deliverables exceed date
+- `checkDeliverableDateBreach(milestoneId, proposedDate)` - Pre-check if a date would cause breach
+
+**Breach Resolution:**
+- Breach clears automatically when all deliverable dates are back within milestone range
+- Breach can be resolved by signing a Variation to extend the milestone
+
+#### Microsoft Planner-Style UI Components
+
+New inline editing components following MS Planner design patterns.
+
+**InlineEditField (`src/components/common/InlineEditField.jsx`):**
+- Click-to-edit field component with auto-save
+- Supports text, textarea, and select input types
+- Keyboard handling (Enter to save, Escape to cancel)
+
+**InlineChecklist (`src/components/common/InlineChecklist.jsx`):**
+- Always-editable task checklist with progress tracking
+- Toggle completion, inline name editing, expandable details
+- Status options: Not Started, In Progress, Blocked, Complete
+
+**DeliverableSidePanel (`src/components/deliverables/DeliverableSidePanel.jsx`):**
+- Slide-out panel for editing deliverables without leaving list view
+- Collapsible sections: Details, Tasks, KPIs, Quality Standards, Sign-off
+- Integrated with plan_items for unified task management
+- Save status indicator (Saving.../Saved/Error)
+- Workflow action buttons (Submit for Review, Return, Accept)
+
+**Files Added:**
+- `supabase/migrations/202601160002_add_baseline_breach_fields.sql`
+- `src/components/common/InlineEditField.jsx` (206 lines)
+- `src/components/common/InlineEditField.css`
+- `src/components/common/InlineChecklist.jsx` (352 lines)
+- `src/components/common/InlineChecklist.css`
+- `src/components/deliverables/DeliverableSidePanel.jsx` (654 lines)
+- `src/components/deliverables/DeliverableSidePanel.css`
+
+**Documentation Updated:**
+- TECH-SPEC-02: Added baseline breach columns to milestones table
+- TECH-SPEC-07: Added Section 16 for inline editing components
+- TECH-SPEC-08: Added baseline breach methods to milestones service
+- CLAUDE.md: Added baseline breach detection section
+
+---
+
 ## [0.9.15] - 2026-01-15
 
 ### Added
@@ -88,7 +150,7 @@ Fixed incorrect edit blocking in Planner where committed-but-not-baselined items
 - All committed items showed "This item is managed in Tracker. Changes must be made there."
 - Users could not edit any committed items in Planner, even when the milestone was not baselined
 
-**Correct Behavior (Per TECH-SPEC-12):**
+**Correct Behavior (Per TECH-SPEC-08 Section 15.1.2):**
 | Item State | Editable Fields | Structural Changes |
 |------------|-----------------|-------------------|
 | Uncommitted | All fields | Allowed |

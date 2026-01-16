@@ -70,7 +70,7 @@ Fixed a critical bug where committed-but-not-baselined items in Planner were inc
 
 **Previous (Bug):** All committed items showed "This item is managed in Tracker. Changes must be made there."
 
-**Correct Behavior (Per TECH-SPEC-12):**
+**Correct Behavior (Per TECH-SPEC-08 Section 15.1.2):**
 | Item State | Editable | Structural Changes |
 |------------|----------|-------------------|
 | Uncommitted | All fields | Allowed |
@@ -118,6 +118,52 @@ Fixed two issues related to the v3.0 role simplification:
 - `src/hooks/useMilestonePermissions.js` (v2.0)
 - `src/hooks/useNetworkStandardPermissions.js` (v2.0)
 - `src/hooks/usePermissions.js`
+
+---
+
+## NEW FEATURE: Baseline Breach Detection (16 January 2026)
+
+**Status**: COMPLETE
+
+### Overview
+
+When a deliverable's date exceeds the baselined milestone end date, the milestone is automatically flagged as "at risk" (baseline breach). This visual indicator persists across the application until resolved.
+
+### Database Changes
+
+Added to `milestones` table (see TECH-SPEC-02):
+- `baseline_breached` - BOOLEAN indicating milestone is at risk
+- `baseline_breach_reason` - TEXT explaining which deliverable caused breach
+- `baseline_breached_at` - TIMESTAMPTZ when breach was first detected
+- `baseline_breached_by` - UUID of user who caused the breach
+
+Migration: `supabase/migrations/202601160002_add_baseline_breach_fields.sql`
+
+### Service Methods (milestones.service.js)
+
+| Method | Purpose |
+|--------|---------|
+| `setBaselineBreach(milestoneId, breached, options)` | Set/clear breach flag with reason |
+| `checkAndClearBreach(milestoneId)` | Auto-clear if no deliverables exceed date |
+| `checkDeliverableDateBreach(milestoneId, proposedDate)` | Pre-check if a date would cause breach |
+
+### Breach Resolution
+
+A breached milestone can be resolved by:
+1. **Adjusting deliverable dates** - Move dates back within milestone range
+2. **Signing a Variation** - Formally extend the milestone end date
+
+### UI Components
+
+- **DeliverableSidePanel** - MS Planner-style slide-out panel for inline editing
+- **InlineEditField** - Click-to-edit field component
+- **InlineChecklist** - Always-editable task checklist
+
+See TECH-SPEC-07 Section 16 for component documentation.
+
+### Commits
+
+- `bdd28cd7` - feat: Add deliverable date management and baseline breach detection
 
 ---
 
