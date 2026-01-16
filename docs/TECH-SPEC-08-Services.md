@@ -1,11 +1,18 @@
 # AMSF001 Technical Specification - Service Layer
 
-**Document Version:** 5.5
+**Document Version:** 5.6
 **Created:** 11 December 2025
-**Updated:** 16 January 2026
-**Session:** 1.8.6
+**Updated:** 17 January 2026
+**Session:** 1.8.7
 **Status:** Complete
 
+> **Version 5.6 Updates (17 January 2026):**
+> - Updated Section 15.1.1: Added `componentIds` parameter to `commitPlan()` for component-based commits
+> - Added `getDescendantIds()` helper method documentation
+> - Updated `getCommitSummary()` to include per-component breakdown
+> - Added Section 15.1.5: Plan Templates Service (planTemplates.service.js)
+> - Documents template save/import workflow with JSONB structure format
+>
 > **Version 5.5 Updates (16 January 2026):**
 > - Added Section 18: Project Settings Service (new for workflow customization)
 > - Documents projectSettings.service.js (settings management, templates, approval logic)
@@ -2424,12 +2431,13 @@ async calculateWBS(projectId) {
 
 | Method | Parameters | Returns | Description |
 |--------|------------|---------|-------------|
-| `commitPlan` | projectId, userId | Object | Commits unpublished plan items to Tracker |
+| `commitPlan` | projectId, userId, componentIds? | Object | Commits unpublished plan items to Tracker (optionally filtered by component) |
 | `detectBaselineChanges` | projectId | Array | Finds changes affecting locked baselines |
 | `getPublishedItems` | projectId | Array | Gets all published items with linked records |
 | `getMilestoneForItem` | item | Object/null | Gets linked milestone (checks baseline lock) |
 | `validatePlanForCommit` | items | Object | Validates plan before commit |
-| `getCommitSummary` | items | Object | Calculates commit statistics |
+| `getCommitSummary` | items | Object | Calculates commit statistics with per-component breakdown |
+| `getDescendantIds` | items, componentIds | Set | Gets all descendant item IDs for given components |
 
 #### Helper Functions
 
@@ -2454,20 +2462,42 @@ const STATUS_MAP = {
 #### Commit Plan Method
 
 ```javascript
-async commitPlan(projectId, userId) {
+async commitPlan(projectId, userId, componentIds = null) {
   // 1. Get unpublished milestones and deliverables
   const unpublished = await this.getUnpublishedItems(projectId);
-  
-  // 2. For each milestone: create in milestones table
-  // 3. For each deliverable: create in deliverables table (with parent milestone)
-  // 4. Update plan_items with published_milestone_id/published_deliverable_id
-  // 5. Set is_published = true, published_at = now()
-  
-  return { 
-    milestones: [...], 
-    deliverables: [...], 
-    count: n 
+
+  // 2. If componentIds specified, filter to selected components and descendants
+  if (componentIds && componentIds.length > 0) {
+    const descendantIds = this.getDescendantIds(unpublished, componentIds);
+    items = unpublished.filter(i => descendantIds.has(i.id));
+  }
+
+  // 3. For each milestone: create in milestones table
+  // 4. For each deliverable: create in deliverables table (with parent milestone)
+  // 5. Update plan_items with published_milestone_id/published_deliverable_id
+  // 6. Set is_published = true, published_at = now()
+
+  return {
+    milestones: [...],
+    deliverables: [...],
+    count: n
   };
+}
+
+// Helper: Get all descendants of specified components
+getDescendantIds(items, componentIds) {
+  const descendants = new Set();
+  const addDescendants = (parentId) => {
+    items.filter(i => i.parent_id === parentId).forEach(item => {
+      descendants.add(item.id);
+      addDescendants(item.id);
+    });
+  };
+  for (const componentId of componentIds) {
+    descendants.add(componentId);
+    addDescendants(componentId);
+  }
+  return descendants;
 }
 ```
 
@@ -2743,6 +2773,157 @@ const onCellValueChanged = useCallback((params) => {
 - Duration is inclusive (same day = 1 day)
 - Duration of 1 means start_date = end_date
 - Minimum duration is 1 day
+
+---
+
+### 15.1.5 Plan Templates Service
+
+> **Added:** 17 January 2026
+
+**File:** `src/services/planTemplates.service.js`
+
+**Purpose:** Manages reusable component templates that can be saved from one project and imported into any project within the same organisation.
+
+**Table:** `plan_templates`
+
+**Dependencies:**
+- Supabase client
+- planItemsService
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `getAllByOrganisation` | organisationId | Array | Get all templates for organisation |
+| `getById` | templateId | Object | Get template by ID |
+| `saveComponentAsTemplate` | orgId, projectId, componentId, name, desc, userId | Object | Save component as template |
+| `importTemplate` | templateId, projectId, startDate, userId | Object | Import template into project |
+| `update` | templateId, {name, description} | Object | Update template metadata |
+| `delete` | templateId | Object | Soft-delete template |
+
+#### Template Structure (JSONB)
+
+Templates store the component hierarchy as a nested JSONB structure:
+
+```json
+[{
+  "tempId": "temp_1",
+  "item_type": "component",
+  "name": "Phase 1: Discovery",
+  "description": "Initial discovery phase",
+  "sort_order": 0,
+  "children": [{
+    "tempId": "temp_2",
+    "item_type": "milestone",
+    "name": "Requirements Complete",
+    "duration_days": 15,
+    "children": [{
+      "tempId": "temp_3",
+      "item_type": "deliverable",
+      "name": "Requirements Document",
+      "duration_days": 10,
+      "children": []
+    }]
+  }]
+}]
+```
+
+**Key Design Decisions:**
+- Uses `tempId` for internal references (not real UUIDs)
+- Uses `duration_days` instead of dates (dates calculated on import)
+- Nested `children` array for easy tree traversal
+- Does not store project-specific data (`project_id`, `is_published`, etc.)
+
+#### Save Component As Template
+
+```javascript
+async saveComponentAsTemplate(orgId, projectId, componentId, name, description, userId) {
+  // 1. Get all items for the project
+  const { data: items } = await supabase
+    .from('plan_items')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('is_deleted', false);
+
+  // 2. Build nested structure starting from componentId
+  const structure = this.buildStructure(items, componentId);
+
+  // 3. Count items by type
+  const counts = this.countItems(structure);
+
+  // 4. Insert template record
+  const { data: template } = await supabase
+    .from('plan_templates')
+    .insert({
+      name,
+      description,
+      organisation_id: orgId,
+      created_by: userId,
+      source_project_id: projectId,
+      source_component_id: componentId,
+      structure,
+      ...counts
+    })
+    .select()
+    .single();
+
+  return template;
+}
+```
+
+#### Import Template
+
+```javascript
+async importTemplate(templateId, projectId, startDate, userId) {
+  // 1. Get template
+  const template = await this.getById(templateId);
+
+  // 2. Calculate max sort_order for new items
+  const maxSortOrder = await this.getMaxSortOrder(projectId);
+
+  // 3. Flatten structure and assign dates based on startDate
+  const flatItems = this.flattenStructure(template.structure, startDate, maxSortOrder);
+
+  // 4. Create ID mapping (tempId -> real UUID)
+  const idMap = new Map();
+  for (const item of flatItems) {
+    idMap.set(item.tempId, crypto.randomUUID());
+  }
+
+  // 5. Insert items with real IDs and parent_id references
+  const newItems = [];
+  for (const item of flatItems) {
+    const { tempId, tempParentId, ...data } = item;
+    const newItem = await planItemsService.create({
+      ...data,
+      id: idMap.get(tempId),
+      parent_id: tempParentId ? idMap.get(tempParentId) : null,
+      project_id: projectId,
+      created_by: userId
+    });
+    newItems.push(newItem);
+  }
+
+  return { itemCount: newItems.length, items: newItems };
+}
+```
+
+#### Helper Methods
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `buildStructure` | items, rootId | Array | Builds nested structure from flat items |
+| `flattenStructure` | structure, startDate, sortOffset | Array | Flattens nested structure with calculated dates |
+| `countItems` | structure | Object | Counts milestones, deliverables, tasks |
+| `calculateDuration` | structure | Number | Gets total duration in days |
+
+**UI Components:**
+- `SaveAsTemplateModal` - Save component as template
+- `ImportTemplateModal` - Import template into project
+- `TemplateManageModal` - View, edit, delete templates
+
+**Used by:**
+- Planning.jsx (Templates dropdown, Save as Template action on component rows)
 
 ---
 

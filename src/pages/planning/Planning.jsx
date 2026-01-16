@@ -6,11 +6,13 @@ import {
   Calculator, Link2, FileSpreadsheet, List,
   ExternalLink, Copy, Download, Clock,
   Scissors, Clipboard, ClipboardPaste,
-  Undo2, Redo2, Unlink, X, Upload, Grid2X2, Table, Maximize2
+  Undo2, Redo2, Unlink, X, Upload, Grid2X2, Table, Maximize2,
+  FileText, Settings, Save
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
+import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useToast } from '../../contexts/ToastContext';
 import planItemsService from '../../services/planItemsService';
 import { estimatesService, ESTIMATE_STATUS, calendarService } from '../../services';
@@ -20,17 +22,27 @@ import PredecessorEditModal from './PredecessorEditModal';
 import BaselineProtectionModal from './BaselineProtectionModal';
 import {
   CommitToTrackerButton,
+  CommitComponentsModal,
   PlanItemIndicators,
   PendingChangesBanner,
   SyncStatusFooter
 } from './PlanningIntegrationUI';
-import { EstimateLinkModal, EstimateGeneratorModal, PlannerGrid } from '../../components/planning';
+import {
+  EstimateLinkModal,
+  EstimateGeneratorModal,
+  PlannerGrid,
+  SaveAsTemplateModal,
+  ImportTemplateModal,
+  TemplateManageModal
+} from '../../components/planning';
+import { planTemplatesService } from '../../services';
 import planningClipboard from '../../lib/planningClipboard';
 import planningHistory from '../../lib/planningHistory';
 import { autoScheduleItems } from '../../lib/planningScheduler';
 import useResizableColumns from '../../hooks/useResizableColumns';
 import './Planning.css';
 import './PlanningIntegration.css';
+import '../../components/planning/PlanTemplates.css';
 
 const ITEM_TYPES = [
   { value: 'component', label: 'Component', icon: Layers, color: '#f59e0b' },
@@ -90,6 +102,7 @@ const COLUMNS = ['name', 'item_type', 'start_date', 'end_date', 'predecessors', 
 
 export default function Planning() {
   const { projectId, projectRole, projectName } = useProject();
+  const { organisationId } = useOrganisation();
   const { user } = useAuth();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const navigate = useNavigate();
@@ -117,6 +130,17 @@ export default function Planning() {
   const [predecessorEditItem, setPredecessorEditItem] = useState(null); // Item being edited for predecessors
   const [showLinkMenu, setShowLinkMenu] = useState(false); // Quick Link dropdown menu
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid' - AG Grid Enterprise view
+
+  // Template modals state
+  const [showTemplatesMenu, setShowTemplatesMenu] = useState(false); // Templates dropdown menu
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false); // Save as Template modal
+  const [showImportTemplate, setShowImportTemplate] = useState(false); // Import Template modal
+  const [showManageTemplates, setShowManageTemplates] = useState(false); // Manage Templates modal
+  const [templateSaveItem, setTemplateSaveItem] = useState(null); // Component to save as template
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateImporting, setTemplateImporting] = useState(false);
+  const templatesMenuRef = useRef(null);
+
   const inputRef = useRef(null);
   const tableRef = useRef(null);
   const linkMenuRef = useRef(null); // Ref for link dropdown menu
@@ -229,10 +253,22 @@ export default function Planning() {
         setShowLinkMenu(false);
       }
     }
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showLinkMenu]);
+
+  // Click outside handler for templates menu
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (showTemplatesMenu && templatesMenuRef.current && !templatesMenuRef.current.contains(e.target)) {
+        setShowTemplatesMenu(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTemplatesMenu]);
 
   // Calculate estimate summary stats
   const estimateSummary = useMemo(() => {
@@ -2324,9 +2360,42 @@ export default function Planning() {
             isCommitting={planningIntegration.isCommitting}
             canCommit={planningIntegration.canCommitPlan}
             onClick={planningIntegration.handleCommitToTracker}
+            onSelectComponents={() => planningIntegration.setShowCommitDialog(true)}
+            commitSummary={planningIntegration.commitSummary}
           />
-          <button 
-            onClick={() => setShowAIPanel(true)} 
+          {/* Templates Dropdown */}
+          <div className="planning-templates-dropdown" ref={templatesMenuRef} onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowTemplatesMenu(!showTemplatesMenu); }}
+              className="plan-btn plan-btn-secondary"
+              title="Plan Templates"
+            >
+              <FileText size={16} />
+              Templates
+              <ChevronDown size={14} className={`link-chevron ${showTemplatesMenu ? 'open' : ''}`} />
+            </button>
+            {showTemplatesMenu && (
+              <div className="planning-templates-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                <button
+                  className="planning-templates-dropdown-item"
+                  onClick={() => { setShowTemplatesMenu(false); setShowImportTemplate(true); }}
+                >
+                  <Upload size={16} />
+                  Import Template...
+                </button>
+                <div className="planning-templates-dropdown-divider" />
+                <button
+                  className="planning-templates-dropdown-item"
+                  onClick={() => { setShowTemplatesMenu(false); setShowManageTemplates(true); }}
+                >
+                  <Settings size={16} />
+                  Manage Templates...
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setShowAIPanel(true)}
             className="plan-btn plan-btn-ai"
             title="AI Planning Assistant"
           >
@@ -2637,21 +2706,30 @@ export default function Planning() {
                     {renderCell(item, 'status', index)}
                     <td className="plan-cell plan-cell-actions">
                       <div className="plan-actions">
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleIndent(item.id); }}
                           className="plan-action-btn"
                           title="Indent (make sub-task)"
                         >
                           <ArrowRight size={14} />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleOutdent(item.id); }}
                           className="plan-action-btn"
                           title="Outdent"
                         >
                           <ArrowLeft size={14} />
                         </button>
-                        <button 
+                        {item.item_type === 'component' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setTemplateSaveItem(item); setShowSaveTemplate(true); }}
+                            className="plan-action-btn"
+                            title="Save as Template"
+                          >
+                            <Save size={14} />
+                          </button>
+                        )}
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
                           className="plan-action-btn plan-action-delete"
                           title="Delete"
@@ -2772,6 +2850,83 @@ export default function Planning() {
           onDiscardChanges={planningIntegration.handleDiscardChanges}
         />
       )}
+
+      {/* Commit Components Modal */}
+      <CommitComponentsModal
+        isOpen={planningIntegration.showCommitDialog}
+        onClose={() => planningIntegration.setShowCommitDialog(false)}
+        commitSummary={planningIntegration.commitSummary}
+        selectedComponents={planningIntegration.selectedComponentsForCommit}
+        setSelectedComponents={planningIntegration.setSelectedComponentsForCommit}
+        onCommit={planningIntegration.handleCommitSelectedComponents}
+        isCommitting={planningIntegration.isCommitting}
+      />
+
+      {/* Template Modals */}
+      <SaveAsTemplateModal
+        isOpen={showSaveTemplate}
+        onClose={() => { setShowSaveTemplate(false); setTemplateSaveItem(null); }}
+        component={templateSaveItem}
+        items={items}
+        organisationId={organisationId}
+        projectId={projectId}
+        projectName={projectName}
+        onSave={async ({ name, description }) => {
+          if (!templateSaveItem) return;
+          setTemplateSaving(true);
+          try {
+            await planTemplatesService.saveComponentAsTemplate(
+              organisationId,
+              projectId,
+              templateSaveItem.id,
+              name,
+              description,
+              user?.id
+            );
+            showSuccess(`Template "${name}" saved successfully`);
+            setShowSaveTemplate(false);
+            setTemplateSaveItem(null);
+          } catch (err) {
+            console.error('Error saving template:', err);
+            showError('Failed to save template');
+          } finally {
+            setTemplateSaving(false);
+          }
+        }}
+        isSaving={templateSaving}
+      />
+
+      <ImportTemplateModal
+        isOpen={showImportTemplate}
+        onClose={() => setShowImportTemplate(false)}
+        organisationId={organisationId}
+        onImport={async ({ templateId, startDate }) => {
+          setTemplateImporting(true);
+          try {
+            const result = await planTemplatesService.importTemplate(
+              templateId,
+              projectId,
+              startDate,
+              user?.id
+            );
+            showSuccess(`Imported ${result.itemCount} items from template`);
+            setShowImportTemplate(false);
+            fetchItems();
+          } catch (err) {
+            console.error('Error importing template:', err);
+            showError('Failed to import template');
+          } finally {
+            setTemplateImporting(false);
+          }
+        }}
+        isImporting={templateImporting}
+      />
+
+      <TemplateManageModal
+        isOpen={showManageTemplates}
+        onClose={() => setShowManageTemplates(false)}
+        organisationId={organisationId}
+      />
 
       {/* Estimates List Panel */}
       {showEstimatesList && (

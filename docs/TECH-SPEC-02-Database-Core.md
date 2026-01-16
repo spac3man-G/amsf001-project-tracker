@@ -1,13 +1,20 @@
 # AMSF001 Technical Specification: Database Schema - Core Tables
 
 **Document:** TECH-SPEC-02-Database-Core.md
-**Version:** 5.3
+**Version:** 5.4
 **Created:** 10 December 2025
-**Updated:** 16 January 2026
-**Session:** WP-12 Final Documentation
+**Updated:** 17 January 2026
+**Session:** WP-13 Component Commit & Templates
 
 ---
 
+> **📝 Version 5.4 Updates (17 January 2026)**
+>
+> Added plan templates table for reusable component structures:
+> - Added Section 15.1b: Plan Templates Table (`plan_templates`)
+> - Documents JSONB structure format for template storage
+> - Documents RLS policies (org members read, supplier_pm+ write)
+>
 > **📝 Version 5.3 Updates (16 January 2026)**
 >
 > Added workflow settings columns and project templates (v0.9.17):
@@ -96,6 +103,7 @@ This document covers the core entity tables that form the foundation of the AMSF
 | `resources` | Team members | Per project (~5-20) |
 | `resource_availability` | Calendar availability | Per project |
 | `plan_items` | Project planning hierarchy | Per project |
+| `plan_templates` | Reusable component templates | Per organisation |
 | `project_plans` | Plan state tracking | Per project |
 | `estimates` | Cost estimate headers | Per project |
 | `estimate_components` | Estimate component groups | Per estimate |
@@ -1656,6 +1664,107 @@ CREATE OR REPLACE FUNCTION unlink_plan_item_from_estimate(
   p_plan_item_id UUID
 ) RETURNS VOID AS $ ... $ LANGUAGE plpgsql;
 ```
+
+---
+
+### 15.1b Plan Templates Table
+
+> **Added:** 17 January 2026
+
+The `plan_templates` table stores reusable component templates at the organisation level.
+
+#### Schema Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS plan_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  created_by UUID REFERENCES auth.users(id),
+  source_project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+  source_component_id UUID,
+  structure JSONB NOT NULL DEFAULT '[]'::jsonb,
+  item_count INTEGER DEFAULT 0,
+  milestone_count INTEGER DEFAULT 0,
+  deliverable_count INTEGER DEFAULT 0,
+  task_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX idx_plan_templates_org ON plan_templates(organisation_id)
+  WHERE is_deleted = false;
+```
+
+#### JSONB Structure Format
+
+Templates store the component hierarchy as nested JSONB:
+
+```json
+[{
+  "tempId": "temp_1",
+  "item_type": "component",
+  "name": "Phase 1: Discovery",
+  "description": "...",
+  "sort_order": 0,
+  "children": [{
+    "tempId": "temp_2",
+    "item_type": "milestone",
+    "name": "Requirements Complete",
+    "duration_days": 15,
+    "children": [...]
+  }]
+}]
+```
+
+#### RLS Policies
+
+```sql
+-- Org members can read templates
+CREATE POLICY "plan_templates_select" ON plan_templates FOR SELECT TO authenticated
+USING (EXISTS (
+  SELECT 1 FROM user_organisations uo
+  WHERE uo.organisation_id = plan_templates.organisation_id
+  AND uo.user_id = auth.uid()
+));
+
+-- Supplier PMs can create/update/delete
+CREATE POLICY "plan_templates_insert" ON plan_templates FOR INSERT TO authenticated
+WITH CHECK (EXISTS (
+  SELECT 1 FROM user_organisations uo
+  WHERE uo.organisation_id = plan_templates.organisation_id
+  AND uo.user_id = auth.uid()
+  AND uo.org_role IN ('org_owner', 'org_admin', 'supplier_pm')
+));
+
+CREATE POLICY "plan_templates_update" ON plan_templates FOR UPDATE TO authenticated
+USING (EXISTS (
+  SELECT 1 FROM user_organisations uo
+  WHERE uo.organisation_id = plan_templates.organisation_id
+  AND uo.user_id = auth.uid()
+  AND uo.org_role IN ('org_owner', 'org_admin', 'supplier_pm')
+));
+
+CREATE POLICY "plan_templates_delete" ON plan_templates FOR DELETE TO authenticated
+USING (EXISTS (
+  SELECT 1 FROM user_organisations uo
+  WHERE uo.organisation_id = plan_templates.organisation_id
+  AND uo.user_id = auth.uid()
+  AND uo.org_role IN ('org_owner', 'org_admin', 'supplier_pm')
+));
+```
+
+#### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Organisation-scoped | Templates shared across all projects in org |
+| Uses `tempId` | Avoids UUID conflicts on import |
+| Stores `duration_days` | Dates calculated on import from start date |
+| Nested `children` | Easy tree traversal for import |
+| Soft delete | Preserves audit trail |
 
 ---
 

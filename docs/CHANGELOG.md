@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.20] - 2026-01-17
+
+### Added
+
+#### Component-Based Commit (Bug Fix + Enhancement)
+
+Fixed bug where "Commit to Tracker" committed ALL components instead of just the selected one.
+
+**Changes to planCommitService.js:**
+- Added optional `componentIds` parameter to `commitPlan()` method
+- Added `getDescendantIds(items, componentIds)` helper for tree traversal
+- Updated `getCommitSummary()` to include `byComponent` breakdown
+
+**Changes to usePlanningIntegration.js:**
+- Added `showCommitDialog`, `selectedComponentsForCommit` state
+- Added `handleCommitSelectedComponents()` handler
+
+**New UI Components (PlanningIntegrationUI.jsx):**
+- Enhanced `CommitToTrackerButton` with dropdown ("Commit All" vs "Select Components...")
+- New `CommitComponentsModal` for component selection with checkboxes
+
+#### Plan Templates Feature
+
+New feature allowing Supplier PMs to save components as reusable templates and import them into any project within the same organisation.
+
+**Database (`202601170005_create_plan_templates.sql`):**
+- New `plan_templates` table (organisation-scoped)
+- JSONB `structure` column with nested children and `duration_days`
+- RLS policies: org members read, supplier_pm+ write
+- Index on `organisation_id` for efficient lookup
+
+**Service (`planTemplates.service.js`):**
+- `getAllByOrganisation(orgId)` - List templates for organisation
+- `saveComponentAsTemplate(orgId, projectId, componentId, name, description, userId)` - Export component
+- `importTemplate(templateId, projectId, startDate, userId)` - Import with date calculation
+- `update(templateId, {name, description})` - Update metadata
+- `delete(templateId)` - Soft delete
+
+**UI Components:**
+- `SaveAsTemplateModal.jsx` - Save component as template (via save icon on component rows)
+- `ImportTemplateModal.jsx` - Import template with start date picker
+- `TemplateManageModal.jsx` - View, edit, delete organisation templates
+- `PlanTemplates.css` - Styles for template modals and dropdown
+
+**Planning.jsx Updates:**
+- Templates dropdown in toolbar (Import Template..., Manage Templates...)
+- Save icon button on component rows
+- Click-outside handler for templates menu
+
+### Changed
+
+- Updated TECH-SPEC-08-Services.md v5.6: Added componentIds parameter, Plan Templates Service section
+- Updated TECH-SPEC-07-Frontend-State.md v5.9: Added Section 14.1b Planning Integration UI
+- Updated TECH-SPEC-02-Database-Core.md v5.4: Added Section 15.1b Plan Templates Table
+- Updated CLAUDE.md: Added Component-Based Commit & Plan Templates section
+
+---
+
 ## [0.9.19] - 2026-01-16
 
 ### Added

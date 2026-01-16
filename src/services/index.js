@@ -190,6 +190,11 @@ export {
   planItemsService
 } from './planItemsService';
 
+// Plan Templates Service (Reusable WBS structure templates)
+export {
+  planTemplatesService
+} from './planTemplates.service';
+
 // Project Settings Service (Workflow configuration)
 export {
   projectSettingsService,

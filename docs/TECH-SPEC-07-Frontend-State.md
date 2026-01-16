@@ -1,11 +1,18 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.8
+**Document Version:** 5.9
 **Created:** 11 December 2025
-**Last Updated:** 16 January 2026
-**Session:** WP-12 Final Documentation
+**Last Updated:** 17 January 2026
+**Session:** WP-13 Component Commit & Templates
 **Author:** Claude AI (Anthropic)
 
+> **Version 5.9 Updates (17 January 2026):**
+> - Added Section 14.1b: Planning Integration UI
+> - Documents CommitToTrackerButton with dropdown (Commit All vs Select Components)
+> - Documents CommitComponentsModal for component-based commits
+> - Documents SaveAsTemplateModal, ImportTemplateModal, TemplateManageModal
+> - Documents Templates dropdown in toolbar
+>
 > **Version 5.8 Updates (16 January 2026):**
 > - Added Section 16.4: ContextMenu Component (WP-10)
 > - Documents reusable right-click context menu with portal rendering
@@ -333,6 +340,132 @@ useImperativeHandle(ref, () => ({
 - Green selected row highlighting
 - Type-specific badge colors
 - Improved sidebar button readability
+
+---
+
+### 14.1b Planning Integration UI
+
+> **Added:** 17 January 2026
+>
+> UI components for Tracker integration and plan templates.
+
+**Files:**
+- `src/pages/planning/PlanningIntegrationUI.jsx`
+- `src/pages/planning/PlanningIntegration.css`
+- `src/components/planning/SaveAsTemplateModal.jsx`
+- `src/components/planning/ImportTemplateModal.jsx`
+- `src/components/planning/TemplateManageModal.jsx`
+- `src/components/planning/PlanTemplates.css`
+
+#### CommitToTrackerButton
+
+Toolbar button with dropdown for committing plan items to Tracker.
+
+```javascript
+<CommitToTrackerButton
+  uncommittedCount={planningIntegration.uncommittedCount}
+  isCommitting={planningIntegration.isCommitting}
+  canCommit={planningIntegration.canCommitPlan}
+  onClick={planningIntegration.handleCommitToTracker}         // Commit all
+  onSelectComponents={() => setShowCommitDialog(true)}        // Open selection modal
+  commitSummary={planningIntegration.commitSummary}
+/>
+```
+
+**Dropdown Options:**
+- "Commit All Components" - commits all uncommitted items
+- "Select Components..." - opens CommitComponentsModal
+
+#### CommitComponentsModal
+
+Modal for selecting specific components to commit.
+
+```javascript
+<CommitComponentsModal
+  isOpen={showCommitDialog}
+  onClose={() => setShowCommitDialog(false)}
+  commitSummary={commitSummary}                    // Per-component breakdown
+  selectedComponents={selectedComponentsForCommit}
+  setSelectedComponents={setSelectedComponentsForCommit}
+  onCommit={handleCommitSelectedComponents}
+  isCommitting={isCommitting}
+/>
+```
+
+**Features:**
+- Checkbox list of components with uncommitted items
+- Shows count of milestones/deliverables per component
+- Preview of what will be committed
+- Commit button with loading state
+
+#### Template Modals
+
+**SaveAsTemplateModal:** Save a component as reusable template.
+
+```javascript
+<SaveAsTemplateModal
+  isOpen={showSaveTemplate}
+  onClose={() => setShowSaveTemplate(false)}
+  component={templateSaveItem}        // Component being saved
+  items={items}                       // All plan items (for preview calc)
+  onSave={async ({ name, description }) => {
+    await planTemplatesService.saveComponentAsTemplate(...);
+  }}
+  isSaving={templateSaving}
+/>
+```
+
+**ImportTemplateModal:** Import a template into current project.
+
+```javascript
+<ImportTemplateModal
+  isOpen={showImportTemplate}
+  onClose={() => setShowImportTemplate(false)}
+  organisationId={organisationId}
+  onImport={async ({ templateId, startDate }) => {
+    await planTemplatesService.importTemplate(...);
+    fetchItems();
+  }}
+  isImporting={templateImporting}
+/>
+```
+
+**TemplateManageModal:** View, edit, and delete organisation templates.
+
+```javascript
+<TemplateManageModal
+  isOpen={showManageTemplates}
+  onClose={() => setShowManageTemplates(false)}
+  organisationId={organisationId}
+/>
+```
+
+#### Templates Dropdown
+
+Toolbar dropdown for template operations.
+
+```javascript
+<div className="planning-templates-dropdown">
+  <button className="plan-btn plan-btn-secondary">
+    <FileText size={16} />
+    Templates
+    <ChevronDown size={14} />
+  </button>
+  {showTemplatesMenu && (
+    <div className="planning-templates-dropdown-menu">
+      <button onClick={() => setShowImportTemplate(true)}>
+        <Upload size={16} /> Import Template...
+      </button>
+      <div className="planning-templates-dropdown-divider" />
+      <button onClick={() => setShowManageTemplates(true)}>
+        <Settings size={16} /> Manage Templates...
+      </button>
+    </div>
+  )}
+</div>
+```
+
+**Save as Template Action:** Available on component rows via save icon button.
 
 ---
 

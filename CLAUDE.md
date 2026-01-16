@@ -62,6 +62,59 @@ See `audit/SECURITY-AUDIT-REMEDIATION-ROADMAP.md` for the complete prioritized a
 
 ---
 
+## NEW FEATURE: Component-Based Commit & Plan Templates (17 January 2026)
+
+**Status**: COMPLETE
+
+### Component-Based Commit
+
+Fixed bug where "Commit to Tracker" committed ALL components instead of just the selected one.
+
+**New Behavior:**
+- Commit dropdown with "Commit All Components" and "Select Components..." options
+- CommitComponentsModal for selecting specific components to commit
+- Per-component breakdown in commit summary (`byComponent` field)
+
+**Key Changes:**
+- `planCommitService.commitPlan()` now accepts optional `componentIds` parameter
+- Added `getDescendantIds(items, componentIds)` helper method
+- Updated `getCommitSummary()` to include per-component statistics
+
+**Files:**
+- `src/services/planCommitService.js` - Added component filtering
+- `src/hooks/usePlanningIntegration.js` - Added component selection state
+- `src/pages/planning/PlanningIntegrationUI.jsx` - Added CommitComponentsModal
+
+### Plan Templates
+
+New feature allowing Supplier PMs to save components as reusable templates and import them into any project within the same organisation.
+
+**Database:**
+- New `plan_templates` table (organisation-scoped)
+- JSONB structure with nested children and `duration_days` (dates calculated on import)
+- Migration: `supabase/migrations/202601170005_create_plan_templates.sql`
+
+**Service Methods:**
+- `planTemplatesService.saveComponentAsTemplate()` - Export component to template
+- `planTemplatesService.importTemplate()` - Import template into project
+- `planTemplatesService.getAllByOrganisation()` - List org templates
+- `planTemplatesService.update()` / `delete()` - Manage templates
+
+**UI Components:**
+- `SaveAsTemplateModal` - Save component as template (via save icon on component rows)
+- `ImportTemplateModal` - Import template with start date picker
+- `TemplateManageModal` - View, edit, delete organisation templates
+- Templates dropdown in Planning toolbar
+
+**Files:**
+- `src/services/planTemplates.service.js` - Template CRUD service
+- `src/components/planning/SaveAsTemplateModal.jsx`
+- `src/components/planning/ImportTemplateModal.jsx`
+- `src/components/planning/TemplateManageModal.jsx`
+- `src/components/planning/PlanTemplates.css`
+
+---
+
 ## RECENTLY FIXED: Planner Edit Blocking & Component Filters (15 January 2026)
 
 ### Planner Edit Blocking Bug (Critical)
