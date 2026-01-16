@@ -1206,26 +1206,45 @@ function MembersTab({
 }
 
 // ============================================
-// PROJECTS TAB
+// PROJECTS TAB (with user management)
 // ============================================
-function ProjectsTab({ 
-  organisation, user, isSystemAdmin, 
-  showSuccess, showError, showWarning, refreshProjectAssignments, navigate 
+function ProjectsTab({
+  organisation, user, isSystemAdmin,
+  showSuccess, showError, showWarning, refreshProjectAssignments, navigate
 }) {
+  // Projects list state
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState([]);
+
+  // Selected project state
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projectUsers, setProjectUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Create project modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', reference: '', description: '' });
+
+  // Add user modal state
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addingUser, setAddingUser] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedRole, setSelectedRole] = useState('viewer');
+
+  // Remove user dialog state
+  const [removeDialog, setRemoveDialog] = useState({ isOpen: false, assignment: null });
 
   const fetchProjects = useCallback(async () => {
     if (!organisation?.id) {
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     try {
+      // Fetch projects
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('id, name, reference, description, organisation_id, start_date, created_at')
@@ -1237,7 +1256,28 @@ function ProjectsTab({
         throw projectsError;
       }
 
-      setProjects((projectsData || []).map(p => ({ ...p, memberCount: 0 })));
+      // Fetch user counts per project
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('user_projects')
+        .select('project_id');
+
+      if (assignmentsError) throw assignmentsError;
+
+      // Count users per project
+      const userCounts = {};
+      (assignmentsData || []).forEach(a => {
+        userCounts[a.project_id] = (userCounts[a.project_id] || 0) + 1;
+      });
+
+      setProjects((projectsData || []).map(p => ({
+        ...p,
+        memberCount: userCounts[p.id] || 0
+      })));
+
+      // Fetch organisation members for assignment dropdown
+      const usersData = await getOrgMembers(organisation.id);
+      setAllUsers(usersData || []);
+
     } catch (error) {
       console.error('Error fetching organisation projects:', error);
       showError('Failed to load organisation projects');
@@ -1249,6 +1289,51 @@ function ProjectsTab({
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // Fetch users for selected project
+  async function fetchProjectUsers(projectId) {
+    setLoadingUsers(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_projects')
+        .select('id, user_id, role, is_default')
+        .eq('project_id', projectId);
+
+      if (error) throw error;
+
+      // Get profiles for these users
+      const userIds = (data || []).map(up => up.user_id);
+      let profiles = [];
+
+      if (userIds.length > 0) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', userIds);
+
+        if (profileError) throw profileError;
+        profiles = profileData || [];
+      }
+
+      // Merge
+      const merged = (data || []).map(up => {
+        const profile = profiles.find(p => p.id === up.user_id) || {};
+        return {
+          ...up,
+          email: profile.email || 'Unknown',
+          full_name: profile.full_name || null
+        };
+      });
+
+      setProjectUsers(merged);
+
+    } catch (error) {
+      console.error('Error fetching project users:', error);
+      showError('Failed to load project users');
+    } finally {
+      setLoadingUsers(false);
+    }
+  }
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -1277,6 +1362,10 @@ function ProjectsTab({
       setShowCreateModal(false);
       fetchProjects();
       refreshProjectAssignments();
+
+      // Auto-select the new project
+      setSelectedProject(result.project);
+      fetchProjectUsers(result.project.id);
     } catch (error) {
       console.error('Error creating project:', error);
       showError(error.message);
@@ -1284,6 +1373,126 @@ function ProjectsTab({
       setCreating(false);
     }
   };
+
+  async function handleAddUserToProject() {
+    if (!selectedUserId || !selectedProject) {
+      showWarning('Please select a user');
+      return;
+    }
+
+    try {
+      setAddingUser(true);
+
+      // Check if user is already assigned
+      const existing = projectUsers.find(pu => pu.user_id === selectedUserId);
+      if (existing) {
+        showWarning('User is already assigned to this project');
+        return;
+      }
+
+      // Use API endpoint to bypass RLS
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch('/api/manage-project-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add',
+          userId: selectedUserId,
+          projectId: selectedProject.id,
+          role: selectedRole,
+          adminToken: session?.access_token,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add user');
+      }
+
+      await fetchProjectUsers(selectedProject.id);
+      await fetchProjects(); // Refresh counts
+      await refreshProjectAssignments();
+      setShowAddUserModal(false);
+      setSelectedUserId('');
+      setSelectedRole('viewer');
+      showSuccess('User added to project');
+
+    } catch (error) {
+      console.error('Error adding user to project:', error);
+      showError('Failed to add user: ' + error.message);
+    } finally {
+      setAddingUser(false);
+    }
+  }
+
+  async function handleRemoveUserFromProject() {
+    const { assignment } = removeDialog;
+    if (!assignment) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch('/api/manage-project-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove',
+          assignmentId: assignment.id,
+          adminToken: session?.access_token,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to remove user');
+      }
+
+      await fetchProjectUsers(selectedProject.id);
+      await fetchProjects();
+      await refreshProjectAssignments();
+      setRemoveDialog({ isOpen: false, assignment: null });
+      showSuccess('User removed from project');
+
+    } catch (error) {
+      console.error('Error removing user:', error);
+      showError('Failed to remove user: ' + error.message);
+    }
+  }
+
+  async function handleRoleChange(assignmentId, newRole) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch('/api/manage-project-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_role',
+          assignmentId: assignmentId,
+          role: newRole,
+          adminToken: session?.access_token,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update role');
+      }
+
+      await fetchProjectUsers(selectedProject.id);
+      showSuccess('Role updated');
+
+    } catch (error) {
+      console.error('Error updating role:', error);
+      showError('Failed to update role: ' + error.message);
+    }
+  }
+
+  // Get users not already in the selected project
+  const availableUsers = allUsers.filter(u =>
+    !projectUsers.some(pu => pu.user_id === u.id)
+  );
 
   if (loading) {
     return <LoadingSpinner message="Loading projects..." />;
@@ -1295,7 +1504,7 @@ function ProjectsTab({
         <div className="section-header">
           <FolderKanban size={20} />
           <h3>Projects ({projects.length})</h3>
-          <button 
+          <button
             className="btn-primary btn-sm"
             onClick={() => setShowCreateModal(true)}
           >
@@ -1309,7 +1518,7 @@ function ProjectsTab({
               <FolderKanban size={48} />
               <h4>No projects yet</h4>
               <p>Create your first project to get started</p>
-              <button 
+              <button
                 className="btn-primary"
                 onClick={() => setShowCreateModal(true)}
               >
@@ -1318,46 +1527,152 @@ function ProjectsTab({
               </button>
             </div>
           ) : (
-            <table className="projects-table">
-              <thead>
-                <tr>
-                  <th>Project</th>
-                  <th>Reference</th>
-                  <th>Members</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projects.map((project) => (
-                  <tr 
-                    key={project.id}
-                    onClick={() => navigate(`/dashboard?project=${project.id}`)}
-                    className="clickable"
-                  >
-                    <td>
-                      <div className="project-name">{project.name}</div>
-                      {project.description && (
-                        <div className="project-desc">{project.description}</div>
-                      )}
-                    </td>
-                    <td>
-                      <span className="project-ref">{project.reference}</span>
-                    </td>
-                    <td>
-                      <span className="member-count">
+            <div className="projects-master-detail">
+              {/* Projects List (Left Panel) */}
+              <div className="projects-list-panel">
+                <table className="projects-table">
+                  <thead>
+                    <tr>
+                      <th>Reference</th>
+                      <th>Name</th>
+                      <th>Users</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projects.map((project) => {
+                      const isSelected = selectedProject?.id === project.id;
+                      return (
+                        <tr
+                          key={project.id}
+                          onClick={() => {
+                            setSelectedProject(project);
+                            fetchProjectUsers(project.id);
+                          }}
+                          className={`clickable ${isSelected ? 'selected' : ''}`}
+                        >
+                          <td>
+                            <span className={`project-ref ${isSelected ? 'selected' : ''}`}>
+                              {project.reference}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="project-name-cell">
+                              {project.name}
+                            </div>
+                          </td>
+                          <td>
+                            <span className="member-count">
+                              {project.memberCount}
+                            </span>
+                          </td>
+                          <td>
+                            <ChevronRight size={16} className={`chevron ${isSelected ? 'selected' : ''}`} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* User Assignment Panel (Right) */}
+              <div className="project-users-panel">
+                {selectedProject ? (
+                  <div className="project-users-content">
+                    {/* Project Header */}
+                    <div className="project-users-header">
+                      <div className="project-users-title">
+                        <h4>{selectedProject.reference}</h4>
+                        <p>{selectedProject.name}</p>
+                      </div>
+                      <button
+                        className="btn-primary btn-sm"
+                        onClick={() => setShowAddUserModal(true)}
+                      >
+                        <UserPlus size={16} />
+                        Add User
+                      </button>
+                    </div>
+
+                    {selectedProject.description && (
+                      <p className="project-users-desc">{selectedProject.description}</p>
+                    )}
+
+                    {/* Users List */}
+                    <div className="project-users-list-container">
+                      <h5>
                         <Users size={14} />
-                        {project.memberCount}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-badge ${project.status || 'active'}`}>
-                        {project.status || 'Active'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        Assigned Users ({projectUsers.length})
+                      </h5>
+
+                      {loadingUsers ? (
+                        <div className="loading-users">
+                          <LoadingSpinner size="small" />
+                        </div>
+                      ) : projectUsers.length === 0 ? (
+                        <div className="no-users-assigned">
+                          <Users size={32} />
+                          <p>No users assigned yet</p>
+                        </div>
+                      ) : (
+                        <div className="project-users-list">
+                          {projectUsers.map(pu => {
+                            const roleConfig = ROLE_CONFIG[pu.role] || { label: pu.role, color: '#64748b', bg: '#f1f5f9' };
+                            const isCurrentUser = pu.user_id === user?.id;
+
+                            return (
+                              <div key={pu.id} className="project-user-row">
+                                <div className="project-user-info">
+                                  <div className="project-user-name">
+                                    {pu.full_name || pu.email.split('@')[0]}
+                                    {isCurrentUser && <span className="you-badge">you</span>}
+                                  </div>
+                                  <div className="project-user-email">{pu.email}</div>
+                                </div>
+
+                                <div className="project-user-actions">
+                                  <select
+                                    value={pu.role}
+                                    onChange={(e) => handleRoleChange(pu.id, e.target.value)}
+                                    disabled={isCurrentUser}
+                                    className="role-select"
+                                    style={{
+                                      background: roleConfig.bg,
+                                      color: roleConfig.color,
+                                    }}
+                                  >
+                                    {ROLE_OPTIONS.map(role => (
+                                      <option key={role.value} value={role.value}>
+                                        {role.label}
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <button
+                                    onClick={() => setRemoveDialog({ isOpen: true, assignment: pu })}
+                                    disabled={isCurrentUser}
+                                    title={isCurrentUser ? "Can't remove yourself" : 'Remove from project'}
+                                    className={`btn-icon-danger ${isCurrentUser ? 'disabled' : ''}`}
+                                  >
+                                    <UserMinus size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="select-project-prompt">
+                    <FolderKanban size={48} />
+                    <p>Select a project to manage users</p>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -1406,15 +1721,15 @@ function ProjectsTab({
                 </div>
               </div>
               <div className="modal-footer">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn-secondary"
                   onClick={() => setShowCreateModal(false)}
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="btn-primary"
                   disabled={creating}
                 >
@@ -1425,6 +1740,86 @@ function ProjectsTab({
           </div>
         </div>
       )}
+
+      {/* Add User Modal */}
+      {showAddUserModal && selectedProject && (
+        <div className="modal-overlay" onClick={() => setShowAddUserModal(false)}>
+          <div className="modal-content modal-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add User to {selectedProject.reference}</h3>
+              <button className="btn-close" onClick={() => setShowAddUserModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              {availableUsers.length === 0 ? (
+                <div className="no-available-users">
+                  <AlertCircle size={32} />
+                  <p>All organisation members are already assigned to this project</p>
+                </div>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label>Select User</label>
+                    <select
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                    >
+                      <option value="">Choose a user...</option>
+                      {availableUsers.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.full_name || u.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Role</label>
+                    <select
+                      value={selectedRole}
+                      onChange={(e) => setSelectedRole(e.target.value)}
+                    >
+                      {ROLE_OPTIONS.map(role => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowAddUserModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleAddUserToProject}
+                disabled={addingUser || !selectedUserId || availableUsers.length === 0}
+              >
+                <UserPlus size={16} />
+                {addingUser ? 'Adding...' : 'Add User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove User Confirmation */}
+      <ConfirmDialog
+        isOpen={removeDialog.isOpen}
+        title="Remove User from Project"
+        message={`Are you sure you want to remove ${removeDialog.assignment?.full_name || removeDialog.assignment?.email} from ${selectedProject?.name}?`}
+        confirmLabel="Remove"
+        variant="danger"
+        onConfirm={handleRemoveUserFromProject}
+        onCancel={() => setRemoveDialog({ isOpen: false, assignment: null })}
+      />
     </div>
   );
 }
