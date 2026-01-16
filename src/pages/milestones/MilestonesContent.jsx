@@ -1,16 +1,16 @@
 /**
  * Milestones Content - Tab content for MilestonesHub
- * 
+ *
  * Track project milestones and deliverables with:
  * - Milestone CRUD operations
  * - Status/progress calculation from deliverables
  * - Acceptance certificate workflow
  * - Sortable columns
  * - Soft delete with undo capability
- * 
- * @version 4.5 - Added soft delete with undo toast
+ *
+ * @version 4.6 - Added workflow settings integration (WP-09)
  * @refactored 5 December 2025
- * @updated 25 December 2025 - Converted to tab content
+ * @updated 16 January 2026 - Conditional baseline/certificate columns
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -32,6 +32,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useWorkflowFeatures } from '../../hooks/useProjectSettings';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import {
   CertificateModal,
@@ -71,6 +72,9 @@ export default function MilestonesContent() {
   // Note: canSignAsSupplier, canSignAsCustomer still used in signCertificate() for safety validation
   // CertificateModal now also uses useMilestonePermissions hook internally (TD-001)
   const { canCreateMilestone, canEditMilestone, canDeleteMilestone, canSignAsSupplier, canSignAsCustomer } = usePermissions();
+
+  // v4.6: Workflow settings for conditional column display
+  const { baselinesRequired, certificatesRequired } = useWorkflowFeatures();
 
   // State
   const [milestones, setMilestones] = useState([]);
@@ -607,9 +611,11 @@ export default function MilestonesContent() {
                   <th className="ms-sortable" onClick={() => handleSort('name')}>
                     Name <SortIndicator column="name" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
-                  <th className="ms-sortable" onClick={() => handleSort('baseline')}>
-                    Baseline <SortIndicator column="baseline" sortColumn={sortColumn} sortDirection={sortDirection} />
-                  </th>
+                  {baselinesRequired !== false && (
+                    <th className="ms-sortable" onClick={() => handleSort('baseline')}>
+                      Baseline <SortIndicator column="baseline" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    </th>
+                  )}
                   <th className="ms-sortable" onClick={() => handleSort('status')}>
                     Status <SortIndicator column="status" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
@@ -622,9 +628,11 @@ export default function MilestonesContent() {
                   <th className="ms-sortable" onClick={() => handleSort('billable')}>
                     Billable <SortIndicator column="billable" sortColumn={sortColumn} sortDirection={sortDirection} />
                   </th>
-                  <th className="ms-sortable" onClick={() => handleSort('certificate')}>
-                    Certificate <SortIndicator column="certificate" sortColumn={sortColumn} sortDirection={sortDirection} />
-                  </th>
+                  {certificatesRequired !== false && (
+                    <th className="ms-sortable" onClick={() => handleSort('certificate')}>
+                      Certificate <SortIndicator column="certificate" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -654,16 +662,18 @@ export default function MilestonesContent() {
                           </div>
                         )}
                       </td>
+                      {baselinesRequired !== false && (
+                        <td>
+                          <span
+                            className={`ms-baseline-badge ${baselineDisplay.cssClass}`}
+                            data-testid={`milestone-baseline-${milestone.id}`}
+                          >
+                            {baselineDisplay.text}
+                          </span>
+                        </td>
+                      )}
                       <td>
-                        <span 
-                          className={`ms-baseline-badge ${baselineDisplay.cssClass}`}
-                          data-testid={`milestone-baseline-${milestone.id}`}
-                        >
-                          {baselineDisplay.text}
-                        </span>
-                      </td>
-                      <td>
-                        <span 
+                        <span
                           className={`ms-status-badge ${statusCssClass}`}
                           data-testid={`milestone-status-${milestone.id}`}
                         >
@@ -689,34 +699,36 @@ export default function MilestonesContent() {
                           {formatCurrency(milestone.billable)}
                         </span>
                       </td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        {milestone.computedStatus !== 'Completed' ? (
-                          <span 
-                            className="ms-cert-badge not-ready"
-                            data-testid={`milestone-cert-${milestone.id}`}
-                          >
-                            Not ready
-                          </span>
-                        ) : cert ? (
-                          <button
-                            className={`ms-cert-badge ${certStatusInfo?.cssClass || ''}`}
-                            onClick={() => openCertificateModal(milestone)}
-                            data-testid={`milestone-cert-${milestone.id}`}
-                          >
-                            <FileCheck size={14} />
-                            {certStatusInfo?.label || 'View'}
-                          </button>
-                        ) : canEdit ? (
-                          <button
-                            className="ms-cert-badge generate"
-                            onClick={() => generateCertificate(milestone)}
-                            data-testid={`milestone-cert-${milestone.id}`}
-                          >
-                            <Award size={14} />
-                            Generate
-                          </button>
-                        ) : null}
-                      </td>
+                      {certificatesRequired !== false && (
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {milestone.computedStatus !== 'Completed' ? (
+                            <span
+                              className="ms-cert-badge not-ready"
+                              data-testid={`milestone-cert-${milestone.id}`}
+                            >
+                              Not ready
+                            </span>
+                          ) : cert ? (
+                            <button
+                              className={`ms-cert-badge ${certStatusInfo?.cssClass || ''}`}
+                              onClick={() => openCertificateModal(milestone)}
+                              data-testid={`milestone-cert-${milestone.id}`}
+                            >
+                              <FileCheck size={14} />
+                              {certStatusInfo?.label || 'View'}
+                            </button>
+                          ) : canEdit ? (
+                            <button
+                              className="ms-cert-badge generate"
+                              onClick={() => generateCertificate(milestone)}
+                              data-testid={`milestone-cert-${milestone.id}`}
+                            >
+                              <Award size={14} />
+                              Generate
+                            </button>
+                          ) : null}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

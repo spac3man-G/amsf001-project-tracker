@@ -119,6 +119,31 @@ Updated navigation and pages to respect workflow settings feature flags.
 - Shows "RAID Log Disabled" message when feature is disabled
 - CSS for `.raid-feature-disabled` state added
 
+#### UI Page Updates - Phase 2 (WP-09)
+
+Updated complex workflow pages (Milestones, Deliverables, Variations) to respect workflow settings.
+
+**MilestonesContent (`src/pages/milestones/MilestonesContent.jsx` v4.6):**
+- Baseline column conditionally hidden when `baselinesRequired === false`
+- Certificate column conditionally hidden when `certificatesRequired === false`
+- Both header and body cells use conditional rendering
+
+**MilestoneDetail (`src/pages/MilestoneDetail.jsx` v4.9):**
+- Baseline Commitment section conditionally hidden when `baselinesRequired === false`
+- Acceptance Certificate section conditionally hidden when `certificatesRequired === false`
+- Uses `useMilestonePermissions` which already has settings flags
+
+**DeliverablesContent (`src/pages/deliverables/DeliverablesContent.jsx` v3.7):**
+- KPI selection in add form conditionally hidden when `kpisEnabled === false`
+- Quality Standards selection conditionally hidden when `qualityStandardsEnabled === false`
+- Completion modal skips KPI/QS assessments when features disabled
+- Validation logic updated to skip disabled feature checks
+
+**VariationsContent (`src/pages/milestones/VariationsContent.jsx` v1.3):**
+- Added `variationsEnabled` check from `useWorkflowFeatures`
+- Shows "Variations Disabled" message when feature is disabled
+- CSS for `.var-feature-disabled` state added
+
 ### Changed
 
 #### Deliverables Side Panel Default

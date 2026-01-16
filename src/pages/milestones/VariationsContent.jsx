@@ -1,15 +1,15 @@
 /**
  * Variations Content - Tab content for MilestonesHub
- * 
+ *
  * Project Variations management with:
  * - Variation list with status filtering
  * - Create new variation wizard
  * - View variation details
  * - Dual-signature approval workflow
  * - Delete draft variations
- * 
- * @version 1.2 - Added data-testid attributes for E2E testing
- * @updated 25 December 2025 - Converted to tab content
+ *
+ * @version 1.3 - Added workflow settings integration (WP-09)
+ * @updated 16 January 2026 - Feature disabled check
  */
 
 import React, { useState, useEffect } from 'react';
@@ -43,6 +43,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useWorkflowFeatures } from '../../hooks/useProjectSettings';
 import { LoadingSpinner, ConfirmDialog } from '../../components/common';
 import { formatDate, formatCurrency } from '../../lib/formatters';
 import '../Variations.css';
@@ -63,6 +64,9 @@ export default function VariationsContent() {
   const { projectId } = useProject();
   const { showSuccess, showError } = useToast();
   const { canCreateVariation, canDeleteVariation, canSignAsSupplier, canSignAsCustomer } = usePermissions();
+
+  // v1.3: Check if variations feature is enabled for this project
+  const { variationsEnabled } = useWorkflowFeatures();
 
   // State
   const [variations, setVariations] = useState([]);
@@ -185,6 +189,32 @@ export default function VariationsContent() {
 
   if (loading) {
     return <LoadingSpinner message="Loading variations..." size="large" fullPage />;
+  }
+
+  // v1.3: Check if variations feature is disabled for this project
+  if (variationsEnabled === false) {
+    return (
+      <div className="variations-page" data-testid="variations-page">
+        <header className="var-header">
+          <div className="var-header-content">
+            <div className="var-header-left">
+              <h1>Variations</h1>
+              <p>Project change control and variation management</p>
+            </div>
+          </div>
+        </header>
+        <div className="var-content">
+          <div className="var-feature-disabled" data-testid="variations-feature-disabled">
+            <FileText size={48} style={{ opacity: 0.3 }} />
+            <h2>Variations Disabled</h2>
+            <p>Change control and variation management is not enabled for this project.</p>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              Contact your project administrator to enable this feature in Project Settings.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

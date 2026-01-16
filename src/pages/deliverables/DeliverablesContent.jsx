@@ -1,11 +1,11 @@
 /**
  * Deliverables Content - Tab content for DeliverablesHub
- * 
+ *
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
  * Click on any deliverable to view details and perform workflow actions.
- * 
- * @version 3.6 - Fixed SortIndicator, added Due Date column
- * @updated 25 December 2025 - Converted to tab content
+ *
+ * @version 3.7 - Added workflow settings integration (WP-09)
+ * @updated 16 January 2026 - Conditional KPI/QS sections
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -23,6 +23,7 @@ import { useProject } from '../../contexts/ProjectContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useMetrics } from '../../contexts/MetricsContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useWorkflowFeatures } from '../../hooks/useProjectSettings';
 import { LoadingSpinner, PageHeader, ConfirmDialog, MultiSelectList } from '../../components/common';
 import { formatDate } from '../../lib/formatters';
 import { DeliverableDetailModal, DeliverableSidePanel } from '../../components/deliverables';
@@ -65,6 +66,9 @@ export default function DeliverablesContent() {
   // TD-001: Removed canSubmitDeliverable, canReviewDeliverable, canDeleteDeliverable - modal uses hook internally
   const { canEditDeliverable, hasRole } = usePermissions();
   const { refreshMetrics } = useMetrics();
+
+  // v3.7: Workflow settings for conditional KPI/QS sections
+  const { qualityStandardsEnabled, kpisEnabled } = useWorkflowFeatures();
 
   const [deliverables, setDeliverables] = useState([]);
   const [milestones, setMilestones] = useState([]);
@@ -224,13 +228,15 @@ export default function DeliverablesContent() {
     const linkedKPIs = completingDeliverable.deliverable_kpis || [];
     const linkedQS = completingDeliverable.deliverable_quality_standards || [];
 
-    if (linkedKPIs.length > 0 && !linkedKPIs.every(dk => kpiAssessments[dk.kpi_id] !== undefined)) { showWarning('Please assess all linked KPIs.'); return; }
-    if (linkedQS.length > 0 && !linkedQS.every(dqs => qsAssessments[dqs.quality_standard_id] !== undefined)) { showWarning('Please assess all linked Quality Standards.'); return; }
+    // v3.7: Skip KPI/QS validation when features are disabled
+    if (kpisEnabled !== false && linkedKPIs.length > 0 && !linkedKPIs.every(dk => kpiAssessments[dk.kpi_id] !== undefined)) { showWarning('Please assess all linked KPIs.'); return; }
+    if (qualityStandardsEnabled !== false && linkedQS.length > 0 && !linkedQS.every(dqs => qsAssessments[dqs.quality_standard_id] !== undefined)) { showWarning('Please assess all linked Quality Standards.'); return; }
 
     try {
       await deliverablesService.update(completingDeliverable.id, { status: DELIVERABLE_STATUS.DELIVERED, progress: 100 });
 
-      if (linkedKPIs.length > 0) {
+      // v3.7: Skip KPI assessments when feature is disabled
+      if (kpisEnabled !== false && linkedKPIs.length > 0) {
         const kpiAssessmentData = linkedKPIs.map(dk => ({
           kpiId: dk.kpi_id,
           criteriaMet: kpiAssessments[dk.kpi_id]
@@ -238,7 +244,8 @@ export default function DeliverablesContent() {
         await deliverablesService.upsertKPIAssessments(completingDeliverable.id, kpiAssessmentData, currentUserId);
       }
 
-      if (linkedQS.length > 0) {
+      // v3.7: Skip QS assessments when feature is disabled
+      if (qualityStandardsEnabled !== false && linkedQS.length > 0) {
         const qsAssessmentData = linkedQS.map(dqs => ({
           qsId: dqs.quality_standard_id,
           criteriaMet: qsAssessments[dqs.quality_standard_id]
@@ -604,24 +611,29 @@ export default function DeliverablesContent() {
                   <div className="del-form-readonly">{(() => { const m = milestones.find(m => m.id === newDeliverable.milestone_id); return m?.forecast_end_date ? formatDate(m.forecast_end_date) : 'Select milestone'; })()}</div>
                 </div>
               </div>
-              <MultiSelectList
-                items={kpis}
-                selectedIds={newDeliverable.kpi_ids}
-                onChange={(ids) => setNewDeliverable({ ...newDeliverable, kpi_ids: ids })}
-                renderItem={renderKPIItem}
-                label="Link to KPIs"
-                emptyMessage="No KPIs available"
-                variant="blue"
-              />
-              <MultiSelectList
-                items={qualityStandards}
-                selectedIds={newDeliverable.qs_ids}
-                onChange={(ids) => setNewDeliverable({ ...newDeliverable, qs_ids: ids })}
-                renderItem={renderQSItem}
-                label="Link to Quality Standards"
-                emptyMessage="No Quality Standards available"
-                variant="purple"
-              />
+              {/* v3.7: Conditional KPI/QS sections based on workflow settings */}
+              {kpisEnabled !== false && (
+                <MultiSelectList
+                  items={kpis}
+                  selectedIds={newDeliverable.kpi_ids}
+                  onChange={(ids) => setNewDeliverable({ ...newDeliverable, kpi_ids: ids })}
+                  renderItem={renderKPIItem}
+                  label="Link to KPIs"
+                  emptyMessage="No KPIs available"
+                  variant="blue"
+                />
+              )}
+              {qualityStandardsEnabled !== false && (
+                <MultiSelectList
+                  items={qualityStandards}
+                  selectedIds={newDeliverable.qs_ids}
+                  onChange={(ids) => setNewDeliverable({ ...newDeliverable, qs_ids: ids })}
+                  renderItem={renderQSItem}
+                  label="Link to Quality Standards"
+                  emptyMessage="No Quality Standards available"
+                  variant="purple"
+                />
+              )}
               <div className="del-form-actions">
                 <button type="submit" className="del-btn del-btn-primary" data-testid="deliverable-save-button">
                   <Save size={16} /> Save
@@ -741,7 +753,8 @@ export default function DeliverablesContent() {
             </div>
             <div className="modal-body">
             <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-lg)' }}>{completingDeliverable.deliverable_ref} - {completingDeliverable.name}</p>
-            {completingDeliverable.deliverable_kpis?.length > 0 && (
+            {/* v3.7: Conditional KPI assessment based on workflow settings */}
+            {kpisEnabled !== false && completingDeliverable.deliverable_kpis?.length > 0 && (
               <>
                 <div style={{ padding: 'var(--space-md)', backgroundColor: 'var(--color-warning-light)', borderLeft: '4px solid var(--color-warning)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-md)' }}><strong style={{ color: '#92400e' }}>KPI Assessment Required</strong></div>
                 {completingDeliverable.deliverable_kpis.map(dk => {
@@ -751,7 +764,8 @@ export default function DeliverablesContent() {
                 })}
               </>
             )}
-            {completingDeliverable.deliverable_quality_standards?.length > 0 && (
+            {/* v3.7: Conditional QS assessment based on workflow settings */}
+            {qualityStandardsEnabled !== false && completingDeliverable.deliverable_quality_standards?.length > 0 && (
               <>
                 <div style={{ padding: 'var(--space-md)', backgroundColor: 'var(--color-purple-light)', borderLeft: '4px solid var(--color-purple)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-md)', marginTop: 'var(--space-lg)' }}><strong style={{ color: '#6b21a8' }}>Quality Standards Assessment</strong></div>
                 {completingDeliverable.deliverable_quality_standards.map(dqs => {

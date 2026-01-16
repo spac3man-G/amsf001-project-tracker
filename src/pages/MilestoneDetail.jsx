@@ -1,6 +1,6 @@
 /**
  * Milestone Detail Page
- * 
+ *
  * Displays detailed information for a single milestone including:
  * - Progress and billable metrics
  * - Schedule (baseline/forecast/actual)
@@ -9,9 +9,9 @@
  * - Baseline commitment workflow (dual signature)
  * - Acceptance certificate workflow (dual signature)
  * - Edit milestone (including reference) with delete capability
- * 
- * @version 4.8 - Fixed Baseline History detection to compare dates not just variation_id
- * @updated 6 January 2026
+ *
+ * @version 4.9 - Added workflow settings integration (WP-09)
+ * @updated 16 January 2026
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -68,8 +68,8 @@ export default function MilestoneDetail() {
 
   // Permissions (pass milestone for context-aware checks)
   const permissions = useMilestonePermissions(milestone);
-  const { 
-    currentUserId, 
+  const {
+    currentUserId,
     currentUserName,
     canEdit,
     canDelete,
@@ -80,7 +80,10 @@ export default function MilestoneDetail() {
     canGenerateCertificate: hasGenerateCertPermission,
     canSignCertificateAsSupplier,
     canSignCertificateAsCustomer,
-    isAdmin
+    isAdmin,
+    // v4.9: Workflow settings for conditional section display
+    baselinesRequired,
+    certificatesRequired
   } = permissions;
 
   // Fetch data
@@ -788,7 +791,8 @@ export default function MilestoneDetail() {
           )}
         </div>
 
-        {/* Baseline Commitment Section */}
+        {/* Baseline Commitment Section - v4.9: Conditional based on workflow settings */}
+        {baselinesRequired !== false && (
         <div className="section-card baseline-section" data-testid="milestone-baseline-section">
           <div className="section-header">
             <h3 className="section-title">
@@ -946,13 +950,15 @@ export default function MilestoneDetail() {
 
           {!baselineLocked && (
             <p className="baseline-info">
-              Both Supplier PM and Customer PM must sign to lock the baseline. 
+              Both Supplier PM and Customer PM must sign to lock the baseline.
               Once locked, baseline values can only be changed by an Admin.
             </p>
           )}
         </div>
+        )}
 
-        {/* Acceptance Certificate Section */}
+        {/* Acceptance Certificate Section - v4.9: Conditional based on workflow settings */}
+        {certificatesRequired !== false && (
         <div className="section-card certificate-section" data-testid="milestone-certificate-section">
           <div className="section-header">
             <h3 className="section-title">
@@ -1066,6 +1072,7 @@ export default function MilestoneDetail() {
             </>
           )}
         </div>
+        )}
       </div>
 
       {/* Edit Modal */}
