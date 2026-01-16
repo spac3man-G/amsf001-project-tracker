@@ -64,7 +64,7 @@ export default function DeliverablesContent() {
   const { showTestUsers } = useTestUsers();
   const currentUserId = user?.id || null;
   // TD-001: Removed canSubmitDeliverable, canReviewDeliverable, canDeleteDeliverable - modal uses hook internally
-  const { canEditDeliverable, hasRole } = usePermissions();
+  const { canEditDeliverable, canCreateDeliverable, hasRole } = usePermissions();
   const { refreshMetrics } = useMetrics();
 
   // v3.7: Workflow settings for conditional KPI/QS sections
