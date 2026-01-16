@@ -1,0 +1,93 @@
+/**
+ * ContextMenu styles
+ * Microsoft Fluent 2 design language
+ *
+ * @version 1.0 - WP-10: MS Planner UI enhancements
+ * @created 16 January 2026
+ */
+
+.context-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 160px;
+  max-width: 280px;
+  padding: 4px 0;
+  background: var(--color-bg, #fff);
+  border-radius: 8px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: contextMenuFadeIn 0.1s ease-out;
+}
+
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 0.875rem;
+  color: var(--color-text-primary, #1d1d1f);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.1s ease;
+}
+
+.context-menu-item:hover:not(.disabled) {
+  background-color: var(--color-bg-hover, #f3f4f6);
+}
+
+.context-menu-item:focus-visible {
+  outline: none;
+  background-color: var(--color-bg-hover, #f3f4f6);
+}
+
+.context-menu-item.disabled {
+  color: var(--color-text-tertiary, #9ca3af);
+  cursor: not-allowed;
+}
+
+.context-menu-item.danger {
+  color: var(--color-danger, #ef4444);
+}
+
+.context-menu-item.danger:hover:not(.disabled) {
+  background-color: var(--color-danger-light, #fee2e2);
+}
+
+.context-menu-icon {
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.context-menu-label {
+  flex: 1;
+}
+
+.context-menu-shortcut {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  margin-left: auto;
+  opacity: 0.8;
+}
+
+.context-menu-divider {
+  height: 1px;
+  margin: 4px 0;
+  background-color: var(--color-border-light, #e5e7eb);
+}

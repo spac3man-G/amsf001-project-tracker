@@ -29,6 +29,7 @@ export { SignatureBox, SignatureGrid, DualSignature, SignatureComplete } from '.
 export { default as MultiSelectList } from './MultiSelectList';
 export { default as InlineEditField } from './InlineEditField';
 export { default as InlineChecklist } from './InlineChecklist';
+export { default as ContextMenu, useContextMenu } from './ContextMenu';
 
 // Subscription & Limits
 export { default as UpgradePrompt } from './UpgradePrompt';

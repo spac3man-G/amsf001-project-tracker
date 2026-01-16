@@ -1,11 +1,11 @@
 /**
  * Deliverable Detail Modal Styles
- * 
+ *
  * Apple Design System styling for the deliverable detail modal.
- * 
- * @version 1.1 - Added KPI/QS selector styles
+ *
+ * @version 1.2 - WP-10: Added collapsible sections (Planner style)
  * @created 6 December 2025
- * @updated 6 December 2025
+ * @updated 16 January 2026
  */
 
 /* ============================================
@@ -1451,4 +1451,106 @@
 
 .inline-date.clickable:hover .inline-edit-value {
   background-color: #f1f5f9;
+}
+
+/* ============================================
+   WP-10: Collapsible Sections (Planner Style)
+   ============================================ */
+
+.collapsible-section {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.collapsible-section:last-of-type {
+  border-bottom: none;
+}
+
+.collapsible-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1d1d1f;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.collapsible-section-header:hover {
+  background-color: #f8fafc;
+}
+
+.collapsible-section-header svg {
+  color: #64748b;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.collapsible-section-header svg:first-child {
+  color: #94a3b8;
+}
+
+.collapsible-section-header span {
+  flex: 1;
+}
+
+.collapsible-section-header .section-count {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #64748b;
+  background: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+.collapsible-section-header .section-complete-icon {
+  color: #22c55e;
+  margin-left: auto;
+}
+
+/* Adjust nested content when inside collapsible */
+.collapsible-section .deliverable-key-details,
+.collapsible-section .deliverable-description,
+.collapsible-section .linked-items-section,
+.collapsible-section .sign-off-section,
+.collapsible-section .deliverable-tasks-section {
+  padding: 0 16px 16px 16px;
+  margin: 0;
+  border: none;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Remove duplicate headers when using collapsible */
+.collapsible-section .linked-items-section .section-header,
+.collapsible-section .sign-off-section .section-header {
+  display: none;
+}
+
+.collapsible-section .deliverable-description .section-label {
+  display: none;
+}
+
+/* Focus state for accessibility */
+.collapsible-section-header:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: -2px;
+  border-radius: 4px;
 }

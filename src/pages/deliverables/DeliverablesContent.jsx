@@ -4,14 +4,14 @@
  * Track project deliverables with review workflow, KPI and Quality Standard linkage.
  * Click on any deliverable to view details and perform workflow actions.
  *
- * @version 3.7 - Added workflow settings integration (WP-09)
- * @updated 16 January 2026 - Conditional KPI/QS sections
+ * @version 3.8 - WP-10: Added right-click context menu for table rows
+ * @updated 16 January 2026
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { deliverablesService, milestonesService, kpisService, qualityStandardsService, planItemsService } from '../../services';
-import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle, ChevronUp, ChevronDown, Layers, PanelRightOpen, Maximize2 } from 'lucide-react';
+import { Package, Plus, X, Save, RefreshCw, Send, CheckCircle, ChevronUp, ChevronDown, Layers, PanelRightOpen, Maximize2, Edit2, Trash2, Eye } from 'lucide-react';
 import {
   DELIVERABLE_STATUS,
   DELIVERABLE_STATUS_CONFIG,
@@ -24,7 +24,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useMetrics } from '../../contexts/MetricsContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useWorkflowFeatures } from '../../hooks/useProjectSettings';
-import { LoadingSpinner, PageHeader, ConfirmDialog, MultiSelectList } from '../../components/common';
+import { LoadingSpinner, PageHeader, ConfirmDialog, MultiSelectList, ContextMenu, useContextMenu } from '../../components/common';
 import { formatDate } from '../../lib/formatters';
 import { DeliverableDetailModal, DeliverableSidePanel } from '../../components/deliverables';
 import '../Deliverables.css';
@@ -109,6 +109,9 @@ export default function DeliverablesContent() {
 
   // Delete confirmation dialog state
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, deliverable: null });
+
+  // WP-10: Context menu state (right-click)
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
 
   const [newDeliverable, setNewDeliverable] = useState({ deliverable_ref: '', name: '', description: '', milestone_id: '', status: DELIVERABLE_STATUS.NOT_STARTED, progress: 0, kpi_ids: [], qs_ids: [] });
 
@@ -331,15 +334,39 @@ export default function DeliverablesContent() {
   }
 
   function handleRowClick(d) {
-    console.log('Row clicked, viewMode:', viewMode, 'deliverable:', d?.deliverable_ref);
     if (viewMode === 'panel') {
-      console.log('Opening side panel');
       setSidePanel({ isOpen: true, deliverable: d });
     } else {
-      console.log('Opening modal');
       setDetailModal({ isOpen: true, deliverable: d });
     }
   }
+
+  // WP-10: Context menu items for table rows
+  const getContextMenuItems = useCallback((deliverable) => {
+    const isComplete = deliverable.status === DELIVERABLE_STATUS.DELIVERED;
+
+    return [
+      {
+        label: 'Open',
+        icon: Eye,
+        onClick: (d) => handleRowClick(d)
+      },
+      {
+        label: 'Edit',
+        icon: Edit2,
+        onClick: (d) => setDetailModal({ isOpen: true, deliverable: d }),
+        disabled: !canCreateDeliverable || isComplete
+      },
+      { divider: true },
+      {
+        label: 'Delete',
+        icon: Trash2,
+        danger: true,
+        onClick: (d) => setDeleteDialog({ isOpen: true, deliverable: d }),
+        disabled: !canCreateDeliverable || isComplete
+      }
+    ];
+  }, [canCreateDeliverable]);
 
   // Toggle view mode and save preference
   function handleViewModeChange(mode) {
@@ -689,7 +716,12 @@ export default function DeliverablesContent() {
                 const StatusIcon = statusInfo.icon;
                 const dueDate = getDueDate(d);
                 return (
-                  <tr key={d.id} onClick={() => handleRowClick(d)} data-testid={`deliverable-row-${d.id}`}>
+                  <tr
+                    key={d.id}
+                    onClick={() => handleRowClick(d)}
+                    onContextMenu={(e) => openContextMenu(e, d)}
+                    data-testid={`deliverable-row-${d.id}`}
+                  >
                     <td>
                       <span className="del-ref" data-testid={`deliverable-ref-${d.deliverable_ref}`}>
                         {d.deliverable_ref}
@@ -797,6 +829,16 @@ export default function DeliverablesContent() {
         confirmText="Delete"
         cancelText="Cancel"
         type="danger"
+      />
+
+      {/* WP-10: Context Menu for table rows */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        items={contextMenu.data ? getContextMenuItems(contextMenu.data) : []}
+        onClose={closeContextMenu}
+        contextData={contextMenu.data}
       />
 
       {/* Side Panel (Planner-style prototype) */}

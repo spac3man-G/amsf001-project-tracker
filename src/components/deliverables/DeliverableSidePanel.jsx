@@ -5,13 +5,15 @@
  * of deliverable details without leaving the list view. Key features:
  *
  * - Inline editing of all fields (click to edit, auto-save)
+ * - Collapsible sections with smooth animations
  * - Always-visible task checklist with progress tracking
  * - Auto-calculated progress from task completion
  * - Quick actions for workflow transitions
  * - Keeps list view visible for easy navigation
  *
- * @version 1.0 - Prototype for UX testing
+ * @version 1.1 - Enhanced animations and styling (WP-10)
  * @created 16 January 2026
+ * @updated 16 January 2026
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -75,10 +77,8 @@ export default function DeliverableSidePanel({
   // Fetch tasks from plan_items (unified source)
   useEffect(() => {
     if (deliverable?.id && projectId) {
-      console.log('[DeliverableSidePanel] Fetching unified tasks for:', deliverable.deliverable_ref, deliverable.name);
       planItemsService.getTasksForDeliverable(deliverable.id, projectId, deliverable.name)
         .then(fetchedTasks => {
-          console.log('[DeliverableSidePanel] Tasks found:', fetchedTasks?.length || 0);
           // Transform plan_items tasks to checklist format
           const transformedTasks = (fetchedTasks || []).map(t => {
             const { owner, comment } = planItemsService.parseTaskDescription(t.description);
@@ -245,9 +245,7 @@ export default function DeliverableSidePanel({
     setSectionsExpanded(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  console.log('DeliverableSidePanel render:', { isOpen, deliverable: deliverable?.deliverable_ref });
   if (!isOpen || !deliverable) return null;
-  console.log('DeliverableSidePanel - showing panel');
 
   // Status and permissions
   const statusConfig = getStatusConfig(deliverable.status);

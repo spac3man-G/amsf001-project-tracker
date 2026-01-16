@@ -1,19 +1,19 @@
 /**
  * Deliverable Detail Modal
- * 
+ *
  * Full-screen modal for viewing, editing, and managing deliverable workflow.
  * Includes view/edit modes, workflow actions, and dual-signature sign-off.
- * 
+ *
  * Field-level edit permissions:
  * - Name: Supplier PM only
  * - Milestone: Supplier PM only
  * - Description: Supplier PM or Contributor
  * - Progress: Supplier PM or Contributor
  * - KPI/QS Links: Supplier PM only
- * 
- * @version 3.0 - TD-001: Uses useDeliverablePermissions hook exclusively
+ *
+ * @version 3.1 - WP-10: Added collapsible sections with Planner patterns
  * @created 4 December 2025
- * @updated 28 December 2025
+ * @updated 16 January 2026
  */
 
 import React, { useState, useEffect } from 'react';
@@ -22,7 +22,8 @@ import {
   X, Save, Send, CheckCircle, Trash2, Edit2,
   Package, Calendar, FileText, Clock,
   ThumbsUp, RotateCcw, Target, Award, PenTool,
-  Plus, Check, CheckSquare, ClipboardList, AlertTriangle
+  Plus, Check, CheckSquare, ClipboardList, AlertTriangle,
+  ChevronDown, ChevronRight
 } from 'lucide-react';
 
 // Centralised utilities
@@ -827,6 +828,21 @@ export default function DeliverableDetailModal({
   // Unified tasks state (from plan_items)
   const [tasks, setTasks] = useState([]);
 
+  // WP-10: Collapsible sections state (Planner pattern)
+  const [sectionsExpanded, setSectionsExpanded] = useState({
+    details: true,
+    description: true,
+    tasks: true,
+    kpis: false,
+    qualityStandards: false,
+    signOff: true
+  });
+
+  // Toggle section helper
+  const toggleSection = (section) => {
+    setSectionsExpanded(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   // Date extension dialog state
   const [showDateExtensionDialog, setShowDateExtensionDialog] = useState(false);
   const [pendingDate, setPendingDate] = useState(null);
@@ -1354,9 +1370,19 @@ export default function DeliverableDetailModal({
               />
             </div>
           ) : (
-            /* View Mode - with inline editing */
+            /* View Mode - with inline editing and collapsible sections */
             <>
-              {/* Key Details Grid */}
+              {/* Key Details Section - Collapsible */}
+              <div className="collapsible-section">
+                <button
+                  type="button"
+                  className="collapsible-section-header"
+                  onClick={() => toggleSection('details')}
+                >
+                  {sectionsExpanded.details ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <span>Details</span>
+                </button>
+                {sectionsExpanded.details && (
               <div className="deliverable-key-details">
                 <div className="detail-item">
                   <FileText size={18} className="detail-item-icon" />
@@ -1431,10 +1457,21 @@ export default function DeliverableDetailModal({
                   </div>
                 </div>
               </div>
+                )}
+              </div>
 
-              {/* Description - Inline editable */}
+              {/* Description Section - Collapsible */}
+              <div className="collapsible-section">
+                <button
+                  type="button"
+                  className="collapsible-section-header"
+                  onClick={() => toggleSection('description')}
+                >
+                  {sectionsExpanded.description ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <span>Description</span>
+                </button>
+                {sectionsExpanded.description && (
               <div className="deliverable-description">
-                <div className="section-label">Description</div>
                 {canEditDescription && !isComplete ? (
                   <InlineEditField
                     type="textarea"
@@ -1451,7 +1488,27 @@ export default function DeliverableDetailModal({
                   </div>
                 )}
               </div>
+                )}
+              </div>
 
+              {/* Tasks Section - Collapsible */}
+              <div className="collapsible-section">
+                <button
+                  type="button"
+                  className="collapsible-section-header"
+                  onClick={() => toggleSection('tasks')}
+                >
+                  {sectionsExpanded.tasks ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <CheckSquare size={14} />
+                  <span>Tasks</span>
+                  {tasks.length > 0 && (
+                    <span className="section-count">
+                      {tasks.filter(t => t.is_complete).length}/{tasks.length}
+                    </span>
+                  )}
+                </button>
+                {sectionsExpanded.tasks && (
+                  <>
               {/* Tasks - unified from plan_items */}
               {canEditTasks && !isComplete ? (
                 <TasksEditSection
@@ -1469,14 +1526,25 @@ export default function DeliverableDetailModal({
                   canEdit={canEditTasks && !isComplete}
                 />
               )}
+                  </>
+                )}
+              </div>
 
-              {/* Linked KPIs - Only show if NOT in assessment mode */}
+              {/* Linked KPIs - Collapsible (Only show if NOT in assessment mode) */}
               {linkedKPIs.length > 0 && !showAssessmentSection && (
-                <div className="linked-items-section">
-                  <div className="section-header">
+                <div className="collapsible-section">
+                  <button
+                    type="button"
+                    className="collapsible-section-header"
+                    onClick={() => toggleSection('kpis')}
+                  >
+                    {sectionsExpanded.kpis ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     <Target size={14} />
-                    Linked KPIs ({linkedKPIs.length})
-                  </div>
+                    <span>Linked KPIs</span>
+                    <span className="section-count">{linkedKPIs.length}</span>
+                  </button>
+                  {sectionsExpanded.kpis && (
+                <div className="linked-items-section">
                   <div className="linked-items-list">
                     {linkedKPIs.map(dk => (
                       <span key={dk.kpi_id} className="linked-item-badge kpi">
@@ -1485,15 +1553,25 @@ export default function DeliverableDetailModal({
                     ))}
                   </div>
                 </div>
+                  )}
+                </div>
               )}
 
-              {/* Linked Quality Standards - Only show if NOT in assessment mode */}
+              {/* Linked Quality Standards - Collapsible (Only show if NOT in assessment mode) */}
               {linkedQS.length > 0 && !showAssessmentSection && (
-                <div className="linked-items-section">
-                  <div className="section-header">
+                <div className="collapsible-section">
+                  <button
+                    type="button"
+                    className="collapsible-section-header"
+                    onClick={() => toggleSection('qualityStandards')}
+                  >
+                    {sectionsExpanded.qualityStandards ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     <Award size={14} />
-                    Linked Quality Standards ({linkedQS.length})
-                  </div>
+                    <span>Quality Standards</span>
+                    <span className="section-count">{linkedQS.length}</span>
+                  </button>
+                  {sectionsExpanded.qualityStandards && (
+                <div className="linked-items-section">
                   <div className="linked-items-list">
                     {linkedQS.map(dqs => (
                       <span key={dqs.quality_standard_id} className="linked-item-badge quality-standard">
@@ -1502,15 +1580,27 @@ export default function DeliverableDetailModal({
                     ))}
                   </div>
                 </div>
+                  )}
+                </div>
               )}
 
-              {/* Sign-off Section */}
+              {/* Sign-off Section - Collapsible */}
               {showSignOffSection && (
-                <div className="sign-off-section">
-                  <div className="section-header">
+                <div className="collapsible-section">
+                  <button
+                    type="button"
+                    className="collapsible-section-header"
+                    onClick={() => toggleSection('signOff')}
+                  >
+                    {sectionsExpanded.signOff ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     <PenTool size={14} />
-                    Delivery Sign-off
-                  </div>
+                    <span>Delivery Sign-off</span>
+                    {isComplete && signOffStatus === SIGN_OFF_STATUS.SIGNED && (
+                      <CheckCircle size={14} className="section-complete-icon" />
+                    )}
+                  </button>
+                  {sectionsExpanded.signOff && (
+                <div className="sign-off-section">
                   
                   {isComplete && signOffStatus === SIGN_OFF_STATUS.SIGNED ? (
                     <SignatureComplete message="Deliverable accepted and delivered" />
@@ -1567,6 +1657,8 @@ export default function DeliverableDetailModal({
                         <span className="awaiting-badge supplier">Awaiting Supplier PM signature</span>
                       )}
                     </div>
+                  )}
+                </div>
                   )}
                 </div>
               )}
