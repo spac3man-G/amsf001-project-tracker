@@ -58,6 +58,7 @@ export const WORKFLOW_SETTING_COLUMNS = [
   // Module toggles
   'variations_enabled',
   'raid_enabled',
+  'evaluator_enabled',
 
   // Extended settings
   'workflow_settings',
@@ -146,9 +147,10 @@ export const DEFAULT_WORKFLOW_SETTINGS = {
   expense_receipt_required: true,
   expense_receipt_threshold: 25.00,
 
-  // Module toggles - all enabled
+  // Module toggles - all enabled except evaluator
   variations_enabled: true,
   raid_enabled: true,
+  evaluator_enabled: false,
 
   // Extended settings
   workflow_settings: {}
@@ -494,7 +496,8 @@ export class ProjectSettingsService {
       'expenses': settings.expenses_enabled,
       'expense_approval': settings.expense_approval_required,
       'expense_receipts': settings.expense_receipt_required,
-      'raid': settings.raid_enabled
+      'raid': settings.raid_enabled,
+      'evaluator': settings.evaluator_enabled
     };
 
     // Default to true if not found (backwards compatibility)

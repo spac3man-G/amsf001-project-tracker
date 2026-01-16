@@ -371,6 +371,7 @@ export function useWorkflowFeatures() {
     expenseApprovalEnabled: isEnabled('expense_approval'),
     expenseReceiptsEnabled: isEnabled('expense_receipts'),
     raidEnabled: isEnabled('raid'),
+    evaluatorEnabled: isEnabled('evaluator'),
     // Generic check
     isEnabled
   };

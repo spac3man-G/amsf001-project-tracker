@@ -1,7 +1,7 @@
 /**
  * AMSF001 Project Tracker - Centralized Navigation Configuration
  * Location: src/lib/navigation.js
- * Version 3.2 - Added workflow feature flags for navigation items (WP-08)
+ * Version 3.3 - Added evaluator module feature flag for optional visibility
  *
  * This file is the SINGLE SOURCE OF TRUTH for navigation items and role-based access.
  * It follows industry best practices for:
@@ -207,6 +207,7 @@ export const NAV_ITEMS = {
     section: 'planner'
   },
   // Evaluator Module - Sub-navigation items (ARCH-001)
+  // v3.3: All evaluator items now require 'evaluator' feature flag
   evaluatorDashboard: {
     id: 'evaluatorDashboard',
     path: '/evaluator/dashboard',
@@ -214,7 +215,8 @@ export const NAV_ITEMS = {
     label: 'Dashboard',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   evaluatorRequirements: {
     id: 'evaluatorRequirements',
@@ -223,7 +225,8 @@ export const NAV_ITEMS = {
     label: 'Requirements',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   evaluatorVendors: {
     id: 'evaluatorVendors',
@@ -232,7 +235,8 @@ export const NAV_ITEMS = {
     label: 'Vendors',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   evaluatorQuestions: {
     id: 'evaluatorQuestions',
@@ -241,7 +245,8 @@ export const NAV_ITEMS = {
     label: 'Questions',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   evaluatorQA: {
     id: 'evaluatorQA',
@@ -250,7 +255,8 @@ export const NAV_ITEMS = {
     label: 'Q&A',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   evaluatorScoring: {
     id: 'evaluatorScoring',
@@ -259,7 +265,8 @@ export const NAV_ITEMS = {
     label: 'Evaluation',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   evaluatorTraceability: {
     id: 'evaluatorTraceability',
@@ -268,7 +275,8 @@ export const NAV_ITEMS = {
     label: 'Traceability',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   evaluatorReports: {
     id: 'evaluatorReports',
@@ -277,7 +285,8 @@ export const NAV_ITEMS = {
     label: 'Reports',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   evaluatorSettings: {
     id: 'evaluatorSettings',
@@ -286,7 +295,8 @@ export const NAV_ITEMS = {
     label: 'Settings',
     allowedRoles: [ROLES.SUPPLIER_PM],
     readOnlyRoles: [],
-    section: 'evaluator'
+    section: 'evaluator',
+    requiredFeature: 'evaluator'
   },
   // billing is now a tab within Finance
   teamMembers: {
@@ -642,11 +652,13 @@ export function filterNavByFeatures(navItems, featureFlags = {}) {
     expenses: featureFlags.expensesEnabled,
     raid: featureFlags.raidEnabled,
     variations: featureFlags.variationsEnabled,
+    evaluator: featureFlags.evaluatorEnabled,
     // Add more mappings as needed
   };
 
-  return navItems.filter(item => {
-    // Always include sections
+  // First pass: filter items by feature flags
+  const filteredItems = navItems.filter(item => {
+    // Sections handled in second pass
     if (item.isSection) return true;
 
     // If no required feature, always include
@@ -656,6 +668,30 @@ export function filterNavByFeatures(navItems, featureFlags = {}) {
     const isEnabled = featureMap[item.requiredFeature];
     return isEnabled !== false; // Allow if true or undefined (default enabled)
   });
+
+  // Second pass: remove sections that have no visible items after them
+  const result = [];
+  for (let i = 0; i < filteredItems.length; i++) {
+    const item = filteredItems[i];
+
+    if (item.isSection) {
+      // Check if there are any non-section items before the next section
+      let hasItems = false;
+      for (let j = i + 1; j < filteredItems.length; j++) {
+        if (filteredItems[j].isSection) break;
+        hasItems = true;
+        break;
+      }
+      // Only include section if it has items
+      if (hasItems) {
+        result.push(item);
+      }
+    } else {
+      result.push(item);
+    }
+  }
+
+  return result;
 }
 
 /**
