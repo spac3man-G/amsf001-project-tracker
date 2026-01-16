@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.18] - 2026-01-16
+
+### Added
+
+#### MS Planner UI Enhancements (WP-10)
+
+Enhanced UI components with Microsoft Planner-inspired patterns for improved user experience.
+
+**InlineEditField Component (v1.1):**
+- New `number` input type with min/max/step and suffix support
+- New `date` input type with format options (short, long, iso)
+- New `percentage` input type with quick-select dropdown (0%, 10%, 25%, 50%, 75%, 90%, 100%)
+- Improved `formatDisplayValue` function for type-specific formatting
+- Added type icons (Calendar for date, Percent for percentage)
+- Enhanced empty state styling with dashed border
+
+**DeliverableSidePanel (v1.1):**
+- Added smooth expand/collapse animations for sections
+- Improved placeholder text styling
+- Enhanced empty state visual treatment
+- Wider panel on large screens (560px at 1280px+)
+- Mobile responsive padding adjustments
+- Focus states for accessibility
+
+**DeliverableDetailModal (v3.1):**
+- Added collapsible sections for: Details, Description, Tasks, KPIs, Quality Standards, Sign-off
+- Section headers with chevron toggle buttons
+- Task count badges on section headers
+- Smooth slide-down animation on expand
+- Sign-off complete indicator icon
+
+**ContextMenu Component (New):**
+- Reusable right-click context menu component
+- Portal-based rendering for proper z-index handling
+- Automatic viewport boundary detection
+- Keyboard navigation (Arrow keys, Enter, Escape)
+- Support for icons, dividers, disabled items, danger styling
+- `useContextMenu` hook for easy state management
+
+**Deliverables Table:**
+- Right-click context menu with: Open, Edit, Delete actions
+- Permission-aware menu items (disabled when not allowed)
+- Danger styling for Delete action
+
+### Changed
+
+- Removed debug `console.log` statements from DeliverableSidePanel
+- Updated CSS version headers with WP-10 references
+
+---
+
 ## [0.9.17] - 2026-01-17
 
 ### Added
