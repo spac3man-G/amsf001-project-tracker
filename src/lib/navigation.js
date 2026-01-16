@@ -1,18 +1,20 @@
 /**
  * AMSF001 Project Tracker - Centralized Navigation Configuration
  * Location: src/lib/navigation.js
- * Version 3.1 - Added projectManagement to sidebar navigation
- * 
+ * Version 3.2 - Added workflow feature flags for navigation items (WP-08)
+ *
  * This file is the SINGLE SOURCE OF TRUTH for navigation items and role-based access.
  * It follows industry best practices for:
  * - Centralization: All navigation defined in one place
  * - Sustainability: Easy to add/remove items without touching Layout.jsx
  * - Scalability: Role-based filtering with simple configuration
  * - Multi-tenant ready: Navigation can be extended per-project in future
- * 
+ * - Feature-aware: Items can be hidden based on project workflow settings (v3.2)
+ *
  * Usage:
- *   import { getNavigationForRole, NAV_ITEMS, getDefaultNavOrder } from '../lib/navigation';
+ *   import { getNavigationForRole, NAV_ITEMS, getDefaultNavOrder, filterNavByFeatures } from '../lib/navigation';
  *   const navItems = getNavigationForRole(userRole);
+ *   const filteredItems = filterNavByFeatures(navItems, workflowFeatures);
  *   const defaultOrder = getDefaultNavOrder(userRole); // For reset functionality
  */
 
@@ -148,7 +150,8 @@ export const NAV_ITEMS = {
     icon: ShieldAlert,
     label: 'RAID Log',
     allowedRoles: [ROLES.SUPPLIER_PM, ROLES.CUSTOMER_PM, ROLES.VIEWER],
-    readOnlyRoles: [ROLES.VIEWER]
+    readOnlyRoles: [ROLES.VIEWER],
+    requiredFeature: 'raid'  // v3.2: Can be disabled in project settings
   },
   // resources is now a tab within Project Settings
   timesheets: {
@@ -157,7 +160,8 @@ export const NAV_ITEMS = {
     icon: Clock,
     label: 'Timesheets',
     allowedRoles: [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
-    readOnlyRoles: []
+    readOnlyRoles: [],
+    requiredFeature: 'timesheets'  // v3.2: Can be disabled in project settings
   },
   expenses: {
     id: 'expenses',
@@ -165,7 +169,8 @@ export const NAV_ITEMS = {
     icon: Receipt,
     label: 'Expenses',
     allowedRoles: [ROLES.SUPPLIER_PM, ROLES.SUPPLIER_FINANCE, ROLES.CUSTOMER_PM, ROLES.CUSTOMER_FINANCE, ROLES.CONTRIBUTOR],
-    readOnlyRoles: []
+    readOnlyRoles: [],
+    requiredFeature: 'expenses'  // v3.2: Can be disabled in project settings
   },
   finance: {
     id: 'finance',
@@ -623,8 +628,47 @@ export function isDefaultOrder(role, currentOrder) {
 }
 
 /**
+ * Filter navigation items based on workflow feature settings (v3.2)
+ *
+ * This function removes navigation items that require features that are
+ * disabled in the project's workflow settings.
+ *
+ * @param {array} navItems - Array of navigation item objects
+ * @param {Object} featureFlags - Feature flags from useWorkflowFeatures hook
+ * @returns {array} Filtered navigation items
+ *
+ * @example
+ * const { timesheetsEnabled, expensesEnabled, raidEnabled } = useWorkflowFeatures();
+ * const filteredNav = filterNavByFeatures(navItems, { timesheetsEnabled, expensesEnabled, raidEnabled });
+ */
+export function filterNavByFeatures(navItems, featureFlags = {}) {
+  if (!navItems || !Array.isArray(navItems)) return [];
+
+  // Map of feature names to their enabled flags
+  const featureMap = {
+    timesheets: featureFlags.timesheetsEnabled,
+    expenses: featureFlags.expensesEnabled,
+    raid: featureFlags.raidEnabled,
+    variations: featureFlags.variationsEnabled,
+    // Add more mappings as needed
+  };
+
+  return navItems.filter(item => {
+    // Always include sections
+    if (item.isSection) return true;
+
+    // If no required feature, always include
+    if (!item.requiredFeature) return true;
+
+    // Check if the required feature is enabled (default to true if not specified)
+    const isEnabled = featureMap[item.requiredFeature];
+    return isEnabled !== false; // Allow if true or undefined (default enabled)
+  });
+}
+
+/**
  * Get navigation items considering org-level admin status
- * 
+ *
  * This is the recommended function to use for getting navigation items
  * as it correctly handles the permission hierarchy:
  * - System Admin → admin navigation + system-level items
@@ -763,5 +807,6 @@ export default {
   getNavItemIdByPath,
   applyCustomNavOrder,
   isDefaultOrder,
-  getRoleDisplay
+  getRoleDisplay,
+  filterNavByFeatures  // v3.2: Filter by workflow feature settings
 };

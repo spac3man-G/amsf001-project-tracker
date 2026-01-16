@@ -90,6 +90,35 @@ Integrated workflow settings into the permission system for settings-aware appro
 - Added dual-signature flags: `baselineDualSignature`, `certificateDualSignature`, `variationDualSignature`
 - Baseline/certificate signing now respects approval authority settings
 
+#### UI Page Updates - Phase 1 (WP-08)
+
+Updated navigation and pages to respect workflow settings feature flags.
+
+**Navigation (`src/lib/navigation.js` v3.2):**
+- Added `requiredFeature` property to nav items: timesheets, expenses, raid
+- New `filterNavByFeatures(navItems, featureFlags)` function
+- Navigation items hidden when corresponding feature is disabled
+
+**Layout (`src/components/Layout.jsx` v13.1):**
+- Integrated `useWorkflowFeatures` hook for feature flag access
+- Added feature filtering to `navItems` computation
+- Navigation dynamically updates based on project settings
+
+**Timesheets Page (`src/pages/Timesheets.jsx` v4.2):**
+- Added `timesheetsEnabled` check from `useWorkflowFeatures`
+- Shows "Timesheets Disabled" message when feature is disabled
+- CSS for `.ts-feature-disabled` state added
+
+**Expenses Page (`src/pages/Expenses.jsx` v5.2):**
+- Added `expensesEnabled` check from `useWorkflowFeatures`
+- Shows "Expenses Disabled" message when feature is disabled
+- CSS for `.exp-feature-disabled` state added
+
+**RAID Log Page (`src/pages/RaidLog.jsx` v2.1):**
+- Added `raidEnabled` check from `useWorkflowFeatures`
+- Shows "RAID Log Disabled" message when feature is disabled
+- CSS for `.raid-feature-disabled` state added
+
 ### Changed
 
 #### Deliverables Side Panel Default

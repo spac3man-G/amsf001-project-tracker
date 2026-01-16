@@ -1,11 +1,11 @@
 /**
  * RAID Log Page
- * 
+ *
  * Risks, Assumptions, Issues, and Dependencies tracking.
  * Apple-inspired design with clean visual hierarchy.
- * 
- * @version 2.0
- * @updated 5 December 2025
+ *
+ * @version 2.1 - Added workflow settings integration (WP-08)
+ * @updated 16 January 2026
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -19,6 +19,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useWorkflowFeatures } from '../hooks/useProjectSettings';
 import { LoadingSpinner, ConfirmDialog } from '../components/common';
 import RaidDetailModal from '../components/raid/RaidDetailModal';
 import RaidAddForm from '../components/raid/RaidAddForm';
@@ -40,6 +41,9 @@ export default function RaidLog() {
   // Note: RaidDetailModal now uses useRaidPermissions internally (TD-001)
   const { can } = usePermissions();
   const canCreate = can('raid', 'create');
+
+  // v2.1: Check if RAID feature is enabled for this project
+  const { raidEnabled } = useWorkflowFeatures();
 
   // State
   const [items, setItems] = useState([]);
@@ -144,6 +148,32 @@ export default function RaidLog() {
       <div className="raid-log" data-testid="raid-log-page">
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
           <LoadingSpinner />
+        </div>
+      </div>
+    );
+  }
+
+  // v2.1: Check if RAID feature is disabled for this project
+  if (raidEnabled === false) {
+    return (
+      <div className="raid-log" data-testid="raid-log-page">
+        <header className="raid-header">
+          <div className="raid-header-content">
+            <div className="raid-header-left">
+              <h1>RAID Log</h1>
+              <p>Risks, Assumptions, Issues, and Dependencies</p>
+            </div>
+          </div>
+        </header>
+        <div className="raid-content">
+          <div className="raid-feature-disabled" data-testid="raid-feature-disabled">
+            <AlertTriangle size={48} style={{ opacity: 0.3 }} />
+            <h2>RAID Log Disabled</h2>
+            <p>RAID tracking is not enabled for this project.</p>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              Contact your project administrator to enable this feature in Project Settings.
+            </p>
+          </div>
         </div>
       </div>
     );

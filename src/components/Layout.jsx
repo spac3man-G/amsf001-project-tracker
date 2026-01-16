@@ -1,5 +1,8 @@
 // src/components/Layout.jsx
-// Version 13.0 - Uses getNavigationForUser for org admin support
+// Version 13.1 - Added workflow feature filtering for navigation (WP-08)
+// - v13.1: Navigation items filtered by project workflow settings
+//          (timesheets, expenses, raid can be hidden if disabled)
+// - Uses getNavigationForUser for org admin support
 // - User name/role only shown in header (top right)
 // - Clicking user info in header navigates to My Account
 // - Drag and drop navigation reordering for non-viewers
@@ -32,21 +35,23 @@ import { useOrganisation } from '../contexts/OrganisationContext';
 import { useProject } from '../contexts/ProjectContext';
 
 // Import from centralized navigation config
-import { 
+import {
   getNavigationForUser,
-  applyCustomNavOrder, 
+  applyCustomNavOrder,
   canReorderNavigation,
   getRoleDisplay,
   isReadOnlyForRole,
   getNavItemIdByPath,
   isDefaultOrder,
-  NAV_SECTIONS
+  NAV_SECTIONS,
+  filterNavByFeatures  // v3.2: Filter by workflow settings
 } from '../lib/navigation';
 
 // Import AuthContext for user data
 import { useAuth } from '../contexts/AuthContext';
 import { useViewAs } from '../contexts/ViewAsContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useWorkflowFeatures } from '../hooks/useProjectSettings';  // v13.1: Workflow feature flags
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -61,7 +66,10 @@ export default function Layout({ children }) {
   
   // Use usePermissions to get org-level admin flags
   const { isSystemAdmin, isOrgAdmin } = usePermissions();
-  
+
+  // v13.1: Get workflow feature flags for navigation filtering
+  const workflowFeatures = useWorkflowFeatures();
+
   // Get organisation and project context for header display
   const { currentOrganisation } = useOrganisation();
   const { projectRef } = useProject();
@@ -123,29 +131,34 @@ export default function Layout({ children }) {
   // - System Admin: full admin nav + system-level items
   // - Org Admin: full admin nav (effectiveRole is 'admin') but NO system-level items
   // - Regular users: nav based on their project role
+  // v13.1: filterNavByFeatures removes items for disabled project features
   const navItems = useMemo(() => {
     // Get base navigation using the new function that respects org hierarchy
-    let roleNav = getNavigationForUser({ 
-      isSystemAdmin, 
-      isOrgAdmin, 
-      effectiveRole 
+    let roleNav = getNavigationForUser({
+      isSystemAdmin,
+      isOrgAdmin,
+      effectiveRole
     });
-    
+
     // Apply custom ordering if user has saved a custom order
     if (customNavOrder && customNavOrder.length > 0) {
       roleNav = applyCustomNavOrder(effectiveRole, customNavOrder);
-      
+
       // Re-apply system-level item filtering after custom order
       // (in case custom order includes items user shouldn't see)
       if (!isSystemAdmin) {
-        roleNav = roleNav.filter(item => 
+        roleNav = roleNav.filter(item =>
           item.id !== 'systemUsers' && item.id !== 'systemAdmin'
         );
       }
     }
-    
+
+    // v13.1: Filter by workflow feature settings (timesheets, expenses, raid, etc.)
+    // Items with requiredFeature will be hidden if that feature is disabled
+    roleNav = filterNavByFeatures(roleNav, workflowFeatures);
+
     return roleNav;
-  }, [effectiveRole, customNavOrder, isSystemAdmin, isOrgAdmin]);
+  }, [effectiveRole, customNavOrder, isSystemAdmin, isOrgAdmin, workflowFeatures]);
 
   // Check if current page is read-only for this role
   const isCurrentPageReadOnly = useMemo(() => {

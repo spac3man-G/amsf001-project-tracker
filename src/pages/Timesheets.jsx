@@ -1,14 +1,14 @@
 /**
  * Timesheets Page - Apple Design System (Clean)
- * 
+ *
  * Track time spent on project activities with daily/weekly entry modes.
  * Includes clickable rows for detail view with edit/validate capabilities.
  * Now with date range filtering (This Week, Last Week, Month, Custom).
- * 
+ *
  * Uses centralised timesheet calculations for status display and workflow.
- * 
- * @version 4.1 - Added data-testid attributes for E2E testing
- * @updated 14 December 2025
+ *
+ * @version 4.2 - Added workflow settings integration (WP-08)
+ * @updated 16 January 2026
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -22,6 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useWorkflowFeatures } from '../hooks/useProjectSettings';
 import { LoadingSpinner, ConfirmDialog, PromptDialog } from '../components/common';
 import { TimesheetDetailModal, TimesheetDateFilter } from '../components/timesheets';
 import {
@@ -44,11 +45,14 @@ export default function Timesheets() {
 
   // Note: canEditTimesheet, canDeleteTimesheet, canSubmitTimesheet, canValidateTimesheet removed
   // as TimesheetDetailModal now uses useTimesheetPermissions hook internally (TD-001)
-  const { 
+  const {
     userRole, // Still needed for page-level checks
-    canAddTimesheet, 
-    getAvailableResources 
+    canAddTimesheet,
+    getAvailableResources
   } = usePermissions();
+
+  // v4.2: Check if timesheets feature is enabled for this project
+  const { timesheetsEnabled } = useWorkflowFeatures();
 
   const [timesheets, setTimesheets] = useState([]);
   const [resources, setResources] = useState([]);
@@ -330,6 +334,37 @@ export default function Timesheets() {
   const availableResources = getAvailableResources(resources);
 
   if (loading) return <LoadingSpinner message="Loading timesheets..." size="large" fullPage />;
+
+  // v4.2: Check if timesheets feature is disabled for this project
+  if (timesheetsEnabled === false) {
+    return (
+      <div className="timesheets-page" data-testid="timesheets-page">
+        <header className="ts-header">
+          <div className="ts-header-content">
+            <div className="ts-header-left">
+              <div className="ts-header-icon">
+                <Clock size={24} />
+              </div>
+              <div>
+                <h1>Timesheets</h1>
+                <p>Track time spent on project activities</p>
+              </div>
+            </div>
+          </div>
+        </header>
+        <div className="ts-content">
+          <div className="ts-feature-disabled" data-testid="timesheets-feature-disabled">
+            <Clock size={48} style={{ opacity: 0.3 }} />
+            <h2>Timesheets Disabled</h2>
+            <p>Timesheet tracking is not enabled for this project.</p>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              Contact your project administrator to enable this feature in Project Settings.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="timesheets-page" data-testid="timesheets-page">

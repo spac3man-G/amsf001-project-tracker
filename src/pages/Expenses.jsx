@@ -1,16 +1,16 @@
 /**
  * Expenses Page - Apple Design System
- * 
+ *
  * Track project expenses with category breakdown, validation workflow,
  * and procurement method tracking. Includes Smart Receipt Scanner.
- * 
+ *
  * Features:
  * - Clean table with click-to-navigate pattern
  * - Detail modal shows receipt images
  * - All actions moved to modal (no action buttons in table)
- * 
- * @version 5.1 - Added data-testid attributes for E2E testing
- * @updated 5 December 2025
+ *
+ * @version 5.2 - Added workflow settings integration (WP-08)
+ * @updated 16 January 2026
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -22,6 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useToast } from '../contexts/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useWorkflowFeatures } from '../hooks/useProjectSettings';
 import { LoadingSpinner, ConfirmDialog, PromptDialog } from '../components/common';
 import {
   ReceiptScanner,
@@ -54,6 +55,9 @@ export default function Expenses() {
   // Note: canSubmitExpense, canValidateExpense, canEditExpense, canDeleteExpense removed
   // as ExpenseDetailModal now uses useExpensePermissions hook internally (TD-001)
   const { canAddExpense, getAvailableResources, hasRole } = usePermissions();
+
+  // v5.2: Check if expenses feature is enabled for this project
+  const { expensesEnabled } = useWorkflowFeatures();
 
   const [expenses, setExpenses] = useState([]);
   const [resources, setResources] = useState([]);
@@ -325,6 +329,37 @@ export default function Expenses() {
   const resourceNames = [...new Set(expenses.map(e => e.resource_name))];
 
   if (loading && !projectId) return <LoadingSpinner message="Loading expenses..." size="large" fullPage />;
+
+  // v5.2: Check if expenses feature is disabled for this project
+  if (expensesEnabled === false) {
+    return (
+      <div className="expenses-page" data-testid="expenses-page">
+        <header className="exp-header">
+          <div className="exp-header-content">
+            <div className="exp-header-left">
+              <div className="exp-header-icon">
+                <Receipt size={24} />
+              </div>
+              <div>
+                <h1>Expenses</h1>
+                <p>Track project expenses</p>
+              </div>
+            </div>
+          </div>
+        </header>
+        <div className="exp-content">
+          <div className="exp-feature-disabled" data-testid="expenses-feature-disabled">
+            <Receipt size={48} style={{ opacity: 0.3 }} />
+            <h2>Expenses Disabled</h2>
+            <p>Expense tracking is not enabled for this project.</p>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              Contact your project administrator to enable this feature in Project Settings.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="expenses-page" data-testid="expenses-page">

@@ -413,6 +413,33 @@
   color: var(--ds-text-secondary);
 }
 
+/* Feature Disabled State (v4.2) */
+.ts-feature-disabled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 24px;
+  text-align: center;
+  background-color: var(--ds-bg-secondary, #f9fafb);
+  border-radius: 12px;
+  margin: 24px;
+}
+
+.ts-feature-disabled h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.ts-feature-disabled p {
+  margin: 0;
+  color: var(--ds-text-secondary);
+  max-width: 400px;
+}
+
 /* Cell Styles */
 .ts-resource-cell {
   display: flex;
