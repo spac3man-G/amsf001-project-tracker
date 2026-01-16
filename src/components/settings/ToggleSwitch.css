@@ -1,0 +1,146 @@
+/**
+ * ToggleSwitch Styles
+ * Microsoft Fluent UI-inspired toggle switch styling
+ */
+
+.toggle-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-md);
+}
+
+.toggle-switch.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-switch__control {
+  flex-shrink: 0;
+}
+
+.toggle-switch__track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background-color var(--ds-transition);
+  background: var(--ds-bg-tertiary);
+  border: 2px solid var(--ds-border);
+}
+
+/* Size variants */
+.toggle-switch--small .toggle-switch__track {
+  width: 32px;
+  height: 18px;
+}
+
+.toggle-switch--medium .toggle-switch__track {
+  width: 40px;
+  height: 22px;
+}
+
+.toggle-switch--large .toggle-switch__track {
+  width: 48px;
+  height: 26px;
+}
+
+.toggle-switch__track:hover:not(:disabled) {
+  border-color: var(--ds-teal);
+}
+
+.toggle-switch__track:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ds-teal-light);
+}
+
+.toggle-switch__track.checked {
+  background: var(--ds-teal);
+  border-color: var(--ds-teal);
+}
+
+.toggle-switch__track:disabled {
+  cursor: not-allowed;
+}
+
+.toggle-switch__thumb {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform var(--ds-transition);
+}
+
+/* Thumb sizes */
+.toggle-switch--small .toggle-switch__thumb {
+  width: 12px;
+  height: 12px;
+  left: 2px;
+}
+
+.toggle-switch--medium .toggle-switch__thumb {
+  width: 16px;
+  height: 16px;
+  left: 2px;
+}
+
+.toggle-switch--large .toggle-switch__thumb {
+  width: 20px;
+  height: 20px;
+  left: 2px;
+}
+
+/* Thumb checked positions */
+.toggle-switch--small .toggle-switch__track.checked .toggle-switch__thumb {
+  transform: translateX(14px);
+}
+
+.toggle-switch--medium .toggle-switch__track.checked .toggle-switch__thumb {
+  transform: translateX(18px);
+}
+
+.toggle-switch--large .toggle-switch__track.checked .toggle-switch__thumb {
+  transform: translateX(22px);
+}
+
+.toggle-switch__loader {
+  animation: toggle-spin 1s linear infinite;
+  color: var(--ds-teal);
+}
+
+@keyframes toggle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.toggle-switch__label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.toggle-switch.disabled .toggle-switch__label-group {
+  cursor: not-allowed;
+}
+
+.toggle-switch__label {
+  font-size: var(--ds-font-md);
+  font-weight: 500;
+  color: var(--ds-text-primary);
+  line-height: 1.4;
+}
+
+.toggle-switch__description {
+  font-size: var(--ds-font-sm);
+  color: var(--ds-text-secondary);
+  line-height: 1.4;
+}

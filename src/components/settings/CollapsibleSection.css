@@ -1,0 +1,107 @@
+/**
+ * CollapsibleSection Styles
+ * Microsoft Planner-inspired collapsible section styling
+ */
+
+.collapsible-section {
+  background: var(--ds-bg-primary);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  margin-bottom: var(--ds-space-md);
+  overflow: hidden;
+}
+
+.collapsible-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--ds-space-md) var(--ds-space-lg);
+  background: var(--ds-bg-secondary);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--ds-transition);
+}
+
+.collapsible-section__header:hover {
+  background: var(--ds-bg-tertiary);
+}
+
+.collapsible-section__header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+.collapsible-section__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-text-secondary);
+  transition: transform var(--ds-transition);
+}
+
+.collapsible-section.expanded .collapsible-section__chevron {
+  color: var(--ds-teal);
+}
+
+.collapsible-section__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--ds-teal-light);
+  color: var(--ds-teal);
+  border-radius: var(--ds-radius-sm);
+}
+
+.collapsible-section__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.collapsible-section__title {
+  font-size: var(--ds-font-md);
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.collapsible-section__description {
+  font-size: var(--ds-font-sm);
+  color: var(--ds-text-secondary);
+}
+
+.collapsible-section__badge {
+  padding: 2px 8px;
+  font-size: var(--ds-font-xs);
+  font-weight: 500;
+  color: var(--ds-teal);
+  background: var(--ds-teal-light);
+  border-radius: var(--ds-radius-full);
+}
+
+.collapsible-section__content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.collapsible-section__content.visible {
+  max-height: 2000px;
+  transition: max-height 0.5s ease-in;
+}
+
+.collapsible-section__inner {
+  padding: var(--ds-space-lg);
+  border-top: 1px solid var(--ds-border);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .collapsible-section__header:hover {
+    background: var(--ds-bg-secondary);
+  }
+}
