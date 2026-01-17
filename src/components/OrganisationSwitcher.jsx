@@ -1,19 +1,25 @@
 // src/components/OrganisationSwitcher.jsx
-// Version 1.1 - Organisation switcher with dynamic brand colors
+// Version 1.2 - Organisation switcher with dynamic brand colors and create new org
 //
-// Only displays when user has multiple organisation memberships.
+// Only displays when user has multiple organisation memberships OR is a supplier_pm.
 // Allows switching between organisations with different roles.
+// Supplier PMs can create new organisations from the dropdown.
 // Uses organisation's primary_color for theming.
 //
 // Test IDs (see docs/TESTING-CONVENTIONS.md):
 //   - org-switcher-button
 //   - org-switcher-dropdown
 //   - org-switcher-item-{orgId}
+//   - org-create-button
+//   - org-create-modal
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Building2, ChevronDown, Check, Shield, User } from 'lucide-react';
+import { Building2, ChevronDown, Check, Shield, User, Plus, X, Loader2 } from 'lucide-react';
 import { useOrganisation } from '../contexts/OrganisationContext';
+import { useViewAs } from '../contexts/ViewAsContext';
+import { useAuth } from '../contexts/AuthContext';
 import { ORG_ROLE_CONFIG, ORG_ROLES } from '../lib/permissionMatrix';
+import { organisationService } from '../services/organisation.service';
 
 // Icon mapping for org roles
 const ORG_ROLE_ICONS = {
@@ -49,11 +55,22 @@ export default function OrganisationSwitcher() {
     availableOrganisations,
     hasMultipleOrganisations,
     switchOrganisation,
-    isLoading
+    isLoading,
+    refreshOrganisationMemberships
   } = useOrganisation();
 
+  const { effectiveRole } = useViewAs();
+  const { user } = useAuth();
+
   const [isOpen, setIsOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [formData, setFormData] = useState({ name: '', slug: '' });
   const dropdownRef = useRef(null);
+
+  // Check if user can create organisations (must be supplier_pm in current project)
+  const canCreateOrganisation = effectiveRole === 'supplier_pm';
 
   // Get brand color from current organisation
   const brandColor = currentOrganisation?.primary_color || '#10b981';
@@ -71,10 +88,86 @@ export default function OrganisationSwitcher() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Don't render if user only has one organisation or still loading
-  if (!hasMultipleOrganisations || isLoading) {
+  // Don't render if user only has one organisation AND can't create new ones
+  if (!hasMultipleOrganisations && !canCreateOrganisation) {
     return null;
   }
+
+  // Don't render while still loading
+  if (isLoading) {
+    return null;
+  }
+
+  // Generate slug from name
+  const generateSlug = (name) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 50);
+  };
+
+  // Handle name change and auto-generate slug
+  const handleNameChange = (e) => {
+    const name = e.target.value;
+    setFormData({
+      name,
+      slug: generateSlug(name)
+    });
+    setCreateError(null);
+  };
+
+  // Handle create organisation
+  const handleCreateOrganisation = async (e) => {
+    e.preventDefault();
+
+    if (!formData.name.trim()) {
+      setCreateError('Organisation name is required');
+      return;
+    }
+
+    if (!formData.slug.trim()) {
+      setCreateError('URL slug is required');
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateError(null);
+
+    try {
+      const newOrg = await organisationService.createWithSupplierPM(
+        {
+          name: formData.name.trim(),
+          slug: formData.slug.trim(),
+          display_name: formData.name.trim()
+        },
+        user.id
+      );
+
+      // Refresh the organisations list
+      if (refreshOrganisationMemberships) {
+        await refreshOrganisationMemberships();
+      }
+
+      // Switch to the new organisation
+      switchOrganisation(newOrg.id);
+
+      // Close modals and reset form
+      setShowCreateModal(false);
+      setIsOpen(false);
+      setFormData({ name: '', slug: '' });
+    } catch (error) {
+      console.error('Failed to create organisation:', error);
+      if (error.message?.includes('duplicate') || error.code === '23505') {
+        setCreateError('An organisation with this URL slug already exists. Please choose a different name.');
+      } else {
+        setCreateError(error.message || 'Failed to create organisation. Please try again.');
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   // Get role display config
   const getRoleConfig = (role) => {
@@ -316,8 +409,234 @@ export default function OrganisationSwitcher() {
               );
             })}
           </div>
+
+          {/* Create New Organisation Option - Only for Supplier PMs */}
+          {canCreateOrganisation && (
+            <>
+              <div style={{ borderTop: '1px solid #e2e8f0' }} />
+              <button
+                data-testid="org-create-button"
+                onClick={() => {
+                  setShowCreateModal(true);
+                  setIsOpen(false);
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1rem',
+                  backgroundColor: 'white',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#059669',
+                  transition: 'background-color 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f0fdf4';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                <Plus size={16} />
+                <span>Create New Organisation</span>
+              </button>
+            </>
+          )}
         </div>
       )}
+
+      {/* Create Organisation Modal */}
+      {showCreateModal && (
+        <div
+          data-testid="org-create-modal"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isCreating) {
+              setShowCreateModal(false);
+              setFormData({ name: '', slug: '' });
+              setCreateError(null);
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+                Create New Organisation
+              </h2>
+              <button
+                onClick={() => {
+                  if (!isCreating) {
+                    setShowCreateModal(false);
+                    setFormData({ name: '', slug: '' });
+                    setCreateError(null);
+                  }
+                }}
+                disabled={isCreating}
+                style={{
+                  padding: '0.25rem',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  cursor: isCreating ? 'not-allowed' : 'pointer',
+                  color: '#64748b',
+                  borderRadius: '4px'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateOrganisation}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+                  Organisation Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={handleNameChange}
+                  placeholder="Enter organisation name"
+                  disabled={isCreating}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+                  URL Slug
+                </label>
+                <input
+                  type="text"
+                  value={formData.slug}
+                  onChange={(e) => {
+                    setFormData({ ...formData, slug: generateSlug(e.target.value) });
+                    setCreateError(null);
+                  }}
+                  placeholder="organisation-slug"
+                  disabled={isCreating}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    color: '#6b7280'
+                  }}
+                />
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                  This will be used in URLs and cannot be changed later
+                </p>
+              </div>
+
+              {/* Error Message */}
+              {createError && (
+                <div style={{
+                  padding: '0.75rem',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '6px',
+                  marginBottom: '1rem',
+                  fontSize: '0.875rem',
+                  color: '#dc2626'
+                }}>
+                  {createError}
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setFormData({ name: '', slug: '' });
+                    setCreateError(null);
+                  }}
+                  disabled={isCreating}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: 'white',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: '#374151',
+                    cursor: isCreating ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating || !formData.name.trim()}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: isCreating || !formData.name.trim() ? '#9ca3af' : '#059669',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: 'white',
+                    cursor: isCreating || !formData.name.trim() ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  {isCreating && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+                  {isCreating ? 'Creating...' : 'Create Organisation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Keyframes for spinner animation */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

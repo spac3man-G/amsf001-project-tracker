@@ -62,6 +62,93 @@ See `audit/SECURITY-AUDIT-REMEDIATION-ROADMAP.md` for the complete prioritized a
 
 ---
 
+## User Manual & UAT Testing (17 January 2026)
+
+**Status**: READY FOR UAT - User Manual Complete, UAT System Created
+
+### Overview
+
+A comprehensive User Manual and UAT (User Acceptance Testing) system has been created for Tracker by Progressive. The manual covers all features EXCLUDING Evaluator, Benchmarking, and Estimator modules.
+
+### Documentation Files
+
+| File | Purpose | Size |
+|------|---------|------|
+| `docs/USER-MANUAL.md` | Complete user manual (40 chapters, 7 parts) | ~10,400 lines |
+| `docs/UAT-CHECKLIST.md` | UAT checklist with 190 checkpoints | ~9,500 lines |
+| `docs/UAT-SESSION-STATE.json` | Machine-readable progress tracking | ~270 lines |
+| `docs/UAT-DISCOVERIES.md` | Consolidated discovery summary | ~100 lines |
+
+### User Manual Structure
+
+The manual follows the chronological project lifecycle:
+
+| Part | Title | Chapters | Checkpoints |
+|------|-------|----------|-------------|
+| 1 | Getting Started | 3 | 13 |
+| 2 | Organisation Setup | 4 | 18 |
+| 3 | Project Creation | 5 | 24 |
+| 4 | Planning Your Project | 8 | 36 |
+| 5 | Running Your Project | 9 | 44 |
+| 6 | Financial Management | 6 | 30 |
+| 7 | Reporting & AI Features | 5 | 25 |
+| **Total** | | **40** | **190** |
+
+Each chapter includes:
+- Plain English instructions
+- Step-by-step guides with screenshots placeholders
+- Tips and best practices
+- Common questions
+- UAT checkpoints
+- Explainer video script (2-3 minutes each)
+
+### Claude-Guided UAT Testing Process
+
+When user says **"Start UAT testing"** or similar, Claude should:
+
+1. **Read the state file** (`docs/UAT-SESSION-STATE.json`) to get current progress
+2. **Display progress dashboard** showing completion by part
+3. **For each checkpoint:**
+   - Show checkpoint ID, test description, and manual reference
+   - Read and display relevant section from `docs/USER-MANUAL.md`
+   - Display the video script for that feature
+   - Present the test steps
+   - Ask user to execute and report PASS/FAIL
+   - Ask about discoveries (new features, doc changes, improvements)
+   - Update the checklist and state files
+4. **Session commands:** continue, pass, fail, skip, back, status, pause, goto UAT-XX-XX-XXX
+
+### Checkpoint Format
+
+Each checkpoint in UAT-CHECKLIST.md has:
+- Execution Record table (status, tester, date, environment)
+- Test steps
+- Comments section
+- If Failed section (issue description, severity)
+- Discoveries section (new features, doc differences, improvements)
+
+### Session State Tracking
+
+The JSON state file tracks:
+- Current session number and last checkpoint
+- Summary counts (passed, failed, not tested, skipped)
+- Progress by part
+- Session history
+- All discoveries
+
+### Starting a UAT Session
+
+```
+User: "Start UAT testing"
+
+Claude: [Reads UAT-SESSION-STATE.json]
+        [Displays progress dashboard]
+        [Asks: Start from beginning, continue from last, or jump to specific part?]
+        [Presents first/next checkpoint with full context]
+```
+
+---
+
 ## NEW FEATURE: Component-Based Commit & Plan Templates (17 January 2026)
 
 **Status**: COMPLETE

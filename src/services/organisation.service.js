@@ -161,6 +161,86 @@ export class OrganisationService {
   }
 
   /**
+   * Create a new organisation with user as Supplier PM
+   * Used when an existing user creates a new organisation from the dropdown
+   * @param {Object} data - Organisation data
+   * @param {string} data.name - Organisation name (required)
+   * @param {string} data.slug - URL-friendly slug (required, unique)
+   * @param {string} data.display_name - Display name (optional)
+   * @param {string} ownerId - User ID of the organisation owner
+   * @returns {Promise<Object>} Created organisation
+   */
+  async createWithSupplierPM(data, ownerId) {
+    try {
+      if (!data.name || !data.slug) {
+        throw new Error('name and slug are required');
+      }
+
+      if (!ownerId) {
+        throw new Error('ownerId is required');
+      }
+
+      // Create the organisation
+      const { data: org, error: orgError } = await supabase
+        .from(this.tableName)
+        .insert({
+          name: data.name,
+          slug: data.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+          display_name: data.display_name || data.name,
+          logo_url: data.logo_url || null,
+          primary_color: data.primary_color || '#10b981',
+          settings: data.settings || {
+            features: {
+              ai_chat_enabled: true,
+              receipt_scanner_enabled: true,
+              variations_enabled: true,
+              report_builder_enabled: true,
+            },
+            defaults: {
+              currency: 'GBP',
+              hours_per_day: 8,
+              date_format: 'DD/MM/YYYY',
+              timezone: 'Europe/London',
+            },
+          },
+          is_active: true,
+          subscription_tier: 'free',
+        })
+        .select()
+        .single();
+
+      if (orgError) {
+        console.error('Organisation create error:', orgError);
+        throw orgError;
+      }
+
+      // Add the creator as a Supplier PM (not org_admin)
+      const { error: memberError } = await supabase
+        .from('user_organisations')
+        .insert({
+          organisation_id: org.id,
+          user_id: ownerId,
+          org_role: ORG_ROLES.SUPPLIER_PM,
+          is_active: true,
+          is_default: false, // Don't make new orgs default automatically
+          accepted_at: new Date().toISOString(),
+        });
+
+      if (memberError) {
+        console.error('Organisation supplier_pm membership error:', memberError);
+        // Try to clean up the org if member creation fails
+        await supabase.from(this.tableName).delete().eq('id', org.id);
+        throw memberError;
+      }
+
+      return org;
+    } catch (error) {
+      console.error('Organisation createWithSupplierPM failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Update organisation details
    * @param {string} id - Organisation UUID
    * @param {Object} updates - Fields to update
