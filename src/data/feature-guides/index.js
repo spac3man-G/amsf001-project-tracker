@@ -242,6 +242,17 @@ export const keywordMapping = {
   'ai document': 'ai-intelligence',
   'portfolio insights': 'ai-intelligence',
   'approval assistant': 'ai-intelligence',
+
+  // AI Action Framework
+  'ai action': 'ai-intelligence',
+  'ai actions': 'ai-intelligence',
+  'chat action': 'ai-intelligence',
+  'chat actions': 'ai-intelligence',
+  'execute action': 'ai-intelligence',
+  'ai execute': 'ai-intelligence',
+  'submit via chat': 'ai-intelligence',
+  'update via chat': 'ai-intelligence',
+  'natural language': 'ai-intelligence',
 };
 
 /**
