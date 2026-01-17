@@ -1,0 +1,435 @@
+/* =============================================================================
+   Variation Impact Panel - AI Impact Analysis
+   Version: 1.0
+   Created: 17 January 2026
+   ============================================================================= */
+
+/* Panel Container */
+.vi-panel {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.vi-panel-loading,
+.vi-panel-error,
+.vi-panel-empty {
+  padding: 16px;
+}
+
+.vi-panel-loading .vi-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8b5cf6;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.vi-panel-error .vi-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #dc2626;
+  font-size: 14px;
+}
+
+.vi-retry-btn {
+  margin-left: auto;
+  padding: 6px 10px;
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  color: #dc2626;
+}
+
+.vi-retry-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* Analyze button */
+.vi-analyze-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.vi-analyze-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Header */
+.vi-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(59, 130, 246, 0.04) 100%);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.vi-panel-header.clickable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.vi-panel-header.clickable:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
+}
+
+.vi-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vi-icon-ai {
+  color: #8b5cf6;
+}
+
+.vi-icon-ai.spin {
+  animation: viSpin 1s linear infinite;
+}
+
+@keyframes viSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.vi-header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.vi-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #64748b;
+}
+
+.vi-risk-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Content */
+.vi-panel-content {
+  padding: 16px;
+}
+
+/* Recommendation */
+.vi-recommendation {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid;
+  margin-bottom: 16px;
+}
+
+.vi-rec-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.vi-rec-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.vi-rec-rationale {
+  font-size: 13px;
+  color: #475569;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Summary */
+.vi-summary {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+.vi-summary p {
+  margin: 0;
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+}
+
+/* Impact Cards */
+.vi-impacts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.vi-impact-card {
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-left: 3px solid;
+  border-radius: 8px;
+}
+
+.vi-impact-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.vi-impact-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.vi-impact-severity {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.vi-impact-extra {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.vi-impact-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 6px 0;
+  line-height: 1.4;
+}
+
+.vi-impact-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+/* Section Titles */
+.vi-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+/* Risks */
+.vi-risks {
+  margin-bottom: 16px;
+}
+
+.vi-risks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vi-risk-item {
+  padding: 10px 12px;
+  background: rgba(245, 158, 11, 0.04);
+  border-radius: 8px;
+  border-left: 3px solid #f59e0b;
+}
+
+.vi-risk-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.vi-risk-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+}
+
+.vi-risk-levels {
+  display: flex;
+  gap: 6px;
+}
+
+.vi-risk-level {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 8px;
+  text-transform: capitalize;
+}
+
+.vi-risk-level.likelihood-low,
+.vi-risk-level.impact-low {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.vi-risk-level.likelihood-medium,
+.vi-risk-level.impact-medium {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.vi-risk-level.likelihood-high,
+.vi-risk-level.impact-high {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.vi-risk-mitigation {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* Conditions */
+.vi-conditions {
+  margin-bottom: 16px;
+}
+
+.vi-conditions-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.vi-conditions-list li {
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+/* Communication */
+.vi-communication {
+  margin-bottom: 16px;
+}
+
+.vi-communication-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.vi-communication-list li {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+/* Metrics */
+.vi-metrics {
+  margin-bottom: 12px;
+}
+
+.vi-metrics details {
+  font-size: 12px;
+}
+
+.vi-metrics summary {
+  cursor: pointer;
+  color: #64748b;
+  font-weight: 500;
+  padding: 6px 0;
+}
+
+.vi-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.vi-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+.vi-metric-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.vi-metric-label {
+  font-size: 10px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Footer */
+.vi-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.vi-footer svg:first-child {
+  color: #8b5cf6;
+}
+
+.vi-refresh-btn {
+  margin-left: 8px;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.2s;
+}
+
+.vi-refresh-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #64748b;
+}

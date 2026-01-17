@@ -115,6 +115,224 @@ New feature allowing Supplier PMs to save components as reusable templates and i
 
 ---
 
+## AI Enablement Initiative (17 January 2026)
+
+**Status**: COMPLETE - All Phases Implemented
+
+### Overview
+
+Transforming the application from "AI-assisted query" to "AI-enabled execution". The AI now provides intelligent suggestions that users can choose to apply.
+
+**Key Principle:** AI advises, human decides. All AI actions require explicit user confirmation before execution.
+
+### Completed Features
+
+#### 1. AI Action Framework (v4.0) - NEW (17 January 2026)
+- Chat assistant can now **execute actions** via natural language commands
+- 13 action tools: submit, update, complete, reassign
+- Confirmation workflow: AI shows preview, user confirms, then executes
+- Permission enforcement: Server-side validation of user role permissions
+- Available actions:
+  - Submit timesheets/expenses (single or bulk)
+  - Update milestone status/progress
+  - Update deliverable status
+  - Complete/update/reassign tasks
+  - Update/resolve RAID items, assign owners
+
+**Files:**
+- `api/chat.js` (v4.0) - Action tool integration
+- `api/lib/ai-actions.js` - Action execution handlers
+- `api/lib/ai-action-schemas.js` - Action tool definitions
+
+**Usage Examples:**
+```
+User: "Submit my timesheets for this week"
+AI: "I found 3 timesheets totaling 24 hours. Submit for approval?"
+User: "Yes"
+AI: "Done! 3 timesheets submitted."
+
+User: "Mark milestone Requirements Complete as done"
+AI: "Change 'Requirements Complete' from In Progress to Completed?"
+User: "Confirm"
+AI: "Milestone updated to Completed."
+```
+
+#### 2. Chat Assistant Upgrade (v3.5)
+- Upgraded complex query handling from Sonnet 4.5 to **Opus 4.5**
+- Simple queries still use Haiku 4.5 for speed
+- Better reasoning and more accurate tool use for complex questions
+
+**File:** `api/chat.js`
+
+#### 3. RAID Auto-Categorization
+- AI analyzes RAID item text and suggests category, severity, probability
+- Integrated into RaidAddForm with "AI Suggest Category" button
+- User must click "Apply Suggestion" to use the recommendation
+
+**Endpoint:** `POST /api/ai-raid-categorize`
+
+**Files:**
+- `api/ai-raid-categorize.js` - Endpoint (uses Sonnet 4.5)
+- `src/components/raid/RaidAddForm.jsx` - UI integration
+- `src/components/raid/RaidAddForm.css` - AI suggestion styles
+
+#### 4. Approval Assistant (Dashboard Widget)
+- Analyzes pending approval queue and provides recommendations
+- Identifies anomalies, flags items needing review, suggests batch approvals
+- Only shown to users with approval permissions
+- User must manually approve each item
+
+**Endpoint:** `POST /api/ai-approval-assist`
+
+**Files:**
+- `api/ai-approval-assist.js` - Endpoint (uses Opus 4.5)
+- `src/components/dashboard/ApprovalAssistantWidget.jsx` - Dashboard widget
+- `src/components/dashboard/ApprovalAssistantWidget.css` - Widget styles
+
+#### 5. Anomaly Detection (Dashboard Widget)
+- Proactively analyzes project data for anomalies and issues
+- Displays on dashboard after page load - no user action required to trigger
+- Shows severity-sorted alerts with suggested actions
+- Users can dismiss alerts or click to navigate to affected items
+
+**Endpoint:** `POST /api/ai-anomaly-detect`
+
+**Files:**
+- `api/ai-anomaly-detect.js` - Endpoint (uses Opus 4.5)
+- `src/components/dashboard/AnomalyAlertsWidget.jsx` - Dashboard widget
+- `src/components/dashboard/AnomalyAlertsWidget.css` - Widget styles
+
+#### 6. Deliverable Quality Assessment
+- Analyzes deliverable readiness before sign-off
+- Evaluates task completion, KPI linkages, quality standards, timeline
+- Shows on DeliverableSidePanel for submitted/review-complete items
+- Provides readiness score (0-100) and actionable recommendations
+
+**Endpoint:** `POST /api/ai-deliverable-assess`
+
+**Files:**
+- `api/ai-deliverable-assess.js` - Endpoint (uses Opus 4.5)
+- `src/components/deliverables/QualityAssessmentPanel.jsx` - Assessment panel
+- `src/components/deliverables/QualityAssessmentPanel.css` - Panel styles
+
+#### 7. Variation Impact Analyzer
+- Analyzes impact of proposed variations (change requests)
+- Evaluates timeline, budget, scope impacts and downstream dependencies
+- Shows on VariationDetail page for submitted/pending variations
+- Provides risk assessment and approval recommendation
+
+**Endpoint:** `POST /api/ai-variation-impact`
+
+**Files:**
+- `api/ai-variation-impact.js` - Endpoint (uses Opus 4.5)
+- `src/components/variations/VariationImpactPanel.jsx` - Impact panel
+- `src/components/variations/VariationImpactPanel.css` - Panel styles
+
+#### 8. Project Forecasting (Dashboard Panel)
+- Predicts project completion date with confidence intervals
+- Forecasts budget (expected final cost) with burn rate assessment
+- Shows health score (0-100) with traffic light indicators
+- Provides key insights and actionable recommendations
+- Displays on dashboard, auto-refreshes with other widgets
+
+**Endpoint:** `POST /api/ai-forecast`
+
+**Files:**
+- `api/ai-forecast.js` - Endpoint (uses Opus 4.5)
+- `src/components/dashboard/ProjectForecastPanel.jsx` - Dashboard panel
+- `src/components/dashboard/ProjectForecastPanel.css` - Panel styles
+
+#### 9. Schedule Risk Predictor
+- Identifies milestones at risk of slipping before they slip
+- Analyzes progress gaps, activity patterns, blockers, dependencies
+- Returns risk level (low/medium/high/critical) with predicted delay
+- Provides specific mitigation actions with estimated days recoverable
+- Integrated into ProjectForecastPanel on dashboard
+
+**Endpoint:** `POST /api/ai-schedule-risk`
+
+**Files:**
+- `api/ai-schedule-risk.js` - Endpoint (uses Opus 4.5)
+
+### AI Model Routing
+
+| Endpoint | Model | Rationale |
+|----------|-------|-----------|
+| Chat (simple queries) | Haiku 4.5 | Fast, cost-effective |
+| Chat (complex analysis) | Opus 4.5 | Better reasoning |
+| RAID Categorization | Sonnet 4.5 | Straightforward classification |
+| Approval Assistant | Opus 4.5 | Risk assessment quality |
+| Anomaly Detection | Opus 4.5 | Pattern recognition |
+| Deliverable Assessment | Opus 4.5 | Nuanced evaluation |
+| Variation Impact | Opus 4.5 | Complex dependency analysis |
+| Project Forecasting | Opus 4.5 | Statistical reasoning, trend analysis |
+| Schedule Risk | Opus 4.5 | Multi-factor risk calculation |
+| Document Generation | Opus 4.5 | High-quality writing, formatting |
+| Portfolio Insights | Opus 4.5 | Strategic analysis, pattern synthesis |
+
+#### 10. Document Generation
+- Generates formatted project documents from structured data
+- Supports: Status Reports, Project Summaries, Milestone Reports, RAID Summaries, Handover Documents
+- Produces Markdown-formatted content with sections, highlights, concerns, and next steps
+- Returns RAG status indicators and actionable recommendations
+
+**Endpoint:** `POST /api/ai-document-generate`
+
+**Request Parameters:**
+- `projectId` (required) - Project UUID
+- `documentType` (required) - One of: `status_report`, `project_summary`, `milestone_report`, `raid_summary`, `handover_document`
+- `options` (optional) - `{ reportingPeriod, includeFinancials, tone, audienceLevel }`
+
+**File:** `api/ai-document-generate.js` - Endpoint (uses Opus 4.5)
+
+#### 11. Portfolio Insights
+- Cross-project analysis for organisation-level intelligence
+- Analyzes: Resource utilization, risk patterns, budget trends, team performance
+- Identifies projects needing attention with urgency levels
+- Provides strategic recommendations with priority and impact
+
+**Endpoint:** `POST /api/ai-portfolio-insights`
+
+**Request Parameters:**
+- `organisationId` (required) - Organisation UUID
+- `options` (optional) - `{ focusAreas, timeHorizon }`
+
+**File:** `api/ai-portfolio-insights.js` - Endpoint (uses Opus 4.5)
+
+**UI Component:** Organisation Admin > Insights tab
+- `src/components/admin/PortfolioInsightsPanel.jsx` - Dashboard panel
+- `src/components/admin/PortfolioInsightsPanel.css` - Panel styles
+
+### AI Document Generator UI
+
+Located in Reports page, allows users to generate AI-powered documents:
+- Status Reports, Project Summaries, Milestone Reports, RAID Summaries, Handover Documents
+- Copy to clipboard or download as Markdown
+- Displays executive summary, highlights, concerns, and next steps
+
+**Files:**
+- `src/components/reports/AIDocumentGenerator.jsx` - Generator panel
+- `src/components/reports/AIDocumentGenerator.css` - Panel styles
+
+### All AI Endpoints Summary
+
+| Endpoint | Phase | Purpose |
+|----------|-------|---------|
+| `/api/chat` | - | Chat assistant (Haiku/Opus 4.5) |
+| `/api/ai-raid-categorize` | Quick Win | RAID auto-categorization |
+| `/api/ai-approval-assist` | Quick Win | Approval recommendations |
+| `/api/ai-anomaly-detect` | Phase 2 | Proactive anomaly detection |
+| `/api/ai-deliverable-assess` | Phase 3 | Deliverable quality assessment |
+| `/api/ai-variation-impact` | Phase 3 | Variation impact analysis |
+| `/api/ai-document-generate` | Phase 3 | Document generation |
+| `/api/ai-forecast` | Phase 4 | Project forecasting |
+| `/api/ai-schedule-risk` | Phase 4 | Schedule risk prediction |
+| `/api/ai-portfolio-insights` | Phase 4 | Portfolio-level insights |
+
+See plan file: `/Users/glennnickols/.claude/plans/valiant-weaving-hedgehog.md`
+
+---
+
 ## RECENTLY FIXED: Planner Edit Blocking & Component Filters (15 January 2026)
 
 ### Planner Edit Blocking Bug (Critical)

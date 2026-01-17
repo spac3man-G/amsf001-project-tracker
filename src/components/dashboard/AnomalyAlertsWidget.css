@@ -1,0 +1,408 @@
+/* =============================================================================
+   Anomaly Alerts Widget - AI Insights Dashboard Component
+   Version: 1.0
+   Created: 17 January 2026
+   ============================================================================= */
+
+/* Widget Container */
+.anomaly-widget {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.anomaly-widget-empty {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.02) 0%, rgba(59, 130, 246, 0.02) 100%);
+}
+
+/* Header */
+.anomaly-widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.anomaly-widget-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.anomaly-icon-ai {
+  color: #8b5cf6;
+}
+
+.anomaly-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.anomaly-refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.anomaly-refresh-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #1d1d1f;
+}
+
+/* Empty State */
+.anomaly-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.anomaly-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(34, 197, 94, 0.1) 100%);
+  border-radius: 16px;
+  color: #10b981;
+  margin-bottom: 12px;
+}
+
+.anomaly-empty-state p {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0 0 4px 0;
+}
+
+.anomaly-empty-state span {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Error State */
+.anomaly-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 20px;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 10px;
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.anomaly-error button {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: none;
+  background: #dc2626;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.anomaly-error button:hover {
+  background: #b91c1c;
+}
+
+/* Summary Bar */
+.anomaly-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(59, 130, 246, 0.04) 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.anomaly-summary-text {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.anomaly-summary-counts {
+  display: flex;
+  gap: 8px;
+}
+
+.anomaly-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.anomaly-count.high {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.anomaly-count.medium {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.anomaly-count.low {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+/* Alert List */
+.anomaly-list {
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Alert Item */
+.anomaly-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.anomaly-item:hover {
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.anomaly-item-high {
+  border-left: 3px solid #dc2626;
+}
+
+.anomaly-item-medium {
+  border-left: 3px solid #f59e0b;
+}
+
+.anomaly-item-low {
+  border-left: 3px solid #64748b;
+}
+
+.anomaly-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.anomaly-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.anomaly-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-bottom: 3px;
+  line-height: 1.3;
+}
+
+.anomaly-item-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.anomaly-item-action {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #0d9488;
+  font-weight: 500;
+}
+
+.anomaly-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.anomaly-chevron {
+  color: #94a3b8;
+  transition: color 0.2s;
+}
+
+.anomaly-item:hover .anomaly-chevron {
+  color: #64748b;
+}
+
+.anomaly-dismiss-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.anomaly-item:hover .anomaly-dismiss-btn {
+  opacity: 1;
+}
+
+.anomaly-dismiss-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #64748b;
+}
+
+/* Toggle Button */
+.anomaly-toggle-btn {
+  display: block;
+  width: calc(100% - 40px);
+  margin: 0 20px 12px;
+  padding: 10px;
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+  background: transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.anomaly-toggle-btn:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.02);
+  color: #374151;
+}
+
+/* Patterns Section */
+.anomaly-patterns {
+  margin: 0 20px 16px;
+  padding: 14px;
+  background: rgba(139, 92, 246, 0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.anomaly-patterns-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8b5cf6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.anomaly-pattern {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.anomaly-pattern:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.anomaly-pattern-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.anomaly-pattern-rec {
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Footer */
+.anomaly-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.anomaly-footer svg {
+  color: #8b5cf6;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .anomaly-widget-header {
+    padding: 14px 16px;
+  }
+
+  .anomaly-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .anomaly-list {
+    padding: 12px 16px;
+  }
+
+  .anomaly-item {
+    padding: 10px 12px;
+  }
+
+  .anomaly-toggle-btn {
+    width: calc(100% - 32px);
+    margin: 0 16px 12px;
+  }
+
+  .anomaly-patterns {
+    margin: 0 16px 12px;
+  }
+}

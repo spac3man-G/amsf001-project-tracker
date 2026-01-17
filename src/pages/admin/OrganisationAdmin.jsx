@@ -20,7 +20,8 @@ import {
   Plus, Shield, User, Trash2, ChevronDown, Mail,
   Check, X, Clock, Copy, UserPlus, UserMinus,
   ChevronRight, Settings, AlertCircle, Briefcase,
-  ToggleLeft, ToggleRight, Palette, Eye, FileText
+  ToggleLeft, ToggleRight, Palette, Eye, FileText,
+  BarChart3
 } from 'lucide-react';
 import { useOrganisation } from '../../contexts/OrganisationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -32,6 +33,7 @@ import { PendingInvitationCard } from '../../components/organisation';
 import { hasOrgPermission, ORG_ROLES, ORG_ROLE_CONFIG, ROLE_CONFIG, ROLE_OPTIONS } from '../../lib/permissionMatrix';
 import { organisationService, invitationService, emailService, partnersService } from '../../services';
 import { getOrgMembers } from '../../lib/queries';
+import { PortfolioInsightsPanel } from '../../components/admin';
 import './OrganisationAdmin.css';
 
 // Tab configuration
@@ -40,6 +42,7 @@ const TABS = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
   { id: 'partners', label: 'Partners', icon: Briefcase },
+  { id: 'insights', label: 'Insights', icon: BarChart3 },
 ];
 
 export default function OrganisationAdmin() {
@@ -165,6 +168,9 @@ export default function OrganisationAdmin() {
             showError={showError}
             navigate={navigate}
           />
+        )}
+        {activeTab === 'insights' && (
+          <PortfolioInsightsPanel />
         )}
       </div>
     </div>

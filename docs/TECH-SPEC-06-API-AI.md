@@ -1,9 +1,27 @@
 # AMSF001 Technical Specification - API Layer & AI Integration
 
-**Version:** 1.7  
-**Last Updated:** 7 January 2026  
-**Session:** 1.7.1  
-**Status:** Complete  
+**Version:** 1.9
+**Last Updated:** 17 January 2026
+**Session:** 1.9.0
+**Status:** Complete
+
+> **Version 1.9 Updates (17 January 2026):**
+> - AI Action Framework (Phase 1): Chat assistant can now execute actions, not just query
+> - New action tools: 13 tools for submitting, updating, completing, and reassigning items
+> - Confirmation workflow: All actions require explicit user confirmation before execution
+> - Permission enforcement: Server-side validation of user permissions for each action
+> - Files added: api/lib/ai-actions.js, api/lib/ai-action-schemas.js
+> - Chat API upgraded to v4.0 with action detection and execution
+> - Tool count increased from 36 to 49 (36 query + 13 action tools)
+
+> **Version 1.8 Updates (17 January 2026):**
+> - AI Enablement: Added 9 new AI endpoints for proactive intelligence
+> - AI Enablement: Added Section 11: AI Enablement Services
+> - Endpoints: ai-raid-categorize, ai-approval-assist, ai-anomaly-detect
+> - Endpoints: ai-deliverable-assess, ai-variation-impact, ai-document-generate
+> - Endpoints: ai-forecast, ai-schedule-risk, ai-portfolio-insights
+> - Model routing: Opus 4.5 for complex reasoning, Sonnet 4.5 for classification
+> - Design principle: AI advises, human decides (advisory-only, no auto-execution)
 
 > **Version 1.7 Updates (7 January 2026):**
 > - Chat AI: Added getFeatureGuide tool (tool count now 36)
@@ -66,6 +84,8 @@
 8. [Security & Configuration](#8-security--configuration)
 9. [Deployment & Monitoring](#9-deployment--monitoring)
 10. [Evaluator API Endpoints](#10-evaluator-api-endpoints)
+11. [AI Enablement Services](#11-ai-enablement-services)
+12. [AI Action Framework](#12-ai-action-framework)
 
 ---
 
@@ -149,6 +169,15 @@ The AMSF001 Project Tracker uses **Vercel Edge Functions** for its serverless AP
 | `/api/report-ai` | POST | AI report generation | Yes (JWT) |
 | `/api/scan-receipt` | POST | AI receipt scanning | Yes (JWT) |
 | `/api/evaluator/*` | Various | Evaluator module endpoints | Yes (JWT) |
+| `/api/ai-raid-categorize` | POST | Auto-categorize RAID items | Yes (JWT) |
+| `/api/ai-approval-assist` | POST | Approval recommendations | Yes (JWT) |
+| `/api/ai-anomaly-detect` | POST | Detect data anomalies | Yes (JWT) |
+| `/api/ai-deliverable-assess` | POST | Quality assessment | Yes (JWT) |
+| `/api/ai-variation-impact` | POST | Change impact analysis | Yes (JWT) |
+| `/api/ai-document-generate` | POST | Document generation | Yes (JWT) |
+| `/api/ai-forecast` | POST | Project forecasting | Yes (JWT) |
+| `/api/ai-schedule-risk` | POST | Schedule risk prediction | Yes (JWT) |
+| `/api/ai-portfolio-insights` | POST | Portfolio intelligence | Org Admin JWT |
 
 ### 2.2 Vercel Routing Configuration
 
@@ -1740,6 +1769,899 @@ const response = await fetch('/api/evaluator/create-evaluation', {
 
 ---
 
+## 11. AI Enablement Services
+
+> **Added:** 17 January 2026 - AI Enablement Strategy Implementation
+
+The AI Enablement Services provide proactive intelligence, automated analysis, and intelligent assistance across the application. All endpoints follow the **advisory-only** design principle: AI analyzes and recommends, but never executes actions without explicit user approval.
+
+### 11.1 Design Principles
+
+**Core Philosophy:**
+- AI advises, human decides
+- Proactive analysis displayed on page load
+- No automatic data modifications
+- Recommendations include confidence levels
+- Clear attribution ("AI-generated")
+
+**Model Selection:**
+| Model | Use Case | Rationale |
+|-------|----------|-----------|
+| Claude Opus 4.5 | Complex reasoning, document generation, forecasting | Highest quality for critical analysis |
+| Claude Sonnet 4.5 | Classification, simple categorization | Cost-effective for straightforward tasks |
+
+### 11.2 Endpoint Summary
+
+| Endpoint | Model | Purpose | UI Location |
+|----------|-------|---------|-------------|
+| `/api/ai-raid-categorize` | Sonnet 4.5 | Auto-suggest RAID item category | RAID Log - Inline suggestions |
+| `/api/ai-approval-assist` | Opus 4.5 | Approval recommendations | Dashboard - Sidebar widget |
+| `/api/ai-anomaly-detect` | Opus 4.5 | Detect data anomalies | Dashboard - Alerts widget |
+| `/api/ai-deliverable-assess` | Opus 4.5 | Quality assessment | Deliverable detail panel |
+| `/api/ai-variation-impact` | Opus 4.5 | Change impact analysis | Variation detail page |
+| `/api/ai-document-generate` | Opus 4.5 | Generate formatted documents | Reports page |
+| `/api/ai-forecast` | Opus 4.5 | Project completion forecasting | Dashboard - Forecast panel |
+| `/api/ai-schedule-risk` | Opus 4.5 | Schedule risk prediction | Dashboard - Forecast panel |
+| `/api/ai-portfolio-insights` | Opus 4.5 | Cross-project analytics | Org Admin - Insights tab |
+
+### 11.3 RAID Auto-Categorization
+
+**File:** `api/ai-raid-categorize.js`
+
+**Endpoint:** `POST /api/ai-raid-categorize`
+
+Analyzes RAID item descriptions and suggests appropriate categorization.
+
+**Request:**
+
+```json
+{
+  "projectId": "uuid",
+  "description": "The vendor might not deliver hardware on time",
+  "existingItems": [
+    { "id": "uuid", "type": "Risk", "description": "Supply chain delays" }
+  ]
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "suggestions": {
+    "type": "Risk",
+    "typeConfidence": 0.95,
+    "typeReasoning": "Uses future tense 'might not' indicating uncertainty, not a current issue",
+    "severity": "High",
+    "severityReasoning": "Affects project timeline directly",
+    "probability": "Medium",
+    "suggestedOwner": "Procurement Manager",
+    "ownerReasoning": "Hardware delivery typically managed by procurement",
+    "relatedItems": [
+      { "id": "uuid", "type": "Risk", "description": "Supply chain delays", "similarity": 0.78 }
+    ]
+  }
+}
+```
+
+**Tool Schema:**
+
+```javascript
+{
+  name: "categorizeRaidItem",
+  input_schema: {
+    type: "object",
+    properties: {
+      type: { type: "string", enum: ["Risk", "Assumption", "Issue", "Decision"] },
+      typeConfidence: { type: "number", minimum: 0, maximum: 1 },
+      typeReasoning: { type: "string" },
+      severity: { type: "string", enum: ["Critical", "High", "Medium", "Low"] },
+      probability: { type: "string", enum: ["High", "Medium", "Low"] },
+      suggestedOwner: { type: "string" },
+      relatedItemIds: { type: "array", items: { type: "string" } }
+    },
+    required: ["type", "typeConfidence", "typeReasoning", "severity"]
+  }
+}
+```
+
+### 11.4 Approval Assistant
+
+**File:** `api/ai-approval-assist.js`
+
+**Endpoint:** `POST /api/ai-approval-assist`
+
+Analyzes pending approvals and provides recommendations for users with approval permissions.
+
+**Request:**
+
+```json
+{
+  "projectId": "uuid",
+  "categories": ["timesheets", "expenses", "deliverables"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "analysis": {
+    "summary": {
+      "totalPending": 12,
+      "recommendApprove": 9,
+      "needsReview": 3
+    },
+    "categories": {
+      "timesheets": {
+        "total": 8,
+        "totalValue": 12400,
+        "recommendation": "6 entries look standard, recommend bulk approve. 2 flagged for review.",
+        "flagged": [
+          { "id": "uuid", "reason": "50-hour week exceeds normal capacity" },
+          { "id": "uuid", "reason": "Sunday entry on non-weekend project" }
+        ]
+      },
+      "expenses": {
+        "total": 3,
+        "totalValue": 2850,
+        "recommendation": "2 have receipts attached, recommend approve. 1 missing documentation.",
+        "flagged": [
+          { "id": "uuid", "reason": "Missing receipt for $450 hotel charge" }
+        ]
+      },
+      "deliverables": {
+        "total": 1,
+        "recommendation": "All acceptance criteria met, 3 reviewers approved. Ready for sign-off.",
+        "flagged": []
+      }
+    },
+    "insight": "Overall approval queue is healthy. Focus attention on the 2 flagged timesheets before batch approval."
+  }
+}
+```
+
+**Permission Requirements:**
+- Only returns categories user can approve
+- Checks `canApproveTimesheets`, `canApproveExpenses`, `canSignOffDeliverables`
+
+### 11.5 Anomaly Detection
+
+**File:** `api/ai-anomaly-detect.js`
+
+**Endpoint:** `POST /api/ai-anomaly-detect`
+
+Scans project data for anomalies across timesheets, expenses, milestones, deliverables, and RAID items.
+
+**Request:**
+
+```json
+{
+  "projectId": "uuid",
+  "categories": ["timesheets", "expenses", "milestones", "deliverables", "raid"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "alerts": [
+    {
+      "id": "anomaly-001",
+      "severity": "high",
+      "category": "milestone_risk",
+      "title": "Milestone 'Phase 1 Complete' at risk",
+      "message": "2 of 5 deliverables incomplete, deadline in 4 days",
+      "suggestedAction": "Review deliverable status or request deadline extension",
+      "relatedEntity": { "type": "milestone", "id": "uuid", "name": "Phase 1 Complete" },
+      "detectedAt": "2026-01-17T10:30:00Z"
+    },
+    {
+      "id": "anomaly-002",
+      "severity": "medium",
+      "category": "expense_duplicate",
+      "title": "Potential duplicate expenses",
+      "message": "Two receipts for $47.50 at same vendor within 1 hour",
+      "suggestedAction": "Review and confirm these are separate transactions",
+      "relatedEntity": { "type": "expense", "ids": ["uuid1", "uuid2"] }
+    },
+    {
+      "id": "anomaly-003",
+      "severity": "low",
+      "category": "raid_unowned",
+      "title": "RAID items without owner",
+      "message": "3 high-severity risks have no assigned owner",
+      "suggestedAction": "Assign owners to ensure accountability",
+      "relatedEntity": { "type": "raid", "ids": ["uuid1", "uuid2", "uuid3"] }
+    }
+  ],
+  "summary": {
+    "highCount": 1,
+    "mediumCount": 1,
+    "lowCount": 1,
+    "lastAnalyzed": "2026-01-17T10:30:00Z"
+  }
+}
+```
+
+**Anomaly Categories:**
+
+| Category | Description | Severity Range |
+|----------|-------------|----------------|
+| `milestone_risk` | Milestone approaching deadline with incomplete work | High-Critical |
+| `deliverable_stalled` | Deliverable unchanged for extended period | Medium-High |
+| `timesheet_unusual` | Unusual hours, duplicates, or policy violations | Medium-High |
+| `expense_duplicate` | Potential duplicate expense entries | Medium |
+| `expense_policy` | Expense exceeds policy limits | Medium |
+| `raid_unowned` | High-severity RAID items without owner | Medium |
+| `raid_escalating` | Risk probability or impact increased | Medium-High |
+
+### 11.6 Deliverable Quality Assessment
+
+**File:** `api/ai-deliverable-assess.js`
+
+**Endpoint:** `POST /api/ai-deliverable-assess`
+
+Evaluates deliverable readiness for sign-off based on acceptance criteria, attachments, and historical patterns.
+
+**Request:**
+
+```json
+{
+  "projectId": "uuid",
+  "deliverableId": "uuid"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "assessment": {
+    "readinessScore": 78,
+    "status": "needs_attention",
+    "criteriaAnalysis": {
+      "met": [
+        "All 5 required sections present",
+        "Diagrams included",
+        "Version history complete"
+      ],
+      "concerns": [
+        "Security section is brief (200 words vs avg 800)",
+        "No performance benchmarks included",
+        "Missing sign-off from Technical Lead"
+      ]
+    },
+    "documentQuality": {
+      "completeness": 85,
+      "formatting": 90,
+      "technicalDepth": 65
+    },
+    "recommendation": "Address security section depth before requesting Customer sign-off",
+    "suggestedActions": [
+      "Expand security considerations section",
+      "Add performance benchmark data",
+      "Request Technical Lead review"
+    ],
+    "comparedToSimilar": {
+      "averageScore": 82,
+      "percentile": 45
+    }
+  }
+}
+```
+
+**Scoring Logic:**
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Acceptance Criteria | 40% | Percentage of criteria marked complete |
+| Document Quality | 25% | Completeness, formatting, depth analysis |
+| Review Status | 20% | Number and quality of reviews received |
+| Historical Comparison | 15% | Comparison to similar deliverables |
+
+### 11.7 Variation Impact Analysis
+
+**File:** `api/ai-variation-impact.js`
+
+**Endpoint:** `POST /api/ai-variation-impact`
+
+Analyzes the impact of a proposed variation (change request) on timeline, budget, and dependencies.
+
+**Request:**
+
+```json
+{
+  "projectId": "uuid",
+  "variationId": "uuid"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "analysis": {
+    "overallImpact": "significant",
+    "recommendation": "approve_with_conditions",
+    "confidence": 0.82,
+    "timeline": {
+      "currentEndDate": "2026-06-30",
+      "projectedEndDate": "2026-07-15",
+      "delayDays": 15,
+      "affectedMilestones": [
+        { "id": "uuid", "name": "UAT Complete", "originalDate": "2026-06-15", "newDate": "2026-06-30" },
+        { "id": "uuid", "name": "Go Live", "originalDate": "2026-06-30", "newDate": "2026-07-15" }
+      ]
+    },
+    "budget": {
+      "originalBudget": 250000,
+      "additionalCost": 35000,
+      "newTotal": 285000,
+      "percentageIncrease": 14
+    },
+    "resources": {
+      "additionalEffort": "120 hours",
+      "roleBreakdown": [
+        { "role": "Senior Developer", "hours": 80 },
+        { "role": "QA Engineer", "hours": 40 }
+      ],
+      "availabilityIssues": ["Senior Developer at 90% capacity through June"]
+    },
+    "risks": [
+      {
+        "description": "Extended timeline overlaps with planned team leave",
+        "severity": "medium",
+        "mitigation": "Consider contractor support for July period"
+      }
+    ],
+    "dependencies": [
+      { "type": "external", "description": "Third-party API integration must complete by July 1" }
+    ],
+    "conditions": [
+      "Secure contractor approval for additional capacity",
+      "Confirm third-party API timeline"
+    ]
+  }
+}
+```
+
+### 11.8 Document Generation
+
+**File:** `api/ai-document-generate.js`
+
+**Endpoint:** `POST /api/ai-document-generate`
+
+Generates formatted project documents from structured data.
+
+**Request:**
+
+```json
+{
+  "projectId": "uuid",
+  "documentType": "status_report",
+  "options": {
+    "dateRange": "thisMonth",
+    "includeFinancials": true,
+    "format": "markdown"
+  }
+}
+```
+
+**Supported Document Types:**
+
+| Type | Description | Key Sections |
+|------|-------------|--------------|
+| `status_report` | Periodic status update | Executive summary, progress, milestones, risks, next steps, metrics |
+| `project_summary` | High-level project overview | Overview, scope, timeline, team, key achievements |
+| `milestone_report` | Milestone completion report | Deliverables, acceptance criteria, sign-offs, lessons learned |
+| `raid_summary` | RAID log summary | Active risks, issues, decisions, trends |
+| `handover_document` | Project handover pack | Full project documentation, contacts, outstanding items |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "document": {
+    "type": "status_report",
+    "generatedAt": "2026-01-17T10:30:00Z",
+    "content": "# Project Status Report\n\n## Executive Summary\n\n...",
+    "sections": [
+      {
+        "title": "Executive Summary",
+        "content": "Project is on track with 75% of milestones completed...",
+        "ragStatus": "green"
+      },
+      {
+        "title": "Key Highlights",
+        "items": [
+          "UAT phase completed ahead of schedule",
+          "All critical bugs resolved"
+        ]
+      }
+    ],
+    "metadata": {
+      "projectName": "AMSF001",
+      "reportPeriod": "January 2026",
+      "preparedBy": "AI Document Generator"
+    }
+  }
+}
+```
+
+### 11.9 Project Forecasting
+
+**File:** `api/ai-forecast.js`
+
+**Endpoint:** `POST /api/ai-forecast`
+
+Predicts project completion dates, budget outcomes, and identifies trajectory risks.
+
+**Request:**
+
+```json
+{
+  "projectId": "uuid"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "forecast": {
+    "healthScore": 78,
+    "healthTrend": "improving",
+    "completion": {
+      "plannedDate": "2026-06-30",
+      "predictedDate": "2026-07-08",
+      "confidenceInterval": { "low": "2026-06-28", "high": "2026-07-20" },
+      "confidence": 0.75,
+      "onScheduleProbability": 0.65
+    },
+    "budget": {
+      "original": 250000,
+      "currentSpend": 150000,
+      "predictedFinal": 265000,
+      "variance": 15000,
+      "variancePercent": 6,
+      "onBudgetProbability": 0.70
+    },
+    "velocity": {
+      "current": 4.2,
+      "required": 5.1,
+      "trend": "stable",
+      "unit": "deliverables/week"
+    },
+    "milestones": [
+      {
+        "id": "uuid",
+        "name": "UAT Complete",
+        "plannedDate": "2026-05-15",
+        "predictedDate": "2026-05-18",
+        "riskLevel": "low"
+      },
+      {
+        "id": "uuid",
+        "name": "Go Live",
+        "plannedDate": "2026-06-30",
+        "predictedDate": "2026-07-08",
+        "riskLevel": "medium"
+      }
+    ],
+    "keyFactors": [
+      "Current velocity 18% below required rate",
+      "2 blocking issues unresolved for >5 days",
+      "Team capacity at 85% due to planned leave"
+    ],
+    "recommendations": [
+      "Prioritize resolution of blocking issues",
+      "Consider scope reduction for Phase 3",
+      "Request additional resource for June"
+    ]
+  }
+}
+```
+
+### 11.10 Schedule Risk Prediction
+
+**File:** `api/ai-schedule-risk.js`
+
+**Endpoint:** `POST /api/ai-schedule-risk`
+
+Identifies milestones at risk of slippage with contributing factors and mitigations.
+
+**Request:**
+
+```json
+{
+  "projectId": "uuid"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "riskAssessment": {
+    "overallRisk": "medium",
+    "milestonesAtRisk": [
+      {
+        "milestone": {
+          "id": "uuid",
+          "name": "UAT Complete",
+          "plannedDate": "2026-02-15"
+        },
+        "riskLevel": "high",
+        "riskScore": 78,
+        "predictedSlipDays": 13,
+        "trajectory": {
+          "currentCompletion": 0.45,
+          "requiredCompletion": 0.65,
+          "gap": 0.20
+        },
+        "contributingFactors": [
+          {
+            "factor": "Test coverage incomplete",
+            "impact": "high",
+            "detail": "3 of 8 test scenarios not started"
+          },
+          {
+            "factor": "Resource constraint",
+            "impact": "medium",
+            "detail": "Testing team at 75% capacity"
+          },
+          {
+            "factor": "Blocking dependencies",
+            "impact": "high",
+            "detail": "2 bugs blocking test execution"
+          }
+        ],
+        "recommendations": [
+          {
+            "action": "Prioritize bug fixes",
+            "effort": "3 days",
+            "impact": "Unblocks 40% of remaining tests"
+          },
+          {
+            "action": "Consider scope reduction",
+            "effort": "1 day",
+            "impact": "Defer 2 low-priority scenarios to Phase 2"
+          },
+          {
+            "action": "Request extension",
+            "effort": "Variation required",
+            "impact": "1-week buffer reduces risk to low"
+          }
+        ]
+      }
+    ],
+    "healthyMilestones": [
+      { "id": "uuid", "name": "Design Complete", "riskLevel": "low" }
+    ],
+    "summary": {
+      "totalMilestones": 8,
+      "highRisk": 1,
+      "mediumRisk": 2,
+      "lowRisk": 5
+    }
+  }
+}
+```
+
+### 11.11 Portfolio Insights
+
+**File:** `api/ai-portfolio-insights.js`
+
+**Endpoint:** `POST /api/ai-portfolio-insights`
+
+Cross-project analysis for organisation-level strategic intelligence.
+
+**Request:**
+
+```json
+{
+  "organisationId": "uuid"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "insights": {
+    "executiveSummary": "Portfolio of 12 active projects is performing well overall with 2 requiring attention.",
+    "overallHealth": "good",
+    "healthScore": 82,
+    "keyMetrics": {
+      "activeProjects": 12,
+      "totalBudget": 3500000,
+      "totalSpend": 2100000,
+      "budgetUtilization": 60,
+      "onTrackPercentage": 83,
+      "averageHealthScore": 78
+    },
+    "projectsNeedingAttention": [
+      {
+        "project": { "id": "uuid", "name": "CRM Migration", "reference": "CRM-001" },
+        "issues": ["30% over budget", "2 critical risks unresolved"],
+        "recommendation": "Executive review recommended"
+      }
+    ],
+    "riskPatterns": [
+      {
+        "pattern": "Resource contention",
+        "affectedProjects": 4,
+        "description": "Senior developers allocated to multiple concurrent projects",
+        "recommendation": "Consider resource leveling across Q2 projects"
+      }
+    ],
+    "resourceUtilization": {
+      "overallUtilization": 87,
+      "overallocatedResources": 3,
+      "underallocatedResources": 2
+    },
+    "strategicRecommendations": [
+      {
+        "recommendation": "Stagger project start dates",
+        "priority": "high",
+        "impact": "Reduces resource contention by 40%",
+        "effort": "Medium - requires stakeholder alignment"
+      },
+      {
+        "recommendation": "Standardize risk management",
+        "priority": "medium",
+        "impact": "Early risk detection across portfolio",
+        "effort": "Low - template and process update"
+      }
+    ],
+    "trends": {
+      "budgetVariance": { "trend": "improving", "change": -5 },
+      "scheduleVariance": { "trend": "stable", "change": 0 },
+      "qualityMetrics": { "trend": "improving", "change": 8 }
+    }
+  }
+}
+```
+
+**Permission Requirements:**
+- Requires `org_admin` or `supplier_pm` role at organisation level
+- Only returns data for projects within user's organisation
+
+### 11.12 UI Integration
+
+The AI Enablement Services are integrated into the application through dedicated components:
+
+| Component | Location | Endpoint |
+|-----------|----------|----------|
+| `AnomalyAlertsWidget` | Dashboard sidebar | `/api/ai-anomaly-detect` |
+| `ApprovalAssistantWidget` | Dashboard sidebar | `/api/ai-approval-assist` |
+| `ProjectForecastPanel` | Dashboard main area | `/api/ai-forecast`, `/api/ai-schedule-risk` |
+| `AIDocumentGenerator` | Reports page | `/api/ai-document-generate` |
+| `PortfolioInsightsPanel` | Org Admin > Insights tab | `/api/ai-portfolio-insights` |
+| `QualityAssessment` | Deliverable detail panel | `/api/ai-deliverable-assess` |
+| `ImpactAnalysis` | Variation detail page | `/api/ai-variation-impact` |
+| `RaidAISuggestions` | RAID form inline | `/api/ai-raid-categorize` |
+
+### 11.13 Error Handling
+
+All AI Enablement endpoints follow consistent error handling:
+
+```json
+{
+  "success": false,
+  "error": "Analysis failed",
+  "code": "AI_ANALYSIS_ERROR",
+  "details": "Insufficient data for meaningful analysis"
+}
+```
+
+**Error Codes:**
+
+| Code | Description | Recovery |
+|------|-------------|----------|
+| `AI_ANALYSIS_ERROR` | AI processing failed | Retry or simplify request |
+| `INSUFFICIENT_DATA` | Not enough data for analysis | Ensure project has sufficient data |
+| `RATE_LIMITED` | Too many requests | Wait and retry |
+| `PERMISSION_DENIED` | User lacks required permissions | Contact admin |
+| `PROJECT_NOT_FOUND` | Invalid project ID | Verify project exists |
+
+### 11.14 Token Usage & Costs
+
+| Endpoint | Avg Input Tokens | Avg Output Tokens | Est. Cost/Request |
+|----------|------------------|-------------------|-------------------|
+| ai-raid-categorize | 800 | 300 | $0.02 |
+| ai-approval-assist | 2,000 | 800 | $0.09 |
+| ai-anomaly-detect | 3,000 | 1,000 | $0.12 |
+| ai-deliverable-assess | 1,500 | 600 | $0.07 |
+| ai-variation-impact | 2,500 | 1,200 | $0.13 |
+| ai-document-generate | 4,000 | 3,000 | $0.28 |
+| ai-forecast | 3,500 | 1,500 | $0.16 |
+| ai-schedule-risk | 2,000 | 1,000 | $0.11 |
+| ai-portfolio-insights | 5,000 | 2,000 | $0.26 |
+
+**Estimated monthly cost:** $50-100 for moderate usage across all features.
+
+---
+
+## 12. AI Action Framework
+
+> **Added:** 17 January 2026 - Phase 1 of AI Enablement Strategy
+
+The AI Action Framework extends the chat assistant beyond query capabilities to enable **execution of actions** through natural language commands. All actions require explicit user confirmation before execution.
+
+### 12.1 Design Principles
+
+**Core Philosophy:**
+- User initiates via natural language command
+- AI presents preview of what will happen
+- User must explicitly confirm before execution
+- Server-side permission validation
+- All actions are auditable
+
+**Confirmation Workflow:**
+```
+User: "Submit my timesheets"
+     ↓
+AI: Calls submitAllTimesheets (without confirmed flag)
+     ↓
+Tool: Returns preview: "3 timesheets totaling 24 hours"
+     ↓
+AI: "I found 3 timesheets... Submit them for approval?"
+     ↓
+User: "Yes"
+     ↓
+AI: Calls submitAllTimesheets (with confirmed: true)
+     ↓
+Tool: Executes update, returns success
+     ↓
+AI: "Done! 3 timesheets submitted."
+```
+
+### 12.2 Files
+
+| File | Purpose |
+|------|---------|
+| `api/lib/ai-action-schemas.js` | Action tool definitions, permission mappings |
+| `api/lib/ai-actions.js` | Action execution handlers, entity lookup |
+| `api/chat.js` (modified) | Tool array expanded, action execution integration |
+
+### 12.3 Action Tools
+
+| Tool | Entity | Actions | Permission Required |
+|------|--------|---------|---------------------|
+| `submitTimesheet` | Timesheet | Submit single draft | `timesheets.submit` |
+| `submitAllTimesheets` | Timesheet | Submit all drafts | `timesheets.submit` |
+| `submitExpense` | Expense | Submit single draft | `expenses.submit` |
+| `submitAllExpenses` | Expense | Submit all drafts | `expenses.submit` |
+| `updateMilestoneStatus` | Milestone | Change status | `milestones.edit` |
+| `updateMilestoneProgress` | Milestone | Set progress % | `milestones.edit` |
+| `updateDeliverableStatus` | Deliverable | Change status | `deliverables.edit` |
+| `completeTask` | Task | Mark complete | `tasks.edit` |
+| `updateTaskProgress` | Task | Set progress % | `tasks.edit` |
+| `reassignTask` | Task | Change assignee | `tasks.edit` |
+| `updateRaidStatus` | RAID | Change status | `raid.edit` |
+| `resolveRaidItem` | RAID | Close with note | `raid.edit` |
+| `assignRaidOwner` | RAID | Change owner | `raid.edit` |
+
+### 12.4 Tool Schema Example
+
+```javascript
+{
+  name: "submitAllTimesheets",
+  description: "Submit all of the current user's draft timesheets for approval.",
+  input_schema: {
+    type: "object",
+    properties: {
+      dateRange: {
+        type: "string",
+        enum: ["thisWeek", "lastWeek", "thisMonth", "all"],
+        description: "Optional date range filter"
+      },
+      confirmed: {
+        type: "boolean",
+        description: "Set to true only after user explicitly confirms"
+      }
+    },
+    required: []
+  }
+}
+```
+
+### 12.5 Response Formats
+
+**Preview Response (not confirmed):**
+```json
+{
+  "requiresConfirmation": true,
+  "preview": "Submit 3 timesheet(s) totaling 24 hours:\n  - Mon: 8h on API work\n  - Tue: 8h on Testing\n  - Wed: 8h on Documentation",
+  "actionName": "submitAllTimesheets",
+  "params": { "dateRange": "thisWeek" },
+  "data": { "count": 3, "totalHours": 24 }
+}
+```
+
+**Success Response (confirmed):**
+```json
+{
+  "success": true,
+  "message": "3 timesheet(s) submitted for approval (24 hours total)"
+}
+```
+
+**Error Response:**
+```json
+{
+  "error": "You don't have permission to submit timesheets"
+}
+```
+
+### 12.6 Permission Enforcement
+
+Actions validate permissions server-side before execution:
+
+```javascript
+const ROLE_PERMISSIONS = {
+  supplier_pm: {
+    timesheets: ['view', 'create', 'edit', 'submit', 'validate', 'approve'],
+    milestones: ['view', 'create', 'edit', 'delete'],
+    // ...
+  },
+  contributor: {
+    timesheets: ['view', 'create', 'edit', 'submit'],
+    milestones: ['view'],
+    // ...
+  },
+  // ...
+};
+```
+
+### 12.7 Entity Lookup
+
+Actions support flexible entity identification:
+- **UUID:** Exact match by ID
+- **Name:** Case-insensitive partial match
+- **Reference:** For RAID items, supports format like "R-001", "I-023"
+
+If multiple entities match, the action returns an error asking for clarification.
+
+### 12.8 System Prompt Integration
+
+The chat assistant system prompt includes action documentation:
+
+```markdown
+## Action Capability (v4.0)
+
+You can also **execute actions** on behalf of the user.
+
+### CRITICAL: Confirmation Rules
+- NEVER set `confirmed: true` on first call
+- ONLY set `confirmed: true` after user explicitly confirms
+- If user says "no", "cancel", "wait" - do NOT execute
+```
+
+### 12.9 Cost Considerations
+
+Action tools use the same model as query tools (Opus 4.5 for complex, Haiku for simple). Typical action costs:
+
+| Action | Tokens (In/Out) | Est. Cost |
+|--------|-----------------|-----------|
+| Submit timesheet | 1,500/500 | $0.06 |
+| Update milestone | 1,500/300 | $0.05 |
+| Resolve RAID | 1,500/400 | $0.05 |
+
+---
+
 ## Appendix A: Tool Input Schemas
 
 ### getTimesheets
@@ -1833,3 +2755,7 @@ const response = await fetch('/api/evaluator/create-evaluation', {
 | 1.3 | 28 Dec 2025 | Claude AI | Added `/api/planning-ai` endpoint (AI-powered WBS generation), Section 6.7 |
 | 1.4 | 6 Jan 2026 | Claude AI | Planning AI: Upgraded to Claude Opus 4, increased MAX_TOKENS to 16384, added component item type |
 | 1.5 | 7 Jan 2026 | Claude AI | Added Section 10: Evaluator API Endpoints, added `/api/manage-project-users` and `/api/report-ai` to endpoint summary, added cross-reference to TECH-SPEC-11-Evaluator.md |
+| 1.6 | 7 Jan 2026 | Claude AI | Chat AI: Expanded tool catalog to 36 tools, added getFeatureGuide, enhanced page-specific suggestions |
+| 1.7 | 7 Jan 2026 | Claude AI | Feature Guides: 27 guides implemented, Section 5.6 documentation added |
+| 1.8 | 17 Jan 2026 | Claude AI | AI Enablement: Added Section 11 with 9 new AI endpoints (ai-raid-categorize, ai-approval-assist, ai-anomaly-detect, ai-deliverable-assess, ai-variation-impact, ai-document-generate, ai-forecast, ai-schedule-risk, ai-portfolio-insights), model selection (Opus 4.5/Sonnet 4.5), advisory-only design principle |
+| 1.9 | 17 Jan 2026 | Claude AI | AI Action Framework: Added Section 12 with 13 action tools (submit, update, complete, reassign), confirmation workflow, permission enforcement, new files (ai-actions.js, ai-action-schemas.js), chat.js upgraded to v4.0 |

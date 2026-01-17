@@ -1,15 +1,16 @@
 /**
  * RAID Add Form - Apple Design System
- * 
+ *
  * Create new RAID (Risk, Assumption, Issue, Dependency) items.
  * Clean modal form with category selection cards.
- * 
- * @version 2.0
- * @updated 5 December 2025
+ * Includes AI-powered categorization suggestions.
+ *
+ * @version 2.1
+ * @updated 17 January 2026
  */
 
-import React, { useState, useEffect } from 'react';
-import { X, Save, AlertTriangle, AlertCircle, Info, Link2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Save, AlertTriangle, AlertCircle, Info, Link2, Sparkles, Loader2, Check } from 'lucide-react';
 import { raidService } from '../../services';
 import { supabase } from '../../lib/supabase';
 import './RaidAddForm.css';
@@ -25,7 +26,13 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [milestones, setMilestones] = useState([]);
-  
+
+  // AI suggestion state
+  const [aiSuggesting, setAiSuggesting] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+  const [aiError, setAiError] = useState(null);
+  const [suggestionApplied, setSuggestionApplied] = useState(false);
+
   const [formData, setFormData] = useState({
     category: 'Risk',
     raid_ref: '',
@@ -104,6 +111,74 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
     
     if (projectId) fetchData();
   }, [projectId]);
+
+  // AI Categorization suggestion
+  const handleAiSuggest = useCallback(async () => {
+    const text = `${formData.title} ${formData.description}`.trim();
+    if (text.length < 10) {
+      setAiError('Please enter more detail in the title or description first');
+      return;
+    }
+
+    setAiSuggesting(true);
+    setAiError(null);
+    setAiSuggestion(null);
+    setSuggestionApplied(false);
+
+    try {
+      const response = await fetch('/api/ai-raid-categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          projectId,
+          includeRelated: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('AI service unavailable');
+      }
+
+      const data = await response.json();
+      if (data.success && data.suggestion) {
+        setAiSuggestion(data.suggestion);
+      } else {
+        throw new Error(data.error || 'No suggestion returned');
+      }
+    } catch (error) {
+      console.error('AI suggestion error:', error);
+      setAiError(error.message || 'Failed to get AI suggestion');
+    } finally {
+      setAiSuggesting(false);
+    }
+  }, [formData.title, formData.description, projectId]);
+
+  // Apply AI suggestion to form
+  const handleApplySuggestion = useCallback(() => {
+    if (!aiSuggestion) return;
+
+    setFormData(prev => ({
+      ...prev,
+      category: aiSuggestion.category || prev.category,
+      severity: aiSuggestion.severity || prev.severity,
+      probability: aiSuggestion.probability || prev.probability,
+      title: aiSuggestion.suggestedTitle || prev.title,
+      mitigation: aiSuggestion.mitigationSuggestions?.length > 0
+        ? aiSuggestion.mitigationSuggestions.join('\n')
+        : prev.mitigation
+    }));
+    setSuggestionApplied(true);
+  }, [aiSuggestion]);
+
+  // Clear suggestion when description changes significantly
+  useEffect(() => {
+    if (aiSuggestion && !suggestionApplied) {
+      // Clear stale suggestion if user modifies text after getting a suggestion
+      setAiSuggestion(null);
+    }
+  }, [formData.description]);
 
   // Auto-generate reference when category changes
   useEffect(() => {
@@ -228,6 +303,86 @@ export default function RaidAddForm({ projectId, onClose, onSaved }) {
               className="raid-form-textarea"
               required
             />
+          </div>
+
+          {/* AI Suggestion Section */}
+          <div className="raid-ai-section">
+            <button
+              type="button"
+              onClick={handleAiSuggest}
+              disabled={aiSuggesting || (formData.title + formData.description).trim().length < 10}
+              className="raid-ai-suggest-btn"
+            >
+              {aiSuggesting ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  Analysing...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  AI Suggest Category
+                </>
+              )}
+            </button>
+
+            {aiError && (
+              <div className="raid-ai-error">
+                <AlertCircle size={14} />
+                {aiError}
+              </div>
+            )}
+
+            {aiSuggestion && !suggestionApplied && (
+              <div className="raid-ai-suggestion">
+                <div className="raid-ai-suggestion-header">
+                  <Sparkles size={14} />
+                  <span>AI Suggestion</span>
+                  <span className="raid-ai-confidence">
+                    {Math.round((aiSuggestion.categoryConfidence || 0) * 100)}% confidence
+                  </span>
+                </div>
+                <div className="raid-ai-suggestion-content">
+                  <div className="raid-ai-suggestion-item">
+                    <strong>Category:</strong> {aiSuggestion.category}
+                    <span className="raid-ai-rationale">{aiSuggestion.categoryRationale}</span>
+                  </div>
+                  <div className="raid-ai-suggestion-item">
+                    <strong>Severity:</strong> {aiSuggestion.severity}
+                  </div>
+                  {aiSuggestion.probability && (
+                    <div className="raid-ai-suggestion-item">
+                      <strong>Probability:</strong> {aiSuggestion.probability}
+                    </div>
+                  )}
+                  {aiSuggestion.suggestedOwnerRole && (
+                    <div className="raid-ai-suggestion-item">
+                      <strong>Suggested Owner:</strong> {aiSuggestion.suggestedOwnerRole}
+                    </div>
+                  )}
+                  {aiSuggestion.keyFactors?.length > 0 && (
+                    <div className="raid-ai-suggestion-item">
+                      <strong>Key factors:</strong> {aiSuggestion.keyFactors.join(', ')}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplySuggestion}
+                  className="raid-ai-apply-btn"
+                >
+                  <Check size={14} />
+                  Apply Suggestion
+                </button>
+              </div>
+            )}
+
+            {suggestionApplied && (
+              <div className="raid-ai-applied">
+                <Check size={14} />
+                AI suggestion applied - review and adjust as needed
+              </div>
+            )}
           </div>
 
           {/* Impact */}

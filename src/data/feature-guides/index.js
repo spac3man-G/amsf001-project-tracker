@@ -43,6 +43,7 @@ export const guideRegistry = {
   'navigation': 'general/navigation',
   'roles-permissions': 'general/roles-permissions',
   'workflows': 'general/workflows',
+  'ai-intelligence': 'general/ai-intelligence',
 };
 
 // Keyword to guide mapping for fuzzy matching
@@ -226,6 +227,21 @@ export const keywordMapping = {
   'workflows': 'workflows',
   'approval': 'workflows',
   'approval process': 'workflows',
+
+  // AI Intelligence
+  'ai': 'ai-intelligence',
+  'ai features': 'ai-intelligence',
+  'artificial intelligence': 'ai-intelligence',
+  'forecast': 'ai-intelligence',
+  'forecasting': 'ai-intelligence',
+  'anomaly': 'ai-intelligence',
+  'anomalies': 'ai-intelligence',
+  'health score': 'ai-intelligence',
+  'document generator': 'ai-intelligence',
+  'generate document': 'ai-intelligence',
+  'ai document': 'ai-intelligence',
+  'portfolio insights': 'ai-intelligence',
+  'approval assistant': 'ai-intelligence',
 };
 
 /**
@@ -278,7 +294,7 @@ export function getGuidesByCategory() {
     finance: ['billing', 'partner-invoices'],
     evaluator: ['evaluation-setup', 'requirements', 'vendors', 'scoring', 'workshops', 'evaluator-reports'],
     admin: ['organisation-admin', 'project-settings', 'team-members', 'audit-log'],
-    general: ['navigation', 'roles-permissions', 'workflows'],
+    general: ['navigation', 'roles-permissions', 'workflows', 'ai-intelligence'],
   };
 }
 

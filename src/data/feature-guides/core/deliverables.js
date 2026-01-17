@@ -71,6 +71,7 @@ const deliverablesGuide = {
       steps: [
         'Ensure all tasks within the deliverable are complete',
         'Open the deliverable details page',
+        '(Recommended) Check the AI Quality Assessment panel to ensure readiness score is adequate',
         'Click "Submit for Review" button',
         'Add any notes for the reviewer (optional)',
         'Confirm the submission',
@@ -81,7 +82,28 @@ const deliverablesGuide = {
         'Complete all tasks before submitting',
         'Attach any supporting documents or links',
         'Notes help reviewers understand what to focus on',
-        'You cannot edit the deliverable while under review'
+        'You cannot edit the deliverable while under review',
+        'Check the AI Quality Assessment for potential issues before submitting'
+      ]
+    },
+    useAIQualityAssessment: {
+      title: 'Using AI Quality Assessment',
+      steps: [
+        'Open the deliverable details side panel by clicking on a deliverable',
+        'Look for the "AI Quality Assessment" panel (with sparkles icon)',
+        'The assessment automatically analyses: task completion, KPI linkages, quality standards, and timeline',
+        'Review the readiness score (0-100) and status (Ready, Almost Ready, Needs Work, Not Ready)',
+        'Check the quality checklist for missing items',
+        'Review the "Areas for Improvement" section for specific recommendations',
+        'Address any concerns before submitting for review'
+      ],
+      tips: [
+        'AI assessment updates automatically when you make changes',
+        'Higher readiness scores indicate better chances of passing review',
+        'The assessment checks for linked KPIs and quality standards - add these if missing',
+        'AI recommendations are advisory - use your judgement for context-specific situations',
+        'Click the refresh button to get a fresh assessment after making changes',
+        'The "Sign-off Status" section tells you if the deliverable is ready for customer approval'
       ]
     },
     completeReview: {
@@ -424,10 +446,22 @@ const deliverablesGuide = {
     {
       question: 'Can I delete a deliverable?',
       answer: 'PMs and Admins can delete deliverables that have no approved timesheets against them. If time has been logged and approved, the deliverable cannot be deleted - consider marking it as cancelled instead.'
+    },
+    {
+      question: 'What is the AI Quality Assessment?',
+      answer: 'The AI Quality Assessment is an automated analysis that evaluates deliverable readiness for sign-off. It checks task completion, linked KPIs and quality standards, timeline status, and more. It provides a readiness score (0-100) and specific recommendations for improvement. Use it as a guide before submitting for review.'
+    },
+    {
+      question: 'What does the readiness score mean?',
+      answer: 'The readiness score (0-100) indicates how prepared a deliverable is for customer sign-off. Scores above 80 are typically "Ready", 60-80 is "Almost Ready", 40-60 is "Needs Work", and below 40 is "Not Ready". The score considers task completion, KPI linkages, quality standards, and timeline adherence.'
+    },
+    {
+      question: 'Should I always follow AI recommendations?',
+      answer: 'AI recommendations are advisory only. They help identify potential issues but cannot account for all context. If the AI flags something that you know is acceptable for your project, use your judgement. The assessment is a tool to help, not a gatekeeper.'
     }
   ],
   
-  related: ['milestones', 'timesheets', 'resources', 'workflows', 'wbs-planning']
+  related: ['milestones', 'timesheets', 'resources', 'workflows', 'wbs-planning', 'ai-intelligence']
 };
 
 export default deliverablesGuide;

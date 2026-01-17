@@ -15,16 +15,19 @@ import '../Dashboard.css';
 import { useProject } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrganisation } from '../../contexts/OrganisationContext';
-import { 
-  MilestonesWidget, 
-  DeliverablesWidget, 
-  TimesheetsWidget, 
-  ExpensesWidget, 
+import {
+  MilestonesWidget,
+  DeliverablesWidget,
+  TimesheetsWidget,
+  ExpensesWidget,
   BillingWidget,
   FinanceWidget,
   KPICardsRow,
   QSCardsRow,
-  OrganisationUsageWidget
+  OrganisationUsageWidget,
+  AnomalyAlertsWidget,
+  ProjectForecastPanel,
+  ApprovalAssistantWidget
 } from '../../components/dashboard';
 
 export default function DashboardContent() {
@@ -78,6 +81,15 @@ export default function DashboardContent() {
           <DeliverablesWidget refreshTrigger={refreshTrigger} />
           <TimesheetsWidget refreshTrigger={refreshTrigger} />
           <ExpensesWidget refreshTrigger={refreshTrigger} />
+        </div>
+
+        {/* AI Insights - Proactive Intelligence */}
+        <div className="dashboard-ai-insights" data-testid="dashboard-ai-insights">
+          <ProjectForecastPanel refreshTrigger={refreshTrigger} />
+          <div className="dashboard-ai-sidebar">
+            <AnomalyAlertsWidget refreshTrigger={refreshTrigger} />
+            <ApprovalAssistantWidget refreshTrigger={refreshTrigger} />
+          </div>
         </div>
 
         {/* KPI Metrics Row */}

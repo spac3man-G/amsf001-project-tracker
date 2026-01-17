@@ -223,6 +223,11 @@
   animation: slideDown 0.2s ease-out;
 }
 
+/* AI Assessment Section - no padding needed as component has its own */
+.side-panel-ai-section {
+  padding: 0 16px 16px;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

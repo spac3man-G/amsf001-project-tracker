@@ -334,18 +334,169 @@
   background: #f9fafb;
 }
 
+/* =============================================================================
+   AI Suggestion Section
+   ============================================================================= */
+
+.raid-ai-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(59, 130, 246, 0.04) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.raid-ai-suggest-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  transition: all 0.2s;
+}
+
+.raid-ai-suggest-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.raid-ai-suggest-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.raid-ai-suggest-btn .spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.raid-ai-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.raid-ai-suggestion {
+  margin-top: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.raid-ai-suggestion-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #8b5cf6;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.raid-ai-confidence {
+  margin-left: auto;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.raid-ai-suggestion-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.raid-ai-suggestion-item {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.raid-ai-suggestion-item strong {
+  color: #1d1d1f;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.raid-ai-rationale {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+
+.raid-ai-apply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: #10b981;
+  color: white;
+  transition: all 0.2s;
+}
+
+.raid-ai-apply-btn:hover {
+  background: #059669;
+}
+
+.raid-ai-applied {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(16, 185, 129, 0.08);
+  border-radius: 8px;
+  color: #059669;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .raid-add-modal {
     max-height: 100vh;
     border-radius: 0;
   }
-  
+
   .raid-category-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .raid-form-row {
     grid-template-columns: 1fr;
+  }
+
+  .raid-ai-section {
+    padding: 12px;
   }
 }

@@ -188,9 +188,36 @@ const organisationAdminGuide = {
         'Export logs for compliance requirements',
         'Unusual activity may indicate security issues'
       ]
+    },
+    viewPortfolioInsights: {
+      title: 'Viewing Portfolio Insights (AI)',
+      steps: [
+        'Navigate to Admin → Organisation',
+        'Click the "Insights" tab',
+        'View the portfolio health score (0-100) and executive summary',
+        'Review key metrics: active projects, budget utilization, on-track percentage',
+        'Check "Projects Needing Attention" for items requiring intervention',
+        'Expand "Risk Patterns" to see common issues across projects',
+        'Review "Strategic Recommendations" for portfolio-level actions',
+        'Click refresh to update the analysis'
+      ],
+      metricsExplained: [
+        { metric: 'Portfolio Health Score', description: 'Overall health of all projects (0-100)' },
+        { metric: 'Active Projects', description: 'Number of currently active projects' },
+        { metric: 'Budget Utilization', description: 'Percentage of total budget spent' },
+        { metric: 'On-Track Percentage', description: 'Percentage of projects on schedule' }
+      ],
+      tips: [
+        'Portfolio Insights is only available to Organisation Admins',
+        'Analysis covers all projects in your organisation',
+        'Projects needing attention are prioritised by urgency',
+        'Risk patterns identify systemic issues affecting multiple projects',
+        'AI recommendations are advisory - always apply business context',
+        'Use insights for strategic planning and resource allocation'
+      ]
     }
   },
-  
+
   fields: {
     name: {
       name: 'Organisation Name',
@@ -267,7 +294,8 @@ const organisationAdminGuide = {
       canChangeRoles: true,
       canCreateProjects: true,
       canDeleteOrganisation: true,
-      notes: 'Full control over the organisation'
+      canViewPortfolioInsights: true,
+      notes: 'Full control over the organisation, including AI Portfolio Insights'
     },
     org_member: {
       role: 'Organisation Member',
@@ -278,6 +306,7 @@ const organisationAdminGuide = {
       canChangeRoles: false,
       canCreateProjects: false,
       canDeleteOrganisation: false,
+      canViewPortfolioInsights: false,
       notes: 'Can access assigned projects only'
     },
     org_viewer: {
@@ -289,6 +318,7 @@ const organisationAdminGuide = {
       canChangeRoles: false,
       canCreateProjects: false,
       canDeleteOrganisation: false,
+      canViewPortfolioInsights: false,
       notes: 'Read-only access to organisation'
     }
   },
@@ -325,10 +355,22 @@ const organisationAdminGuide = {
     {
       question: 'Can I see which projects a member has access to?',
       answer: 'Yes, view the member\'s profile to see their project assignments. As Organisation Admin, you can see all member-project relationships.'
+    },
+    {
+      question: 'What is Portfolio Insights?',
+      answer: 'Portfolio Insights is an AI-powered analysis of all projects in your organisation. It shows overall portfolio health, identifies projects needing attention, detects risk patterns across projects, and provides strategic recommendations. Access it via the Insights tab in Organisation Admin.'
+    },
+    {
+      question: 'Why can I not see the Insights tab?',
+      answer: 'The Insights tab and Portfolio Insights feature are only available to Organisation Admins. If you do not have the Organisation Admin role, this tab will not appear.'
+    },
+    {
+      question: 'How accurate are the Portfolio Insights recommendations?',
+      answer: 'Portfolio Insights uses AI to analyse project data and identify patterns. Recommendations are based on current data and trends. They are advisory only - always apply your business context and judgement when making decisions.'
     }
   ],
-  
-  related: ['project-settings', 'team-members', 'audit-log', 'roles-permissions']
+
+  related: ['project-settings', 'team-members', 'audit-log', 'roles-permissions', 'ai-intelligence']
 };
 
 export default organisationAdminGuide;

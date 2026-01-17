@@ -1,0 +1,686 @@
+/* =============================================================================
+   Portfolio Insights Panel - Cross-project analytics for org admins
+   Version: 1.0
+   Created: 17 January 2026
+   ============================================================================= */
+
+/* Container */
+.portfolio-insights {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  overflow: hidden;
+}
+
+.portfolio-insights-loading,
+.portfolio-insights-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.portfolio-insights-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.portfolio-insights-loading svg {
+  color: #3b82f6;
+}
+
+.portfolio-insights-loading svg.spin {
+  animation: portfolioSpin 1s linear infinite;
+}
+
+@keyframes portfolioSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.portfolio-insights-loading h3,
+.portfolio-insights-error h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.portfolio-insights-loading p,
+.portfolio-insights-error p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.portfolio-insights-error {
+  color: #dc2626;
+}
+
+.portfolio-insights-error button {
+  margin-top: 16px;
+  padding: 10px 20px;
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.portfolio-insights-error button:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* Header */
+.portfolio-insights-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(139, 92, 246, 0.06) 100%);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+}
+
+.portfolio-insights-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.portfolio-icon {
+  color: #3b82f6;
+}
+
+.portfolio-insights-header-left h2 {
+  margin: 0 0 2px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.portfolio-insights-header-left p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.portfolio-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.portfolio-refresh-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Health Overview */
+.portfolio-health-overview {
+  display: flex;
+  gap: 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.portfolio-health-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 30px;
+  border-radius: 12px;
+  border: 2px solid;
+  min-width: 140px;
+}
+
+.health-score-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1d1d1f;
+  line-height: 1;
+}
+
+.health-score-label {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.health-score-status {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+.portfolio-key-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  flex: 1;
+}
+
+@media (min-width: 900px) {
+  .portfolio-key-metrics {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.portfolio-metric {
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 10px;
+  border-left: 3px solid #64748b;
+}
+
+.portfolio-metric.good {
+  border-left-color: #10b981;
+}
+
+.portfolio-metric.warning {
+  border-left-color: #f59e0b;
+}
+
+.portfolio-metric.critical {
+  border-left-color: #ef4444;
+}
+
+.portfolio-metric .metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.portfolio-metric .metric-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.portfolio-metric .metric-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+/* Summary */
+.portfolio-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 24px;
+  background: rgba(59, 130, 246, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.portfolio-summary svg {
+  color: #3b82f6;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.portfolio-summary p {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+/* Trends */
+.portfolio-trends {
+  display: flex;
+  gap: 24px;
+  padding: 14px 24px;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.portfolio-trend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.portfolio-trend .trend-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.portfolio-trend .trend-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  text-transform: capitalize;
+}
+
+/* Sections */
+.portfolio-section {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.portfolio-section:last-of-type {
+  border-bottom: none;
+}
+
+.portfolio-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.portfolio-section-header:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-header-left svg {
+  color: #3b82f6;
+}
+
+.section-header-left h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.section-count {
+  padding: 2px 8px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.portfolio-section-content {
+  padding: 0 24px 20px;
+}
+
+/* Attention Items */
+.portfolio-attention-item {
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.portfolio-attention-item:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.02);
+}
+
+.portfolio-attention-item:last-child {
+  margin-bottom: 0;
+}
+
+.attention-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.attention-ref {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.attention-urgency {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+  text-transform: capitalize;
+}
+
+.attention-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-bottom: 6px;
+}
+
+.attention-reason {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.attention-rec {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: #3b82f6;
+  font-style: italic;
+}
+
+.attention-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+/* Risk Patterns */
+.portfolio-risk-pattern {
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  border-left: 3px solid;
+}
+
+.portfolio-risk-pattern:last-child {
+  margin-bottom: 0;
+}
+
+.portfolio-risk-pattern.high {
+  background: rgba(239, 68, 68, 0.04);
+  border-left-color: #ef4444;
+}
+
+.portfolio-risk-pattern.medium {
+  background: rgba(245, 158, 11, 0.04);
+  border-left-color: #f59e0b;
+}
+
+.portfolio-risk-pattern.low {
+  background: rgba(100, 116, 139, 0.04);
+  border-left-color: #64748b;
+}
+
+.pattern-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.pattern-severity {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.portfolio-risk-pattern.high .pattern-severity {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.portfolio-risk-pattern.medium .pattern-severity {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.portfolio-risk-pattern.low .pattern-severity {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+.pattern-affected {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.pattern-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1d1d1f;
+  margin-bottom: 6px;
+}
+
+.pattern-mitigation {
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Resource Insights */
+.resource-assessment {
+  font-size: 14px;
+  color: #374151;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.resource-concerns,
+.resource-recs {
+  margin-bottom: 16px;
+}
+
+.resource-concerns:last-child,
+.resource-recs:last-child {
+  margin-bottom: 0;
+}
+
+.resource-concerns h4,
+.resource-recs h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.resource-concerns ul,
+.resource-recs ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.resource-concerns li,
+.resource-recs li {
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+/* Recommendations */
+.portfolio-recommendation {
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-left: 3px solid;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.portfolio-recommendation:last-child {
+  margin-bottom: 0;
+}
+
+.rec-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.rec-priority {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 8px;
+}
+
+.rec-category {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: capitalize;
+}
+
+.rec-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1d1d1f;
+  margin-bottom: 6px;
+}
+
+.rec-rationale {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.rec-impact {
+  font-size: 12px;
+  color: #374151;
+}
+
+.rec-impact strong {
+  color: #1d1d1f;
+}
+
+/* Projects List */
+.portfolio-projects {
+  padding: 20px 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.portfolio-projects h3 {
+  margin: 0 0 14px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.portfolio-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portfolio-project-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.portfolio-project-row:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.portfolio-project-row .project-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.portfolio-project-row .project-ref {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 8px;
+}
+
+.portfolio-project-row .project-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1d1d1f;
+}
+
+.portfolio-project-row .project-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portfolio-project-row .project-progress {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  min-width: 36px;
+  text-align: right;
+}
+
+.portfolio-project-row .project-health-bar {
+  width: 60px;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  opacity: 0.3;
+}
+
+.portfolio-project-row .project-health-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.portfolio-project-row .project-health-score {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d1d1f;
+  min-width: 28px;
+  text-align: right;
+}
+
+.portfolio-project-row svg:last-child {
+  color: #94a3b8;
+}
+
+/* Footer */
+.portfolio-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.portfolio-footer svg:first-child {
+  color: #3b82f6;
+}
+
+.portfolio-timestamp {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+}

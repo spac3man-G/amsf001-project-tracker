@@ -1,11 +1,20 @@
 # AMSF001 Technical Specification - Frontend State Management
 
-**Document Version:** 5.9
+**Document Version:** 6.0
 **Created:** 11 December 2025
 **Last Updated:** 17 January 2026
-**Session:** WP-13 Component Commit & Templates
+**Session:** AI-01 AI Enablement Strategy
 **Author:** Claude AI (Anthropic)
 
+> **Version 6.0 Updates (17 January 2026):**
+> - Added Section 18: AI Enablement Components
+> - Documents ProjectForecastPanel (dashboard main panel)
+> - Documents AnomalyAlertsWidget (dashboard sidebar)
+> - Documents ApprovalAssistantWidget (dashboard sidebar, permission-gated)
+> - Documents AIDocumentGenerator (Reports page)
+> - Documents PortfolioInsightsPanel (Org Admin > Insights tab)
+> - All components follow advisory-only pattern (no auto-execution)
+>
 > **Version 5.9 Updates (17 January 2026):**
 > - Added Section 14.1b: Planning Integration UI
 > - Documents CommitToTrackerButton with dropdown (Commit All vs Select Components)
@@ -103,10 +112,11 @@
 11. [State Management Patterns](#11-state-management-patterns)
 12. [Page-Specific State Management](#12-page-specific-state-management)
 13. [New UI Components (December 2025)](#13-new-ui-components-december-2025) *(NEW)*
-14. [Planning & Estimator Tools](#14-planning--estimator-tools) *(NEW - December 2025)*
-15. [Evaluator Frontend](#15-evaluator-frontend) *(NEW - January 2026)*
-16. [Inline Editing Components](#16-inline-editing-components-january-2026) *(NEW - January 2026)*
-17. [Workflow Settings System](#17-workflow-settings-system) *(NEW - January 2026)*
+14. [Planning & Estimator Tools](#14-planning--estimator-tools) *(December 2025)*
+15. [Evaluator Frontend](#15-evaluator-frontend) *(January 2026)*
+16. [Inline Editing Components](#16-inline-editing-components-january-2026) *(January 2026)*
+17. [Workflow Settings System](#17-workflow-settings-system) *(January 2026)*
+18. [AI Enablement Components](#18-ai-enablement-components-january-2026) *(NEW - January 2026)*
 - [Appendix A: Role Display Configuration](#appendix-a-role-display-configuration)
 - [Appendix B: Context Import Patterns](#appendix-b-context-import-patterns)
 - [Document History](#document-history)
@@ -3796,6 +3806,295 @@ src/
 
 ---
 
+## 18. AI Enablement Components (January 2026)
+
+> **Added:** 17 January 2026 - AI Enablement Strategy Implementation
+>
+> This section documents the UI components for the AI Enablement features that provide proactive intelligence and automated analysis across the application.
+
+### 18.1 Design Principles
+
+All AI components follow the **advisory-only** pattern:
+- AI analyzes data and displays recommendations
+- No automatic data modifications
+- Human approval required for any actions
+- Clear "AI-generated" attribution
+- Auto-fetch on component mount
+
+### 18.2 Dashboard AI Components
+
+#### 18.2.1 ProjectForecastPanel
+
+**File:** `src/components/dashboard/ProjectForecastPanel.jsx`
+
+**Purpose:** Displays project health, completion forecasts, budget predictions, and schedule risk analysis.
+
+**API Endpoints:**
+- `/api/ai-forecast` - Project forecasting data
+- `/api/ai-schedule-risk` - Milestone risk analysis
+
+**State Management:**
+
+```javascript
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+const [forecast, setForecast] = useState(null);
+const [riskData, setRiskData] = useState(null);
+const [activeTab, setActiveTab] = useState('overview');  // overview | schedule | budget
+```
+
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `refreshTrigger` | `number` | Counter to trigger data refresh |
+
+**Features:**
+- Health score dial with color coding (0-100)
+- Completion date prediction with confidence interval
+- Budget forecast with variance indicators
+- Velocity trend chart
+- At-risk milestones list with contributing factors
+- Actionable recommendations
+
+**Layout:** Full-width panel in dashboard main content area.
+
+#### 18.2.2 AnomalyAlertsWidget
+
+**File:** `src/components/dashboard/AnomalyAlertsWidget.jsx`
+
+**Purpose:** Displays detected anomalies across project data (timesheets, expenses, milestones, deliverables, RAID).
+
+**API Endpoint:** `/api/ai-anomaly-detect`
+
+**State Management:**
+
+```javascript
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+const [alerts, setAlerts] = useState([]);
+const [expanded, setExpanded] = useState(false);
+```
+
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `refreshTrigger` | `number` | Counter to trigger data refresh |
+
+**Features:**
+- Collapsible header with alert count badge
+- Severity-based color coding (high/medium/low)
+- Click-through navigation to related entities
+- Suggested actions for each alert
+
+**Layout:** Sidebar widget (400px width).
+
+#### 18.2.3 ApprovalAssistantWidget
+
+**File:** `src/components/dashboard/ApprovalAssistantWidget.jsx`
+
+**Purpose:** AI-powered approval recommendations for users with approval permissions.
+
+**API Endpoint:** `/api/ai-approval-assist`
+
+**Conditional Rendering:**
+
+```javascript
+const { canApproveTimesheets, canApproveExpenses, canSignOffDeliverables } = usePermissions();
+const hasApprovalPermissions = canApproveTimesheets || canApproveExpenses || canSignOffDeliverables;
+
+if (!hasApprovalPermissions) return null;
+```
+
+**State Management:**
+
+```javascript
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+const [analysis, setAnalysis] = useState(null);
+const [expanded, setExpanded] = useState(false);
+```
+
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `refreshTrigger` | `number` | Counter to trigger data refresh |
+
+**Features:**
+- Summary cards (recommend approve / needs review)
+- Category breakdown (timesheets, expenses, deliverables)
+- Flagged items with reasons
+- AI insight message
+- Click-through to approval queues
+
+**Layout:** Sidebar widget below AnomalyAlertsWidget.
+
+### 18.3 Reports Page Component
+
+#### 18.3.1 AIDocumentGenerator
+
+**File:** `src/components/reports/AIDocumentGenerator.jsx`
+
+**Purpose:** Generate formatted project documents using AI analysis.
+
+**API Endpoint:** `/api/ai-document-generate`
+
+**State Management:**
+
+```javascript
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState(null);
+const [document, setDocument] = useState(null);
+const [selectedType, setSelectedType] = useState('status_report');
+const [showPreview, setShowPreview] = useState(false);
+```
+
+**Document Types:**
+
+| Type | Label | Description |
+|------|-------|-------------|
+| `status_report` | Status Report | Periodic project status update |
+| `project_summary` | Project Summary | High-level overview |
+| `milestone_report` | Milestone Report | Milestone completion details |
+| `raid_summary` | RAID Summary | Risks, assumptions, issues, decisions |
+| `handover_document` | Handover Document | Project handover pack |
+
+**Features:**
+- Document type selector
+- Generate button with loading state
+- Preview panel with formatted content
+- Copy to clipboard functionality
+- Download as Markdown
+
+**Layout:** Collapsible card in Reports page.
+
+### 18.4 Organisation Admin Component
+
+#### 18.4.1 PortfolioInsightsPanel
+
+**File:** `src/components/admin/PortfolioInsightsPanel.jsx`
+
+**Purpose:** Cross-project analytics and strategic insights for org admins.
+
+**API Endpoint:** `/api/ai-portfolio-insights`
+
+**Access Control:**
+- Requires `org_admin` or `supplier_pm` role at organisation level
+
+**State Management:**
+
+```javascript
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+const [insights, setInsights] = useState(null);
+const [expandedSections, setExpandedSections] = useState({});
+```
+
+**Features:**
+- Executive summary
+- Portfolio health score (0-100)
+- Key metrics dashboard (projects, budget, utilization)
+- Projects needing attention list
+- Risk patterns analysis
+- Resource utilization overview
+- Strategic recommendations with priority/effort ratings
+- Trend indicators (improving/stable/declining)
+
+**Integration:**
+
+```jsx
+// OrganisationAdmin.jsx - Insights tab
+{activeTab === 'insights' && (
+  <PortfolioInsightsPanel organisationId={organisation.id} />
+)}
+```
+
+**Layout:** Full tab content in Organisation Admin page.
+
+### 18.5 Dashboard Layout Integration
+
+The dashboard uses a grid layout for AI components:
+
+```jsx
+// DashboardContent.jsx
+<div className="dashboard-ai-insights">
+  <ProjectForecastPanel refreshTrigger={refreshTrigger} />
+  <div className="dashboard-ai-sidebar">
+    <AnomalyAlertsWidget refreshTrigger={refreshTrigger} />
+    <ApprovalAssistantWidget refreshTrigger={refreshTrigger} />
+  </div>
+</div>
+```
+
+```css
+/* Dashboard.css */
+.dashboard-ai-insights {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.dashboard-ai-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-ai-insights {
+    grid-template-columns: 1fr;
+  }
+}
+```
+
+### 18.6 Component Exports
+
+```javascript
+// src/components/dashboard/index.js
+export { default as AnomalyAlertsWidget } from './AnomalyAlertsWidget';
+export { default as ApprovalAssistantWidget } from './ApprovalAssistantWidget';
+export { default as ProjectForecastPanel } from './ProjectForecastPanel';
+
+// src/components/reports/index.js
+export { default as AIDocumentGenerator } from './AIDocumentGenerator';
+
+// src/components/admin/index.js
+export { default as PortfolioInsightsPanel } from './PortfolioInsightsPanel';
+```
+
+### 18.7 File Structure
+
+```
+src/components/
+├── dashboard/
+│   ├── AnomalyAlertsWidget.jsx
+│   ├── AnomalyAlertsWidget.css
+│   ├── ApprovalAssistantWidget.jsx
+│   ├── ApprovalAssistantWidget.css
+│   ├── ProjectForecastPanel.jsx
+│   ├── ProjectForecastPanel.css
+│   └── index.js
+├── reports/
+│   ├── AIDocumentGenerator.jsx
+│   ├── AIDocumentGenerator.css
+│   └── index.js
+└── admin/
+    ├── PortfolioInsightsPanel.jsx
+    ├── PortfolioInsightsPanel.css
+    └── index.js
+```
+
+### 18.8 Cross-References
+
+- **API Endpoints:** See TECH-SPEC-06-API-AI.md Section 11 (AI Enablement Services)
+- **Design Principles:** Advisory-only AI pattern (no auto-execution)
+- **Permissions:** Uses `usePermissions()` hook for access control
+
+---
+
 ## Appendix A: Role Display Configuration
 
 ```javascript
@@ -3890,3 +4189,6 @@ import {
 | 5.5 | 16 Jan 2026 | Claude AI | **Inline Editing Components**: Added Section 16 documenting InlineEditField, InlineChecklist, and DeliverableSidePanel components (Microsoft Planner-style UX) |
 | 5.6 | 16 Jan 2026 | Claude AI | **Workflow Settings System**: Added Section 17 documenting useProjectSettings, useWorkflowApproval, useWorkflowFeatures hooks and settings UI components (CollapsibleSection, ToggleSwitch, SettingRow, TemplateSelector, WorkflowSettingsTab) |
 | 5.7 | 16 Jan 2026 | Claude AI | **Permission Hook Integration (WP-07)**: Updated usePermissions v5.1 with workflow settings utilities. Updated entity-specific hooks (useMilestonePermissions, useTimesheetPermissions, useExpensePermissions) to v2.1 with settings-aware approval checks |
+| 5.8 | 16 Jan 2026 | Claude AI | **ContextMenu Component (WP-10)**: Added Section 16.4 documenting reusable right-click context menu with portal rendering and useContextMenu hook |
+| 5.9 | 17 Jan 2026 | Claude AI | **Planning Integration UI (WP-13)**: Added Section 14.1b documenting CommitToTrackerButton, CommitComponentsModal, SaveAsTemplateModal, ImportTemplateModal, TemplateManageModal |
+| 6.0 | 17 Jan 2026 | Claude AI | **AI Enablement Components (AI-01)**: Added Section 18 documenting ProjectForecastPanel, AnomalyAlertsWidget, ApprovalAssistantWidget, AIDocumentGenerator, PortfolioInsightsPanel. All components follow advisory-only pattern |

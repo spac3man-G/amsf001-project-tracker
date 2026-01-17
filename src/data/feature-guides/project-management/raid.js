@@ -22,6 +22,7 @@ const raidGuide = {
         'Click the "New Item" button and select "Risk"',
         'Enter a clear title describing the potential risk',
         'Provide a detailed description of what could happen',
+        '(Optional) Click "AI Suggest Category" to get AI-powered recommendations for category, severity, and probability',
         'Select the probability (likelihood) of occurrence',
         'Select the impact (severity) if the risk occurs',
         'Assign an owner responsible for monitoring this risk',
@@ -33,9 +34,31 @@ const raidGuide = {
         'Use the risk matrix to determine overall risk score',
         'Assign owners who can actually influence the risk',
         'Document mitigation actions, not just the risk itself',
-        'Review risks regularly in status meetings'
+        'Review risks regularly in status meetings',
+        'Use AI suggestions as a starting point - always verify the recommendation'
       ],
       videoUrl: null
+    },
+    useAISuggestion: {
+      title: 'Using AI Suggestions for RAID Items',
+      steps: [
+        'Start creating a new RAID item by clicking "New Item"',
+        'Enter a title and description with enough detail (at least 10 characters)',
+        'Click the "AI Suggest Category" button (with sparkles icon)',
+        'Wait for the AI to analyse your text (usually 2-5 seconds)',
+        'Review the AI suggestion which includes: recommended category, severity, probability, and rationale',
+        'Click "Apply Suggestion" to use the AI recommendations',
+        'Review and adjust the applied values as needed - AI suggestions are starting points, not final answers',
+        'Complete the remaining fields and save the item'
+      ],
+      tips: [
+        'AI suggestions work best with descriptive text - the more detail you provide, the better the suggestion',
+        'The AI shows a confidence percentage - higher confidence means more certainty',
+        'AI can distinguish between Risks (potential future problems) and Issues (current problems)',
+        'If the AI suggestion seems wrong, you can ignore it and set values manually',
+        'AI suggestions are advisory only - always verify before saving',
+        'The AI may also suggest a recommended owner role based on the item type'
+      ]
     },
     createIssue: {
       title: 'Creating an Issue',
@@ -621,10 +644,18 @@ const raidGuide = {
     {
       question: 'How do Dependencies differ from Risks?',
       answer: 'Dependencies are things you need from others to proceed - they are known requirements. Risks are potential problems that might occur. A delayed dependency might become a risk (if it might be late) or an issue (if it is actually late).'
+    },
+    {
+      question: 'How does AI suggestion work for RAID items?',
+      answer: 'When creating a new RAID item, click "AI Suggest Category" after entering a title and description. The AI analyses your text and recommends: the most appropriate category (Risk, Assumption, Issue, or Dependency), severity level, probability (for risks), and explains its reasoning. Review the suggestion and click "Apply" to use it. AI suggestions are advisory only - always verify the recommendation before saving.'
+    },
+    {
+      question: 'Why did the AI suggest a different category than I expected?',
+      answer: 'The AI distinguishes categories based on language patterns. For example, "might not deliver" suggests Risk (future uncertainty), while "has not delivered" suggests Issue (current problem). "We assume the API is ready" suggests Assumption. If you disagree with the AI, you can ignore the suggestion and set values manually.'
     }
   ],
   
-  related: ['milestones', 'deliverables', 'variations', 'workflows', 'project-settings']
+  related: ['milestones', 'deliverables', 'variations', 'workflows', 'project-settings', 'ai-intelligence']
 };
 
 export default raidGuide;

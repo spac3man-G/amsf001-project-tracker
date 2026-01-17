@@ -48,6 +48,7 @@ import { LoadingSpinner, ConfirmDialog } from '../components/common';
 import { formatDate, formatCurrency, formatDateTime } from '../lib/formatters';
 import VariationCertificateModal from '../components/variations/VariationCertificateModal';
 import CRDocumentModal from '../components/variations/CRDocumentModal';
+import { VariationImpactPanel } from '../components/variations';
 import './VariationDetail.css';
 
 export default function VariationDetail() {
@@ -497,6 +498,15 @@ export default function VariationDetail() {
 
           {/* Sidebar */}
           <div className="vd-sidebar">
+            {/* AI Impact Analysis - shows for submitted/pending/approved variations */}
+            {variation.status !== VARIATION_STATUS.DRAFT && variation.status !== VARIATION_STATUS.APPLIED && (
+              <VariationImpactPanel
+                variationId={variation.id}
+                projectId={projectId}
+                autoFetch={true}
+              />
+            )}
+
             {/* Signature Card */}
             <div className="vd-card">
               <div className="vd-card-header">

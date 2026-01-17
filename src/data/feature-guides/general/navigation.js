@@ -178,12 +178,17 @@ const navigationGuide = {
         { widget: 'Milestone Progress', description: 'Delivery status' },
         { widget: 'RAID Summary', description: 'Open risks and issues' },
         { widget: 'Recent Activity', description: 'Latest project activity' },
-        { widget: 'My Tasks', description: 'Work assigned to you' }
+        { widget: 'My Tasks', description: 'Work assigned to you' },
+        { widget: 'Project Forecast (AI)', description: 'AI-powered health score, completion predictions, and budget forecast' },
+        { widget: 'Anomaly Alerts (AI)', description: 'AI-detected issues and unusual patterns' },
+        { widget: 'Approval Assistant (AI)', description: 'AI recommendations for pending approvals (visible to approvers only)' }
       ],
       tips: [
         'Dashboard gives a quick project health check',
         'Widget badges show counts needing attention',
-        'Click through to take action on items'
+        'Click through to take action on items',
+        'AI widgets provide proactive intelligence and recommendations',
+        'AI features are advisory only - they suggest but do not act automatically'
       ]
     },
     breadcrumbs: {

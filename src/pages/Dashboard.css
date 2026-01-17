@@ -510,6 +510,28 @@
 
 
 /* -----------------------------------------------------------------------------
+   Dashboard AI Insights Section
+   ----------------------------------------------------------------------------- */
+.dashboard-ai-insights {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.dashboard-ai-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-ai-insights {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -----------------------------------------------------------------------------
    Dashboard Widgets Row (2-column layout for Billing & Finance)
    ----------------------------------------------------------------------------- */
 .dashboard-widgets-row {

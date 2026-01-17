@@ -41,6 +41,7 @@ const variationsGuide = {
       steps: [
         'Open the variation in draft status',
         'Click the "Impact Assessment" tab or section',
+        '(Recommended) Review the AI Impact Analysis panel for automated analysis',
         'For cost impact: enter the additional budget required (positive) or savings (negative)',
         'For timeline impact: enter days added (positive) or saved (negative)',
         'For scope impact: describe what is being added, changed, or removed',
@@ -53,7 +54,31 @@ const variationsGuide = {
         'Include all direct and indirect costs',
         'Consider resource availability when estimating timeline',
         'Document assumptions behind your estimates',
-        'Impact assessment is required before submission'
+        'Impact assessment is required before submission',
+        'Use AI Impact Analysis to identify dependencies you might have missed'
+      ]
+    },
+    useAIImpactAnalysis: {
+      title: 'Using AI Impact Analysis',
+      steps: [
+        'Open the variation detail page',
+        'Look for the "AI Impact Analysis" panel (with sparkles icon)',
+        'The analysis automatically evaluates: timeline impact, budget implications, scope changes, and dependencies',
+        'Review the overall impact assessment (minimal, moderate, significant, major)',
+        'Check the timeline section for affected milestones and predicted delays',
+        'Review the budget section for cost breakdown and variance',
+        'Check the dependencies section for downstream effects on other items',
+        'Review the AI recommendation (approve, approve with conditions, needs review, or reject)',
+        'Use the analysis to inform your impact assessment and decision'
+      ],
+      tips: [
+        'AI analysis considers all linked milestones and deliverables',
+        'The timeline predictions are based on current project velocity',
+        'Budget estimates include resource costs and historical patterns',
+        'Dependencies show items that may need adjustment if the variation is approved',
+        'AI recommendations are advisory - always apply business context',
+        'Click refresh to update the analysis after making changes',
+        'Conditions in "approve with conditions" identify specific items to address'
       ]
     },
     submit: {
@@ -589,10 +614,22 @@ const variationsGuide = {
     {
       question: 'What is the difference between withdrawing and rejecting?',
       answer: 'Withdrawal is done by the supplier before the customer decides - it returns the variation to draft for revision. Rejection is the customer\'s decision to decline the change request after review.'
+    },
+    {
+      question: 'What is the AI Impact Analysis?',
+      answer: 'AI Impact Analysis automatically evaluates the effects of a proposed variation on timeline, budget, scope, and dependencies. It identifies affected milestones, predicts delays, estimates costs, and provides a recommendation (approve, approve with conditions, needs review, or reject). It helps ensure all impacts are considered before approval.'
+    },
+    {
+      question: 'How accurate is the AI impact prediction?',
+      answer: 'AI predictions are based on current project data, historical patterns, and linked items. They are estimates intended as a starting point for your own assessment. Always apply your knowledge of the project context - the AI cannot account for all factors. Use it as a tool, not a final answer.'
+    },
+    {
+      question: 'What does "approve with conditions" mean?',
+      answer: 'When the AI recommends "approve with conditions", it has identified specific items that should be addressed before or during implementation. These might include resource availability issues, dependency conflicts, or risk mitigations. Review the conditions and decide if they can be satisfied.'
     }
   ],
   
-  related: ['milestones', 'deliverables', 'billing', 'workflows', 'project-settings']
+  related: ['milestones', 'deliverables', 'billing', 'workflows', 'project-settings', 'ai-intelligence']
 };
 
 export default variationsGuide;

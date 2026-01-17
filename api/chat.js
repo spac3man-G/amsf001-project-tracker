@@ -1,8 +1,11 @@
 // Vercel Edge Function for AI Chat Assistant
-// Version 3.4 - Model routing: Haiku for simple queries, Sonnet for complex
-// Uses Claude with function calling for database queries
+// Version 4.0 - AI Action Framework: Query + Execute capabilities
+// Uses Claude with function calling for database queries AND mutations
+// All mutations require explicit user confirmation before execution
 
 import { createClient } from '@supabase/supabase-js';
+import { ACTION_TOOLS } from './lib/ai-action-schemas.js';
+import { executeAction, isActionTool } from './lib/ai-actions.js';
 
 export const config = {
   runtime: 'edge',
@@ -36,9 +39,14 @@ const supabase = {
 // COST MONITORING - Token Usage Logging
 // ============================================
 
-// Claude pricing (per 1M tokens, as of Dec 2024)
+// Claude pricing (per 1M tokens, as of Jan 2026)
 const TOKEN_COSTS = {
-  // Sonnet - used for complex queries with tool use
+  // Opus 4.5 - used for complex queries with tool use (highest quality)
+  opus: {
+    input: 15.00,
+    output: 75.00,
+  },
+  // Sonnet - kept for reference/fallback
   sonnet: {
     input: 3.00,
     output: 15.00,
@@ -54,6 +62,7 @@ const TOKEN_COSTS = {
 const MODELS = {
   HAIKU: 'claude-haiku-4-5-20250929',
   SONNET: 'claude-sonnet-4-5-20250929',
+  OPUS: 'claude-opus-4-5-20251101',
 };
 
 // In-memory usage stats (resets on cold start)
@@ -63,20 +72,20 @@ const usageStats = {
   totalOutputTokens: 0,
   estimatedCostUSD: 0,
   haikuRequests: 0,
-  sonnetRequests: 0,
+  opusRequests: 0,
   startedAt: new Date().toISOString(),
   recentRequests: [], // Last 100 requests for analysis
 };
 
-function logTokenUsage(usage, userId, toolsUsed, model = 'sonnet') {
+function logTokenUsage(usage, userId, toolsUsed, model = 'opus') {
   if (!usage) return;
-  
+
   const inputTokens = usage.input_tokens || 0;
   const outputTokens = usage.output_tokens || 0;
-  const costs = TOKEN_COSTS[model] || TOKEN_COSTS.sonnet;
-  const costUSD = (inputTokens * costs.input / 1000000) + 
+  const costs = TOKEN_COSTS[model] || TOKEN_COSTS.opus;
+  const costUSD = (inputTokens * costs.input / 1000000) +
                   (outputTokens * costs.output / 1000000);
-  
+
   // Update totals
   usageStats.totalRequests++;
   usageStats.totalInputTokens += inputTokens;
@@ -85,7 +94,7 @@ function logTokenUsage(usage, userId, toolsUsed, model = 'sonnet') {
   if (model === 'haiku') {
     usageStats.haikuRequests++;
   } else {
-    usageStats.sonnetRequests++;
+    usageStats.opusRequests++;
   }
   
   // Track recent requests (keep last 100)
@@ -259,8 +268,22 @@ function getUserFriendlyError(error, toolName) {
     getOrganisationSummary: 'fetch organisation summary',
     // Segment 13: Feature Guide
     getFeatureGuide: 'retrieve feature guide',
+    // Segment 14: Action Tools (v4.0)
+    submitTimesheet: 'submit timesheet',
+    submitAllTimesheets: 'submit timesheets',
+    submitExpense: 'submit expense',
+    submitAllExpenses: 'submit expenses',
+    updateMilestoneStatus: 'update milestone status',
+    updateMilestoneProgress: 'update milestone progress',
+    updateDeliverableStatus: 'update deliverable status',
+    completeTask: 'complete task',
+    updateTaskProgress: 'update task progress',
+    reassignTask: 'reassign task',
+    updateRaidStatus: 'update RAID item status',
+    resolveRaidItem: 'resolve RAID item',
+    assignRaidOwner: 'assign RAID item owner',
   };
-  
+
   const action = toolContext[toolName] || 'complete your request';
   
   // Log actual error for debugging
@@ -1114,7 +1137,13 @@ const TOOLS = [
       },
       required: ["feature"]
     }
-  }
+  },
+
+  // ==========================================
+  // ACTION TOOLS (v4.0 - AI Action Framework)
+  // These tools can modify data with user confirmation
+  // ==========================================
+  ...ACTION_TOOLS,
 ];
 
 
@@ -3092,7 +3121,24 @@ async function executeTool(toolName, toolInput, context) {
       // Segment 13: Feature Guide
       case 'getFeatureGuide':
         return await executeGetFeatureGuide(toolInput, context);
+
+      // Segment 14: Action Tools (v4.0 - AI Action Framework)
+      // These tools can modify data with user confirmation
       default:
+        // Check if this is an action tool
+        if (isActionTool(toolName)) {
+          // Build action context from existing context
+          const actionContext = {
+            userId: context.userContext?.id,
+            projectId: context.projectId,
+            role: context.userContext?.role,
+            resourceId: context.userContext?.linkedResourceId,
+          };
+
+          // Execute the action
+          return await executeAction(toolName, supabase, toolInput, actionContext);
+        }
+
         return { error: `Unknown tool: ${toolName}`, recoverable: false };
     }
   };
@@ -3163,7 +3209,7 @@ function shouldUseHaiku(message, prefetchedContext) {
     }
   }
   
-  // Default to Sonnet for safety (better responses for unknown queries)
+  // Default to Opus for safety (better responses for unknown queries)
   return false;
 }
 
@@ -3355,6 +3401,53 @@ You have access to detailed how-to guides for all application features via the *
 
 **Important:** Always use getFeatureGuide for procedural/how-to questions rather than guessing. The guides contain accurate step-by-step instructions, field explanations, workflow diagrams, and role-specific permissions.
 
+## Action Capability (v4.0)
+
+You can also **execute actions** on behalf of the user, not just query data. All actions require explicit confirmation before execution.
+
+### Available Actions
+
+| Category | Actions |
+|----------|---------|
+| Timesheets | submitTimesheet, submitAllTimesheets |
+| Expenses | submitExpense, submitAllExpenses |
+| Milestones | updateMilestoneStatus, updateMilestoneProgress |
+| Deliverables | updateDeliverableStatus |
+| Tasks | completeTask, updateTaskProgress, reassignTask |
+| RAID | updateRaidStatus, resolveRaidItem, assignRaidOwner |
+
+### Action Workflow
+
+1. **User Request**: User says something like "submit my timesheets" or "mark milestone X as done"
+2. **Confirmation First**: Call the action tool WITHOUT the \`confirmed\` parameter (or set it to false)
+3. **Show Preview**: The tool returns a preview of what will happen - show this to the user
+4. **Wait for Confirmation**: Only after user explicitly says "yes", "confirm", "do it", etc.
+5. **Execute**: Call the same action tool again WITH \`confirmed: true\`
+6. **Report Result**: Tell the user what was done
+
+### Example Flow
+
+User: "Submit all my timesheets for this week"
+1. Call submitAllTimesheets({ dateRange: "thisWeek" }) - returns preview
+2. Show: "I found 3 timesheets totaling 24 hours. Submit them for approval?"
+3. User: "Yes"
+4. Call submitAllTimesheets({ dateRange: "thisWeek", confirmed: true }) - executes
+5. Show: "Done! 3 timesheets submitted for approval."
+
+### CRITICAL: Confirmation Rules
+
+- **NEVER** set \`confirmed: true\` on first call - always show preview first
+- **ONLY** set \`confirmed: true\` after user explicitly confirms (says yes, confirm, ok, do it, etc.)
+- If user says "no", "cancel", "wait", etc. - do NOT execute
+- If preview shows an error, inform the user and suggest alternatives
+- Permission errors mean the user cannot perform this action with their role
+
+### Action Error Handling
+
+- If tool returns \`{ error: "..." }\` - show error message, don't retry
+- If tool returns \`{ requiresConfirmation: true, preview: "..." }\` - show preview, wait for confirmation
+- If tool returns \`{ success: true, message: "..." }\` - show success message
+
 ## Response Guidelines
 1. Be concise and helpful
 2. Use UK date format (DD/MM/YYYY) and GBP (£)
@@ -3364,7 +3457,8 @@ You have access to detailed how-to guides for all application features via the *
 6. For "what do I need to do" - check pending actions first
 7. Offer to drill down when appropriate
 8. Don't repeat tool results verbatim - synthesise into helpful responses
-9. For how-to questions, always use getFeatureGuide first`;
+9. For how-to questions, always use getFeatureGuide first
+10. For action requests, always show preview first and wait for explicit confirmation`;
 
   return prompt;
 }
@@ -3487,8 +3581,8 @@ export default async function handler(req) {
       });
 
       if (!response.ok) {
-        console.warn('[Chat] Haiku failed, falling back to Sonnet');
-        // Fall through to Sonnet path below
+        console.warn('[Chat] Haiku failed, falling back to Opus');
+        // Fall through to Opus path below
       } else {
         const data = await response.json();
         const textContent = data.content.find(block => block.type === 'text');
@@ -3513,15 +3607,15 @@ export default async function handler(req) {
       }
     }
 
-    // STANDARD PATH: Use Sonnet with tools
+    // STANDARD PATH: Use Opus 4.5 with tools (highest quality for complex queries)
     // Build system prompt (includes pre-fetched data if available)
     const systemPrompt = buildSystemPrompt(context);
-    
+
     // Log if we have pre-fetched context
     if (prefetchedContext) {
-      console.log('[Chat] Using Sonnet with pre-fetched context and tools');
+      console.log('[Chat] Using Opus 4.5 with pre-fetched context and tools');
     } else {
-      console.log('[Chat] Using Sonnet with tools (no pre-fetched context)');
+      console.log('[Chat] Using Opus 4.5 with tools (no pre-fetched context)');
     }
 
     // Initial API call with tools
@@ -3542,8 +3636,8 @@ export default async function handler(req) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: MODELS.SONNET,
-          max_tokens: 2048,
+          model: MODELS.OPUS,
+          max_tokens: 4096,
           system: systemPrompt,
           tools: TOOLS,
           messages: apiMessages,
@@ -3626,14 +3720,14 @@ export default async function handler(req) {
     const responseText = textContent?.text || 'I apologize, but I was unable to generate a response.';
 
     // Log token usage for cost monitoring
-    logTokenUsage(finalResponse.usage, userId, iterations > 1, 'sonnet');
+    logTokenUsage(finalResponse.usage, userId, iterations > 1, 'opus');
 
     return new Response(JSON.stringify({
       message: responseText,
       usage: finalResponse.usage,
       toolsUsed: iterations > 1,
       cached: false,
-      model: 'sonnet',
+      model: 'opus',
     }), {
       status: 200,
       headers: { 

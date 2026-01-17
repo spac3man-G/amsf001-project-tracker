@@ -27,6 +27,7 @@ import {
 import InlineEditField from '../common/InlineEditField';
 import InlineChecklist from '../common/InlineChecklist';
 import { DualSignature, SignatureComplete } from '../common/SignatureBox';
+import QualityAssessmentPanel from './QualityAssessmentPanel';
 
 import {
   DELIVERABLE_STATUS,
@@ -536,6 +537,21 @@ export default function DeliverableSidePanel({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* AI Quality Assessment - Shows for submitted/review complete items */}
+        {(deliverable.status === DELIVERABLE_STATUS.SUBMITTED_FOR_REVIEW ||
+          deliverable.status === DELIVERABLE_STATUS.REVIEW_COMPLETE ||
+          showSignOffSection) && (
+          <div className="side-panel-section side-panel-ai-section">
+            <QualityAssessmentPanel
+              deliverableId={deliverable.id}
+              projectId={projectId}
+              deliverableName={deliverable.name}
+              compact={false}
+              autoFetch={true}
+            />
           </div>
         )}
 

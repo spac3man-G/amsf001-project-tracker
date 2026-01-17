@@ -23,6 +23,7 @@ export { default as SectionList } from './SectionList';
 export { default as SectionConfigModal } from './SectionConfigModal';
 export { default as ReportAIAssistant } from './ReportAIAssistant';
 export { default as ReportPreview } from './ReportPreview';
+export { default as AIDocumentGenerator } from './AIDocumentGenerator';
 
 // Config field components
 export {

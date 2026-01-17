@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
-import { ReportBuilderWizard } from '../components/reports';
+import { ReportBuilderWizard, AIDocumentGenerator } from '../components/reports';
 import { reportTemplatesService } from '../services/reportTemplates.service';
 import { DEFAULT_REPORT_TEMPLATES } from '../lib/defaultReportTemplates';
 import { LoadingSpinner } from '../components/common';
@@ -328,10 +328,13 @@ export default function Reports() {
       <div className="reports-content">
         <div className="reports-main">
           {/* Quick Start */}
-          <QuickStartSection 
+          <QuickStartSection
             onOpenWizard={handleOpenWizard}
             onSelectTemplate={handleSelectTemplate}
           />
+
+          {/* AI Document Generator */}
+          <AIDocumentGenerator />
 
           {/* Templates */}
           <TemplatesSection
