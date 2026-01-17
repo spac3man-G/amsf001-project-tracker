@@ -62,6 +62,69 @@ See `audit/SECURITY-AUDIT-REMEDIATION-ROADMAP.md` for the complete prioritized a
 
 ---
 
+## RESUMING UAT TESTING (Session 1 Paused - 17 January 2026)
+
+**Status**: PAUSED - Part 1 Complete, Part 2 Started
+
+### Quick Resume
+
+When user says **"Continue UAT"** or **"Resume UAT testing"**:
+
+1. Read `docs/UAT-SESSION-STATE.json` for current state
+2. Display progress dashboard
+3. **FIRST ACTION**: Verify the "Create New Organisation" feature works (see below)
+4. Then continue with UAT-02-01-001
+
+### Current Progress
+
+| Part | Title | Status |
+|------|-------|--------|
+| Part 1 | Getting Started | **COMPLETE** - 8 passed, 3 failed, 2 skipped |
+| Part 2 | Organisation Setup | Started - Paused at UAT-02-01-001 |
+| Part 3-7 | Remaining | Not started |
+
+**Overall:** 13/190 checkpoints complete
+
+### Pending Verification
+
+A new feature was implemented during testing and deployment was in progress:
+
+**"Create New Organisation" dropdown option**
+- Location: Organisation switcher dropdown (top-left corner)
+- Only visible to users with `supplier_pm` role
+- Creates organisation and adds user as Supplier PM
+
+**To verify:**
+1. Log in as a Supplier PM user
+2. Click the organisation dropdown in the header
+3. Look for "Create New Organisation" option at bottom
+4. Test creating a new organisation
+
+**Files modified:**
+- `src/components/OrganisationSwitcher.jsx` (v1.2) - Added create org feature
+- `src/services/organisation.service.js` - Added `createWithSupplierPM()` method
+
+### Key Discoveries from Session 1
+
+| ID | Type | Description |
+|----|------|-------------|
+| DC-001 | Doc Change | Search bar doesn't exist (AI Chat only) |
+| DC-002 | Doc Change | No logo in header |
+| DC-003 | Doc Change | No breadcrumbs (never implemented) |
+| IS-010 | **CRITICAL** | Magic Link Login with Domain Restrictions - Requires Workshop |
+
+See `docs/UAT-DISCOVERIES.md` for full details including IS-010 workshop requirements.
+
+### Failed Tests to Review
+
+| Checkpoint | Issue |
+|------------|-------|
+| BUG-001 to BUG-004 | Supplier PM access denied to Finance, Organisation, Project Roles pages |
+| BUG-005 | Search bar documented but doesn't exist |
+| BUG-006 | Breadcrumbs documented but don't exist |
+
+---
+
 ## User Manual & UAT Testing (17 January 2026)
 
 **Status**: READY FOR UAT - User Manual Complete, UAT System Created

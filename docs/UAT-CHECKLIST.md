@@ -37,7 +37,7 @@
 
 | Session | Date | Tester | Start Checkpoint | End Checkpoint | Passed | Failed | Discoveries |
 |---------|------|--------|------------------|----------------|--------|--------|-------------|
-| 1 | 2026-01-17 | Glenn Nickols | UAT-01-01-001 | _in progress_ | 6 | 2 | 8 |
+| 1 | 2026-01-17 | Glenn Nickols | UAT-01-01-001 | UAT-01-03-005 (paused) | 8 | 3 | 13 |
 
 ---
 
