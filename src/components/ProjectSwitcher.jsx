@@ -67,10 +67,13 @@ export default function ProjectSwitcher() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Don't render if user only has one project
-  if (!hasMultipleProjects || isLoading) {
+  // Don't render if there are no projects or still loading
+  if (availableProjects.length === 0 || isLoading) {
     return null;
   }
+
+  // For single project, show as non-clickable label (no dropdown needed)
+  const isSingleProject = availableProjects.length === 1;
 
   // Get role display config
   const getRoleConfig = (role) => {
@@ -100,7 +103,7 @@ export default function ProjectSwitcher() {
       {/* Trigger Button */}
       <button
         data-testid="project-switcher-button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => !isSingleProject && setIsOpen(!isOpen)}
         title={currentProject?.name || 'Select Project'}
         style={{
           display: 'flex',
@@ -110,7 +113,7 @@ export default function ProjectSwitcher() {
           backgroundColor: colors.light,
           border: `1px solid ${colors.border}`,
           borderRadius: '8px',
-          cursor: 'pointer',
+          cursor: isSingleProject ? 'default' : 'pointer',
           fontSize: '0.875rem',
           fontWeight: '600',
           color: brandColor,
@@ -119,8 +122,10 @@ export default function ProjectSwitcher() {
           justifyContent: 'space-between'
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = colors.lighter;
-          e.currentTarget.style.borderColor = colors.borderHover;
+          if (!isSingleProject) {
+            e.currentTarget.style.backgroundColor = colors.lighter;
+            e.currentTarget.style.borderColor = colors.borderHover;
+          }
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = colors.light;
@@ -129,23 +134,25 @@ export default function ProjectSwitcher() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FolderKanban size={16} style={{ color: brandColor }} />
-          <span style={{ 
-            maxWidth: '100px', 
-            overflow: 'hidden', 
-            textOverflow: 'ellipsis', 
-            whiteSpace: 'nowrap' 
+          <span style={{
+            maxWidth: '100px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}>
             {currentProject?.reference || 'Select'}
           </span>
         </div>
-        <ChevronDown 
-          size={16} 
-          style={{ 
-            color: brandColor,
-            transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
-            transition: 'transform 0.15s ease'
-          }} 
-        />
+        {!isSingleProject && (
+          <ChevronDown
+            size={16}
+            style={{
+              color: brandColor,
+              transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
+              transition: 'transform 0.15s ease'
+            }}
+          />
+        )}
       </button>
 
       {/* Dropdown Menu */}
