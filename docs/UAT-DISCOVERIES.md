@@ -3,8 +3,8 @@
 > **Project:** Tracker by Progressive
 > **UAT Version:** 1.0
 > **Created:** 17 January 2026
-> **Last Updated:** 17 January 2026
-> **Total Discoveries:** 13
+> **Last Updated:** 18 January 2026
+> **Total Discoveries:** 16
 
 ---
 
@@ -13,9 +13,9 @@
 | Category | Count | Status |
 |----------|-------|--------|
 | **New Features Discovered** | 0 | - |
-| **Documentation Updates Required** | 3 | 3 Pending |
-| **Improvement Suggestions** | 10 | 8 Backlog, 1 Under Review, 1 Requires Workshop |
-| **Total Discoveries** | 13 | - |
+| **Documentation Updates Required** | 4 | 4 Pending |
+| **Improvement Suggestions** | 12 | 10 Backlog, 1 Under Review, 1 Requires Workshop |
+| **Total Discoveries** | 16 | - |
 
 ---
 
@@ -38,6 +38,7 @@ Instances where application behavior differs from what is documented in the User
 | DC-001 | Search bar doesn't exist | "Search bar in top navigation" | No dedicated search bar - search via AI Chat Assistant only | Chapter 1.3 | Pending | Found at UAT-01-03-002 |
 | DC-002 | Logo doesn't exist | "Logo - Click to return to Dashboard" in header bar | No logo in header - no click-to-return-to-dashboard element | Chapter 1.3 | Pending | Found at UAT-01-03-003 |
 | DC-003 | Breadcrumbs don't exist | "Breadcrumbs show where you are: Home > Milestones > Phase 1" | No breadcrumb navigation - detail panels slide out from right side | Chapter 1.3 | Pending | Found at UAT-01-03-005 |
+| DC-004 | Logo upload not available on org creation | "Upload a logo image when creating organisation" | Create Organisation modal only has Name and URL Slug fields - no logo upload option | Chapter 2.1 | Pending | Found at UAT-02-01-001 |
 
 ---
 
@@ -57,6 +58,8 @@ Enhancement ideas and UX improvements identified during testing.
 | IS-008 | Full screen mode for AI Chat | AI Chat opens in small panel in bottom-right | Add option to expand AI Chat to full screen for longer conversations or complex queries | Medium | Backlog | Found at UAT-01-03-004 |
 | IS-009 | Review breadcrumbs requirement | Breadcrumbs don't exist (never implemented) | Review whether breadcrumbs are needed or if current navigation (sidebar + slide-out panels) is sufficient | Low | Backlog | Found at UAT-01-03-005 |
 | IS-010 | **WORKSHOP REQUIRED:** Magic Link Login & Domain Restrictions | Password-based login, no domain restrictions | **See detailed requirements below** - Magic link login with domain-based access control | **Critical** | Requires Workshop | Found at UAT-02-01-001 |
+| IS-011 | Empty organisation dashboard shows infinite skeleton loaders | Dashboard shows skeleton placeholders forever when org has no projects | Show an "empty state" with call-to-action (e.g., "Create your first project") instead of skeleton loaders | Medium | Backlog | Found at UAT-02-01-001 |
+| IS-012 | BUG-007 revealed constraint naming inconsistency | DB migration had mismatched constraint names | Review all migrations for constraint naming consistency; add migration testing | Low | Backlog | Fixed at UAT-02-01-001 |
 
 ### IS-006 Running Notes: Roles & Permissions Review
 
@@ -166,6 +169,7 @@ Track when discoveries were made.
 | Session | Date | Tester | New Features | Doc Changes | Improvements | Total |
 |---------|------|--------|--------------|-------------|--------------|-------|
 | 1 | 2026-01-17 | Glenn Nickols | 0 | 3 | 10 | 13 |
+| 2 | 2026-01-18 | Glenn Nickols | 0 | 1 | 2 | 3 |
 
 ---
 
@@ -188,6 +192,9 @@ Track when discoveries were made.
 | 2026-01-17 | 1 | Added | DC-003: Breadcrumbs documentation mismatch (breadcrumbs don't exist) |
 | 2026-01-17 | 1 | Added | IS-009: Review breadcrumbs requirement |
 | 2026-01-17 | 1 | Added | IS-010: **WORKSHOP** Magic Link Login & Domain-Based Access Control (Critical) |
+| 2026-01-18 | 2 | Added | DC-004: Logo upload not available on org creation |
+| 2026-01-18 | 2 | Added | IS-011: Empty organisation dashboard shows infinite skeleton loaders |
+| 2026-01-18 | 2 | Added | IS-012: BUG-007 revealed constraint naming inconsistency |
 
 ---
 
