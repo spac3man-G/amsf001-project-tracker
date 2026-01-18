@@ -2,7 +2,7 @@
 // Allows admins and supplier_pm to create new projects
 // Version 2.0 - Added organisation support for multi-tenancy
 // - Requires organisation_id in request
-// - Validates user has org_admin/org_owner role OR system admin
+// - Validates user has org_admin/org_owner/supplier_pm role OR system admin
 // - Projects are now scoped to organisations
 
 import { createClient } from '@supabase/supabase-js';
@@ -145,8 +145,8 @@ export default async function handler(req) {
           .eq('is_active', true)
           .single();
 
-        const canCreateProjects = membership && 
-          (membership.org_role === 'org_owner' || membership.org_role === 'org_admin');
+        const canCreateProjects = membership &&
+          (membership.org_role === 'org_owner' || membership.org_role === 'org_admin' || membership.org_role === 'supplier_pm');
 
         if (!canCreateProjects) {
           // Fallback: check if they're supplier_pm on any project in this org
@@ -303,7 +303,7 @@ export default async function handler(req) {
       .insert({
         user_id: requestingUser.id,
         project_id: newProject.id,
-        role: 'admin', // Creator gets admin role on the project
+        role: 'supplier_pm', // Creator gets supplier_pm role on the project (v3.0)
         is_default: false, // Don't change their default project
         created_at: new Date().toISOString(),
       });
