@@ -13,9 +13,9 @@
 | Category | Count | Status |
 |----------|-------|--------|
 | **New Features Discovered** | 0 | - |
-| **Documentation Updates Required** | 4 | 4 Pending |
-| **Improvement Suggestions** | 12 | 10 Backlog, 1 Under Review, 1 Requires Workshop |
-| **Total Discoveries** | 16 | - |
+| **Documentation Updates Required** | 5 | 5 Pending |
+| **Improvement Suggestions** | 13 | 10 Backlog, 2 Under Review, 1 Requires Workshop |
+| **Total Discoveries** | 18 | - |
 
 ---
 
@@ -39,6 +39,7 @@ Instances where application behavior differs from what is documented in the User
 | DC-002 | Logo doesn't exist | "Logo - Click to return to Dashboard" in header bar | No logo in header - no click-to-return-to-dashboard element | Chapter 1.3 | Pending | Found at UAT-01-03-003 |
 | DC-003 | Breadcrumbs don't exist | "Breadcrumbs show where you are: Home > Milestones > Phase 1" | No breadcrumb navigation - detail panels slide out from right side | Chapter 1.3 | Pending | Found at UAT-01-03-005 |
 | DC-004 | Logo upload not available on org creation | "Upload a logo image when creating organisation" | Create Organisation modal only has Name and URL Slug fields - no logo upload option | Chapter 2.1 | Pending | Found at UAT-02-01-001 |
+| DC-005 | Logo upload not implemented anywhere | Manual describes logo upload and display in header | Organisation settings only has: Display Name, Slug (read-only), Primary Color. No logo upload capability exists. | Chapter 2.1 | Pending | Found at UAT-02-01-003 |
 
 ---
 
@@ -60,6 +61,38 @@ Enhancement ideas and UX improvements identified during testing.
 | IS-010 | **WORKSHOP REQUIRED:** Magic Link Login & Domain Restrictions | Password-based login, no domain restrictions | **See detailed requirements below** - Magic link login with domain-based access control | **Critical** | Requires Workshop | Found at UAT-02-01-001 |
 | IS-011 | Empty organisation dashboard shows infinite skeleton loaders | Dashboard shows skeleton placeholders forever when org has no projects | Show an "empty state" with call-to-action (e.g., "Create your first project") instead of skeleton loaders | Medium | Backlog | Found at UAT-02-01-001 |
 | IS-012 | BUG-007 revealed constraint naming inconsistency | DB migration had mismatched constraint names | Review all migrations for constraint naming consistency; add migration testing | Low | Backlog | Fixed at UAT-02-01-001 |
+| IS-013 | **UAT order should follow real-world workflow** | Current order: Create Org → Invite Members → Create Project | Reorder to: Create Org → Create Project → Plan → Commit → THEN Invite Members. Team members need something to work on before being invited. | Medium | Under Review | Found at UAT-02-02-001 |
+
+### IS-013: Deferred Tests - Member Invitation
+
+> **Decision Date:** 18 January 2026
+> **Reason:** Real-world workflow creates project and plan BEFORE inviting team members
+
+**Deferred Checkpoints (to test AFTER Part 4 Planning is complete):**
+
+| Checkpoint | Test | Return After |
+|------------|------|--------------|
+| UAT-02-02-001 | Send invitation to new team member | Part 4 (Planning) |
+| UAT-02-02-002 | Verify invitation email received | Part 4 (Planning) |
+| UAT-02-02-003 | Accept invitation and join organisation | Part 4 (Planning) |
+| UAT-02-02-004 | View and filter organisation members | Part 4 (Planning) |
+| UAT-02-02-005 | Change a member's organisation role | Part 4 (Planning) |
+| UAT-02-02-006 | Remove a member from organisation | Part 4 (Planning) |
+| UAT-03-04-001 | Add existing org member to project | Part 4 (Planning) |
+| UAT-03-04-002 | Assign project role to team member | Part 4 (Planning) |
+| UAT-03-04-003 | View project team members | Part 4 (Planning) |
+| UAT-03-04-004 | Change member's project role | Part 4 (Planning) |
+| UAT-03-04-005 | Remove member from project | Part 4 (Planning) |
+
+**Revised UAT Flow:**
+1. ~~Part 1~~ ✓ Complete
+2. Part 2.1 ✓ → 2.3 → 2.4 (skip 2.2)
+3. Part 3.1 → 3.2 → 3.3 → 3.5 (skip 3.4)
+4. Part 4 (all)
+5. **RETURN:** Part 2.2 + Part 3.4 (Member tests)
+6. Part 5, 6, 7
+
+---
 
 ### IS-006 Running Notes: Roles & Permissions Review
 

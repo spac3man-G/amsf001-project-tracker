@@ -7,13 +7,15 @@
   "discoveriesFile": "docs/UAT-DISCOVERIES.md",
   "totalCheckpoints": 190,
   "currentSession": 2,
-  "lastCheckpoint": "UAT-02-01-001",
-  "nextCheckpoint": "UAT-02-01-002",
+  "lastCheckpoint": "UAT-02-01-004",
+  "nextCheckpoint": "UAT-02-03-001",
+  "deferredCheckpoints": ["UAT-02-02-001", "UAT-02-02-002", "UAT-02-02-003", "UAT-02-02-004", "UAT-02-02-005", "UAT-02-02-006", "UAT-03-04-001", "UAT-03-04-002", "UAT-03-04-003", "UAT-03-04-004", "UAT-03-04-005"],
+  "deferredReason": "IS-013: Testing member invitation after project/planning setup (real-world workflow)",
   "summary": {
-    "notTested": 176,
-    "passed": 9,
+    "notTested": 173,
+    "passed": 11,
     "failed": 3,
-    "skipped": 2
+    "skipped": 3
   },
   "partProgress": {
     "part1": {
@@ -26,9 +28,10 @@
     "part2": {
       "title": "Organisation Setup",
       "total": 18,
-      "completed": 1,
-      "passed": 1,
-      "failed": 0
+      "completed": 4,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 1
     },
     "part3": {
       "title": "Project Creation",
@@ -85,9 +88,9 @@
       "tester": "Glenn Nickols",
       "startCheckpoint": "UAT-02-01-001",
       "endCheckpoint": null,
-      "passed": 1,
+      "passed": 4,
       "failed": 0,
-      "discoveries": 3,
+      "discoveries": 4,
       "status": "in_progress",
       "pauseNotes": null
     }
@@ -225,15 +228,15 @@
     "UAT-01-03-004": { "status": "passed", "testedBy": "Glenn Nickols", "date": "2026-01-17", "result": "pass", "discoveries": ["IS-008"] },
     "UAT-01-03-005": { "status": "failed", "testedBy": "Glenn Nickols", "date": "2026-01-17", "result": "fail", "bugs": ["BUG-006"], "discoveries": ["DC-003", "IS-009"] },
     "UAT-02-01-001": { "status": "passed", "testedBy": "Glenn Nickols", "date": "2026-01-18", "result": "pass", "notes": "Org creation works. DC-004: No logo upload. IS-011: Empty org shows skeleton loaders forever." },
-    "UAT-02-01-002": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
-    "UAT-02-01-003": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
-    "UAT-02-01-004": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
-    "UAT-02-02-001": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
-    "UAT-02-02-002": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
-    "UAT-02-02-003": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
-    "UAT-02-02-004": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
-    "UAT-02-02-005": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
-    "UAT-02-02-006": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
+    "UAT-02-01-002": { "status": "passed", "testedBy": "Glenn Nickols", "date": "2026-01-18", "result": "pass" },
+    "UAT-02-01-003": { "status": "skipped", "testedBy": "Glenn Nickols", "date": "2026-01-18", "result": "skip", "notes": "Feature not implemented. DC-005: Logo upload doesn't exist anywhere - only Display Name, Slug, Primary Color available." },
+    "UAT-02-01-004": { "status": "passed", "testedBy": "Glenn Nickols", "date": "2026-01-18", "result": "pass" },
+    "UAT-02-02-001": { "status": "deferred", "testedBy": null, "date": "2026-01-18", "result": null, "notes": "Deferred per IS-013 - test after Part 4 Planning" },
+    "UAT-02-02-002": { "status": "deferred", "testedBy": null, "date": "2026-01-18", "result": null, "notes": "Deferred per IS-013" },
+    "UAT-02-02-003": { "status": "deferred", "testedBy": null, "date": "2026-01-18", "result": null, "notes": "Deferred per IS-013" },
+    "UAT-02-02-004": { "status": "deferred", "testedBy": null, "date": "2026-01-18", "result": null, "notes": "Deferred per IS-013" },
+    "UAT-02-02-005": { "status": "deferred", "testedBy": null, "date": "2026-01-18", "result": null, "notes": "Deferred per IS-013" },
+    "UAT-02-02-006": { "status": "deferred", "testedBy": null, "date": "2026-01-18", "result": null, "notes": "Deferred per IS-013" },
     "UAT-02-03-001": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
     "UAT-02-03-002": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
     "UAT-02-03-003": { "status": "not_tested", "testedBy": null, "date": null, "result": null },
